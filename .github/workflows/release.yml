@@ -99,14 +99,14 @@ jobs:
       - name: Publish to npm
         if: inputs.dry-run == false
         run: |
-          # Remove any auth token from .npmrc so npm uses OIDC Trusted Publishing
-          npm config delete //registry.npmjs.org/:_authToken || true
+          # Overwrite .npmrc — remove _authToken so npm uses OIDC Trusted Publishing
+          echo "registry=https://registry.npmjs.org/" > "$NPM_CONFIG_USERCONFIG"
           npm publish --provenance --access public
 
       - name: Publish to npm (dry run)
         if: inputs.dry-run == true
         run: |
-          npm config delete //registry.npmjs.org/:_authToken || true
+          echo "registry=https://registry.npmjs.org/" > "$NPM_CONFIG_USERCONFIG"
           npm publish --provenance --access public --dry-run
 
       - name: Create GitHub Release
