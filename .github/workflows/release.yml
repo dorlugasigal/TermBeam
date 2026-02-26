@@ -70,14 +70,21 @@ jobs:
           DATE=$(date +%Y-%m-%d)
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [ -n "$LAST_TAG" ]; then
-            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s" --no-merges)
+            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"- %s" --no-merges)
           else
             COMMITS=$(git log --pretty=format:"- %s" --no-merges)
           fi
-          ENTRY="## [${NEW_VERSION}] - ${DATE}\n\n${COMMITS}\n"
           if [ -f CHANGELOG.md ]; then
-            sed -i "0,/^## /s//$(printf '%s\n\n' "${ENTRY}")## /" CHANGELOG.md 2>/dev/null || \
-            awk -v entry="$ENTRY" 'NR==1{print; print ""; print entry; next}1' CHANGELOG.md > CHANGELOG.tmp && mv CHANGELOG.tmp CHANGELOG.md
+            {
+              head -1 CHANGELOG.md
+              echo ""
+              echo "## [${NEW_VERSION}] - ${DATE}"
+              echo ""
+              echo "${COMMITS}"
+              echo ""
+              tail -n +2 CHANGELOG.md
+            } > CHANGELOG.tmp
+            mv CHANGELOG.tmp CHANGELOG.md
           fi
 
       - name: Commit, tag & push
