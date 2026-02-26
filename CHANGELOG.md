@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.3] - 2026-02-26
+
+- fix: rewrite CHANGELOG update to avoid sed/awk failures on Linux
+- fix: pin node-pty to 1.0.0 (1.1.0 has posix_spawnp bug)
+
 ## [0.0.2] - 2026-02-26
 
 - docs: update README with enhanced features, usage instructions, and screenshot guidelines
