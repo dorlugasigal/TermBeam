@@ -112,7 +112,10 @@ async function startTunnel(port, options = {}) {
     isPersisted = !!persisted;
 
     // Try to reuse persisted tunnel
+    let tunnelMode, tunnelExpiry;
     if (persisted) {
+      tunnelMode = 'persisted';
+      tunnelExpiry = '30 days';
       const saved = loadPersistedTunnel();
       if (saved && isTunnelValid(saved.tunnelId)) {
         tunnelId = saved.tunnelId;
@@ -121,14 +124,15 @@ async function startTunnel(port, options = {}) {
         if (saved) {
           console.log('[termbeam] Persisted tunnel expired, creating new one');
         }
-        const expiration = '30d';
-        const createOut = execSync(`"${devtunnelCmd}" create --expiration ${expiration} --json`, { encoding: 'utf-8' });
+        const createOut = execSync(`"${devtunnelCmd}" create --expiration 30d --json`, { encoding: 'utf-8' });
         const tunnelData = JSON.parse(createOut);
         tunnelId = tunnelData.tunnel.tunnelId;
         savePersistedTunnel(tunnelId);
         console.log(`[termbeam] Created new persisted tunnel ${tunnelId}`);
       }
     } else {
+      tunnelMode = 'ephemeral';
+      tunnelExpiry = '1 day';
       // Ephemeral tunnel — create fresh, will be deleted on shutdown
       const createOut = execSync(`"${devtunnelCmd}" create --expiration 1d --json`, { encoding: 'utf-8' });
       const tunnelData = JSON.parse(createOut);
@@ -159,7 +163,7 @@ async function startTunnel(port, options = {}) {
         const match = output.match(/(https:\/\/[^\s]+devtunnels\.ms[^\s]*)/);
         if (match) {
           clearTimeout(timeout);
-          resolve(match[1]);
+          resolve({ url: match[1], mode: tunnelMode, expiry: tunnelExpiry });
         }
       });
       hostProc.stderr.on('data', (data) => {

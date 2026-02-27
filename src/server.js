@@ -112,10 +112,12 @@ server.listen(config.port, config.host, async () => {
 
   let publicUrl = null;
   if (config.useTunnel) {
-    publicUrl = await startTunnel(config.port, { persisted: config.persistedTunnel });
-    if (publicUrl) {
+    const tunnel = await startTunnel(config.port, { persisted: config.persistedTunnel });
+    if (tunnel) {
+      publicUrl = tunnel.url;
       console.log('');
       console.log(`  🌐 Public:  ${publicUrl}`);
+      console.log(`  Tunnel:   ${tunnel.mode} (expires in ${tunnel.expiry})`);
     } else {
       console.log('');
       console.log('  ⚠️  Tunnel failed to start. Using LAN only.');
