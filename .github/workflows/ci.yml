@@ -56,11 +56,16 @@ jobs:
           elif (( $(echo "$COVERAGE >= 60" | bc -l) )); then COLOR="yellowgreen"
           elif (( $(echo "$COVERAGE >= 45" | bc -l) )); then COLOR="yellow"
           else COLOR="red"; fi
-          echo "{\"schemaVersion\":1,\"label\":\"coverage\",\"message\":\"${COVERAGE}%\",\"color\":\"${COLOR}\"}" > endpoint.json
+          echo "{\"schemaVersion\":1,\"label\":\"coverage\",\"message\":\"${COVERAGE}%\",\"color\":\"${COLOR}\"}" > /tmp/endpoint.json
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin coverage-data:coverage-data 2>/dev/null || git checkout --orphan coverage-data
-          git checkout coverage-data
+          if git fetch origin coverage-data 2>/dev/null; then
+            git checkout coverage-data
+          else
+            git checkout --orphan coverage-data
+            git rm -rf . 2>/dev/null || true
+          fi
+          cp /tmp/endpoint.json endpoint.json
           git add endpoint.json
           git commit -m "Update coverage badge to ${COVERAGE}%" || true
           git push origin coverage-data
