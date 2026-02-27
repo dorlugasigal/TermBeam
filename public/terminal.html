@@ -283,6 +283,28 @@
         overflow-y: hidden !important;
       }
 
+      #copy-toast {
+        position: fixed;
+        top: 56px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-8px);
+        background: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--border);
+        padding: 6px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s, transform 0.2s;
+        z-index: 200;
+      }
+      #copy-toast.visible {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
       #reconnect-overlay {
         display: none;
         position: fixed;
@@ -357,6 +379,7 @@
     </div>
 
     <div id="terminal-container"></div>
+    <div id="copy-toast">Copied!</div>
 
     <div id="key-bar">
       <button class="key-btn" data-key="&#x1b;[A" title="Previous command">↑<span class="hint">prev</span></button>
@@ -365,6 +388,8 @@
       <button class="key-btn" data-key="&#x1b;[C" title="Right">→</button>
       <button class="key-btn" data-key="&#x1b;[H" title="Home">Home</button>
       <button class="key-btn" data-key="&#x1b;[F" title="End">End</button>
+      <div class="key-sep"></div>
+      <button class="key-btn" id="paste-btn" title="Paste from clipboard">📋<span class="hint">paste</span></button>
       <div class="key-sep"></div>
       <button class="key-btn wide" data-key="&#x09;" title="Autocomplete">Tab</button>
       <div class="key-sep"></div>
@@ -591,6 +616,47 @@
         }
         document.getElementById('zoom-in').addEventListener('click', () => applyZoom(fontSize + 2));
         document.getElementById('zoom-out').addEventListener('click', () => applyZoom(fontSize - 2));
+
+        // Clipboard: copy on selection
+        function showToast(msg) {
+          const toast = document.getElementById('copy-toast');
+          toast.textContent = msg;
+          toast.classList.add('visible');
+          clearTimeout(toast._timer);
+          toast._timer = setTimeout(() => toast.classList.remove('visible'), 1500);
+        }
+
+        term.onSelectionChange(() => {
+          const sel = term.getSelection();
+          if (sel && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(sel).then(() => {
+              showToast('Copied!');
+            }).catch(() => {});
+          }
+        });
+
+        // Clipboard: paste button
+        document.getElementById('paste-btn').addEventListener('mousedown', (e) => {
+          e.preventDefault();
+        });
+        document.getElementById('paste-btn').addEventListener('click', () => {
+          if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText().then((text) => {
+              if (text && ws && ws.readyState === 1) {
+                ws.send(JSON.stringify({ type: 'input', data: text }));
+              }
+            }).catch(() => {});
+          }
+        });
+
+        // Clipboard: handle browser paste events
+        container.addEventListener('paste', (e) => {
+          e.preventDefault();
+          const text = e.clipboardData && e.clipboardData.getData('text');
+          if (text && ws && ws.readyState === 1) {
+            ws.send(JSON.stringify({ type: 'input', data: text }));
+          }
+        });
 
         function scheduleReconnect() {
           if (reconnectTimer) clearTimeout(reconnectTimer);
