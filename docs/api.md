@@ -76,11 +76,12 @@ Create a new session.
   "name": "My Session",
   "shell": "/bin/bash",
   "args": ["-l"],
-  "cwd": "/home/user"
+  "cwd": "/home/user",
+  "initialCommand": "htop"
 }
 ```
 
-All fields are optional.
+All fields are optional. If `initialCommand` is provided, it will be sent to the shell after startup.
 
 **Response:**
 
@@ -105,6 +106,22 @@ Kill and remove a session.
 
 ```json
 { "error": "not found" }
+```
+
+#### `GET /api/shells`
+
+List available shells on the host system.
+
+**Response:**
+
+```json
+{
+  "shells": [
+    { "name": "bash", "path": "/bin/bash" },
+    { "name": "zsh", "path": "/bin/zsh" }
+  ],
+  "default": "/bin/zsh"
+}
 ```
 
 ---
@@ -141,6 +158,26 @@ List subdirectories for the folder browser.
 Connect to `ws://host:port/ws`.
 
 ### Message Types (Client → Server)
+
+#### Authenticate
+
+If the server has a password set and the WebSocket connection wasn't authenticated via cookie, send an auth message first.
+
+```json
+{ "type": "auth", "password": "your-password" }
+```
+
+or with an existing token:
+
+```json
+{ "type": "auth", "token": "session-token" }
+```
+
+**Response:**
+
+```json
+{ "type": "auth_ok" }
+```
 
 #### Attach to Session
 

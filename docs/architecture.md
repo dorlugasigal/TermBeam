@@ -47,7 +47,7 @@ Factory function `createAuth(password)` returns an object with middleware, token
 
 ### `routes.js` — HTTP Routes
 
-Registers all Express routes: login page, auth API, session CRUD, directory browser, version endpoint.
+Registers all Express routes: login page, auth API, session CRUD, shell detection, directory browser, version endpoint.
 
 ### `websocket.js` — WebSocket Handler
 
@@ -70,6 +70,7 @@ Client (Phone Browser)
   │              │                     │
   │              ├─ /api/sessions      ├─ create/list/delete
   │              ├─ /api/auth          │
+  │              ├─ /api/shells        │
   │              └─ /api/dirs          │
   │                                    │
   └─ WebSocket ──► WS Handler ──► PTY Process
