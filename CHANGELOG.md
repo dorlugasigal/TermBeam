@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.0.9] - 2026-02-27
+
+- feat: implement process tree traversal for Windows to detect user shell
+- chore(release): v0.0.8
+- Fix/release token (#21)
+- Update token in release workflow to use GITHUB_TOKEN
+- fix: update token in release workflow to use RELEASE_TOKEN (#20)
+- Add dynamic coverage badge from main branch (#19)
+- Add dynamic coverage badge from main branch (#18)
+- docs: replace Codecov badge in README (#17)
+- fix: replace Codecov with instant inline coverage comments (#16)
+- test: add version module tests (#15)
+- docs: rewrite README, update API docs, add coverage to CI (#14)
+
 ## [0.0.8] - 2026-02-27
 
 - Fix/release token (#21)
