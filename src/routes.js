@@ -1,11 +1,15 @@
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const express = require('express');
 const { detectShells } = require('./shells');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
 function setupRoutes(app, { auth, sessions, config }) {
+  // Serve static files (manifest.json, sw.js, icons, etc.)
+  app.use(express.static(PUBLIC_DIR, { index: false }));
+
   // Login page
   app.get('/login', (_req, res) => {
     if (!auth.password) return res.redirect('/');
