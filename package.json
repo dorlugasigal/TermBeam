@@ -10,7 +10,7 @@
     "start": "node bin/termbeam.js",
     "dev": "node bin/termbeam.js --generate-password",
     "test": "node --test test/*.test.js",
-    "test:coverage": "c8 --reporter=text --reporter=lcov --reporter=html node --test --test-reporter=junit --test-reporter-destination=junit.xml --test-reporter=spec --test-reporter-destination=stdout test/*.test.js",
+    "test:coverage": "c8 --reporter=text --reporter=lcov --reporter=cobertura node --test --test-reporter=spec --test-reporter-destination=stdout test/*.test.js",
     "prepare": "husky",
     "format": "prettier --write .",
     "lint": "node --check src/*.js bin/*.js",

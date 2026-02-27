@@ -37,22 +37,22 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:coverage
-      - name: Install lcov
+      - name: Coverage Summary
         if: github.event_name == 'pull_request'
-        run: sudo apt-get install -y lcov
-      - name: Coverage Report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: coverage/cobertura-coverage.xml
+          badge: true
+          format: markdown
+          output: both
+          indicators: true
+          thresholds: '60 80'
+      - name: Post Coverage Comment
         if: github.event_name == 'pull_request'
-        uses: zgosalvez/github-actions-report-lcov@v4
+        uses: marocchino/sticky-pull-request-comment@v2
         with:
-          coverage-files: coverage/lcov.info
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          update-comment: true
-      - name: Upload Coverage HTML
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
+          recreate: true
+          path: code-coverage-results.md
 
   lint:
     name: Lint
