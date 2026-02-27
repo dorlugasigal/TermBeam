@@ -4,7 +4,7 @@
 
 [![npm version](https://img.shields.io/npm/v/termbeam.svg)](https://www.npmjs.com/package/termbeam)
 [![CI](https://github.com/dorlugasigal/TermBeam/actions/workflows/ci.yml/badge.svg)](https://github.com/dorlugasigal/TermBeam/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/dorlugasigal/TermBeam/graph/badge.svg)](https://codecov.io/gh/dorlugasigal/TermBeam)
+[![Coverage](https://img.shields.io/badge/coverage-check%20PR-blue)](https://github.com/dorlugasigal/TermBeam/pulls)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 TermBeam lets you access your terminal from a phone, tablet, or any browser — no SSH, no port forwarding, no config files. Run one command and scan the QR code.
