@@ -39,11 +39,17 @@ jobs:
       - run: npm run test:coverage
       - name: Coverage Report
         if: github.event_name == 'pull_request'
-        uses: davelosert/vitest-coverage-report-action@v2
+        uses: zgosalvez/github-actions-report-lcov@v4
         with:
-          json-summary-path: coverage/coverage-summary.json
-          json-final-path: coverage/coverage-final.json
-          file-coverage-mode: all
+          coverage-files: coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          update-comment: true
+      - name: Upload Coverage HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
 
   lint:
     name: Lint
