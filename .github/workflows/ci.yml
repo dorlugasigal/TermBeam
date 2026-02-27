@@ -39,11 +39,11 @@ jobs:
       - run: npm run test:coverage
       - name: Coverage Report
         if: github.event_name == 'pull_request'
-        uses: romeovs/lcov-reporter-action@v0.4.0
+        uses: davelosert/vitest-coverage-report-action@v2
         with:
-          lcov-file: coverage/lcov.info
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          delete-old-comments: true
+          json-summary-path: coverage/coverage-summary.json
+          json-final-path: coverage/coverage-final.json
+          file-coverage-mode: all
 
   lint:
     name: Lint
