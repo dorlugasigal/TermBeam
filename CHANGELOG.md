@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.7] - 2026-02-27
+
+- feat: persist DevTunnel ID for stable URLs across restarts (#13)
+- feat: add PWA support for home screen installation (#12)
+- feat: mobile clipboard integration (copy/paste) (#11)
+- docs: add guide for running TermBeam as a background service
+
 ## [0.0.6] - 2026-02-27
 
 - Enhance terminal UI with theme support and improved styling
