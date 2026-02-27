@@ -41,10 +41,12 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/lcov.info
-      - uses: codecov/test-results-action@v1
+      - uses: codecov/codecov-action@v5
         if: ${{ !cancelled() }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: junit.xml
+          flags: test-results
 
   lint:
     name: Lint
