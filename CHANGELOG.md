@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.8] - 2026-02-27
+
+- Add dynamic coverage badge from main branch (#19)
+- Add dynamic coverage badge from main branch (#18)
+- docs: replace Codecov badge in README (#17)
+- fix: replace Codecov with instant inline coverage comments (#16)
+- test: add version module tests (#15)
+- docs: rewrite README, update API docs, add coverage to CI (#14)
+
 ## [0.0.7] - 2026-02-27
 
 - feat: persist DevTunnel ID for stable URLs across restarts (#13)
