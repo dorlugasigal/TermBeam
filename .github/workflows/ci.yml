@@ -46,7 +46,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: junit.xml
-          flags: test-results
+          report-type: test_results
 
   lint:
     name: Lint
