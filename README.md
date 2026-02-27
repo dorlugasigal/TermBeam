@@ -12,63 +12,17 @@
 Access your terminal from your phone, tablet, or any browser.
 Multi-session, mobile-optimized, with touch controls.
 
-[Getting Started](#-quick-start) · [Screenshots](#-screenshots) · [Documentation](https://dorlugasigal.github.io/TermBeam/) · [Contributing](CONTRIBUTING.md)
+[Getting Started](#-quick-start) · [Demo](#-demo) · [Documentation](https://dorlugasigal.github.io/TermBeam/) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
 ---
 
-## 📸 Screenshots
+## 🎬 Demo
 
-<!--
-  To add screenshots:
-  1. Run TermBeam: npx termbeam --generate-password
-  2. Take screenshots on your phone/browser
-  3. Save images to docs/assets/screenshots/
-  4. Uncomment the img tags below and update filenames
+<!-- TODO: Add demo video/gif here -->
 
-  Recommended screenshots:
-  - session-manager.png  (main screen with session list)
-  - terminal.png         (active terminal session)
-  - folder-browser.png   (folder picker sheet)
-  - login.png            (password login screen)
-  - qr-code.png          (server startup with QR code in terminal)
--->
-
-<div align="center">
-<table>
-<tr>
-<td align="center"><strong>Session Manager</strong></td>
-<td align="center"><strong>Terminal</strong></td>
-<td align="center"><strong>Folder Browser</strong></td>
-</tr>
-<tr>
-<td>
-
-<!-- ![Session Manager](docs/assets/screenshots/session-manager.png) -->
-
-_Manage multiple terminal sessions with swipe-to-delete_
-
-</td>
-<td>
-
-<!-- ![Terminal](docs/assets/screenshots/terminal.png) -->
-
-_Full terminal with touch controls and Nerd Font rendering_
-
-</td>
-<td>
-
-<!-- ![Folder Browser](docs/assets/screenshots/folder-browser.png) -->
-
-_Visual directory picker for working directory_
-
-</td>
-</tr>
-</table>
-</div>
-
-> **💡 Screenshots coming soon!** Run `npx termbeam` and see for yourself.
+> **🎥 Demo video coming soon!** In the meantime, run `npx termbeam` and see for yourself.
 
 ## ✨ Features
 

@@ -76,13 +76,27 @@ server.listen(config.port, config.host, async () => {
     cwd: config.cwd,
   });
 
+  const lp = '\x1b[38;5;141m'; // light purple
+  const rs = '\x1b[0m'; // reset
   console.log('');
-  console.log('  ████████╗███████╗██████╗ ███╗   ███╗██████╗ ███████╗ █████╗ ███╗   ███╗');
-  console.log('  ╚══██╔══╝██╔════╝██╔══██╗████╗ ████║██╔══██╗██╔════╝██╔══██╗████╗ ████║');
-  console.log('     ██║   █████╗  ██████╔╝██╔████╔██║██████╔╝█████╗  ███████║██╔████╔██║');
-  console.log('     ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║██╔══██╗██╔══╝  ██╔══██║██║╚██╔╝██║');
-  console.log('     ██║   ███████╗██║  ██║██║ ╚═╝ ██║██████╔╝███████╗██║  ██║██║ ╚═╝ ██║');
-  console.log('     ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝');
+  console.log(
+    `${lp}  ████████╗███████╗██████╗ ███╗   ███╗██████╗ ███████╗ █████╗ ███╗   ███╗${rs}`,
+  );
+  console.log(
+    `${lp}  ╚══██╔══╝██╔════╝██╔══██╗████╗ ████║██╔══██╗██╔════╝██╔══██╗████╗ ████║${rs}`,
+  );
+  console.log(
+    `${lp}     ██║   █████╗  ██████╔╝██╔████╔██║██████╔╝█████╗  ███████║██╔████╔██║${rs}`,
+  );
+  console.log(
+    `${lp}     ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║██╔══██╗██╔══╝  ██╔══██║██║╚██╔╝██║${rs}`,
+  );
+  console.log(
+    `${lp}     ██║   ███████╗██║  ██║██║ ╚═╝ ██║██████╔╝███████╗██║  ██║██║ ╚═╝ ██║${rs}`,
+  );
+  console.log(
+    `${lp}     ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝${rs}`,
+  );
   console.log('');
   console.log(`  Beam your terminal to any device 📡  v${config.version}`);
   console.log('');
@@ -93,7 +107,8 @@ server.listen(config.port, config.host, async () => {
   }
   console.log(`  Shell:    ${config.shell}`);
   console.log(`  Session:  ${defaultId}`);
-  console.log(`  Auth:     ${config.password ? '🔒 password' : '🔓 none'}`);
+  const gn = '\x1b[38;5;114m'; // green
+  console.log(`  Auth:     ${config.password ? `${gn}🔒 password${rs}` : '🔓 none'}`);
 
   let publicUrl = null;
   if (config.useTunnel) {
@@ -117,6 +132,6 @@ server.listen(config.port, config.host, async () => {
   }
 
   console.log(`  Scan the QR code or open: ${qrUrl}`);
-  if (config.password) console.log(`  Password: ${config.password}`);
+  if (config.password) console.log(`  Password: ${gn}${config.password}${rs}`);
   console.log('');
 });
