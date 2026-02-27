@@ -10,6 +10,7 @@
     "start": "node bin/termbeam.js",
     "dev": "node bin/termbeam.js --generate-password",
     "test": "node --test test/*.test.js",
+    "test:coverage": "c8 --reporter=text --reporter=lcov node --test --test-reporter=junit --test-reporter-destination=junit.xml --test-reporter=spec --test-reporter-destination=stdout test/*.test.js",
     "prepare": "husky",
     "format": "prettier --write .",
     "lint": "node --check src/*.js bin/*.js",
@@ -62,6 +63,7 @@
     "ws": "^8.19.0"
   },
   "devDependencies": {
+    "c8": "^11.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "prettier": "^3.8.1"
