@@ -37,16 +37,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:coverage
-      - uses: codecov/codecov-action@v5
+      - name: Coverage Report
+        if: github.event_name == 'pull_request'
+        uses: davelosert/vitest-coverage-report-action@v2
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage/lcov.info
-      - uses: codecov/codecov-action@v5
-        if: ${{ !cancelled() }}
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: junit.xml
-          report_type: test_results
+          json-summary-path: coverage/coverage-summary.json
+          json-final-path: coverage/coverage-final.json
+          file-coverage-mode: all
 
   lint:
     name: Lint
