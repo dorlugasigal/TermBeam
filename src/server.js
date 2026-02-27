@@ -38,11 +38,17 @@ setupRoutes(app, { auth, sessions, config });
 setupWebSocket(wss, { auth, sessions });
 
 // --- Lifecycle ---
+let shuttingDown = false;
 function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
   console.log('\n[termbeam] Shutting down...');
   sessions.shutdown();
   cleanupTunnel();
-  process.exit(0);
+  server.close();
+  wss.close();
+  // Force exit after giving connections time to close
+  setTimeout(() => process.exit(0), 500).unref();
 }
 
 process.on('SIGINT', shutdown);
