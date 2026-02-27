@@ -6,7 +6,7 @@ class SessionManager {
     this.sessions = new Map();
   }
 
-  create({ name, shell, args = [], cwd }) {
+  create({ name, shell, args = [], cwd, initialCommand = null }) {
     const id = crypto.randomBytes(4).toString('hex');
     const ptyProcess = pty.spawn(shell, args, {
       name: 'xterm-256color',
@@ -15,6 +15,11 @@ class SessionManager {
       cwd,
       env: { ...process.env, TERM: 'xterm-256color' },
     });
+
+    // Send initial command once the shell is ready
+    if (initialCommand) {
+      setTimeout(() => ptyProcess.write(initialCommand + '\r'), 300);
+    }
 
     const session = {
       pty: ptyProcess,

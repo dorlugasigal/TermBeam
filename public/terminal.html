@@ -65,6 +65,11 @@
         align-items: center;
         gap: 8px;
       }
+      #status-bar .right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
       #back-btn {
         background: none;
         border: none;
@@ -75,6 +80,22 @@
       }
       #back-btn:active {
         color: #e0e0e0;
+      }
+      #stop-btn {
+        background: #e74c3c;
+        border: none;
+        color: white;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 4px 10px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      #stop-btn:active {
+        background: #c0392b;
       }
       #status-dot {
         width: 8px;
@@ -207,8 +228,11 @@
         <span id="status-dot"></span>
         <span id="session-name">…</span>
       </div>
-      <span id="status-text">Connecting…</span>
-      <span id="version-text" style="font-size: 11px; color: #555; margin-left: 8px"></span>
+      <div class="right">
+        <span id="status-text">Connecting…</span>
+        <span id="version-text" style="font-size: 11px; color: #555"></span>
+        <button id="stop-btn" title="Stop session">■ Stop</button>
+      </div>
     </div>
 
     <div id="terminal-container"></div>
@@ -435,6 +459,15 @@
         document.getElementById('reconnect-btn').addEventListener('click', () => {
           term.clear();
           connect();
+        });
+
+        // Stop session
+        document.getElementById('stop-btn').addEventListener('click', async () => {
+          if (!confirm('Stop this session? The process will be killed.')) return;
+          try {
+            await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+          } catch {}
+          location.href = '/';
         });
 
         // Tap terminal area to toggle keyboard (intentional user action)

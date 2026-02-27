@@ -231,8 +231,18 @@
         color: #e0e0e0;
         font-size: 15px;
         outline: none;
+        -webkit-appearance: none;
+        appearance: none;
       }
-      .modal input:focus {
+      .modal select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 32px;
+        cursor: pointer;
+      }
+      .modal input:focus,
+      .modal select:focus {
         border-color: #533483;
       }
       .modal-actions {
@@ -459,8 +469,12 @@
         <h2>New Session</h2>
         <label for="sess-name">Name</label>
         <input type="text" id="sess-name" placeholder="My Session" />
-        <label for="sess-shell">Shell / Command</label>
-        <input type="text" id="sess-shell" placeholder="/bin/zsh" />
+        <label for="sess-shell">Shell</label>
+        <select id="sess-shell">
+          <option value="">Loading shells…</option>
+        </select>
+        <label for="sess-cmd">Initial Command <span style="color:#666;font-weight:normal">(optional)</span></label>
+        <input type="text" id="sess-cmd" placeholder="e.g. copilot, htop, vim" />
         <label for="sess-cwd">Working Directory</label>
         <div class="cwd-picker">
           <input type="text" id="sess-cwd" placeholder="/Users/dorlugasigal" />
@@ -568,6 +582,7 @@
       }
 
       document.getElementById('new-session-btn').addEventListener('click', () => {
+        loadShells();
         modal.classList.add('visible');
       });
       document.getElementById('modal-cancel').addEventListener('click', () => {
@@ -581,11 +596,13 @@
         const name = document.getElementById('sess-name').value.trim();
         const shell = document.getElementById('sess-shell').value.trim();
         const cwd = document.getElementById('sess-cwd').value.trim();
+        const initialCommand = document.getElementById('sess-cmd').value.trim();
 
         const body = {};
         if (name) body.name = name;
         if (shell) body.shell = shell;
         if (cwd) body.cwd = cwd;
+        if (initialCommand) body.initialCommand = initialCommand;
 
         const res = await fetch('/api/sessions', {
           method: 'POST',
@@ -595,6 +612,30 @@
         const data = await res.json();
         location.href = data.url;
       });
+
+      // --- Shell detection ---
+      let shellsLoaded = false;
+      async function loadShells() {
+        if (shellsLoaded) return;
+        const shellSelect = document.getElementById('sess-shell');
+        try {
+          const res = await fetch('/api/shells');
+          const data = await res.json();
+          shellSelect.innerHTML = '';
+          for (const s of data.shells) {
+            const opt = document.createElement('option');
+            opt.value = s.cmd;
+            opt.textContent = `${s.name} (${s.cmd})`;
+            if (s.cmd === data.default || s.path === data.default) {
+              opt.selected = true;
+            }
+            shellSelect.appendChild(opt);
+          }
+          shellsLoaded = true;
+        } catch {
+          shellSelect.innerHTML = '<option value="">Could not detect shells</option>';
+        }
+      }
 
       // --- Swipe to delete ---
       async function deleteSession(id, e) {

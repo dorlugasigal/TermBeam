@@ -1,6 +1,7 @@
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const { detectShells } = require('./shells');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
@@ -46,14 +47,21 @@ function setupRoutes(app, { auth, sessions, config }) {
   });
 
   app.post('/api/sessions', auth.middleware, (req, res) => {
-    const { name, shell, args: shellArgs, cwd } = req.body || {};
+    const { name, shell, args: shellArgs, cwd, initialCommand } = req.body || {};
     const id = sessions.create({
       name: name || `Session ${sessions.sessions.size + 1}`,
       shell: shell || config.defaultShell,
       args: shellArgs || [],
       cwd: cwd || config.cwd,
+      initialCommand: initialCommand || null,
     });
     res.json({ id, url: `/terminal?id=${id}` });
+  });
+
+  // Available shells
+  app.get('/api/shells', auth.middleware, (_req, res) => {
+    const shells = detectShells();
+    res.json({ shells, default: config.defaultShell });
   });
 
   app.delete('/api/sessions/:id', auth.middleware, (req, res) => {

@@ -65,6 +65,12 @@ termbeam --password mysecret
 termbeam --tunnel --generate-password
 ```
 
+> Requires the [Azure Dev Tunnels CLI](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started):
+>
+> - **Windows:** `winget install Microsoft.devtunnel`
+> - **macOS:** `brew install --cask devtunnel`
+> - **Linux:** `curl -sL https://aka.ms/DevTunnelCliInstall | bash`
+
 ## 📖 Usage
 
 ```bash

@@ -32,10 +32,61 @@ Environment:
 `);
 }
 
+function getDefaultShell() {
+  const { execFileSync } = require('child_process');
+  const ppid = process.ppid;
+  console.log(`[termbeam] Detecting shell (parent PID: ${ppid}, platform: ${os.platform()})`);
+
+  if (os.platform() === 'win32') {
+    // Detect parent process on Windows via WMIC
+    try {
+      const result = execFileSync(
+        'wmic',
+        ['process', 'where', `ProcessId=${ppid}`, 'get', 'Name', '/value'],
+        { stdio: ['pipe', 'pipe', 'ignore'], encoding: 'utf8', timeout: 3000 },
+      );
+      const match = result.match(/Name=(.+)/);
+      if (match) {
+        const name = match[1].trim().toLowerCase();
+        console.log(`[termbeam] Detected parent process: ${name}`);
+        if (name === 'pwsh.exe') return 'pwsh.exe';
+        if (name === 'powershell.exe') return 'powershell.exe';
+      }
+    } catch (err) {
+      console.log(`[termbeam] Could not detect parent process: ${err.message}`);
+    }
+    const fallback = process.env.COMSPEC || 'cmd.exe';
+    console.log(`[termbeam] Falling back to: ${fallback}`);
+    return fallback;
+  }
+
+  // Unix: detect parent shell via ps
+  try {
+    const result = execFileSync('ps', ['-o', 'comm=', '-p', String(ppid)], {
+      stdio: ['pipe', 'pipe', 'ignore'],
+      encoding: 'utf8',
+      timeout: 3000,
+    });
+    const comm = result.trim();
+    if (comm) {
+      const shell = comm.startsWith('-') ? comm.slice(1) : comm;
+      console.log(`[termbeam] Detected parent shell: ${shell}`);
+      return shell;
+    }
+  } catch (err) {
+    console.log(`[termbeam] Could not detect parent shell: ${err.message}`);
+  }
+
+  // Fallback to SHELL env or /bin/sh
+  const fallback = process.env.SHELL || '/bin/sh';
+  console.log(`[termbeam] Falling back to: ${fallback}`);
+  return fallback;
+}
+
 function parseArgs() {
   let port = parseInt(process.env.PORT || '3456', 10);
   let host = '0.0.0.0';
-  const defaultShell = process.env.SHELL || '/bin/zsh';
+  const defaultShell = getDefaultShell();
   const cwd = process.env.TERMBEAM_CWD || process.env.PTY_CWD || process.cwd();
   let password = process.env.TERMBEAM_PASSWORD || process.env.PTY_PASSWORD || null;
   let useTunnel = false;
