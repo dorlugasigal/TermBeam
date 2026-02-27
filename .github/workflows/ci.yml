@@ -29,6 +29,9 @@ jobs:
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -44,6 +47,23 @@ jobs:
           json-summary-path: coverage/coverage-summary.json
           json-final-path: coverage/coverage-final.json
           file-coverage-mode: all
+      - name: Update coverage badge
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          COVERAGE=$(node -e "const c = require('./coverage/coverage-summary.json'); console.log(c.total.lines.pct)")
+          if (( $(echo "$COVERAGE >= 90" | bc -l) )); then COLOR="brightgreen"
+          elif (( $(echo "$COVERAGE >= 75" | bc -l) )); then COLOR="green"
+          elif (( $(echo "$COVERAGE >= 60" | bc -l) )); then COLOR="yellowgreen"
+          elif (( $(echo "$COVERAGE >= 45" | bc -l) )); then COLOR="yellow"
+          else COLOR="red"; fi
+          echo "{\"schemaVersion\":1,\"label\":\"coverage\",\"message\":\"${COVERAGE}%\",\"color\":\"${COLOR}\"}" > endpoint.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin coverage-data:coverage-data 2>/dev/null || git checkout --orphan coverage-data
+          git checkout coverage-data
+          git add endpoint.json
+          git commit -m "Update coverage badge to ${COVERAGE}%" || true
+          git push origin coverage-data
 
   lint:
     name: Lint
