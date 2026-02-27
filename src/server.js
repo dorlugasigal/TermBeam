@@ -38,11 +38,17 @@ setupRoutes(app, { auth, sessions, config });
 setupWebSocket(wss, { auth, sessions });
 
 // --- Lifecycle ---
+let shuttingDown = false;
 function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
   console.log('\n[termbeam] Shutting down...');
   sessions.shutdown();
   cleanupTunnel();
-  process.exit(0);
+  server.close();
+  wss.close();
+  // Force exit after giving connections time to close
+  setTimeout(() => process.exit(0), 500).unref();
 }
 
 process.on('SIGINT', shutdown);
@@ -52,7 +58,6 @@ process.on('uncaughtException', (err) => {
   cleanupTunnel();
   process.exit(1);
 });
-process.on('exit', cleanupTunnel);
 
 // --- Start ---
 function getLocalIP() {
@@ -112,10 +117,12 @@ server.listen(config.port, config.host, async () => {
 
   let publicUrl = null;
   if (config.useTunnel) {
-    publicUrl = await startTunnel(config.port);
-    if (publicUrl) {
+    const tunnel = await startTunnel(config.port, { persisted: config.persistedTunnel });
+    if (tunnel) {
+      publicUrl = tunnel.url;
       console.log('');
       console.log(`  🌐 Public:  ${publicUrl}`);
+      console.log(`  Tunnel:   ${tunnel.mode} (expires in ${tunnel.expiry})`);
     } else {
       console.log('');
       console.log('  ⚠️  Tunnel failed to start. Using LAN only.');

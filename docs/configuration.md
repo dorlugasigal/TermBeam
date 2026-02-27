@@ -6,7 +6,8 @@
 | --------------------- | ------------------------------- | --------- |
 | `--password <pw>`     | Set access password             | None      |
 | `--generate-password` | Auto-generate a secure password | —         |
-| `--tunnel`            | Create a public devtunnel URL   | Off       |
+| `--tunnel`            | Create an ephemeral devtunnel URL | Off       |
+| `--persisted-tunnel`  | Create a reusable devtunnel URL (stable across restarts) | Off |
 | `--port <port>`       | Server port                     | `3456`    |
 | `--host <addr>`       | Bind address                    | `0.0.0.0` |
 | `-h, --help`          | Show help                       | —         |
@@ -67,11 +68,21 @@ termbeam --tunnel --generate-password
 
 ### DevTunnel
 
-The `--tunnel` flag creates a public URL using [Azure DevTunnels](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/):
+The `--tunnel` flag creates an ephemeral public URL using [Azure DevTunnels](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/):
 
 ```bash
 termbeam --tunnel --password mysecret
 ```
+
+For a **stable URL** that persists across restarts, use `--persisted-tunnel`:
+
+```bash
+termbeam --persisted-tunnel --password mysecret
+```
+
+!!! info "Persisted vs Ephemeral Tunnels"
+    - `--tunnel` — Creates a fresh tunnel each time, deleted on shutdown. Good for one-off use.
+    - `--persisted-tunnel` — Saves the tunnel ID to `~/.termbeam/tunnel.json` and reuses it across restarts (30-day expiry). The URL stays the same so you can bookmark it on your phone. To get a fresh URL, just switch back to `--tunnel`.
 
 !!! warning
 Always use a password when using `--tunnel`. The tunnel URL is publicly accessible.
