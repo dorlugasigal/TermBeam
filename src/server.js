@@ -52,7 +52,6 @@ process.on('uncaughtException', (err) => {
   cleanupTunnel();
   process.exit(1);
 });
-process.on('exit', cleanupTunnel);
 
 // --- Start ---
 function getLocalIP() {

@@ -150,7 +150,6 @@ async function startTunnel(port, options = {}) {
 
     const hostProc = spawn(devtunnelCmd, ['host', tunnelId], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      detached: true,
     });
     tunnelProc = hostProc;
 
