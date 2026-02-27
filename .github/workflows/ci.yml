@@ -37,22 +37,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:coverage
-      - name: Coverage Summary
+      - name: Coverage Report
         if: github.event_name == 'pull_request'
-        uses: irongut/CodeCoverageSummary@v1.3.0
+        uses: romeovs/lcov-reporter-action@v0.4.0
         with:
-          filename: coverage/cobertura-coverage.xml
-          badge: true
-          format: markdown
-          output: both
-          indicators: true
-          thresholds: '60 80'
-      - name: Post Coverage Comment
-        if: github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          recreate: true
-          path: code-coverage-results.md
+          lcov-file: coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
 
   lint:
     name: Lint
