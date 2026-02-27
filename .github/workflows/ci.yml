@@ -37,6 +37,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:coverage
+      - name: Install lcov
+        if: github.event_name == 'pull_request'
+        run: sudo apt-get install -y lcov
       - name: Coverage Report
         if: github.event_name == 'pull_request'
         uses: zgosalvez/github-actions-report-lcov@v4
@@ -44,7 +47,6 @@ jobs:
           coverage-files: coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           update-comment: true
-          additional-packages: lcov
       - name: Upload Coverage HTML
         if: always()
         uses: actions/upload-artifact@v4
