@@ -598,7 +598,7 @@
           .addEventListener('touchstart', () => {}, { passive: true });
         document.getElementById('key-bar').addEventListener('click', (e) => {
           const btn = e.target.closest('.key-btn');
-          if (!btn) return;
+          if (!btn || !btn.dataset.key) return;
           if (ws && ws.readyState === 1) {
             ws.send(JSON.stringify({ type: 'input', data: btn.dataset.key }));
           }
@@ -645,7 +645,15 @@
               if (text && ws && ws.readyState === 1) {
                 ws.send(JSON.stringify({ type: 'input', data: text }));
               }
-            }).catch(() => {});
+            }).catch(() => {
+              // Clipboard API denied (non-HTTPS or no permission) — focus terminal for native paste
+              term.focus();
+              showToast('Long-press to paste');
+            });
+          } else {
+            // Clipboard API not available — focus terminal for native paste
+            term.focus();
+            showToast('Long-press to paste');
           }
         });
 
