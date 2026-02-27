@@ -18,11 +18,7 @@ Multi-session, mobile-optimized, with touch controls.
 
 ---
 
-## 🎬 Demo
-
-<!-- TODO: Add demo video/gif here -->
-
-> **🎥 Demo video coming soon!** In the meantime, run `npx termbeam` and see for yourself.
+https://github.com/user-attachments/assets/c91ca15d-0c84-400f-bbfa-3d58d1be07ee
 
 ## ✨ Features
 
