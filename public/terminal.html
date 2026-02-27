@@ -305,6 +305,46 @@
         transform: translateX(-50%) translateY(0);
       }
 
+      #paste-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--overlay-bg);
+        z-index: 150;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+      }
+      #paste-overlay.visible {
+        display: flex;
+      }
+      #paste-overlay label {
+        font-size: 15px;
+        color: #ffffff;
+        font-weight: 600;
+      }
+      #paste-input {
+        width: 80%;
+        max-width: 400px;
+        min-height: 80px;
+        background: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 14px;
+        font-family: 'NerdFont', 'JetBrains Mono', monospace;
+        resize: vertical;
+      }
+      #paste-overlay .overlay-actions {
+        display: flex;
+        gap: 12px;
+      }
+
       #reconnect-overlay {
         display: none;
         position: fixed;
@@ -401,6 +441,15 @@
       <div class="overlay-actions">
         <button id="back-to-sessions" onclick="location.href = '/'">Sessions</button>
         <button id="reconnect-btn">Reconnect</button>
+      </div>
+    </div>
+
+    <div id="paste-overlay">
+      <label for="paste-input">Paste your text below</label>
+      <textarea id="paste-input" placeholder="Long-press here and paste…"></textarea>
+      <div class="overlay-actions">
+        <button id="paste-cancel" style="background: rgba(255,255,255,0.15); color: #ffffff;">Cancel</button>
+        <button id="paste-send" style="background: var(--accent); color: #ffffff;">Send</button>
       </div>
     </div>
 
@@ -636,26 +685,51 @@
         });
 
         // Clipboard: paste button
+        const pasteOverlay = document.getElementById('paste-overlay');
+        const pasteInput = document.getElementById('paste-input');
+
+        function sendPasteText(text) {
+          if (text && ws && ws.readyState === 1) {
+            ws.send(JSON.stringify({ type: 'input', data: text }));
+          }
+        }
+
+        function openPasteModal() {
+          pasteInput.value = '';
+          pasteOverlay.classList.add('visible');
+          pasteInput.focus();
+        }
+
+        function closePasteModal() {
+          pasteOverlay.classList.remove('visible');
+          pasteInput.value = '';
+        }
+
         document.getElementById('paste-btn').addEventListener('mousedown', (e) => {
           e.preventDefault();
         });
         document.getElementById('paste-btn').addEventListener('click', () => {
           if (navigator.clipboard && navigator.clipboard.readText) {
             navigator.clipboard.readText().then((text) => {
-              if (text && ws && ws.readyState === 1) {
-                ws.send(JSON.stringify({ type: 'input', data: text }));
+              if (text) {
+                sendPasteText(text);
+                showToast('Pasted!');
+              } else {
+                openPasteModal();
               }
             }).catch(() => {
-              // Clipboard API denied (non-HTTPS or no permission) — focus terminal for native paste
-              term.focus();
-              showToast('Long-press to paste');
+              openPasteModal();
             });
           } else {
-            // Clipboard API not available — focus terminal for native paste
-            term.focus();
-            showToast('Long-press to paste');
+            openPasteModal();
           }
         });
+
+        document.getElementById('paste-send').addEventListener('click', () => {
+          sendPasteText(pasteInput.value);
+          closePasteModal();
+        });
+        document.getElementById('paste-cancel').addEventListener('click', closePasteModal);
 
         // Clipboard: handle browser paste events
         container.addEventListener('paste', (e) => {
