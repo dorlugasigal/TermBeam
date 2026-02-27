@@ -1,6 +1,10 @@
 const { execSync, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
+
+const TUNNEL_CONFIG_DIR = path.join(os.homedir(), '.termbeam');
+const TUNNEL_CONFIG_PATH = path.join(TUNNEL_CONFIG_DIR, 'tunnel.json');
 
 let tunnelId = null;
 let tunnelProc = null;
@@ -29,7 +33,43 @@ function findDevtunnel() {
   return null;
 }
 
-async function startTunnel(port) {
+function loadPersistedTunnel() {
+  try {
+    if (fs.existsSync(TUNNEL_CONFIG_PATH)) {
+      return JSON.parse(fs.readFileSync(TUNNEL_CONFIG_PATH, 'utf-8'));
+    }
+  } catch {}
+  return null;
+}
+
+function savePersistedTunnel(id) {
+  fs.mkdirSync(TUNNEL_CONFIG_DIR, { recursive: true });
+  fs.writeFileSync(TUNNEL_CONFIG_PATH, JSON.stringify({ tunnelId: id, createdAt: new Date().toISOString() }, null, 2));
+}
+
+function deletePersisted() {
+  const persisted = loadPersistedTunnel();
+  if (persisted) {
+    try {
+      execSync(`"${devtunnelCmd}" delete ${persisted.tunnelId} -f`, { stdio: 'pipe' });
+      console.log(`[termbeam] Deleted persisted tunnel ${persisted.tunnelId}`);
+    } catch {}
+    try {
+      fs.unlinkSync(TUNNEL_CONFIG_PATH);
+    } catch {}
+  }
+}
+
+function isTunnelValid(id) {
+  try {
+    execSync(`"${devtunnelCmd}" show ${id} --json`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function startTunnel(port, options = {}) {
   // Check if devtunnel CLI is installed
   const found = findDevtunnel();
   if (!found) {
@@ -66,12 +106,36 @@ async function startTunnel(port) {
       execSync(`"${devtunnelCmd}" user login`, { stdio: 'inherit' });
     }
 
-    const createOut = execSync(`"${devtunnelCmd}" create --expiration 1d --json`, { encoding: 'utf-8' });
-    const tunnelData = JSON.parse(createOut);
-    tunnelId = tunnelData.tunnel.tunnelId;
+    // Handle persisted tunnel
+    if (options.newTunnel) {
+      deletePersisted();
+    }
 
-    execSync(`"${devtunnelCmd}" port create ${tunnelId} -p ${port} --protocol http`, { stdio: 'pipe' });
-    execSync(`"${devtunnelCmd}" access create ${tunnelId} -p ${port} --anonymous`, { stdio: 'pipe' });
+    let reused = false;
+    if (!options.newTunnel) {
+      const persisted = loadPersistedTunnel();
+      if (persisted && isTunnelValid(persisted.tunnelId)) {
+        tunnelId = persisted.tunnelId;
+        console.log(`[termbeam] Reusing persisted tunnel ${tunnelId}`);
+        reused = true;
+      }
+    }
+
+    if (!reused) {
+      const createOut = execSync(`"${devtunnelCmd}" create --expiration 1d --json`, { encoding: 'utf-8' });
+      const tunnelData = JSON.parse(createOut);
+      tunnelId = tunnelData.tunnel.tunnelId;
+      savePersistedTunnel(tunnelId);
+      console.log(`[termbeam] Created new tunnel ${tunnelId}`);
+    }
+
+    // Idempotent port and access setup
+    try {
+      execSync(`"${devtunnelCmd}" port create ${tunnelId} -p ${port} --protocol http`, { stdio: 'pipe' });
+    } catch {}
+    try {
+      execSync(`"${devtunnelCmd}" access create ${tunnelId} -p ${port} --anonymous`, { stdio: 'pipe' });
+    } catch {}
 
     const hostProc = spawn(devtunnelCmd, ['host', tunnelId], {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -106,17 +170,18 @@ async function startTunnel(port) {
 }
 
 function cleanupTunnel() {
-  if (tunnelId) {
+  if (tunnelProc) {
     try {
-      if (tunnelProc) tunnelProc.kill();
-      execSync(`"${devtunnelCmd}" delete ${tunnelId} -f`, { stdio: 'pipe' });
-      console.log('[termbeam] Tunnel cleaned up');
+      tunnelProc.kill();
     } catch {
       /* best effort */
     }
-    tunnelId = null;
     tunnelProc = null;
+  }
+  if (tunnelId) {
+    console.log('[termbeam] Tunnel host stopped (tunnel preserved for reuse)');
+    tunnelId = null;
   }
 }
 
-module.exports = { startTunnel, cleanupTunnel };
+module.exports = { startTunnel, cleanupTunnel, deletePersisted };

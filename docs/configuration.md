@@ -7,6 +7,7 @@
 | `--password <pw>`     | Set access password             | None      |
 | `--generate-password` | Auto-generate a secure password | —         |
 | `--tunnel`            | Create a public devtunnel URL   | Off       |
+| `--new-tunnel`        | Force a fresh tunnel (ignore persisted) | Off |
 | `--port <port>`       | Server port                     | `3456`    |
 | `--host <addr>`       | Bind address                    | `0.0.0.0` |
 | `-h, --help`          | Show help                       | —         |
@@ -72,6 +73,12 @@ The `--tunnel` flag creates a public URL using [Azure DevTunnels](https://learn.
 ```bash
 termbeam --tunnel --password mysecret
 ```
+
+!!! info "Tunnel Persistence"
+    TermBeam persists the tunnel ID to `~/.termbeam/tunnel.json` so the same
+    public URL is reused across restarts. The tunnel is **not** deleted on
+    shutdown — only the host process is stopped. Use `--new-tunnel` to force
+    creation of a fresh tunnel.
 
 !!! warning
 Always use a password when using `--tunnel`. The tunnel URL is publicly accessible.

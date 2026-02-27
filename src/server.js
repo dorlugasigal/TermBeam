@@ -112,7 +112,7 @@ server.listen(config.port, config.host, async () => {
 
   let publicUrl = null;
   if (config.useTunnel) {
-    publicUrl = await startTunnel(config.port);
+    publicUrl = await startTunnel(config.port, { newTunnel: config.newTunnel });
     if (publicUrl) {
       console.log('');
       console.log(`  🌐 Public:  ${publicUrl}`);

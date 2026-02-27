@@ -98,6 +98,20 @@ describe('CLI', () => {
     assert.strictEqual(config.port, 9999);
   });
 
+  it('should parse --new-tunnel flag', () => {
+    process.argv = ['node', 'termbeam', '--new-tunnel'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.newTunnel, true);
+  });
+
+  it('should default newTunnel to false', () => {
+    process.argv = ['node', 'termbeam'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.newTunnel, false);
+  });
+
   it('should combine multiple flags', () => {
     process.argv = [
       'node',
