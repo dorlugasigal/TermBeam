@@ -69,6 +69,8 @@ function isTunnelValid(id) {
   }
 }
 
+let isPersisted = false;
+
 async function startTunnel(port, options = {}) {
   // Check if devtunnel CLI is installed
   const found = findDevtunnel();
@@ -106,27 +108,32 @@ async function startTunnel(port, options = {}) {
       execSync(`"${devtunnelCmd}" user login`, { stdio: 'inherit' });
     }
 
-    // Handle persisted tunnel
-    if (options.newTunnel) {
-      deletePersisted();
-    }
+    const persisted = options.persisted;
+    isPersisted = !!persisted;
 
-    let reused = false;
-    if (!options.newTunnel) {
-      const persisted = loadPersistedTunnel();
-      if (persisted && isTunnelValid(persisted.tunnelId)) {
-        tunnelId = persisted.tunnelId;
+    // Try to reuse persisted tunnel
+    if (persisted) {
+      const saved = loadPersistedTunnel();
+      if (saved && isTunnelValid(saved.tunnelId)) {
+        tunnelId = saved.tunnelId;
         console.log(`[termbeam] Reusing persisted tunnel ${tunnelId}`);
-        reused = true;
+      } else {
+        if (saved) {
+          console.log('[termbeam] Persisted tunnel expired, creating new one');
+        }
+        const expiration = '30d';
+        const createOut = execSync(`"${devtunnelCmd}" create --expiration ${expiration} --json`, { encoding: 'utf-8' });
+        const tunnelData = JSON.parse(createOut);
+        tunnelId = tunnelData.tunnel.tunnelId;
+        savePersistedTunnel(tunnelId);
+        console.log(`[termbeam] Created new persisted tunnel ${tunnelId}`);
       }
-    }
-
-    if (!reused) {
+    } else {
+      // Ephemeral tunnel — create fresh, will be deleted on shutdown
       const createOut = execSync(`"${devtunnelCmd}" create --expiration 1d --json`, { encoding: 'utf-8' });
       const tunnelData = JSON.parse(createOut);
       tunnelId = tunnelData.tunnel.tunnelId;
-      savePersistedTunnel(tunnelId);
-      console.log(`[termbeam] Created new tunnel ${tunnelId}`);
+      console.log(`[termbeam] Created ephemeral tunnel ${tunnelId}`);
     }
 
     // Idempotent port and access setup
@@ -179,9 +186,18 @@ function cleanupTunnel() {
     tunnelProc = null;
   }
   if (tunnelId) {
-    console.log('[termbeam] Tunnel host stopped (tunnel preserved for reuse)');
+    if (isPersisted) {
+      console.log('[termbeam] Tunnel host stopped (tunnel preserved for reuse)');
+    } else {
+      try {
+        execSync(`"${devtunnelCmd}" delete ${tunnelId} -f`, { stdio: 'pipe' });
+        console.log('[termbeam] Tunnel cleaned up');
+      } catch {
+        /* best effort */
+      }
+    }
     tunnelId = null;
   }
 }
 
-module.exports = { startTunnel, cleanupTunnel, deletePersisted };
+module.exports = { startTunnel, cleanupTunnel };

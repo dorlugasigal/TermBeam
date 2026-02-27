@@ -12,8 +12,8 @@ Usage:
 Options:
   --password <pw>       Set access password (or TERMBEAM_PASSWORD env var)
   --generate-password   Auto-generate a secure password
-  --tunnel              Create a public devtunnel URL
-  --new-tunnel          Force a fresh tunnel (ignore persisted)
+  --tunnel              Create a public devtunnel URL (ephemeral)
+  --persisted-tunnel    Create a reusable devtunnel URL (stable across restarts)
   --port <port>         Set port (default: 3456, or PORT env var)
   --host <addr>         Bind address (default: 0.0.0.0)
   -h, --help            Show this help
@@ -91,7 +91,7 @@ function parseArgs() {
   const cwd = process.env.TERMBEAM_CWD || process.env.PTY_CWD || process.cwd();
   let password = process.env.TERMBEAM_PASSWORD || process.env.PTY_PASSWORD || null;
   let useTunnel = false;
-  let newTunnel = false;
+  let persistedTunnel = false;
 
   const args = process.argv.slice(2);
   const filteredArgs = [];
@@ -101,8 +101,9 @@ function parseArgs() {
       password = args[++i];
     } else if (args[i] === '--tunnel') {
       useTunnel = true;
-    } else if (args[i] === '--new-tunnel') {
-      newTunnel = true;
+    } else if (args[i] === '--persisted-tunnel') {
+      useTunnel = true;
+      persistedTunnel = true;
     } else if (args[i].startsWith('--password=')) {
       password = args[i].split('=')[1];
     } else if (args[i] === '--help' || args[i] === '-h') {
@@ -130,7 +131,7 @@ function parseArgs() {
   const { getVersion } = require('./version');
   const version = getVersion();
 
-  return { port, host, password, useTunnel, newTunnel, shell, shellArgs, cwd, defaultShell, version };
+  return { port, host, password, useTunnel, persistedTunnel, shell, shellArgs, cwd, defaultShell, version };
 }
 
 module.exports = { parseArgs, printHelp };
