@@ -8,6 +8,10 @@ coverage:
       default:
         target: 80%
 
+codecov:
+  notify:
+    after_n_builds: 2
+
 comment:
   layout: "reach,diff,flags,files"
   behavior: default
