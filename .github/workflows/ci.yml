@@ -44,6 +44,7 @@ jobs:
           coverage-files: coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           update-comment: true
+          additional-packages: lcov
       - name: Upload Coverage HTML
         if: always()
         uses: actions/upload-artifact@v4
