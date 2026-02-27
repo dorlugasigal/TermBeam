@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.6] - 2026-02-27
+
+- Enhance terminal UI with theme support and improved styling
+- docs: restore full README and add acknowledgments section for Tamir Dresher (#7)
+- Update README.md to include acknowledgments section
+
 ## [0.0.5] - 2026-02-27
 
 - feat: simplify version bump logic in release workflow
