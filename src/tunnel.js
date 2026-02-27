@@ -180,26 +180,34 @@ async function startTunnel(port, options = {}) {
 }
 
 function cleanupTunnel() {
+  const id = tunnelId;
   if (tunnelProc) {
     try {
-      tunnelProc.kill();
+      // On Windows, kill the process tree to ensure all children die
+      if (process.platform === 'win32' && tunnelProc.pid) {
+        try {
+          execSync(`taskkill /pid ${tunnelProc.pid} /T /F`, { stdio: 'pipe', timeout: 5000 });
+        } catch { /* best effort */ }
+      } else {
+        tunnelProc.kill('SIGKILL');
+      }
     } catch {
       /* best effort */
     }
     tunnelProc = null;
   }
-  if (tunnelId) {
+  if (id) {
+    tunnelId = null;
     if (isPersisted) {
       console.log('[termbeam] Tunnel host stopped (tunnel preserved for reuse)');
     } else {
       try {
-        execSync(`"${devtunnelCmd}" delete ${tunnelId} -f`, { stdio: 'pipe' });
+        execSync(`"${devtunnelCmd}" delete ${id} -f`, { stdio: 'pipe', timeout: 10000 });
         console.log('[termbeam] Tunnel cleaned up');
       } catch {
-        /* best effort */
+        /* best effort — tunnel will expire on its own */
       }
     }
-    tunnelId = null;
   }
 }
 
