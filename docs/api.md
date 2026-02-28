@@ -60,9 +60,16 @@ List all active sessions.
     "shell": "/bin/zsh",
     "pid": 12345,
     "clients": 1,
-    "createdAt": "2025-01-01T00:00:00.000Z"
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "color": "#4a9eff",
+    "lastActivity": 1719849600000
   }
 ]
+
+| Field          | Type   | Description                                    |
+| -------------- | ------ | ---------------------------------------------- |
+| `color`        | string | Hex color assigned to the session               |
+| `lastActivity` | number | Unix timestamp (ms) of the last PTY output      |
 ```
 
 #### `POST /api/sessions`
@@ -77,11 +84,12 @@ Create a new session.
   "shell": "/bin/bash",
   "args": ["-l"],
   "cwd": "/home/user",
-  "initialCommand": "htop"
+  "initialCommand": "htop",
+  "color": "#4ade80"
 }
 ```
 
-All fields are optional. If `initialCommand` is provided, it will be sent to the shell after startup.
+All fields are optional. If `initialCommand` is provided, it will be sent to the shell after startup. If `color` is omitted, a color is assigned automatically from a built-in palette.
 
 **Response:**
 
@@ -91,6 +99,35 @@ All fields are optional. If `initialCommand` is provided, it will be sent to the
   "url": "/terminal?id=e5f6g7h8"
 }
 ```
+
+#### `PATCH /api/sessions/:id`
+
+Update session properties.
+
+**Request:**
+
+```json
+{
+  "color": "#f87171",
+  "name": "renamed-session"
+}
+```
+
+All fields are optional.
+
+**Response (200):**
+
+```json
+{ "ok": true }
+```
+
+**Response (404):**
+
+```json
+{ "error": "not found" }
+```
+
+---
 
 #### `DELETE /api/sessions/:id`
 
@@ -117,11 +154,18 @@ List available shells on the host system.
 ```json
 {
   "shells": [
-    { "name": "bash", "path": "/bin/bash" },
-    { "name": "zsh", "path": "/bin/zsh" }
+    { "name": "bash", "path": "/bin/bash", "cmd": "/bin/bash" },
+    { "name": "zsh", "path": "/bin/zsh", "cmd": "/bin/zsh" }
   ],
   "default": "/bin/zsh"
 }
+```
+
+| Field  | Type   | Description                                                        |
+| ------ | ------ | ------------------------------------------------------------------ |
+| `name` | string | Display name of the shell                                           |
+| `path` | string | Full path to the shell executable                                   |
+| `cmd`  | string | Original command name (on Windows this differs from the full path)  |
 ```
 
 ---

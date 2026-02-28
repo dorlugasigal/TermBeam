@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - **Node.js** 18 or higher
-- A terminal (macOS, Linux, or Windows with WSL)
+- A terminal (macOS, Linux, or Windows)
 
 ## Installation
 
@@ -59,9 +59,35 @@ termbeam
 ## Creating Sessions
 
 - The default session uses your current shell and working directory
-- Tap **+ New Session** to create additional sessions
+- Tap **+ New** (or **+ New Session** on the hub page) to create additional sessions
+- Pick a **color** for each session to tell them apart at a glance
 - Use the **📂 folder browser** to pick a working directory
-- **Swipe left** on a session to delete it
+- Optionally set an **initial command** (e.g. `htop`, `vim`)
+
+## Terminal View
+
+### Tabs & Split View
+
+- All open sessions appear as **tabs** in the top bar — tap to switch
+- **Drag to reorder** tabs (long-press on mobile to enter drag mode)
+- **Hover** (desktop) or **long-press** (mobile) a tab to see a **live preview** of its output
+- Tap the **split view** button to view two sessions side-by-side
+- On mobile, use the **☰ menu** to open the **side panel** with session cards and previews
+
+### Session Colors & Activity
+
+- Each session has a colored dot for quick identification
+- **Activity labels** (e.g. "3s", "5m") show time since the last output
+
+### Scrolling
+
+- **Swipe up/down** to scroll through terminal history on touch devices
+- Scrollbar is hidden to save space but scrolling works normally
+
+### Share & Refresh
+
+- Tap the **share button** (↗) to copy the current URL to your clipboard (works over HTTP)
+- Tap the **refresh button** (↻) to clear the PWA cache and reload
 
 ## Touch Controls
 

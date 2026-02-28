@@ -1,13 +1,21 @@
 const crypto = require('crypto');
 const pty = require('node-pty');
 
+const SESSION_COLORS = [
+  '#4a9eff', '#4ade80', '#fbbf24', '#c084fc',
+  '#f87171', '#22d3ee', '#fb923c', '#f472b6',
+];
+
 class SessionManager {
   constructor() {
     this.sessions = new Map();
   }
 
-  create({ name, shell, args = [], cwd, initialCommand = null }) {
+  create({ name, shell, args = [], cwd, initialCommand = null, color = null }) {
     const id = crypto.randomBytes(4).toString('hex');
+    if (!color) {
+      color = SESSION_COLORS[this.sessions.size % SESSION_COLORS.length];
+    }
     const ptyProcess = pty.spawn(shell, args, {
       name: 'xterm-256color',
       cols: 120,
@@ -26,14 +34,21 @@ class SessionManager {
       name,
       shell,
       cwd,
+      color,
       createdAt: new Date().toISOString(),
+      lastActivity: Date.now(),
       clients: new Set(),
       scrollback: [],
+      scrollbackBuf: '',
     };
 
     ptyProcess.onData((data) => {
-      session.scrollback.push(data);
-      if (session.scrollback.length > 2000) session.scrollback.shift();
+      session.lastActivity = Date.now();
+      session.scrollbackBuf += data;
+      // Cap scrollback at ~200KB
+      if (session.scrollbackBuf.length > 200000) {
+        session.scrollbackBuf = session.scrollbackBuf.slice(-100000);
+      }
       for (const ws of session.clients) {
         if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'output', data }));
       }
@@ -56,11 +71,18 @@ class SessionManager {
     return this.sessions.get(id);
   }
 
+  update(id, fields) {
+    const s = this.sessions.get(id);
+    if (!s) return false;
+    if (fields.color !== undefined) s.color = fields.color;
+    if (fields.name !== undefined) s.name = fields.name;
+    return true;
+  }
+
   delete(id) {
     const s = this.sessions.get(id);
     if (!s) return false;
     s.pty.kill();
-    this.sessions.delete(id);
     return true;
   }
 
@@ -75,6 +97,8 @@ class SessionManager {
         pid: s.pty.pid,
         clients: s.clients.size,
         createdAt: s.createdAt,
+        color: s.color,
+        lastActivity: s.lastActivity,
       });
     }
     return list;

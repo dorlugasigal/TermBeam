@@ -7,7 +7,10 @@ TermBeam lets you access your terminal from your phone, tablet, or any browser. 
 ## Why TermBeam?
 
 - 🚫 No SSH client needed — just a web browser
-- 📱 Built for mobile — touch bar, swipe gestures, zoom
+- 📱 Built for mobile — touch bar, swipe gestures, zoom, touch scrolling
+- 🗂️ Tabbed sessions — switch, split, reorder, and preview multiple terminals
+- 🎨 Session colors & activity indicators
+- 📤 Share & refresh buttons for easy link sharing and PWA cache updates
 - ⚡ One command to start — `npx termbeam`
 - 🔐 Secure by default — localhost-only, password auth, rate limiting
 

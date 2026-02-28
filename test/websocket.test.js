@@ -34,6 +34,7 @@ function createMockSession(id, opts = {}) {
     name: opts.name || 'test',
     clients: new Set(),
     scrollback: opts.scrollback || [],
+    scrollbackBuf: opts.scrollbackBuf || (opts.scrollback ? opts.scrollback.join('') : ''),
     pty: {
       write(data) {
         written.push(data);
@@ -284,6 +285,92 @@ describe('WebSocket', () => {
       wss._simulateConnection(ws);
       ws._simulateMessage({ type: 'attach', sessionId: 's1' });
       ws._simulateMessage({ type: 'resize', cols: 120, rows: 40 });
+
+      assert.strictEqual(session._resizes.length, 1);
+      assert.deepStrictEqual(session._resizes[0], { cols: 120, rows: 40 });
+    });
+
+    it('should use minimum dimensions across multiple clients', () => {
+      const session = createMockSession('s1');
+      sessions._add(session);
+
+      const ws1 = createMockWs();
+      const ws2 = createMockWs();
+      wss._simulateConnection(ws1);
+      wss._simulateConnection(ws2);
+      ws1._simulateMessage({ type: 'attach', sessionId: 's1' });
+      ws2._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      ws1._simulateMessage({ type: 'resize', cols: 120, rows: 40 });
+      ws2._simulateMessage({ type: 'resize', cols: 80, rows: 24 });
+
+      const last = session._resizes[session._resizes.length - 1];
+      assert.deepStrictEqual(last, { cols: 80, rows: 24 });
+    });
+
+    it('should recalculate on client disconnect', () => {
+      const session = createMockSession('s1');
+      sessions._add(session);
+
+      const ws1 = createMockWs();
+      const ws2 = createMockWs();
+      wss._simulateConnection(ws1);
+      wss._simulateConnection(ws2);
+      ws1._simulateMessage({ type: 'attach', sessionId: 's1' });
+      ws2._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      ws1._simulateMessage({ type: 'resize', cols: 120, rows: 40 });
+      ws2._simulateMessage({ type: 'resize', cols: 80, rows: 24 });
+
+      // Small client disconnects — should recalculate to larger client's size
+      ws2._simulateClose();
+      const last = session._resizes[session._resizes.length - 1];
+      assert.deepStrictEqual(last, { cols: 120, rows: 40 });
+    });
+
+    it('should not resize for invalid dimensions', () => {
+      const session = createMockSession('s1');
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      ws._simulateMessage({ type: 'resize', cols: 0, rows: 0 });
+      ws._simulateMessage({ type: 'resize', cols: -1, rows: 24 });
+      ws._simulateMessage({ type: 'resize', cols: 80, rows: -5 });
+      ws._simulateMessage({ type: 'resize', cols: 'abc', rows: 24 });
+
+      assert.strictEqual(session._resizes.length, 0);
+    });
+
+    it('should not send duplicate resize for same dimensions', () => {
+      const session = createMockSession('s1');
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      ws._simulateMessage({ type: 'resize', cols: 80, rows: 24 });
+      ws._simulateMessage({ type: 'resize', cols: 80, rows: 24 });
+
+      assert.strictEqual(session._resizes.length, 1);
+    });
+
+    it('should ignore clients without dimensions in calculation', () => {
+      const session = createMockSession('s1');
+      sessions._add(session);
+
+      const ws1 = createMockWs();
+      const ws2 = createMockWs();
+      wss._simulateConnection(ws1);
+      wss._simulateConnection(ws2);
+      ws1._simulateMessage({ type: 'attach', sessionId: 's1' });
+      ws2._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      // Only ws1 sends resize, ws2 never does
+      ws1._simulateMessage({ type: 'resize', cols: 120, rows: 40 });
 
       assert.strictEqual(session._resizes.length, 1);
       assert.deepStrictEqual(session._resizes[0], { cols: 120, rows: 40 });

@@ -1,4 +1,4 @@
-const { execSync, spawn } = require('child_process');
+const { execSync, execFileSync, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -9,6 +9,8 @@ const TUNNEL_CONFIG_PATH = path.join(TUNNEL_CONFIG_DIR, 'tunnel.json');
 let tunnelId = null;
 let tunnelProc = null;
 let devtunnelCmd = 'devtunnel';
+
+const SAFE_ID_RE = /^[a-zA-Z0-9._-]+$/;
 
 function findDevtunnel() {
   // Try devtunnel directly
@@ -51,8 +53,10 @@ function deletePersisted() {
   const persisted = loadPersistedTunnel();
   if (persisted) {
     try {
-      execSync(`"${devtunnelCmd}" delete ${persisted.tunnelId} -f`, { stdio: 'pipe' });
-      console.log(`[termbeam] Deleted persisted tunnel ${persisted.tunnelId}`);
+      if (SAFE_ID_RE.test(persisted.tunnelId)) {
+        execFileSync(devtunnelCmd, ['delete', persisted.tunnelId, '-f'], { stdio: 'pipe' });
+        console.log(`[termbeam] Deleted persisted tunnel ${persisted.tunnelId}`);
+      }
     } catch {}
     try {
       fs.unlinkSync(TUNNEL_CONFIG_PATH);
@@ -62,7 +66,8 @@ function deletePersisted() {
 
 function isTunnelValid(id) {
   try {
-    execSync(`"${devtunnelCmd}" show ${id} --json`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+    if (!SAFE_ID_RE.test(id)) return false;
+    execFileSync(devtunnelCmd, ['show', id, '--json'], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
     return true;
   } catch {
     return false;
@@ -97,7 +102,7 @@ async function startTunnel(port, options = {}) {
     // Ensure user is logged in
     let loggedIn = false;
     try {
-      const userOut = execSync(`"${devtunnelCmd}" user show`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+      const userOut = execFileSync(devtunnelCmd, ['user', 'show'], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
       // user show can succeed but show "not logged in" status
       loggedIn = userOut && !userOut.toLowerCase().includes('not logged in');
     } catch {}
@@ -105,7 +110,7 @@ async function startTunnel(port, options = {}) {
     if (!loggedIn) {
       console.log('[termbeam] devtunnel not logged in, launching login...');
       console.log('[termbeam] A browser window will open for authentication.');
-      execSync(`"${devtunnelCmd}" user login`, { stdio: 'inherit' });
+      execFileSync(devtunnelCmd, ['user', 'login'], { stdio: 'inherit' });
     }
 
     const persisted = options.persisted;
@@ -124,7 +129,7 @@ async function startTunnel(port, options = {}) {
         if (saved) {
           console.log('[termbeam] Persisted tunnel expired, creating new one');
         }
-        const createOut = execSync(`"${devtunnelCmd}" create --expiration 30d --json`, { encoding: 'utf-8' });
+        const createOut = execFileSync(devtunnelCmd, ['create', '--expiration', '30d', '--json'], { encoding: 'utf-8' });
         const tunnelData = JSON.parse(createOut);
         tunnelId = tunnelData.tunnel.tunnelId;
         savePersistedTunnel(tunnelId);
@@ -134,7 +139,7 @@ async function startTunnel(port, options = {}) {
       tunnelMode = 'ephemeral';
       tunnelExpiry = '1 day';
       // Ephemeral tunnel — create fresh, will be deleted on shutdown
-      const createOut = execSync(`"${devtunnelCmd}" create --expiration 1d --json`, { encoding: 'utf-8' });
+      const createOut = execFileSync(devtunnelCmd, ['create', '--expiration', '1d', '--json'], { encoding: 'utf-8' });
       const tunnelData = JSON.parse(createOut);
       tunnelId = tunnelData.tunnel.tunnelId;
       console.log(`[termbeam] Created ephemeral tunnel ${tunnelId}`);
@@ -142,10 +147,10 @@ async function startTunnel(port, options = {}) {
 
     // Idempotent port and access setup
     try {
-      execSync(`"${devtunnelCmd}" port create ${tunnelId} -p ${port} --protocol http`, { stdio: 'pipe' });
+      execFileSync(devtunnelCmd, ['port', 'create', tunnelId, '-p', String(port), '--protocol', 'http'], { stdio: 'pipe' });
     } catch {}
     try {
-      execSync(`"${devtunnelCmd}" access create ${tunnelId} -p ${port} --anonymous`, { stdio: 'pipe' });
+      execFileSync(devtunnelCmd, ['access', 'create', tunnelId, '-p', String(port), '--anonymous'], { stdio: 'pipe' });
     } catch {}
 
     const hostProc = spawn(devtunnelCmd, ['host', tunnelId], {
@@ -186,7 +191,7 @@ function cleanupTunnel() {
       // On Windows, kill the process tree to ensure all children die
       if (process.platform === 'win32' && tunnelProc.pid) {
         try {
-          execSync(`taskkill /pid ${tunnelProc.pid} /T /F`, { stdio: 'pipe', timeout: 5000 });
+          execFileSync('taskkill', ['/pid', String(tunnelProc.pid), '/T', '/F'], { stdio: 'pipe', timeout: 5000 });
         } catch { /* best effort */ }
       } else {
         tunnelProc.kill('SIGKILL');
@@ -202,7 +207,7 @@ function cleanupTunnel() {
       console.log('[termbeam] Tunnel host stopped (tunnel preserved for reuse)');
     } else {
       try {
-        execSync(`"${devtunnelCmd}" delete ${id} -f`, { stdio: 'pipe', timeout: 10000 });
+        execFileSync(devtunnelCmd, ['delete', id, '-f'], { stdio: 'pipe', timeout: 10000 });
         console.log('[termbeam] Tunnel cleaned up');
       } catch {
         /* best effort — tunnel will expire on its own */

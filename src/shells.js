@@ -74,4 +74,4 @@ function detectUnixShells() {
   return shells;
 }
 
-module.exports = { detectShells };
+module.exports = { detectShells, detectWindowsShells, detectUnixShells };

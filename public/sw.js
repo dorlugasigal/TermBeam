@@ -1,4 +1,4 @@
-const CACHE_NAME = 'termbeam-v1';
+const CACHE_NAME = 'termbeam-v2';
 const SHELL_URLS = ['/', '/terminal'];
 
 self.addEventListener('install', (event) => {
@@ -20,13 +20,31 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Don't cache WebSocket upgrades or external resources
+  // Don't cache WebSocket upgrades
   if (
     event.request.mode === 'websocket' ||
     url.protocol === 'ws:' ||
-    url.protocol === 'wss:' ||
-    url.origin !== self.location.origin
+    url.protocol === 'wss:'
   ) {
+    return;
+  }
+
+  // Cache-first for CDN font files (NerdFont from jsdelivr)
+  if (url.origin !== self.location.origin) {
+    if (url.hostname === 'cdn.jsdelivr.net' && url.pathname.endsWith('.ttf')) {
+      event.respondWith(
+        caches.match(event.request).then((cached) => {
+          if (cached) return cached;
+          return fetch(event.request).then((response) => {
+            if (response.ok) {
+              const clone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+            }
+            return response;
+          });
+        })
+      );
+    }
     return;
   }
 
@@ -49,6 +67,6 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       });
-    })
+    }).catch(() => new Response('Offline', { status: 503, statusText: 'Service Unavailable' }))
   );
 });

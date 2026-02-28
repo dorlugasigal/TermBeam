@@ -4,7 +4,7 @@
 
 | Flag                  | Description                     | Default   |
 | --------------------- | ------------------------------- | --------- |
-| `--password <pw>`     | Set access password             | None      |
+| `--password <pw>`     | Set access password (also accepts `--password=<pw>`) | None      |
 | `--generate-password` | Auto-generate a secure password | —         |
 | `--tunnel`            | Create an ephemeral devtunnel URL | Off       |
 | `--persisted-tunnel`  | Create a reusable devtunnel URL (stable across restarts) | Off |
@@ -20,10 +20,14 @@
 | `PORT`              | Server port               | `3456`            |
 | `TERMBEAM_PASSWORD` | Access password           | None              |
 | `TERMBEAM_CWD`      | Default working directory | Current directory |
-| `SHELL`             | Default shell             | `/bin/zsh`        |
+| `SHELL`             | Fallback shell on Unix (used only if auto-detection fails) | `/bin/sh` |
+| `COMSPEC`           | Fallback shell on Windows (used only if auto-detection fails) | `cmd.exe` |
 
 !!! note
 CLI flags take precedence over environment variables.
+
+!!! info "Shell Auto-Detection"
+    TermBeam auto-detects your current shell by inspecting the parent process tree. The `SHELL` (Unix) and `COMSPEC` (Windows) environment variables are only used as fallbacks when detection fails.
 
 !!! info "Legacy Variables"
 The environment variables `PTY_PASSWORD` and `PTY_CWD` are also supported as fallbacks for `TERMBEAM_PASSWORD` and `TERMBEAM_CWD` respectively.

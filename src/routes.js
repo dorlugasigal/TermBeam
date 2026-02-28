@@ -51,13 +51,14 @@ function setupRoutes(app, { auth, sessions, config }) {
   });
 
   app.post('/api/sessions', auth.middleware, (req, res) => {
-    const { name, shell, args: shellArgs, cwd, initialCommand } = req.body || {};
+    const { name, shell, args: shellArgs, cwd, initialCommand, color } = req.body || {};
     const id = sessions.create({
       name: name || `Session ${sessions.sessions.size + 1}`,
       shell: shell || config.defaultShell,
       args: shellArgs || [],
       cwd: cwd || config.cwd,
       initialCommand: initialCommand || null,
+      color: color || null,
     });
     res.json({ id, url: `/terminal?id=${id}` });
   });
@@ -70,6 +71,18 @@ function setupRoutes(app, { auth, sessions, config }) {
 
   app.delete('/api/sessions/:id', auth.middleware, (req, res) => {
     if (sessions.delete(req.params.id)) {
+      res.json({ ok: true });
+    } else {
+      res.status(404).json({ error: 'not found' });
+    }
+  });
+
+  app.patch('/api/sessions/:id', auth.middleware, (req, res) => {
+    const { color, name } = req.body || {};
+    const updates = {};
+    if (color !== undefined) updates.color = color;
+    if (name !== undefined) updates.name = name;
+    if (sessions.update(req.params.id, updates)) {
       res.json({ ok: true });
     } else {
       res.status(404).json({ error: 'not found' });

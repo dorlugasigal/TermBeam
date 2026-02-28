@@ -1,3 +1,19 @@
+function recalcPtySize(session) {
+  let minCols = Infinity;
+  let minRows = Infinity;
+  for (const client of session.clients) {
+    if (client._dims) {
+      minCols = Math.min(minCols, client._dims.cols);
+      minRows = Math.min(minRows, client._dims.rows);
+    }
+  }
+  if (minCols === Infinity || minRows === Infinity) return;
+  if (minCols === session._lastCols && minRows === session._lastRows) return;
+  session._lastCols = minCols;
+  session._lastRows = minRows;
+  session.pty.resize(minCols, minRows);
+}
+
 function setupWebSocket(wss, { auth, sessions }) {
   wss.on('connection', (ws, req) => {
     let authenticated = !auth.password;
@@ -40,8 +56,8 @@ function setupWebSocket(wss, { auth, sessions }) {
           }
           attached = session;
           session.clients.add(ws);
-          if (session.scrollback.length > 0) {
-            ws.send(JSON.stringify({ type: 'output', data: session.scrollback.join('') }));
+          if (session.scrollbackBuf.length > 0) {
+            ws.send(JSON.stringify({ type: 'output', data: session.scrollbackBuf }));
           }
           ws.send(JSON.stringify({ type: 'attached', sessionId: msg.sessionId }));
           console.log(`[termbeam] Client attached to session ${msg.sessionId}`);
@@ -53,7 +69,12 @@ function setupWebSocket(wss, { auth, sessions }) {
         if (msg.type === 'input') {
           attached.pty.write(msg.data);
         } else if (msg.type === 'resize') {
-          attached.pty.resize(msg.cols, msg.rows);
+          const cols = Math.floor(msg.cols);
+          const rows = Math.floor(msg.rows);
+          if (cols > 0 && cols <= 500 && rows > 0 && rows <= 200) {
+            ws._dims = { cols, rows };
+            recalcPtySize(attached);
+          }
         }
       } catch {
         if (attached) attached.pty.write(raw.toString());
@@ -63,6 +84,7 @@ function setupWebSocket(wss, { auth, sessions }) {
     ws.on('close', () => {
       if (attached) {
         attached.clients.delete(ws);
+        recalcPtySize(attached);
         console.log('[termbeam] Client detached');
       }
     });

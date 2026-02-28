@@ -61,6 +61,19 @@ function createAuth(password) {
   const tokens = new Map();
   const authAttempts = new Map();
 
+  // Periodically clean up expired tokens and stale rate-limit entries
+  setInterval(() => {
+    const now = Date.now();
+    for (const [token, expiry] of tokens) {
+      if (now > expiry) tokens.delete(token);
+    }
+    for (const [ip, attempts] of authAttempts) {
+      const recent = attempts.filter((t) => now - t < 60 * 1000);
+      if (recent.length === 0) authAttempts.delete(ip);
+      else authAttempts.set(ip, recent);
+    }
+  }, 60 * 60 * 1000).unref();
+
   function generateToken() {
     const token = crypto.randomBytes(32).toString('hex');
     tokens.set(token, Date.now() + 24 * 60 * 60 * 1000);

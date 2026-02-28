@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -85,6 +85,28 @@
         color: var(--text-secondary);
         margin-top: 4px;
       }
+      .header-btn {
+        position: absolute;
+        top: 16px;
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        transition: color 0.15s, border-color 0.15s, background 0.15s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .header-btn:hover {
+        color: var(--text);
+        border-color: var(--border-subtle);
+        background: var(--border);
+      }
       .theme-toggle {
         position: absolute;
         top: 16px;
@@ -111,7 +133,7 @@
 
       .sessions-list {
         padding: 16px;
-        padding-bottom: 80px;
+        padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
         display: flex;
         flex-direction: column;
         gap: 12px;
@@ -235,9 +257,9 @@
 
       .new-session {
         position: fixed;
-        bottom: 16px;
-        left: 16px;
-        right: 16px;
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        left: calc(16px + env(safe-area-inset-left, 0px));
+        right: calc(16px + env(safe-area-inset-right, 0px));
         padding: 14px;
         background: var(--accent);
         color: #ffffff;
@@ -250,7 +272,6 @@
         z-index: 50;
         transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
         box-shadow: 0 2px 8px rgba(0, 120, 212, 0.3);
-        padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
       }
       .new-session:hover {
         background: var(--accent-hover);
@@ -563,12 +584,39 @@
         background: var(--accent-active);
         transform: scale(0.98);
       }
+
+      .color-picker {
+        display: flex;
+        gap: 8px;
+        padding: 6px 0;
+        flex-wrap: wrap;
+      }
+      .color-swatch {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 3px solid transparent;
+        cursor: pointer;
+        transition: border-color 0.15s, transform 0.1s;
+        -webkit-tap-highlight-color: transparent;
+        padding: 0;
+        outline: none;
+      }
+      .color-swatch:hover {
+        transform: scale(1.1);
+      }
+      .color-swatch.selected {
+        border-color: var(--text);
+        transform: scale(1.15);
+      }
     </style>
   </head>
   <body>
     <div class="header">
       <h1>📡 Term<span>Beam</span></h1>
       <p>Beam your terminal to any device · <span id="version" style="color: var(--accent)"></span></p>
+      <button class="header-btn" id="share-btn" style="right: 96px;top:16px" title="Share link"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
+      <button class="header-btn" id="refresh-btn" style="right: 56px;top:16px" title="Refresh app"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
       <button class="theme-toggle" id="theme-toggle" title="Toggle theme"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button>
     </div>
 
@@ -586,6 +634,17 @@
         </select>
         <label for="sess-cmd">Initial Command <span style="color:var(--text-muted);font-weight:normal">(optional)</span></label>
         <input type="text" id="sess-cmd" placeholder="e.g. copilot, htop, vim" />
+        <label>Color</label>
+        <div class="color-picker" id="color-picker">
+          <button type="button" class="color-swatch selected" data-color="#4a9eff" style="background:#4a9eff" title="Blue"></button>
+          <button type="button" class="color-swatch" data-color="#4ade80" style="background:#4ade80" title="Green"></button>
+          <button type="button" class="color-swatch" data-color="#fbbf24" style="background:#fbbf24" title="Amber"></button>
+          <button type="button" class="color-swatch" data-color="#c084fc" style="background:#c084fc" title="Purple"></button>
+          <button type="button" class="color-swatch" data-color="#f87171" style="background:#f87171" title="Red"></button>
+          <button type="button" class="color-swatch" data-color="#22d3ee" style="background:#22d3ee" title="Cyan"></button>
+          <button type="button" class="color-swatch" data-color="#fb923c" style="background:#fb923c" title="Orange"></button>
+          <button type="button" class="color-swatch" data-color="#f472b6" style="background:#f472b6" title="Pink"></button>
+        </div>
         <label for="sess-cwd">Working Directory</label>
         <div class="cwd-picker">
           <input type="text" id="sess-cwd" placeholder="/Users/dorlugasigal" />
@@ -666,6 +725,15 @@
       const listEl = document.getElementById('sessions-list');
       const modal = document.getElementById('modal');
 
+      function getActivityLabel(ts) {
+        if (!ts) return '';
+        const diff = (Date.now() - ts) / 1000;
+        if (diff < 10) return 'Active now';
+        if (diff < 60) return Math.floor(diff) + 's ago';
+        if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+        return Math.floor(diff / 3600) + 'h ago';
+      }
+
       async function loadSessions() {
         const res = await fetch('/api/sessions');
         const sessions = await res.json();
@@ -678,19 +746,20 @@
         listEl.innerHTML = sessions
           .map(
             (s) => `
-        <div class="swipe-wrap" data-session-id="${s.id}">
+        <div class="swipe-wrap" data-session-id="${esc(s.id)}">
           <div class="swipe-delete">
-            <button onclick="deleteSession('${s.id}', event)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg><span>Delete</span></button>
+            <button data-delete-id="${esc(s.id)}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg><span>Delete</span></button>
           </div>
-          <div class="session-card" onclick="location.href='/terminal?id=${s.id}'">
+          <div class="session-card" data-nav-id="${esc(s.id)}">
             <div class="top">
-              <div class="name"><span class="dot"></span>${esc(s.name)}</div>
+              <div class="name"><span class="dot" data-color="${esc(s.color || '')}"></span>${esc(s.name)}</div>
               <span class="pid">PID ${s.pid}</span>
             </div>
             <div class="details">
               <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> ${esc(s.cwd)}</span>
               <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg> ${esc(s.shell)}</span>
               <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> ${s.clients} connected</span>
+              <span title="Last activity">${getActivityLabel(s.lastActivity)}</span>
             </div>
             <button class="connect-btn">Connect →</button>
           </div>
@@ -699,8 +768,17 @@
           )
           .join('');
 
-        // Attach swipe handlers after rendering
+        // Attach swipe handlers and click handlers after rendering
         listEl.querySelectorAll('.swipe-wrap').forEach(initSwipe);
+        listEl.querySelectorAll('[data-delete-id]').forEach(btn => {
+          btn.addEventListener('click', (e) => deleteSession(btn.dataset.deleteId, e));
+        });
+        listEl.querySelectorAll('[data-nav-id]').forEach(card => {
+          card.addEventListener('click', () => { location.href = '/terminal?id=' + encodeURIComponent(card.dataset.navId); });
+        });
+        listEl.querySelectorAll('.dot[data-color]').forEach(dot => {
+          dot.style.background = dot.dataset.color || 'var(--success)';
+        });
       }
 
       function esc(str) {
@@ -720,17 +798,28 @@
         if (e.target === modal) modal.classList.remove('visible');
       });
 
+      // Color picker
+      document.getElementById('color-picker').addEventListener('click', (e) => {
+        const swatch = e.target.closest('.color-swatch');
+        if (!swatch) return;
+        document.querySelectorAll('#color-picker .color-swatch').forEach(s => s.classList.remove('selected'));
+        swatch.classList.add('selected');
+      });
+
       document.getElementById('modal-create').addEventListener('click', async () => {
         const name = document.getElementById('sess-name').value.trim();
         const shell = document.getElementById('sess-shell').value.trim();
         const cwd = document.getElementById('sess-cwd').value.trim();
         const initialCommand = document.getElementById('sess-cmd').value.trim();
 
+        const colorEl = document.querySelector('#color-picker .color-swatch.selected');
+        const color = colorEl ? colorEl.dataset.color : null;
         const body = {};
         if (name) body.name = name;
         if (shell) body.shell = shell;
         if (cwd) body.cwd = cwd;
         if (initialCommand) body.initialCommand = initialCommand;
+        if (color) body.color = color;
 
         const res = await fetch('/api/sessions', {
           method: 'POST',
@@ -897,7 +986,7 @@
           }
           browserList.innerHTML = data.dirs
             .map((d) => {
-              const name = d.split('/').pop();
+              const name = d.split(/[/\\]/).pop();
               return `<div class="folder-item" data-path="${esc(d)}">
             <span class="folder-icon">📁</span>
             <span class="folder-name">${esc(name)}</span>
@@ -943,6 +1032,47 @@
 
       loadSessions();
       setInterval(loadSessions, 3000);
+
+      // Share button
+      function copyToClipboardFallback(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch {}
+        document.body.removeChild(ta);
+      }
+
+      function showShareToast(msg) {
+        const toast = document.createElement('div');
+        toast.textContent = msg;
+        toast.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--surface);color:var(--text);border:1px solid var(--border);padding:6px 16px;border-radius:8px;font-size:13px;font-weight:600;z-index:200;';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 1500);
+      }
+
+      document.getElementById('share-btn').addEventListener('click', async () => {
+        const url = location.href;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          try { await navigator.clipboard.writeText(url); showShareToast('Link copied!'); return; } catch {}
+        }
+        copyToClipboardFallback(url);
+        showShareToast('Link copied!');
+      });
+
+      // Refresh button: clear SW cache and reload
+      document.getElementById('refresh-btn').addEventListener('click', async () => {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        if (navigator.serviceWorker) {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg) await reg.update();
+        }
+        location.reload();
+      });
 
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});

@@ -1,4 +1,4 @@
-const { describe, it, beforeEach, afterEach } = require('node:test');
+const { describe, it, beforeEach, afterEach, mock } = require('node:test');
 const assert = require('node:assert');
 
 describe('CLI', () => {
@@ -130,5 +130,107 @@ describe('CLI', () => {
     assert.strictEqual(config.port, 5000);
     assert.strictEqual(config.useTunnel, true);
     assert.strictEqual(config.shell, '/bin/sh');
+  });
+
+  it('should read TERMBEAM_CWD from env', () => {
+    process.env.TERMBEAM_CWD = '/tmp/mydir';
+    process.argv = ['node', 'termbeam'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.cwd, '/tmp/mydir');
+  });
+
+  it('should read PTY_CWD as legacy fallback', () => {
+    process.env.PTY_CWD = '/tmp/legacy';
+    process.argv = ['node', 'termbeam'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.cwd, '/tmp/legacy');
+  });
+
+  it('should prefer TERMBEAM_CWD over PTY_CWD', () => {
+    process.env.TERMBEAM_CWD = '/tmp/new';
+    process.env.PTY_CWD = '/tmp/old';
+    process.argv = ['node', 'termbeam'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.cwd, '/tmp/new');
+  });
+
+  it('should read PTY_PASSWORD as legacy fallback', () => {
+    process.env.PTY_PASSWORD = 'legacypw';
+    process.argv = ['node', 'termbeam'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.password, 'legacypw');
+  });
+
+  it('should prefer TERMBEAM_PASSWORD over PTY_PASSWORD', () => {
+    process.env.TERMBEAM_PASSWORD = 'newpw';
+    process.env.PTY_PASSWORD = 'oldpw';
+    process.argv = ['node', 'termbeam'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.password, 'newpw');
+  });
+
+  it('should pass shell args after positional shell', () => {
+    process.argv = ['node', 'termbeam', '/bin/bash', '-l', '-i'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.shell, '/bin/bash');
+    assert.deepStrictEqual(config.shellArgs, ['-l', '-i']);
+  });
+
+  it('should return a version string', () => {
+    process.argv = ['node', 'termbeam'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.ok(config.version);
+    assert.strictEqual(typeof config.version, 'string');
+  });
+
+  it('should return defaultShell in config', () => {
+    process.argv = ['node', 'termbeam'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.ok(config.defaultShell);
+    assert.strictEqual(typeof config.defaultShell, 'string');
+  });
+
+  it('should use cwd from process.cwd() when no env set', () => {
+    process.argv = ['node', 'termbeam'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.cwd, process.cwd());
+  });
+
+  it('printHelp should output help text', () => {
+    const lines = [];
+    const origLog = console.log;
+    console.log = (msg) => lines.push(msg);
+    try {
+      const { printHelp } = require('../src/cli');
+      printHelp();
+      const output = lines.join('\n');
+      assert.ok(output.includes('termbeam'), 'Should mention termbeam');
+      assert.ok(output.includes('--password'), 'Should mention --password flag');
+      assert.ok(output.includes('--tunnel'), 'Should mention --tunnel flag');
+      assert.ok(output.includes('--port'), 'Should mention --port flag');
+      assert.ok(output.includes('--host'), 'Should mention --host flag');
+      assert.ok(output.includes('--generate-password'), 'Should mention --generate-password');
+      assert.ok(output.includes('TERMBEAM_PASSWORD'), 'Should mention TERMBEAM_PASSWORD env');
+      assert.ok(output.includes('TERMBEAM_CWD'), 'Should mention TERMBEAM_CWD env');
+    } finally {
+      console.log = origLog;
+    }
+  });
+
+  it('--password flag should override env password', () => {
+    process.env.TERMBEAM_PASSWORD = 'envpw';
+    process.argv = ['node', 'termbeam', '--password', 'flagpw'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.password, 'flagpw');
   });
 });

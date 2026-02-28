@@ -1,6 +1,7 @@
-const { describe, it, beforeEach, afterEach } = require('node:test');
+const { describe, it, beforeEach, afterEach, mock } = require('node:test');
 const assert = require('node:assert');
 const os = require('os');
+const fs = require('fs');
 
 describe('Shell Detection', () => {
   beforeEach(() => {
@@ -9,6 +10,7 @@ describe('Shell Detection', () => {
 
   afterEach(() => {
     delete require.cache[require.resolve('../src/shells')];
+    mock.restoreAll();
   });
 
   it('should export detectShells function', () => {
@@ -71,4 +73,74 @@ describe('Shell Detection', () => {
       assert.ok(sh, '/bin/sh should be detected on Unix');
     });
   }
+});
+
+describe('detectUnixShells (mocked)', () => {
+  let detectUnixShells;
+
+  beforeEach(() => {
+    delete require.cache[require.resolve('../src/shells')];
+    // Require module BEFORE mocking fs so the loader isn't intercepted
+    ({ detectUnixShells } = require('../src/shells'));
+  });
+
+  afterEach(() => {
+    delete require.cache[require.resolve('../src/shells')];
+    mock.restoreAll();
+  });
+
+  it('should parse /etc/shells file', () => {
+    const etcShells = '# /etc/shells\n/bin/bash\n/bin/zsh\n/bin/sh\n';
+    mock.method(fs, 'readFileSync', (path) => {
+      if (path === '/etc/shells') return etcShells;
+      throw new Error('ENOENT');
+    });
+    const shells = detectUnixShells();
+    assert.ok(shells.length === 3);
+    assert.deepStrictEqual(shells[0], { name: 'bash', path: '/bin/bash', cmd: '/bin/bash' });
+    assert.deepStrictEqual(shells[1], { name: 'zsh', path: '/bin/zsh', cmd: '/bin/zsh' });
+    assert.deepStrictEqual(shells[2], { name: 'sh', path: '/bin/sh', cmd: '/bin/sh' });
+  });
+
+  it('should skip comments and empty lines in /etc/shells', () => {
+    const etcShells = '# Comment line\n\n/bin/bash\n# another comment\n/bin/zsh\n\n';
+    mock.method(fs, 'readFileSync', (path) => {
+      if (path === '/etc/shells') return etcShells;
+      throw new Error('ENOENT');
+    });
+    const shells = detectUnixShells();
+    assert.strictEqual(shells.length, 2);
+    assert.strictEqual(shells[0].name, 'bash');
+    assert.strictEqual(shells[1].name, 'zsh');
+  });
+
+  it('should deduplicate shells by name', () => {
+    const etcShells = '/bin/bash\n/usr/local/bin/bash\n';
+    mock.method(fs, 'readFileSync', (path) => {
+      if (path === '/etc/shells') return etcShells;
+      throw new Error('ENOENT');
+    });
+    const shells = detectUnixShells();
+    assert.strictEqual(shells.length, 1);
+    assert.strictEqual(shells[0].path, '/bin/bash');
+  });
+
+  it('should fallback to common paths when /etc/shells is unavailable', () => {
+    mock.method(fs, 'readFileSync', () => { throw new Error('ENOENT'); });
+    const accessiblePaths = new Set(['/bin/bash', '/bin/sh']);
+    mock.method(fs, 'accessSync', (p) => {
+      if (!accessiblePaths.has(p)) throw new Error('ENOENT');
+    });
+    const shells = detectUnixShells();
+    assert.strictEqual(shells.length, 2);
+    assert.strictEqual(shells[0].name, 'bash');
+    assert.strictEqual(shells[1].name, 'sh');
+  });
+
+  it('should return empty array when no shells are found in fallback', () => {
+    mock.method(fs, 'readFileSync', () => { throw new Error('ENOENT'); });
+    mock.method(fs, 'accessSync', () => { throw new Error('ENOENT'); });
+    const shells = detectUnixShells();
+    assert.strictEqual(shells.length, 0);
+  });
 });

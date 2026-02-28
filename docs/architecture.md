@@ -17,11 +17,17 @@ termbeam/
 │   └── version.js           # Smart version detection
 ├── public/
 │   ├── index.html           # Session manager (mobile UI)
-│   └── terminal.html        # Terminal view (xterm.js)
+│   ├── terminal.html        # Terminal view (xterm.js)
+│   ├── sw.js                # Service worker (PWA caching)
+│   ├── manifest.json        # Web app manifest
+│   └── icons/               # PWA icons
 ├── test/
-│   ├── cli.test.js
 │   ├── auth.test.js
-│   └── sessions.test.js
+│   ├── cli.test.js
+│   ├── sessions.test.js
+│   ├── shells.test.js
+│   ├── version.test.js
+│   └── websocket.test.js
 ├── docs/                    # MkDocs documentation
 ├── package.json
 └── mkdocs.yml
@@ -35,7 +41,7 @@ Wires all modules together. Creates the Express app, HTTP server, WebSocket serv
 
 ### `cli.js` — CLI Interface
 
-Parses command-line arguments and environment variables. Returns a config object used by all other modules.
+Parses command-line arguments and environment variables. Returns a config object used by all other modules. Includes platform-specific shell auto-detection: on Windows it walks the process tree (via `wmic`) looking for PowerShell or cmd.exe; on Unix it inspects the parent process via `ps` and falls back to `$SHELL` or `/bin/sh`.
 
 ### `auth.js` — Authentication
 
@@ -43,15 +49,15 @@ Factory function `createAuth(password)` returns an object with middleware, token
 
 ### `sessions.js` — Session Manager
 
-`SessionManager` class wraps the PTY lifecycle. Handles spawning, tracking, listing, and cleaning up terminal sessions.
+`SessionManager` class wraps the PTY lifecycle. Handles spawning, tracking, listing, updating, and cleaning up terminal sessions. Each session has an auto-assigned color, tracks `lastActivity` timestamps, a `createdAt` timestamp, and supports live updates via the `update()` method. Sessions maintain a scrollback buffer (capped at 200 KB) that is sent to newly connecting clients, and track a `clients` Set of active WebSocket connections. Supports an optional `initialCommand` that is written to the PTY shortly after spawn.
 
 ### `routes.js` — HTTP Routes
 
-Registers all Express routes: login page, auth API, session CRUD, shell detection, directory browser, version endpoint.
+Registers all Express routes: login page (`GET /login`), auth API, session CRUD (including `PATCH` for updating session color/name), shell detection, directory browser, version endpoint. The `POST /api/sessions` endpoint accepts optional `shell`, `args`, `cwd`, `initialCommand`, and `color` parameters.
 
 ### `websocket.js` — WebSocket Handler
 
-Handles real-time communication: session attachment, terminal I/O forwarding, resize events.
+Handles real-time communication: WebSocket-level authentication (password or token), session attachment, terminal I/O forwarding, and resize events. When multiple clients are connected to the same session, the PTY is resized to the minimum dimensions across all clients.
 
 ### `tunnel.js` — DevTunnel
 

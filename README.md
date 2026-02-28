@@ -41,8 +41,18 @@ termbeam --password mysecret
 
 ## Features
 
-- **Mobile-first UI** with on-screen touch bar (arrow keys, Tab, Ctrl shortcuts, Esc) and swipe-to-delete session management
-- **Multiple sessions** running simultaneously, managed from a single hub page — shows connected client count per session
+- **Mobile-first UI** with on-screen touch bar (arrow keys, Tab, Enter, Ctrl shortcuts, Esc) and touch-optimized controls
+- **Tabbed multi-session terminal** — open, switch, and manage multiple sessions from a single tab bar with drag-to-reorder
+- **Split view** — view two sessions side-by-side (horizontal on desktop, vertical on mobile)
+- **Session colors** — assign a color to each session for quick identification
+- **Activity indicators** — see how recently each session had output (e.g. "3s ago", "5m ago")
+- **Tab previews** — hover (desktop) or long-press (mobile) a tab to preview the last few lines of output
+- **Side panel** (mobile) — slide-out session list with output previews for quick switching
+- **Create sessions anywhere** — new session modal available from both the hub page and the terminal page
+- **Touch scrolling** — swipe to scroll through terminal history
+- **Share button** — share the TermBeam URL via Web Share API, clipboard, or legacy copy fallback (works over HTTP)
+- **Refresh button** — clear PWA/service worker cache and reload to get the latest version
+- **iPhone PWA safe area** — full support for `viewport-fit=cover` and safe area insets on notched devices
 - **Password auth** with token-based cookies and rate-limited login
 - **Folder browser** to pick working directories without typing paths
 - **Initial command** — optionally launch a session straight into `htop`, `vim`, or any command
@@ -80,14 +90,14 @@ termbeam --host 127.0.0.1        # restrict to localhost (default: 0.0.0.0)
 
 | Flag                  | Description                              | Default     |
 | --------------------- | ---------------------------------------- | ----------- |
-| `--password <pw>`     | Set access password                      | None        |
+| `--password <pw>`     | Set access password (also accepts `--password=<pw>`) | None |
 | `--generate-password` | Auto-generate a secure password          | —           |
 | `--tunnel`            | Create an ephemeral devtunnel URL        | Off         |
 | `--persisted-tunnel`  | Create a reusable devtunnel URL          | Off         |
 | `--port <port>`       | Server port                              | `3456`      |
 | `--host <addr>`       | Bind address                             | `0.0.0.0`   |
 
-Environment variables: `PORT`, `TERMBEAM_PASSWORD`, `TERMBEAM_CWD` (see [Configuration docs](https://dorlugasigal.github.io/TermBeam/configuration/)).
+Environment variables: `PORT`, `TERMBEAM_PASSWORD`, `TERMBEAM_CWD`, `SHELL` (Unix fallback), `COMSPEC` (Windows fallback). See [Configuration docs](https://dorlugasigal.github.io/TermBeam/configuration/).
 
 ## Security
 

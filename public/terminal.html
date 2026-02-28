@@ -2,20 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#1e1e1e" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>TermBeam — Terminal</title>
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css"
-    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css" />
     <style>
       :root {
         --bg: #1e1e1e;
@@ -59,364 +53,657 @@
       }
       @font-face {
         font-family: 'NerdFont';
-        src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@latest/patched-fonts/JetBrainsMono/Ligatures/Regular/JetBrainsMonoNerdFont-Regular.ttf')
-          format('truetype');
-        font-weight: normal;
-        font-style: normal;
-        font-display: swap;
+        src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@latest/patched-fonts/JetBrainsMono/Ligatures/Regular/JetBrainsMonoNerdFont-Regular.ttf') format('truetype');
+        font-weight: normal; font-style: normal; font-display: swap;
       }
       @font-face {
         font-family: 'NerdFont';
-        src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@latest/patched-fonts/JetBrainsMono/Ligatures/Bold/JetBrainsMonoNerdFont-Bold.ttf')
-          format('truetype');
-        font-weight: bold;
-        font-style: normal;
-        font-display: swap;
+        src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@latest/patched-fonts/JetBrainsMono/Ligatures/Bold/JetBrainsMonoNerdFont-Bold.ttf') format('truetype');
+        font-weight: bold; font-style: normal; font-display: swap;
       }
-
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        height: 100%;
-        width: 100%;
-        background: var(--bg);
-        color: var(--text);
+      :root { --sab: env(safe-area-inset-bottom, 0px); }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        height: 100%; width: 100%; background: var(--bg); color: var(--text);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        overflow: hidden;
-        touch-action: manipulation;
-        height: 100dvh;
+        overflow: hidden; touch-action: manipulation; height: 100dvh;
+        overscroll-behavior: none;
         transition: background 0.3s, color 0.3s;
       }
 
-      #status-bar {
+      /* ===== Top Bar (unified) ===== */
+      #top-bar {
         height: 40px;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 0 8px;
         background: var(--surface);
         border-bottom: 1px solid var(--border);
-        font-size: 13px;
+        padding: 0 calc(4px + env(safe-area-inset-right, 0px)) 0 calc(4px + env(safe-area-inset-left, 0px));
+        padding-top: env(safe-area-inset-top, 0px);
+        gap: 2px;
         transition: background 0.3s, border-color 0.3s;
       }
-      #status-bar .left {
+      #top-bar .left { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+      #top-bar .right { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+      #status-dot {
+        width: 8px; height: 8px; border-radius: 50%; background: var(--danger);
+        display: inline-block; transition: background 0.3s;
+      }
+      #status-dot.connected { background: var(--success); }
+      #session-name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+      #status-text { color: var(--text-secondary); font-size: 11px; white-space: nowrap; }
+      #tab-list {
+        display: flex;
+        align-items: center;
+        flex: 1;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 2px;
+        padding: 0 4px;
+        height: 100%;
+        min-width: 0;
+      }
+      #tab-list::-webkit-scrollbar { display: none; }
+      .session-tab {
         display: flex;
         align-items: center;
         gap: 6px;
-      }
-      #status-bar .right {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-      }
-      .bar-btn {
-        background: none;
+        padding: 4px 10px;
+        background: transparent;
         border: none;
+        border-left: 3px solid transparent;
+        border-radius: 6px;
         color: var(--text-dim);
-        width: 30px;
-        height: 30px;
-        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 500;
         cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        white-space: nowrap;
+        flex-shrink: 0;
+        height: 30px;
+        transition: background 0.15s, color 0.15s;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+      }
+      .session-tab:hover { background: var(--border); color: var(--text); }
+      .session-tab.active {
+        background: var(--bg);
+        color: var(--text);
+        font-weight: 600;
+      }
+      .session-tab.in-split {
+        background: rgba(0,120,212,0.1);
+        color: var(--text);
+      }
+      .session-tab.dragging { opacity: 0.4; }
+      .tab-dot {
+        width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      }
+      .tab-name { max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
+      .tab-activity {
+        font-size: 10px; color: var(--text-muted); flex-shrink: 0;
+      }
+      .tab-status {
+        width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+      }
+      .tab-close {
+        display: none;
+        background: none; border: none; color: var(--text-muted);
+        font-size: 14px; cursor: pointer; padding: 0 2px; line-height: 1;
+        transition: color 0.15s;
+      }
+      .session-tab:hover .tab-close,
+      .session-tab.active .tab-close { display: block; }
+      .tab-close:hover { color: var(--danger); }
+      /* ===== Tab Preview ===== */
+      #tab-preview {
+        display: none;
+        position: fixed;
+        z-index: 300;
+        width: min(85vw, 340px);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+        overflow: hidden;
+        pointer-events: none;
+      }
+      #tab-preview.visible { display: block; }
+      .preview-header {
+        display: flex; align-items: center; gap: 6px;
+        padding: 6px 10px;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px; font-weight: 600;
+      }
+      .preview-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+      .preview-body {
+        padding: 6px 8px;
+        font-family: 'NerdFont', 'JetBrains Mono', monospace;
+        font-size: 10px;
+        line-height: 1.35;
+        color: var(--text);
+        white-space: pre;
+        overflow: hidden;
+        max-height: 140px;
+        -webkit-text-size-adjust: none;
+      }
+      .preview-empty {
+        padding: 12px 10px;
+        font-size: 11px;
+        color: var(--text-muted);
+        text-align: center;
+        font-style: italic;
+      }
+
+      .tab-bar-btn {
+        background: none; border: none; color: var(--text-dim);
+        width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; font-size: 18px; font-weight: 600;
         transition: background 0.15s, color 0.15s;
         -webkit-tap-highlight-color: transparent;
       }
-      .bar-btn:hover {
-        background: var(--border);
-        color: var(--text);
+      .tab-bar-btn:hover { background: var(--border); color: var(--text); }
+      .tab-bar-btn:active { background: var(--accent); color: #fff; }
+      .tab-bar-btn.active { color: var(--accent); }
+      #tab-new-btn {
+        gap: 3px; width: auto; padding: 0 10px; font-size: 12px;
       }
-      .bar-btn:active {
-        background: var(--accent);
-        color: #ffffff;
+      .new-btn-label { font-size: 11px; font-weight: 600; }
+
+      .bar-btn {
+        background: none; border: none; color: var(--text-dim);
+        width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: background 0.15s, color 0.15s;
+        -webkit-tap-highlight-color: transparent;
       }
-      .bar-btn svg {
-        display: block;
-      }
+      .bar-btn:hover { background: var(--border); color: var(--text); }
+      .bar-btn:active { background: var(--accent); color: #fff; }
+      .bar-btn svg { display: block; }
       .bar-group {
-        display: flex;
-        align-items: center;
-        background: var(--bg);
-        border-radius: 8px;
-        padding: 2px;
-        gap: 1px;
-        transition: background 0.3s;
+        display: flex; align-items: center; background: var(--bg);
+        border-radius: 8px; padding: 2px; gap: 1px; transition: background 0.3s;
       }
-      .bar-group .bar-btn {
-        width: 26px;
-        height: 26px;
-        border-radius: 6px;
-        font-size: 14px;
-        font-weight: 600;
-      }
+      .bar-group .bar-btn { width: 26px; height: 26px; border-radius: 6px; font-size: 14px; font-weight: 600; }
       #stop-btn {
-        background: none;
-        border: none;
-        color: var(--danger);
-        height: 30px;
-        border-radius: 8px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 4px;
-        padding: 0 10px;
-        font-size: 11px;
+        background: none; border: none; color: var(--danger); height: 30px;
+        border-radius: 8px; cursor: pointer; display: flex; align-items: center;
+        justify-content: center; gap: 4px; padding: 0 8px; font-size: 11px;
         font-weight: 600;
-        margin-left: 2px;
         transition: background 0.15s, color 0.15s, transform 0.1s;
         -webkit-tap-highlight-color: transparent;
       }
-      #stop-btn:hover {
-        background: var(--danger);
-        color: #ffffff;
-      }
-      #stop-btn:active {
-        background: var(--danger-hover);
-        color: #ffffff;
-        transform: scale(0.9);
-      }
-      #status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--danger);
-        display: inline-block;
-        transition: background 0.3s;
-      }
-      #status-dot.connected {
-        background: var(--success);
-      }
-      #status-text {
-        color: var(--text-secondary);
-      }
-      #session-name {
-        font-weight: 600;
-      }
+      #stop-btn:hover { background: var(--danger); color: #fff; }
+      #stop-btn:active { background: var(--danger-hover); color: #fff; transform: scale(0.9); }
 
-      #terminal-container {
+      /* ===== Terminals Wrapper ===== */
+      #terminals-wrapper {
         position: absolute;
-        top: 40px;
-        left: 0;
-        right: 0;
-        bottom: 52px;
-        padding: 2px;
+        top: calc(41px + env(safe-area-inset-top, 0px));
+        left: env(safe-area-inset-left, 0px);
+        right: env(safe-area-inset-right, 0px);
+        bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+        display: flex;
         overflow: hidden;
       }
+      #terminals-wrapper.split-h { flex-direction: row; }
+      #terminals-wrapper.split-v { flex-direction: column; }
+      .terminal-pane {
+        flex: 1; padding: 2px; overflow: hidden; position: relative;
+        display: none;
+      }
+      .terminal-pane.visible { display: block; }
+      #terminals-wrapper.split-h .terminal-pane.visible + .terminal-pane.visible {
+        border-left: 2px solid var(--accent);
+      }
+      #terminals-wrapper.split-v .terminal-pane.visible + .terminal-pane.visible {
+        border-top: 2px solid var(--accent);
+      }
 
+      /* ===== Key Bar ===== */
       #key-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 52px;
-        display: flex;
-        align-items: center;
-        background: var(--surface);
+        position: fixed; bottom: 0; left: 0; right: 0;
+        height: calc(52px + env(safe-area-inset-bottom, 0px));
+        display: flex; align-items: center; background: var(--surface);
         border-top: 1px solid var(--border);
-        padding: 0 4px;
-        padding-bottom: env(safe-area-inset-bottom, 0);
-        gap: 4px;
-        z-index: 50;
+        padding: 0 calc(4px + env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) calc(4px + env(safe-area-inset-left, 0px));
+        gap: 4px; z-index: 50;
         transition: background 0.3s, border-color 0.3s;
       }
       .key-btn {
-        min-width: 0;
-        height: 40px;
-        background: var(--key-bg);
-        color: var(--text);
-        border: 1px solid var(--key-border);
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        -webkit-tap-highlight-color: transparent;
-        user-select: none;
-        white-space: nowrap;
-        padding: 2px 8px;
-        flex: 1 1 0;
-        gap: 0;
-        line-height: 1;
+        min-width: 0; height: 40px; background: var(--key-bg); color: var(--text);
+        border: 1px solid var(--key-border); border-radius: 8px; font-size: 12px;
+        font-weight: 600; cursor: pointer; display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        -webkit-tap-highlight-color: transparent; user-select: none;
+        white-space: nowrap; padding: 2px 8px; flex: 1 1 0; gap: 0; line-height: 1;
         transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s, box-shadow 0.15s;
         box-shadow: 0 1px 3px var(--key-shadow), inset 0 1px 0 rgba(255,255,255,0.05);
       }
-      .key-btn .hint {
-        font-size: 8px;
-        font-weight: 400;
-        opacity: 0.5;
-        margin-top: 1px;
-        letter-spacing: 0.02em;
-      }
-      .key-btn:hover {
-        background: var(--border);
-        border-color: var(--accent);
-        box-shadow: 0 2px 6px var(--key-shadow);
-      }
-      .key-btn:active {
-        background: var(--accent);
-        color: #ffffff;
-        border-color: var(--accent);
-        transform: scale(0.93);
-        box-shadow: none;
-      }
-      .key-btn.wide {
-        flex: 1.4 1 0;
-      }
-      .key-sep {
-        width: 1px;
-        height: 20px;
-        background: var(--border);
-        flex-shrink: 0;
-      }
+      .key-btn .hint { font-size: 8px; font-weight: 400; opacity: 0.5; margin-top: 1px; letter-spacing: 0.02em; }
+      .key-btn:hover { background: var(--border); border-color: var(--accent); box-shadow: 0 2px 6px var(--key-shadow); }
+      .key-btn:active { background: var(--accent); color: #fff; border-color: var(--accent); transform: scale(0.93); box-shadow: none; }
+      .key-btn.wide { flex: 1.4 1 0; }
+      .key-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
 
-      .xterm {
-        height: 100% !important;
-      }
-      .xterm-viewport {
-        overflow-y: hidden !important;
-      }
+      .xterm { height: 100% !important; }
+      .xterm-viewport { overflow-y: auto !important; scrollbar-width: none; overscroll-behavior: contain; }
+      .xterm-viewport::-webkit-scrollbar { display: none; }
+      .terminal-pane,
+      .terminal-pane .xterm,
+      .terminal-pane .xterm-screen,
+      .terminal-pane .xterm-viewport,
+      .terminal-pane .xterm-helper-textarea { touch-action: none; }
 
+      /* ===== Toasts & Overlays ===== */
       #copy-toast {
-        position: fixed;
-        top: 56px;
-        left: 50%;
+        position: fixed; top: 48px; left: 50%;
         transform: translateX(-50%) translateY(-8px);
-        background: var(--surface);
-        color: var(--text);
-        border: 1px solid var(--border);
-        padding: 6px 16px;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 600;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.2s, transform 0.2s;
-        z-index: 200;
+        background: var(--surface); color: var(--text); border: 1px solid var(--border);
+        padding: 6px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+        opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 200;
       }
-      #copy-toast.visible {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-      }
+      #copy-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 
       #paste-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: var(--overlay-bg);
-        z-index: 150;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
+        display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: var(--overlay-bg); z-index: 150;
+        flex-direction: column; align-items: center; justify-content: center; gap: 12px;
       }
-      #paste-overlay.visible {
-        display: flex;
-      }
-      #paste-overlay label {
-        font-size: 15px;
-        color: #ffffff;
-        font-weight: 600;
-      }
+      #paste-overlay.visible { display: flex; }
+      #paste-overlay label { font-size: 15px; color: #fff; font-weight: 600; }
       #paste-input {
-        width: 80%;
-        max-width: 400px;
-        min-height: 80px;
-        background: var(--surface);
-        color: var(--text);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 10px;
-        font-size: 14px;
-        font-family: 'NerdFont', 'JetBrains Mono', monospace;
-        resize: vertical;
+        width: 80%; max-width: 400px; min-height: 80px; background: var(--surface);
+        color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+        padding: 10px; font-size: 14px; font-family: 'NerdFont', 'JetBrains Mono', monospace; resize: vertical;
       }
 
       #reconnect-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: var(--overlay-bg);
-        z-index: 100;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 16px;
+        display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: var(--overlay-bg); z-index: 100;
+        flex-direction: column; align-items: center; justify-content: center; gap: 16px;
       }
-      #reconnect-overlay.visible {
-        display: flex;
-      }
-      #reconnect-overlay .msg {
-        font-size: 17px;
-        color: #ffffff;
-      }
-      .overlay-actions {
-        display: flex;
-        gap: 12px;
-      }
+      #reconnect-overlay.visible { display: flex; }
+      #reconnect-overlay .msg { font-size: 17px; color: #fff; }
+      .overlay-actions { display: flex; gap: 12px; }
       .overlay-actions button {
-        padding: 10px 24px;
-        border: none;
+        padding: 10px 24px; border: none; border-radius: 8px; font-size: 15px;
+        font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.1s;
+      }
+      .overlay-actions button:active { transform: scale(0.95); }
+      #reconnect-btn { background: var(--accent); color: #fff; }
+      #reconnect-btn:hover { background: var(--accent-hover); }
+      #back-to-sessions { background: rgba(255,255,255,0.15); color: #fff; }
+      #back-to-sessions:hover { background: rgba(255,255,255,0.25); }
+
+      /* ===== Folder Browser ===== */
+      .cwd-picker {
+        display: flex;
+        gap: 8px;
+      }
+      .cwd-picker input {
+        flex: 1;
+      }
+      .cwd-browse-btn {
+        background: var(--border);
+        color: var(--text);
+        border: 1px solid var(--border);
         border-radius: 8px;
-        font-size: 15px;
-        font-weight: 600;
+        padding: 0 14px;
+        font-size: 18px;
         cursor: pointer;
-        transition: background 0.15s, transform 0.1s;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        transition: background 0.15s, border-color 0.15s;
       }
-      .overlay-actions button:active {
-        transform: scale(0.95);
+      .cwd-browse-btn:hover {
+        border-color: var(--accent);
       }
-      #reconnect-btn {
+      .cwd-browse-btn:active {
         background: var(--accent);
         color: #ffffff;
       }
-      #reconnect-btn:hover {
-        background: var(--accent-hover);
+      .browser-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: var(--overlay-bg);
+        z-index: 300;
+        justify-content: center;
+        align-items: flex-end;
       }
-      #back-to-sessions {
-        background: rgba(255,255,255,0.15);
-        color: #ffffff;
+      .browser-overlay.visible {
+        display: flex;
       }
-      #back-to-sessions:hover {
-        background: rgba(255,255,255,0.25);
+      .browser-sheet {
+        background: var(--surface);
+        border-radius: 16px 16px 0 0;
+        width: 100%;
+        max-width: 500px;
+        height: 80vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: background 0.3s;
+      }
+      .browser-header {
+        padding: 16px 16px 12px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .browser-header h3 {
+        font-size: 17px;
+        font-weight: 600;
+      }
+      .browser-close {
+        background: none;
+        border: none;
+        color: var(--text-dim);
+        font-size: 24px;
+        cursor: pointer;
+        padding: 0 4px;
+        line-height: 1;
+        transition: color 0.15s;
+      }
+      .browser-close:hover { color: var(--text); }
+      .browser-close:active { color: var(--text); }
+      .browser-breadcrumb {
+        padding: 8px 16px;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        font-size: 13px;
+        overflow-x: auto;
+        white-space: nowrap;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+        -webkit-overflow-scrolling: touch;
+      }
+      .crumb {
+        background: none; border: none; color: var(--text-dim);
+        font-size: 13px; cursor: pointer; padding: 4px 6px;
+        border-radius: 4px; flex-shrink: 0;
+        transition: background 0.15s, color 0.15s;
+      }
+      .crumb:active, .crumb:hover { background: var(--border); color: var(--text); }
+      .crumb.current { color: var(--text); font-weight: 600; }
+      .crumb-sep { color: var(--border-subtle); flex-shrink: 0; }
+      .browser-list {
+        flex: 1; overflow-y: auto; padding: 4px 0;
+        -webkit-overflow-scrolling: touch;
+      }
+      .browser-empty {
+        text-align: center; padding: 40px 20px;
+        color: var(--text-muted); font-size: 14px;
+      }
+      .folder-item {
+        display: flex; align-items: center; gap: 12px;
+        padding: 12px 16px; cursor: pointer;
+        border-bottom: 1px solid rgba(60,60,60,0.5);
+        transition: background 0.1s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .folder-item:active { background: rgba(0,120,212,0.2); }
+      .folder-item:hover { background: rgba(0,120,212,0.1); }
+      .folder-icon { font-size: 22px; flex-shrink: 0; width: 28px; text-align: center; }
+      .folder-name {
+        font-size: 15px; color: var(--text); flex: 1;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .folder-arrow { color: var(--border-subtle); font-size: 18px; flex-shrink: 0; }
+      .browser-footer {
+        padding: 12px 16px calc(env(safe-area-inset-bottom, 8px) + 8px);
+        border-top: 1px solid var(--border);
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .browser-current-path {
+        font-size: 12px; color: var(--text-dim);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .browser-select-btn {
+        width: 100%; padding: 12px; background: var(--accent);
+        color: #ffffff; border: none; border-radius: 10px;
+        font-size: 16px; font-weight: 600; cursor: pointer;
+        transition: background 0.15s, transform 0.1s;
+      }
+      .browser-select-btn:hover { background: var(--accent-hover); }
+      .browser-select-btn:active { background: var(--accent-active); transform: scale(0.98); }
+
+      /* ===== New Session Modal ===== */
+      .modal-overlay {
+        display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: var(--overlay-bg); z-index: 200;
+        justify-content: center; align-items: center;
+      }
+      .modal-overlay.visible { display: flex; }
+      .modal {
+        background: var(--surface); border-radius: 16px; width: 90%; max-width: 500px;
+        padding: 24px 20px; transition: background 0.3s; max-height: 90vh; overflow-y: auto;
+      }
+      .modal h2 { font-size: 18px; margin-bottom: 16px; }
+      .modal label {
+        display: block; font-size: 13px; color: var(--text-secondary);
+        margin-bottom: 4px; margin-top: 12px;
+      }
+      .modal input, .modal select {
+        width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border);
+        border-radius: 8px; color: var(--text); font-size: 15px; outline: none;
+        -webkit-appearance: none; appearance: none;
+        transition: background 0.3s, border-color 0.15s, color 0.3s;
+      }
+      .modal select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 12px center;
+        padding-right: 32px; cursor: pointer;
+      }
+      .modal input:focus, .modal select:focus { border-color: var(--accent); }
+      .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
+      .modal-actions button {
+        flex: 1; padding: 12px; border: none; border-radius: 8px;
+        font-size: 15px; font-weight: 600; cursor: pointer;
+        transition: background 0.15s, transform 0.1s;
+      }
+      .modal-actions button:active { transform: scale(0.95); }
+      .btn-cancel { background: var(--border); color: var(--text); }
+      .btn-cancel:hover { background: var(--border-subtle); }
+      .btn-create { background: var(--accent); color: #fff; }
+      .btn-create:hover { background: var(--accent-hover); }
+
+      .color-picker { display: flex; gap: 8px; padding: 6px 0; flex-wrap: wrap; }
+      .color-swatch {
+        width: 32px; height: 32px; border-radius: 50%; border: 3px solid transparent;
+        cursor: pointer; padding: 0; outline: none;
+        transition: border-color 0.15s, transform 0.1s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .color-swatch:hover { transform: scale(1.1); }
+      .color-swatch.selected { border-color: var(--text); transform: scale(1.15); }
+
+      /* ===== Sessions Side Panel (mobile) ===== */
+      #panel-toggle {
+        display: none;
+        background: none; border: none; color: var(--text-dim);
+        width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+        align-items: center; justify-content: center;
+        flex-shrink: 0;
+        transition: background 0.15s, color 0.15s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #panel-toggle:hover { background: var(--border); color: var(--text); }
+
+      #side-panel-backdrop {
+        display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5); z-index: 400;
+        opacity: 0; transition: opacity 0.25s;
+      }
+      #side-panel-backdrop.visible { display: block; opacity: 1; }
+
+      #side-panel {
+        position: fixed; top: 0; left: 0; bottom: 0;
+        width: min(85vw, 380px);
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        z-index: 410;
+        transform: translateX(-100%);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s;
+        display: flex; flex-direction: column;
+        overflow: hidden;
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-left: env(safe-area-inset-left, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      #side-panel.open { transform: translateX(0); }
+
+      .side-panel-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 14px; border-bottom: 1px solid var(--border);
+        font-size: 15px; font-weight: 700;
+      }
+      .side-panel-close {
+        background: none; border: none; color: var(--text-dim);
+        width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 20px; transition: background 0.15s, color 0.15s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .side-panel-close:hover { background: var(--border); color: var(--text); }
+
+      .side-panel-list {
+        flex: 1; overflow-y: auto; padding: 8px;
+        -webkit-overflow-scrolling: touch;
+        display: flex; flex-direction: column; gap: 6px;
       }
 
+      .side-panel-card {
+        background: var(--bg); border: 1px solid var(--border);
+        border-radius: 10px; cursor: pointer; overflow: hidden;
+        transition: background 0.15s, border-color 0.15s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .side-panel-card:hover { border-color: var(--accent); }
+      .side-panel-card.active { border-color: var(--accent); border-width: 2px; }
+
+      .side-panel-card-header {
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px 12px 6px;
+      }
+      .side-panel-card-dot {
+        width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+      }
+      .side-panel-card-name {
+        font-size: 13px; font-weight: 600; flex: 1;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .side-panel-card-status {
+        width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+      }
+      .side-panel-card-close {
+        background: none; border: none; color: var(--text-muted);
+        width: 26px; height: 26px; border-radius: 6px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 16px; flex-shrink: 0; padding: 0;
+        transition: background 0.15s, color 0.15s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .side-panel-card-close:hover { background: var(--danger); color: #fff; }
+      .side-panel-card-meta {
+        padding: 0 12px 4px;
+        font-size: 10px; color: var(--text-muted);
+      }
+
+      .side-panel-card-preview {
+        margin: 0 8px 8px;
+        padding: 6px 8px;
+        background: var(--surface);
+        border-radius: 6px;
+        font-family: 'NerdFont', 'JetBrains Mono', monospace;
+        font-size: 9px;
+        line-height: 1.3;
+        color: var(--text-secondary);
+        white-space: pre;
+        overflow: hidden;
+        max-height: 72px;
+        -webkit-text-size-adjust: none;
+      }
+      .side-panel-card-preview.empty {
+        font-style: italic; color: var(--text-muted);
+        text-align: center; font-family: inherit; font-size: 11px;
+        white-space: normal;
+      }
+
+      @media (max-width: 640px) {
+        #panel-toggle { display: flex; }
+        #tab-list { display: none; }
+        #split-toggle { display: none; }
+        #version-text { display: none; }
+        #back-btn { display: none; }
+        #theme-toggle { display: flex; }
+        #stop-btn { padding: 0 8px; }
+        #session-name { max-width: 30vw; }
+        #status-text { display: none; }
+        #tab-new-btn { font-size: 13px; padding: 0 8px; width: auto; }
+      }
     </style>
   </head>
   <body>
-    <div id="status-bar">
+    <!-- Sessions Side Panel -->
+    <div id="side-panel-backdrop"></div>
+    <div id="side-panel">
+      <div class="side-panel-header">
+        <span>Sessions</span>
+        <button class="side-panel-close" id="side-panel-close" title="Close">×</button>
+      </div>
+      <div class="side-panel-list" id="side-panel-list"></div>
+      <div style="padding:8px;border-top:1px solid var(--border)">
+        <button id="side-panel-new-btn" style="width:100%;padding:10px;border:1px dashed var(--border);border-radius:8px;background:none;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s">+ New Session</button>
+      </div>
+    </div>
+
+    <!-- Top Bar (unified) -->
+    <div id="top-bar">
       <div class="left">
-        <button class="bar-btn" id="back-btn" onclick="location.href = '/'" title="Back to sessions"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <button id="panel-toggle" title="Sessions">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <button class="bar-btn" id="back-btn" onclick="location.href='/'" title="Back to sessions"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
         <span id="status-dot"></span>
         <span id="session-name">…</span>
-      </div>
-      <div class="right">
         <span id="status-text">Connecting…</span>
-        <span id="version-text" style="font-size: 11px; color: var(--text-muted)"></span>
+      </div>
+      <div id="tab-list"></div>
+      <div class="right">
+        <span id="version-text" style="font-size:11px;color:var(--text-muted)"></span>
+        <button class="tab-bar-btn" id="tab-new-btn" title="New session"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span class="new-btn-label">New</span></button>
+        <button class="tab-bar-btn" id="split-toggle" title="Split view">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+        </button>
         <div class="bar-group">
           <button class="bar-btn" id="zoom-out" title="Decrease font size">−</button>
           <button class="bar-btn" id="zoom-in" title="Increase font size">+</button>
         </div>
+        <button class="bar-btn" id="share-btn" title="Share link"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
+        <button class="bar-btn" id="refresh-btn" title="Refresh app"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
         <button class="bar-btn" id="theme-toggle" title="Toggle theme"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button>
         <button id="stop-btn" title="Stop session"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Stop</button>
       </div>
     </div>
 
-    <div id="terminal-container"></div>
+    <!-- Tab Preview Popover -->
+    <div id="tab-preview">
+      <div class="preview-header">
+        <span class="preview-dot" id="preview-dot"></span>
+        <span id="preview-name"></span>
+      </div>
+      <div class="preview-body" id="preview-body"></div>
+    </div>
+
+    <!-- Terminals Wrapper (panes created dynamically) -->
+    <div id="terminals-wrapper"></div>
+
     <div id="copy-toast">Copied!</div>
 
     <div id="key-bar">
@@ -432,12 +719,14 @@
       <button class="key-btn wide" data-key="&#x09;" title="Autocomplete">Tab</button>
       <div class="key-sep"></div>
       <button class="key-btn" data-key="&#x03;" title="Interrupt process">^C<span class="hint">stop</span></button>
+      <div class="key-sep"></div>
+      <button class="key-btn" data-key="enter" title="Enter / Return">↵<span class="hint">enter</span></button>
     </div>
 
     <div id="reconnect-overlay">
       <div class="msg">Session disconnected</div>
       <div class="overlay-actions">
-        <button id="back-to-sessions" onclick="location.href = '/'">Sessions</button>
+        <button id="back-to-sessions" onclick="location.href='/'">Sessions</button>
         <button id="reconnect-btn">Reconnect</button>
       </div>
     </div>
@@ -446,8 +735,61 @@
       <label for="paste-input">Paste your text below</label>
       <textarea id="paste-input" placeholder="Long-press here and paste…"></textarea>
       <div class="overlay-actions">
-        <button id="paste-cancel" style="background: rgba(255,255,255,0.15); color: #ffffff;">Cancel</button>
-        <button id="paste-send" style="background: var(--accent); color: #ffffff;">Send</button>
+        <button id="paste-cancel" style="background:rgba(255,255,255,0.15);color:#fff;">Cancel</button>
+        <button id="paste-send" style="background:var(--accent);color:#fff;">Send</button>
+      </div>
+    </div>
+
+    <!-- New Session Modal -->
+    <div class="modal-overlay" id="new-session-modal">
+      <div class="modal">
+        <h2>New Session</h2>
+        <label for="ns-name">Name</label>
+        <input type="text" id="ns-name" placeholder="My Session" />
+        <label for="ns-shell">Shell</label>
+        <select id="ns-shell"><option value="">Loading shells…</option></select>
+        <label for="ns-cmd">Initial Command <span style="color:var(--text-muted);font-weight:normal">(optional)</span></label>
+        <input type="text" id="ns-cmd" placeholder="e.g. htop, vim" />
+        <label>Color</label>
+        <div class="color-picker" id="ns-color-picker">
+          <button type="button" class="color-swatch selected" data-color="#4a9eff" style="background:#4a9eff" title="Blue"></button>
+          <button type="button" class="color-swatch" data-color="#4ade80" style="background:#4ade80" title="Green"></button>
+          <button type="button" class="color-swatch" data-color="#fbbf24" style="background:#fbbf24" title="Amber"></button>
+          <button type="button" class="color-swatch" data-color="#c084fc" style="background:#c084fc" title="Purple"></button>
+          <button type="button" class="color-swatch" data-color="#f87171" style="background:#f87171" title="Red"></button>
+          <button type="button" class="color-swatch" data-color="#22d3ee" style="background:#22d3ee" title="Cyan"></button>
+          <button type="button" class="color-swatch" data-color="#fb923c" style="background:#fb923c" title="Orange"></button>
+          <button type="button" class="color-swatch" data-color="#f472b6" style="background:#f472b6" title="Pink"></button>
+        </div>
+        <label for="ns-cwd">Working Directory <span style="color:var(--text-muted);font-weight:normal">(optional)</span></label>
+        <div class="cwd-picker">
+          <input type="text" id="ns-cwd" placeholder="Uses server default" />
+          <button type="button" class="cwd-browse-btn" id="ns-browse-btn" title="Browse folders">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          </button>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" id="ns-cancel">Cancel</button>
+          <button class="btn-create" id="ns-create">Create</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Folder Browser -->
+    <div class="browser-overlay" id="ns-browser-overlay">
+      <div class="browser-sheet">
+        <div class="browser-header">
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px; margin-right: 6px"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Choose Folder
+          </h3>
+          <button class="browser-close" id="ns-browser-close">×</button>
+        </div>
+        <div class="browser-breadcrumb" id="ns-browser-breadcrumb"></div>
+        <div class="browser-list" id="ns-browser-list"></div>
+        <div class="browser-footer">
+          <div class="browser-current-path" id="ns-browser-path">/</div>
+          <button class="browser-select-btn" id="ns-browser-select">Select This Folder</button>
+        </div>
       </div>
     </div>
 
@@ -455,21 +797,24 @@
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
     <script>
-      const sessionId = new URLSearchParams(location.search).get('id');
-      if (!sessionId) {
-        location.href = '/';
-      }
+      // ===== Constants =====
+      const SESSION_COLORS = ['#4a9eff','#4ade80','#fbbf24','#c084fc','#f87171','#22d3ee','#fb923c','#f472b6'];
 
+      // ===== State =====
+      const managed = new Map(); // sessionId -> ManagedSession
+      let activeId = null;
+      let splitMode = false;
+      let splitSecondId = null;
+
+      // ===== DOM Refs =====
       const statusDot = document.getElementById('status-dot');
       const statusText = document.getElementById('status-text');
-      const sessionName = document.getElementById('session-name');
+      const sessionNameEl = document.getElementById('session-name');
       const reconnectOverlay = document.getElementById('reconnect-overlay');
-      let sessionExited = false;
-      let reconnectTimer = null;
-      let reconnectDelay = 3000;
-      const MAX_RECONNECT_DELAY = 30000;
+      const tabListEl = document.getElementById('tab-list');
+      const terminalsWrapper = document.getElementById('terminals-wrapper');
 
-      // Terminal themes
+      // ===== Terminal Themes =====
       const darkTermTheme = {
         background: '#1e1e1e', foreground: '#d4d4d4', cursor: '#aeafad', cursorAccent: '#1e1e1e',
         selectionBackground: 'rgba(38, 79, 120, 0.5)',
@@ -489,200 +834,849 @@
         brightCyan: '#0598bc', brightWhite: '#a5a5a5',
       };
 
+      // ===== Theme =====
       function getTheme() { return localStorage.getItem('termbeam-theme') || 'dark'; }
       function applyTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
-        document.querySelector('meta[name="theme-color"]').content =
-          theme === 'light' ? '#f3f3f3' : '#1e1e1e';
+        document.querySelector('meta[name="theme-color"]').content = theme === 'light' ? '#f3f3f3' : '#1e1e1e';
         const btn = document.getElementById('theme-toggle');
         if (btn) btn.innerHTML = theme === 'light'
           ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
           : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
         localStorage.setItem('termbeam-theme', theme);
-        if (window._term) {
-          window._term.options.theme = theme === 'light' ? lightTermTheme : darkTermTheme;
+        for (const [, ms] of managed) {
+          ms.term.options.theme = theme === 'light' ? lightTermTheme : darkTermTheme;
         }
       }
       applyTheme(getTheme());
-
       document.getElementById('theme-toggle').addEventListener('click', () => {
         applyTheme(getTheme() === 'light' ? 'dark' : 'light');
       });
 
-      // Load Nerd Font, then init terminal
-      const nerdFont = new FontFace(
-        'NerdFont',
-        "url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@latest/patched-fonts/JetBrainsMono/Ligatures/Regular/JetBrainsMonoNerdFont-Regular.ttf')",
-      );
+      // ===== Font Loading (non-blocking) =====
+      const nerdFont = new FontFace('NerdFont',
+        "url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@latest/patched-fonts/JetBrainsMono/Ligatures/Regular/JetBrainsMonoNerdFont-Regular.ttf')");
+      nerdFont.load().then(font => { document.fonts.add(font); }).catch(() => { console.warn('Nerd Font failed to load, using fallback'); });
 
-      nerdFont
-        .load()
-        .then((font) => {
-          document.fonts.add(font);
-          initTerminal();
-        })
-        .catch(() => {
-          // Fallback: init without Nerd Font
-          console.warn('Nerd Font failed to load, using fallback');
-          initTerminal();
+      // Start immediately — don't wait for font
+      init();
+
+      // ===== Helpers =====
+      function esc(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+      function escAttr(str) { return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+      function safeColor(c) { return /^(#[0-9a-fA-F]{3,8}|var\(--[a-z-]+\)|[a-z]+)$/.test(c) ? c : 'var(--text-muted)'; }
+
+      function showToast(msg) {
+        const toast = document.getElementById('copy-toast');
+        toast.textContent = msg;
+        toast.classList.add('visible');
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(() => toast.classList.remove('visible'), 1500);
+      }
+
+      function getActivityLabel(ts) {
+        if (!ts) return '';
+        const diff = (Date.now() - ts) / 1000;
+        if (diff < 5) return '';
+        if (diff < 60) return Math.floor(diff) + 's';
+        if (diff < 3600) return Math.floor(diff / 60) + 'm';
+        return Math.floor(diff / 3600) + 'h';
+      }
+
+      // ===== Zoom =====
+      const MIN_FONT = 2, MAX_FONT = 28;
+      let fontSize = parseInt(localStorage.getItem('termbeam-fontsize') || '8', 10);
+
+      function applyZoom(size) {
+        fontSize = Math.max(MIN_FONT, Math.min(MAX_FONT, size));
+        localStorage.setItem('termbeam-fontsize', fontSize);
+        for (const [, ms] of managed) {
+          ms.term.options.fontSize = fontSize;
+          if (ms.container.classList.contains('visible')) {
+            ms.fitAddon.fit();
+            sendResize(ms);
+          }
+        }
+      }
+
+      function sendResize(ms) {
+        if (ms.ws && ms.ws.readyState === 1) {
+          const dims = ms.fitAddon.proposeDimensions();
+          if (dims && (dims.cols !== ms._lastCols || dims.rows !== ms._lastRows)) {
+            ms._lastCols = dims.cols;
+            ms._lastRows = dims.rows;
+            ms.ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
+          }
+        }
+      }
+
+      // ===== Tab Order (persisted in localStorage) =====
+      function getTabOrder() {
+        let order = JSON.parse(localStorage.getItem('termbeam-tab-order') || '[]');
+        const allIds = [...managed.keys()];
+        for (const id of allIds) { if (!order.includes(id)) order.push(id); }
+        order = order.filter(id => managed.has(id));
+        return order;
+      }
+      function saveTabOrder(order) { localStorage.setItem('termbeam-tab-order', JSON.stringify(order)); }
+
+      // ===== Init =====
+      async function init() {
+        const sessionList = await fetch('/api/sessions').then(r => r.json());
+        const initialId = new URLSearchParams(location.search).get('id');
+
+        for (const s of sessionList) addSession(s);
+
+        const startId = (initialId && managed.has(initialId))
+          ? initialId
+          : (sessionList.length > 0 ? sessionList[0].id : null);
+
+        if (startId) activateSession(startId);
+        else { sessionNameEl.textContent = 'No sessions'; statusText.textContent = ''; document.getElementById('stop-btn').style.display = 'none'; }
+
+        renderTabs();
+        setupKeyBar();
+        setupPaste();
+        setupNewSessionModal();
+        startPolling();
+
+        // Zoom
+        document.getElementById('zoom-in').addEventListener('click', () => applyZoom(fontSize + 2));
+        document.getElementById('zoom-out').addEventListener('click', () => applyZoom(fontSize - 2));
+
+        // Resize
+        function doResize() {
+          for (const [, ms] of managed) {
+            if (ms.container.classList.contains('visible')) { ms.fitAddon.fit(); sendResize(ms); }
+          }
+        }
+        window.addEventListener('resize', doResize);
+        screen.orientation?.addEventListener('change', () => setTimeout(doResize, 150));
+
+        // Mobile soft keyboard
+        if (window.visualViewport) {
+          const keyBar = document.getElementById('key-bar');
+          let vpResizeTimer = null;
+          function resetScroll() {
+            window.scrollTo(0, 0);
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+          }
+          function onViewportResize() {
+            const vv = window.visualViewport;
+            const keyboardHeight = window.innerHeight - vv.height;
+            const keyboardOpen = keyboardHeight > 50;
+            if (keyboardOpen) {
+              keyBar.style.bottom = keyboardHeight + 'px';
+              keyBar.style.height = '52px';
+              keyBar.style.paddingBottom = '0px';
+              terminalsWrapper.style.bottom = (52 + keyboardHeight) + 'px';
+            } else {
+              keyBar.style.bottom = '0px';
+              keyBar.style.height = '';
+              keyBar.style.paddingBottom = '';
+              terminalsWrapper.style.bottom = '';
+            }
+            resetScroll();
+            clearTimeout(vpResizeTimer);
+            vpResizeTimer = setTimeout(() => {
+              resetScroll();
+              doResize();
+            }, 150);
+          }
+          function onViewportScroll() {
+            resetScroll();
+          }
+          window.visualViewport.addEventListener('resize', onViewportResize);
+          window.visualViewport.addEventListener('scroll', onViewportScroll);
+          // Page should never scroll — catch any browser-initiated scroll
+          // (e.g. iOS scrolling to show focused xterm textarea behind keyboard)
+          window.addEventListener('scroll', () => {
+            if (window.scrollY !== 0) resetScroll();
+          }, { passive: true });
+        }
+
+        // Split toggle
+        document.getElementById('split-toggle').addEventListener('click', toggleSplit);
+
+        // Scroll to bottom when returning from idle / tab switch
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden && activeId) {
+            const ms = managed.get(activeId);
+            if (ms) {
+              ms.term.scrollToBottom();
+              ms.fitAddon.fit();
+              sendResize(ms);
+            }
+            if (splitMode && splitSecondId) {
+              const ms2 = managed.get(splitSecondId);
+              if (ms2) {
+                ms2.term.scrollToBottom();
+                ms2.fitAddon.fit();
+                sendResize(ms2);
+              }
+            }
+          }
         });
 
-      function initTerminal() {
-        const savedFontSize = parseInt(localStorage.getItem('termbeam-fontsize') || '8', 10);
+        // Reconnect button
+        document.getElementById('reconnect-btn').addEventListener('click', () => {
+          const ms = managed.get(activeId);
+          if (ms) {
+            if (ms.reconnectTimer) { clearTimeout(ms.reconnectTimer); ms.reconnectTimer = null; }
+            ms.exited = false;
+            ms.reconnectDelay = 3000;
+            ms.term.clear();
+            connectSession(ms);
+          }
+        });
+
+        // Stop button
+        document.getElementById('stop-btn').addEventListener('click', async () => {
+          if (!activeId) return;
+          if (!confirm('Stop this session? The process will be killed.')) return;
+          await removeSession(activeId);
+        });
+
+        // Version
+        fetch('/api/version').then(r => r.json()).then(d => {
+          document.getElementById('version-text').textContent = 'v' + d.version;
+        }).catch(() => {});
+      }
+
+      // ===== Session Management =====
+      function addSession(data) {
+        if (managed.has(data.id)) return;
+
         const term = new window.Terminal({
-          cursorBlink: true,
-          fontSize: savedFontSize,
-          fontFamily:
-            "'NerdFont', 'JetBrains Mono', 'MesloLGS NF', 'Hack Nerd Font', 'Fira Code', Menlo, monospace",
-          fontWeight: 'normal',
-          fontWeightBold: 'bold',
-          letterSpacing: 0,
-          lineHeight: 1.1,
+          cursorBlink: true, fontSize: fontSize,
+          fontFamily: "'NerdFont', 'JetBrains Mono', 'MesloLGS NF', 'Hack Nerd Font', 'Fira Code', Menlo, monospace",
+          fontWeight: 'normal', fontWeightBold: 'bold', letterSpacing: 0, lineHeight: 1.1,
           theme: getTheme() === 'light' ? lightTermTheme : darkTermTheme,
-          allowProposedApi: true,
-          scrollback: 10000,
+          allowProposedApi: true, scrollback: 10000,
         });
-        window._term = term;
 
         const fitAddon = new window.FitAddon.FitAddon();
         const webLinksAddon = new window.WebLinksAddon.WebLinksAddon();
         term.loadAddon(fitAddon);
         term.loadAddon(webLinksAddon);
 
-        const container = document.getElementById('terminal-container');
+        const container = document.createElement('div');
+        container.className = 'terminal-pane';
+        terminalsWrapper.appendChild(container);
         term.open(container);
-        fitAddon.fit();
 
-        let ws = null;
+        // Pointer-event scroll handler — uses setPointerCapture so scrolling
+        // survives xterm DOM re-renders under the finger (touch on a letter).
+        (function() {
+          let startY = null, scrolling = false, accum = 0, ptrId = null;
 
-        function connect() {
-          const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-          ws = new WebSocket(`${proto}://${location.host}/ws`);
+          container.addEventListener('pointerdown', (e) => {
+            if (e.pointerType !== 'touch' || ptrId !== null) return;
+            startY = e.clientY;
+            scrolling = false;
+            accum = 0;
+            ptrId = e.pointerId;
+          }, { capture: true });
 
-          ws.onopen = () => {
+          container.addEventListener('pointermove', (e) => {
+            if (e.pointerId !== ptrId) return;
+            const y = e.clientY;
+            const delta = startY - y;
+            if (!scrolling) {
+              if (Math.abs(delta) > 10) {
+                scrolling = true;
+                term.clearSelection();
+                // Lock all future pointer events to this element —
+                // immune to DOM mutations, xterm re-renders, etc.
+                try { container.setPointerCapture(ptrId); } catch (_) {}
+              } else {
+                return;
+              }
+            }
+            e.preventDefault();
+            e.stopPropagation();
+            startY = y;
+            const lineH = term.options.fontSize * (term.options.lineHeight || 1);
+            accum += delta;
+            const lines = Math.trunc(accum / lineH);
+            if (lines !== 0) { term.scrollLines(lines); accum -= lines * lineH; }
+          }, { capture: true, passive: false });
+
+          function endScroll(e) {
+            if (e.pointerId !== ptrId) return;
+            if (scrolling) {
+              e.stopPropagation();
+              try { container.releasePointerCapture(ptrId); } catch (_) {}
+            }
+            startY = null;
+            scrolling = false;
+            ptrId = null;
+          }
+          container.addEventListener('pointerup', endScroll, { capture: true });
+          container.addEventListener('pointercancel', endScroll, { capture: true });
+        })();
+
+        // Copy on selection
+        term.onSelectionChange(() => {
+          const sel = term.getSelection();
+          if (sel && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(sel).then(() => showToast('Copied!')).catch(() => {});
+          }
+        });
+
+        // Click to focus
+        container.addEventListener('click', () => {
+          term.focus();
+          // In split mode, clicking a pane makes it active
+          if (splitMode && ms.id !== activeId) {
+            const oldSecond = splitSecondId;
+            splitSecondId = activeId;
+            activeId = ms.id;
+            updateStatusBar();
+            renderTabs();
+          }
+        });
+
+        const ms = {
+          id: data.id, name: data.name,
+          color: data.color || SESSION_COLORS[managed.size % SESSION_COLORS.length],
+          shell: data.shell, cwd: data.cwd, pid: data.pid,
+          term, fitAddon, container,
+          ws: null, exited: false,
+          reconnectTimer: null, reconnectDelay: 3000,
+          lastActivity: data.lastActivity || Date.now(),
+        };
+
+        managed.set(data.id, ms);
+
+        // Terminal input → WebSocket
+        term.onData(input => {
+          if (ms.ws && ms.ws.readyState === 1) {
+            ms.ws.send(JSON.stringify({ type: 'input', data: input }));
+          }
+        });
+
+        connectSession(ms);
+        return ms;
+      }
+
+      function connectSession(ms) {
+        if (ms.reconnectTimer) { clearTimeout(ms.reconnectTimer); ms.reconnectTimer = null; }
+        if (ms.ws) { try { ms.ws.close(); } catch {} }
+
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        const ws = new WebSocket(`${proto}://${location.host}/ws`);
+        ms.ws = ws;
+
+        ws.onopen = () => {
+          if (ms.ws !== ws) return;
+          ws.send(JSON.stringify({ type: 'attach', sessionId: ms.id }));
+          ms.reconnectDelay = 3000;
+          if (ms.id === activeId) {
             statusDot.className = 'connected';
             statusText.textContent = '';
             reconnectOverlay.classList.remove('visible');
-            reconnectDelay = 3000;
-            // Attach to session
-            ws.send(JSON.stringify({ type: 'attach', sessionId }));
-          };
+          }
+          renderTabs();
+        };
 
-          ws.onmessage = (event) => {
-            try {
-              const msg = JSON.parse(event.data);
-              if (msg.type === 'output') {
-                term.write(msg.data);
-              } else if (msg.type === 'attached') {
-                // Send terminal size after attach
-                const dims = fitAddon.proposeDimensions();
-                if (dims) {
-                  ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
-                }
-              } else if (msg.type === 'exit') {
-                sessionExited = true;
-                if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-                statusText.textContent = `Exited (code ${msg.code})`;
+        ws.onmessage = (event) => {
+          if (ms.ws !== ws) return;
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'output') {
+              ms.term.write(msg.data);
+              ms.lastActivity = Date.now();
+            } else if (msg.type === 'attached') {
+              if (ms.container.classList.contains('visible')) {
+                sendResize(ms);
+              }
+              if (ms.id === activeId) { statusDot.className = 'connected'; statusText.textContent = ''; }
+            } else if (msg.type === 'exit') {
+              ms.exited = true;
+              renderTabs();
+              if (ms.id === activeId) {
+                statusText.textContent = 'Exited (code ' + msg.code + ')';
                 statusDot.className = '';
-                reconnectOverlay.querySelector('.msg').textContent =
-                  `Session exited (code ${msg.code})`;
+                reconnectOverlay.querySelector('.msg').textContent = 'Session exited (code ' + msg.code + ')';
                 reconnectOverlay.classList.add('visible');
-              } else if (msg.type === 'error') {
+              }
+            } else if (msg.type === 'error') {
+              if (ms.id === activeId) {
                 statusText.textContent = msg.message;
                 reconnectOverlay.querySelector('.msg').textContent = msg.message;
                 reconnectOverlay.classList.add('visible');
               }
-            } catch {
-              term.write(event.data);
             }
-          };
+          } catch {
+            ms.term.write(event.data);
+          }
+        };
 
-          ws.onclose = () => {
+        ws.onclose = () => {
+          if (ms.ws !== ws) return;
+          if (ms.id === activeId) { statusDot.className = ''; statusText.textContent = 'Disconnected'; }
+          if (!ms.exited) {
+            ms.reconnectTimer = setTimeout(() => {
+              ms.reconnectDelay = Math.min(ms.reconnectDelay * 1.5, 30000);
+              connectSession(ms);
+            }, ms.reconnectDelay);
+          }
+        };
+
+        ws.onerror = () => {
+          if (ms.ws !== ws) return;
+          if (ms.id === activeId) statusText.textContent = 'Connection error';
+        };
+      }
+
+      function activateSession(id) {
+        if (!managed.has(id)) return;
+        activeId = id;
+        reconnectOverlay.classList.remove('visible');
+
+        // Show/hide panes
+        for (const [sid, ms] of managed) {
+          const show = sid === id || (splitMode && sid === splitSecondId);
+          ms.container.classList.toggle('visible', show);
+        }
+
+        updateStatusBar();
+
+        // Fit visible terminals and scroll to bottom
+        requestAnimationFrame(() => {
+          for (const [, ms] of managed) {
+            if (ms.container.classList.contains('visible')) {
+              ms.fitAddon.fit();
+              sendResize(ms);
+              ms.term.scrollToBottom();
+            }
+          }
+        });
+
+        // Update URL
+        const url = new URL(location);
+        url.searchParams.set('id', id);
+        history.replaceState(null, '', url);
+
+        renderTabs();
+      }
+
+      function updateStatusBar() {
+        const ms = managed.get(activeId);
+        const stopBtn = document.getElementById('stop-btn');
+        if (!ms) {
+          stopBtn.style.display = 'none';
+          return;
+        }
+        stopBtn.style.display = '';
+        sessionNameEl.textContent = ms.name;
+        statusDot.className = (ms.ws && ms.ws.readyState === 1) ? 'connected' : '';
+        statusText.textContent = (ms.ws && ms.ws.readyState === 1) ? '' : (ms.exited ? 'Exited' : 'Disconnected');
+      }
+
+      async function removeSession(id) {
+        try { await fetch('/api/sessions/' + encodeURIComponent(id), { method: 'DELETE' }); } catch {}
+
+        const ms = managed.get(id);
+        if (ms) {
+          if (ms.ws) try { ms.ws.close(); } catch {}
+          if (ms.reconnectTimer) clearTimeout(ms.reconnectTimer);
+          ms.term.dispose();
+          ms.container.remove();
+          managed.delete(id);
+        }
+
+        if (id === splitSecondId) splitSecondId = null;
+        if (id === activeId) {
+          const remaining = [...managed.keys()];
+          if (remaining.length > 0) activateSession(remaining[0]);
+          else {
+            activeId = null;
+            sessionNameEl.textContent = 'No sessions';
+            statusText.textContent = '';
             statusDot.className = '';
-            statusText.textContent = 'Disconnected';
-            reconnectOverlay.classList.add('visible');
-            if (!sessionExited) {
-              scheduleReconnect();
-            }
-          };
+            document.getElementById('stop-btn').style.display = 'none';
+          }
+        }
+        renderTabs();
+      }
 
-          ws.onerror = () => {
-            statusText.textContent = 'Connection error';
-          };
+      // ===== Tab Rendering =====
+      function renderTabs() {
+        const order = getTabOrder();
+
+        tabListEl.innerHTML = order.map(id => {
+          const ms = managed.get(id);
+          if (!ms) return '';
+          const isActive = id === activeId;
+          const isSplit = splitMode && id === splitSecondId;
+          const statusColor = ms.exited ? 'var(--danger)'
+            : (ms.ws && ms.ws.readyState === 1 ? 'var(--success)' : 'var(--text-muted)');
+          const activity = getActivityLabel(ms.lastActivity);
+          let cls = 'session-tab';
+          if (isActive) cls += ' active';
+          if (isSplit) cls += ' in-split';
+          return '<button class="' + cls + '" data-id="' + escAttr(id) + '" draggable="true">'
+            + '<span class="tab-dot" style="background:' + safeColor(ms.color) + '"></span>'
+            + '<span class="tab-name">' + esc(ms.name) + '</span>'
+            + (activity ? '<span class="tab-activity">' + activity + '</span>' : '')
+            + '<span class="tab-status" style="background:' + safeColor(statusColor) + '"></span>'
+            + '<span class="tab-close" data-close="' + escAttr(id) + '">×</span>'
+            + '</button>';
+        }).join('');
+
+        attachTabHandlers();
+        initTabDrag();
+      }
+
+      // ===== Tab Preview =====
+      const previewEl = document.getElementById('tab-preview');
+      const previewDot = document.getElementById('preview-dot');
+      const previewName = document.getElementById('preview-name');
+      const previewBody = document.getElementById('preview-body');
+      let previewTimer = null;
+      let previewVisible = false;
+
+      function getTerminalLines(ms, count) {
+        const buf = ms.term.buffer.active;
+        const totalRows = buf.length;
+        // Find the last non-empty line (buffer has empty padding rows)
+        let lastNonEmpty = -1;
+        for (let i = totalRows - 1; i >= 0; i--) {
+          const line = buf.getLine(i);
+          if (line && line.translateToString(true).trim() !== '') { lastNonEmpty = i; break; }
+        }
+        if (lastNonEmpty < 0) return [];
+        const start = Math.max(0, lastNonEmpty - count + 1);
+        const lines = [];
+        for (let i = start; i <= lastNonEmpty; i++) {
+          const line = buf.getLine(i);
+          if (line) lines.push(line.translateToString(true));
+        }
+        return lines;
+      }
+
+      function showPreview(tabEl, sessionId) {
+        const ms = managed.get(sessionId);
+        if (!ms) return;
+        const lines = getTerminalLines(ms, 12);
+        previewDot.style.background = ms.color;
+        previewName.textContent = ms.name;
+        if (lines.length === 0) {
+          previewBody.innerHTML = '<div class="preview-empty">No output yet</div>';
+        } else {
+          previewBody.textContent = lines.join('\n');
         }
 
-        // Terminal input → WebSocket
-        term.onData((data) => {
-          if (ws && ws.readyState === 1) {
-            ws.send(JSON.stringify({ type: 'input', data }));
-          }
+        previewEl.classList.add('visible');
+        previewVisible = true;
+
+        // Position: above the tab, centered
+        const tabRect = tabEl.getBoundingClientRect();
+        const pw = previewEl.offsetWidth;
+        const ph = previewEl.offsetHeight;
+        let left = tabRect.left + tabRect.width / 2 - pw / 2;
+        left = Math.max(6, Math.min(left, window.innerWidth - pw - 6));
+        let top = tabRect.top - ph - 6;
+        if (top < 6) top = tabRect.bottom + 6; // Below if not enough room
+        previewEl.style.left = left + 'px';
+        previewEl.style.top = top + 'px';
+      }
+
+      function hidePreview() {
+        previewEl.classList.remove('visible');
+        previewVisible = false;
+        if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; }
+      }
+
+      function attachTabHandlers() {
+        tabListEl.querySelectorAll('.session-tab').forEach(tab => {
+          tab.addEventListener('click', e => {
+            if (e.target.dataset.close) return;
+            hidePreview();
+            activateSession(tab.dataset.id);
+          });
+
+          // Desktop: hover preview (non-active tabs only)
+          tab.addEventListener('mouseenter', () => {
+            if (tab.dataset.id === activeId) return;
+            previewTimer = setTimeout(() => showPreview(tab, tab.dataset.id), 400);
+          });
+          tab.addEventListener('mouseleave', () => hidePreview());
+        });
+        tabListEl.querySelectorAll('.tab-close').forEach(btn => {
+          btn.addEventListener('click', e => {
+            e.stopPropagation();
+            if (confirm('Close this session?')) removeSession(btn.dataset.close);
+          });
+        });
+      }
+
+      // ===== Sessions Side Panel =====
+      const sidePanel = document.getElementById('side-panel');
+      const sidePanelBackdrop = document.getElementById('side-panel-backdrop');
+      const sidePanelList = document.getElementById('side-panel-list');
+
+      function openSidePanel() {
+        renderSidePanel();
+        sidePanel.classList.add('open');
+        sidePanelBackdrop.classList.add('visible');
+      }
+
+      function closeSidePanel() {
+        sidePanel.classList.remove('open');
+        sidePanelBackdrop.classList.remove('visible');
+      }
+
+      function renderSidePanel() {
+        const order = getTabOrder();
+        sidePanelList.innerHTML = order.map(id => {
+          const ms = managed.get(id);
+          if (!ms) return '';
+          const isActive = id === activeId;
+          const statusColor = ms.exited ? 'var(--danger)'
+            : (ms.ws && ms.ws.readyState === 1 ? 'var(--success)' : 'var(--text-muted)');
+          const activity = getActivityLabel(ms.lastActivity);
+          const lines = getTerminalLines(ms, 6);
+          const previewContent = lines.length > 0
+            ? '<div class="side-panel-card-preview">' + esc(lines.join('\n')) + '</div>'
+            : '<div class="side-panel-card-preview empty">No output yet</div>';
+          return '<div class="side-panel-card' + (isActive ? ' active' : '') + '" data-id="' + escAttr(id) + '">'
+            + '<div class="side-panel-card-header">'
+            + '<span class="side-panel-card-dot" style="background:' + safeColor(ms.color) + '"></span>'
+            + '<span class="side-panel-card-name">' + esc(ms.name) + '</span>'
+            + '<span class="side-panel-card-status" style="background:' + safeColor(statusColor) + '"></span>'
+            + '<button class="side-panel-card-close" data-close-id="' + escAttr(id) + '" title="Close session">×</button>'
+            + '</div>'
+            + (activity ? '<div class="side-panel-card-meta">' + activity + ' ago</div>' : '')
+            + previewContent
+            + '</div>';
+        }).join('');
+
+        sidePanelList.querySelectorAll('.side-panel-card-close').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.closeId;
+            if (confirm('Close this session?')) {
+              await removeSession(id);
+              renderSidePanel();
+            }
+          });
         });
 
-        // Resize
-        function doResize() {
-          fitAddon.fit();
-          if (ws && ws.readyState === 1) {
-            const dims = fitAddon.proposeDimensions();
-            if (dims) {
-              ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
-            }
-          }
-        }
-        window.addEventListener('resize', doResize);
-        screen.orientation?.addEventListener('change', () => setTimeout(doResize, 150));
+        sidePanelList.querySelectorAll('.side-panel-card').forEach(card => {
+          card.addEventListener('click', () => {
+            activateSession(card.dataset.id);
+            closeSidePanel();
+          });
+        });
+      }
 
-        // Key bar
-        // Use mousedown + preventDefault to stop buttons from stealing focus/opening keyboard
-        document.getElementById('key-bar').addEventListener('mousedown', (e) => {
-          // Only prevent default on buttons, not the scrollable bar itself
-          if (e.target.closest('.key-btn')) {
+      document.getElementById('panel-toggle').addEventListener('click', openSidePanel);
+      document.getElementById('side-panel-close').addEventListener('click', closeSidePanel);
+      sidePanelBackdrop.addEventListener('click', closeSidePanel);
+
+      // ===== Drag to Reorder =====
+      function initTabDrag() {
+        let dragId = null;
+        let dragEl = null;
+
+        tabListEl.querySelectorAll('.session-tab').forEach(tab => {
+          // --- Touch drag (long press) + preview ---
+          let longPressTimer = null;
+          let previewHoldTimer = null;
+          let startX = 0, startY = 0;
+          let isDragging = false;
+          let didPreview = false;
+
+          tab.addEventListener('touchstart', e => {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            didPreview = false;
+
+            // 200ms: show preview (if not active tab)
+            if (tab.dataset.id !== activeId) {
+              previewHoldTimer = setTimeout(() => {
+                didPreview = true;
+                showPreview(tab, tab.dataset.id);
+                if (navigator.vibrate) navigator.vibrate(30);
+              }, 200);
+            }
+
+            // 600ms: enter drag mode (dismiss preview)
+            longPressTimer = setTimeout(() => {
+              hidePreview();
+              isDragging = true;
+              dragId = tab.dataset.id;
+              dragEl = tab;
+              tab.classList.add('dragging');
+              if (navigator.vibrate) navigator.vibrate(50);
+            }, 600);
+          }, { passive: true });
+
+          tab.addEventListener('touchmove', e => {
+            const dx = Math.abs(e.touches[0].clientX - startX);
+            const dy = Math.abs(e.touches[0].clientY - startY);
+            if (!isDragging && (dx > 10 || dy > 10)) {
+              clearTimeout(longPressTimer);
+              clearTimeout(previewHoldTimer);
+              hidePreview();
+              return;
+            }
+            if (isDragging) {
+              e.preventDefault();
+              const touch = e.touches[0];
+              const el = document.elementFromPoint(touch.clientX, touch.clientY);
+              const target = el ? el.closest('.session-tab') : null;
+              if (target && target !== dragEl && target.dataset.id) {
+                const rect = target.getBoundingClientRect();
+                if (touch.clientX < rect.left + rect.width / 2) {
+                  target.parentNode.insertBefore(dragEl, target);
+                } else {
+                  target.parentNode.insertBefore(dragEl, target.nextSibling);
+                }
+              }
+            }
+          });
+
+          tab.addEventListener('touchend', () => {
+            clearTimeout(longPressTimer);
+            clearTimeout(previewHoldTimer);
+            hidePreview();
+            if (isDragging) {
+              isDragging = false;
+              dragEl.classList.remove('dragging');
+              // Save new order from DOM
+              const newOrder = [...tabListEl.querySelectorAll('.session-tab')].map(t => t.dataset.id);
+              saveTabOrder(newOrder);
+              dragId = null;
+              dragEl = null;
+            }
+          });
+
+          // --- Desktop drag ---
+          tab.addEventListener('dragstart', e => {
+            dragId = tab.dataset.id;
+            dragEl = tab;
+            tab.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+          });
+
+          tab.addEventListener('dragover', e => {
             e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+          });
+
+          tab.addEventListener('drop', e => {
+            e.preventDefault();
+            if (dragId && tab.dataset.id !== dragId) {
+              const rect = tab.getBoundingClientRect();
+              if (e.clientX < rect.left + rect.width / 2) {
+                tab.parentNode.insertBefore(dragEl, tab);
+              } else {
+                tab.parentNode.insertBefore(dragEl, tab.nextSibling);
+              }
+              const newOrder = [...tabListEl.querySelectorAll('.session-tab')].map(t => t.dataset.id);
+              saveTabOrder(newOrder);
+            }
+          });
+
+          tab.addEventListener('dragend', () => {
+            if (dragEl) dragEl.classList.remove('dragging');
+            dragId = null;
+            dragEl = null;
+          });
+        });
+      }
+
+      // ===== Split View =====
+      function toggleSplit() {
+        splitMode = !splitMode;
+        document.getElementById('split-toggle').classList.toggle('active', splitMode);
+
+        if (splitMode) {
+          // Find a second session to show
+          const order = getTabOrder();
+          const others = order.filter(id => id !== activeId);
+          splitSecondId = others.length > 0 ? others[0] : null;
+
+          if (splitSecondId) {
+            const isMobile = window.innerWidth < 640;
+            terminalsWrapper.classList.add(isMobile ? 'split-v' : 'split-h');
+            managed.get(splitSecondId).container.classList.add('visible');
+          }
+        } else {
+          terminalsWrapper.classList.remove('split-h', 'split-v');
+          splitSecondId = null;
+          // Hide all except active
+          for (const [id, ms] of managed) {
+            ms.container.classList.toggle('visible', id === activeId);
+          }
+        }
+
+        requestAnimationFrame(() => {
+          for (const [, ms] of managed) {
+            if (ms.container.classList.contains('visible')) { ms.fitAddon.fit(); sendResize(ms); }
           }
         });
-        // touchstart must be passive to allow native horizontal scrolling
-        document
-          .getElementById('key-bar')
-          .addEventListener('touchstart', () => {}, { passive: true });
-        document.getElementById('key-bar').addEventListener('click', (e) => {
-          const btn = e.target.closest('.key-btn');
+
+        renderTabs();
+      }
+
+      // ===== Key Bar =====
+      function setupKeyBar() {
+        const keyBar = document.getElementById('key-bar');
+        let repeatTimer = null;
+        let repeatInterval = null;
+
+        function sendKey(btn) {
           if (!btn || !btn.dataset.key) return;
-          if (ws && ws.readyState === 1) {
-            ws.send(JSON.stringify({ type: 'input', data: btn.dataset.key }));
+          const data = btn.dataset.key === 'enter' ? '\r' : btn.dataset.key;
+          const ms = managed.get(activeId);
+          if (ms && ms.ws && ms.ws.readyState === 1) {
+            ms.ws.send(JSON.stringify({ type: 'input', data }));
           }
-          // Don't call term.focus() here — it opens the soft keyboard
-        });
-
-        // Zoom (status bar)
-        const MIN_FONT = 2, MAX_FONT = 28;
-        let fontSize = savedFontSize;
-        function applyZoom(size) {
-          fontSize = Math.max(MIN_FONT, Math.min(MAX_FONT, size));
-          term.options.fontSize = fontSize;
-          localStorage.setItem('termbeam-fontsize', fontSize);
-          doResize();
-        }
-        document.getElementById('zoom-in').addEventListener('click', () => applyZoom(fontSize + 2));
-        document.getElementById('zoom-out').addEventListener('click', () => applyZoom(fontSize - 2));
-
-        // Clipboard: copy on selection
-        function showToast(msg) {
-          const toast = document.getElementById('copy-toast');
-          toast.textContent = msg;
-          toast.classList.add('visible');
-          clearTimeout(toast._timer);
-          toast._timer = setTimeout(() => toast.classList.remove('visible'), 1500);
         }
 
-        term.onSelectionChange(() => {
-          const sel = term.getSelection();
-          if (sel && navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(sel).then(() => {
-              showToast('Copied!');
-            }).catch(() => {});
-          }
-        });
+        function stopRepeat() {
+          clearTimeout(repeatTimer);
+          clearInterval(repeatInterval);
+          repeatTimer = null;
+          repeatInterval = null;
+        }
 
-        // Clipboard: paste button
+        function startRepeat(btn) {
+          stopRepeat();
+          sendKey(btn);
+          repeatTimer = setTimeout(() => {
+            repeatInterval = setInterval(() => sendKey(btn), 80);
+          }, 400);
+        }
+
+        keyBar.addEventListener('mousedown', e => {
+          const btn = e.target.closest('.key-btn');
+          if (btn) { e.preventDefault(); startRepeat(btn); }
+        });
+        keyBar.addEventListener('mouseup', stopRepeat);
+        keyBar.addEventListener('mouseleave', stopRepeat);
+
+        keyBar.addEventListener('touchstart', e => {
+          const btn = e.target.closest('.key-btn');
+          if (btn) startRepeat(btn);
+        }, { passive: true });
+        keyBar.addEventListener('touchend', stopRepeat);
+        keyBar.addEventListener('touchcancel', stopRepeat);
+
+        keyBar.addEventListener('click', e => {
+          const btn = e.target.closest('.key-btn');
+          if (btn) { const ms = managed.get(activeId); if (ms) ms.term.focus(); }
+        });
+      }
+
+      // ===== Paste =====
+      function setupPaste() {
         const pasteOverlay = document.getElementById('paste-overlay');
         const pasteInput = document.getElementById('paste-input');
 
@@ -692,24 +1686,16 @@
           pasteInput.focus();
         }
 
-        function closePasteModal() {
-          pasteOverlay.classList.remove('visible');
-          pasteInput.value = '';
-        }
-
-        document.getElementById('paste-btn').addEventListener('mousedown', (e) => {
-          e.preventDefault();
-        });
+        document.getElementById('paste-btn').addEventListener('mousedown', e => e.preventDefault());
         document.getElementById('paste-btn').addEventListener('click', () => {
           if (navigator.clipboard && navigator.clipboard.readText) {
-            navigator.clipboard.readText().then((text) => {
-              if (text && ws && ws.readyState === 1) {
-                ws.send(JSON.stringify({ type: 'input', data: text }));
+            navigator.clipboard.readText().then(text => {
+              const ms = managed.get(activeId);
+              if (text && ms && ms.ws && ms.ws.readyState === 1) {
+                ms.ws.send(JSON.stringify({ type: 'input', data: text }));
                 showToast('Pasted!');
               }
-            }).catch(() => {
-              openPasteModal();
-            });
+            }).catch(() => openPasteModal());
           } else {
             openPasteModal();
           }
@@ -717,93 +1703,260 @@
 
         document.getElementById('paste-send').addEventListener('click', () => {
           const text = pasteInput.value;
-          if (text && ws && ws.readyState === 1) {
-            ws.send(JSON.stringify({ type: 'input', data: text }));
+          const ms = managed.get(activeId);
+          if (text && ms && ms.ws && ms.ws.readyState === 1) {
+            ms.ws.send(JSON.stringify({ type: 'input', data: text }));
           }
-          closePasteModal();
-        });
-        document.getElementById('paste-cancel').addEventListener('click', closePasteModal);
-
-        function scheduleReconnect() {
-          if (reconnectTimer) clearTimeout(reconnectTimer);
-          const seconds = Math.round(reconnectDelay / 1000);
-          reconnectOverlay.querySelector('.msg').textContent =
-            `Disconnected — reconnecting in ${seconds}s…`;
-          reconnectTimer = setTimeout(() => {
-            reconnectTimer = null;
-            reconnectOverlay.querySelector('.msg').textContent = 'Reconnecting…';
-            reconnectDelay = Math.min(reconnectDelay * 1.5, MAX_RECONNECT_DELAY);
-            connect();
-          }, reconnectDelay);
-        }
-
-        // Reconnect
-        document.getElementById('reconnect-btn').addEventListener('click', () => {
-          if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-          sessionExited = false;
-          reconnectDelay = 3000;
-          term.clear();
-          connect();
+          pasteOverlay.classList.remove('visible');
+          pasteInput.value = '';
         });
 
-        // Stop session
-        document.getElementById('stop-btn').addEventListener('click', async () => {
-          if (!confirm('Stop this session? The process will be killed.')) return;
-          try {
-            await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
-          } catch {}
-          location.href = '/';
+        document.getElementById('paste-cancel').addEventListener('click', () => {
+          pasteOverlay.classList.remove('visible');
+          pasteInput.value = '';
         });
-
-        // Tap terminal area to toggle keyboard (intentional user action)
-        container.addEventListener('click', () => term.focus());
-
-        // Handle mobile soft keyboard via visualViewport
-        // When keyboard opens, the viewport shrinks — reposition key bar and resize terminal
-        if (window.visualViewport) {
-          const keyBar = document.getElementById('key-bar');
-          const statusBar = document.getElementById('status-bar');
-
-          function onViewportResize() {
-            const vv = window.visualViewport;
-            const keyboardHeight = window.innerHeight - vv.height;
-
-            if (keyboardHeight > 50) {
-              // Keyboard is open — move key bar above it
-              keyBar.style.bottom = keyboardHeight + 'px';
-              container.style.bottom = 52 + keyboardHeight + 'px';
-            } else {
-              // Keyboard closed
-              keyBar.style.bottom = '0px';
-              container.style.bottom = '52px';
-            }
-            // Refit terminal to new available space
-            setTimeout(() => doResize(), 50);
-          }
-
-          window.visualViewport.addEventListener('resize', onViewportResize);
-          window.visualViewport.addEventListener('scroll', onViewportResize);
-        }
-
-        // Fetch session name
-        fetch('/api/sessions')
-          .then((r) => r.json())
-          .then((sessions) => {
-            const s = sessions.find((s) => s.id === sessionId);
-            if (s) sessionName.textContent = s.name;
-          });
-
-        // Fetch version
-        fetch('/api/version')
-          .then((r) => r.json())
-          .then((d) => {
-            document.getElementById('version-text').textContent = 'v' + d.version;
-          })
-          .catch(() => {});
-
-        connect();
       }
 
+      // ===== New Session Modal =====
+      let shellsLoaded = false;
+
+      function openNewSessionModal() {
+        loadShellsForModal();
+        document.getElementById('new-session-modal').classList.add('visible');
+      }
+
+      function setupNewSessionModal() {
+        document.getElementById('tab-new-btn').addEventListener('click', openNewSessionModal);
+        document.getElementById('side-panel-new-btn').addEventListener('click', () => {
+          closeSidePanel();
+          openNewSessionModal();
+        });
+        document.getElementById('ns-cancel').addEventListener('click', () => {
+          document.getElementById('new-session-modal').classList.remove('visible');
+        });
+        document.getElementById('new-session-modal').addEventListener('click', e => {
+          if (e.target.id === 'new-session-modal') document.getElementById('new-session-modal').classList.remove('visible');
+        });
+
+        // Color picker
+        document.getElementById('ns-color-picker').addEventListener('click', e => {
+          const swatch = e.target.closest('.color-swatch');
+          if (!swatch) return;
+          document.querySelectorAll('#ns-color-picker .color-swatch').forEach(s => s.classList.remove('selected'));
+          swatch.classList.add('selected');
+        });
+
+        document.getElementById('ns-create').addEventListener('click', createNewSession);
+
+        // Folder browser
+        const nsCwdInput = document.getElementById('ns-cwd');
+        const nsBrowserOverlay = document.getElementById('ns-browser-overlay');
+        const nsBrowserList = document.getElementById('ns-browser-list');
+        const nsBrowserBreadcrumb = document.getElementById('ns-browser-breadcrumb');
+        const nsBrowserPath = document.getElementById('ns-browser-path');
+        let nsBrowsePath = '/';
+
+        document.getElementById('ns-browse-btn').addEventListener('click', () => {
+          const initial = nsCwdInput.value.trim() || '/';
+          nsBrowseNavigate(initial);
+          nsBrowserOverlay.classList.add('visible');
+        });
+
+        document.getElementById('ns-browser-close').addEventListener('click', () => {
+          nsBrowserOverlay.classList.remove('visible');
+        });
+        nsBrowserOverlay.addEventListener('click', (e) => {
+          if (e.target === nsBrowserOverlay) nsBrowserOverlay.classList.remove('visible');
+        });
+
+        document.getElementById('ns-browser-select').addEventListener('click', () => {
+          nsCwdInput.value = nsBrowsePath;
+          nsBrowserOverlay.classList.remove('visible');
+        });
+
+        async function nsBrowseNavigate(dir) {
+          nsBrowsePath = dir;
+          nsBrowserPath.textContent = dir;
+          nsBrowseRenderBreadcrumb(dir);
+          nsBrowserList.innerHTML = '<div class="browser-empty">Loading…</div>';
+          try {
+            const res = await fetch(`/api/dirs?q=${encodeURIComponent(dir + '/')}`);
+            const data = await res.json();
+            if (!data.dirs.length) {
+              nsBrowserList.innerHTML = '<div class="browser-empty">No subfolders</div>';
+              return;
+            }
+            nsBrowserList.innerHTML = data.dirs.map(d => {
+              const name = d.split(/[/\\]/).pop();
+              return `<div class="folder-item" data-path="${escAttr(d)}">
+                <span class="folder-icon">📁</span>
+                <span class="folder-name">${esc(name)}</span>
+                <span class="folder-arrow">›</span>
+              </div>`;
+            }).join('');
+            nsBrowserList.querySelectorAll('.folder-item').forEach(el => {
+              el.addEventListener('click', () => nsBrowseNavigate(el.dataset.path));
+            });
+            nsBrowserList.scrollTop = 0;
+          } catch {
+            nsBrowserList.innerHTML = '<div class="browser-empty">Error loading folders</div>';
+          }
+        }
+
+        function nsBrowseRenderBreadcrumb(dir) {
+          const parts = dir.split('/').filter(Boolean);
+          let html = `<button class="crumb" data-path="/">/</button>`;
+          let accumulated = '';
+          parts.forEach((part, i) => {
+            accumulated += '/' + part;
+            const isCurrent = i === parts.length - 1;
+            html += `<span class="crumb-sep">›</span>`;
+            html += `<button class="crumb${isCurrent ? ' current' : ''}" data-path="${escAttr(accumulated)}">${esc(part)}</button>`;
+          });
+          nsBrowserBreadcrumb.innerHTML = html;
+          nsBrowserBreadcrumb.querySelectorAll('.crumb').forEach(el => {
+            el.addEventListener('click', () => nsBrowseNavigate(el.dataset.path));
+          });
+          nsBrowserBreadcrumb.scrollLeft = nsBrowserBreadcrumb.scrollWidth;
+        }
+      }
+
+      async function loadShellsForModal() {
+        if (shellsLoaded) return;
+        const sel = document.getElementById('ns-shell');
+        try {
+          const data = await fetch('/api/shells').then(r => r.json());
+          sel.innerHTML = data.shells.map(s =>
+            '<option value="' + escAttr(s.cmd) + '"' + (s.cmd === data.default ? ' selected' : '') + '>'
+            + esc(s.name) + ' (' + esc(s.cmd) + ')</option>'
+          ).join('');
+          shellsLoaded = true;
+        } catch { sel.innerHTML = '<option value="">Could not detect shells</option>'; }
+      }
+
+      async function createNewSession() {
+        const name = document.getElementById('ns-name').value.trim();
+        const shell = document.getElementById('ns-shell').value;
+        const cwd = document.getElementById('ns-cwd').value.trim();
+        const cmd = document.getElementById('ns-cmd').value.trim();
+        const colorEl = document.querySelector('#ns-color-picker .color-swatch.selected');
+        const color = colorEl ? colorEl.dataset.color : null;
+
+        const body = {};
+        if (name) body.name = name;
+        if (shell) body.shell = shell;
+        if (cwd) body.cwd = cwd;
+        if (cmd) body.initialCommand = cmd;
+        if (color) body.color = color;
+
+        try {
+          const res = await fetch('/api/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          const data = await res.json();
+
+          // Fetch full session list to get the new session data
+          const list = await fetch('/api/sessions').then(r => r.json());
+          const newSession = list.find(s => s.id === data.id);
+          if (newSession) {
+            addSession(newSession);
+            activateSession(data.id);
+          }
+
+          document.getElementById('new-session-modal').classList.remove('visible');
+          document.getElementById('ns-name').value = '';
+          document.getElementById('ns-cmd').value = '';
+          document.getElementById('ns-cwd').value = '';
+        } catch (err) {
+          console.error('Failed to create session:', err);
+        }
+      }
+
+      // ===== Polling =====
+      function startPolling() {
+        setInterval(async () => {
+          try {
+            const list = await fetch('/api/sessions').then(r => r.json());
+            const serverIds = new Set(list.map(s => s.id));
+
+            // Add new sessions created elsewhere
+            for (const s of list) {
+              if (!managed.has(s.id)) {
+                addSession(s);
+              } else {
+                // Update metadata
+                const ms = managed.get(s.id);
+                ms.name = s.name;
+                ms.color = s.color;
+                ms.lastActivity = s.lastActivity;
+              }
+            }
+
+            // Remove sessions deleted elsewhere
+            for (const id of [...managed.keys()]) {
+              if (!serverIds.has(id)) {
+                const ms = managed.get(id);
+                if (ms.ws) try { ms.ws.close(); } catch {}
+                if (ms.reconnectTimer) clearTimeout(ms.reconnectTimer);
+                ms.term.dispose();
+                ms.container.remove();
+                managed.delete(id);
+                if (id === splitSecondId) splitSecondId = null;
+                if (id === activeId) {
+                  const remaining = [...managed.keys()];
+                  if (remaining.length > 0) activateSession(remaining[0]);
+                  else {
+                    activeId = null;
+                    sessionNameEl.textContent = 'No sessions';
+                    statusText.textContent = '';
+                    statusDot.className = '';
+                    document.getElementById('stop-btn').style.display = 'none';
+                  }
+                }
+              }
+            }
+
+            renderTabs();
+          } catch {}
+        }, 3000);
+      }
+
+      // ===== Share Button =====
+      function copyToClipboardFallback(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch {}
+        document.body.removeChild(ta);
+      }
+
+      document.getElementById('share-btn').addEventListener('click', async () => {
+        const url = location.href;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          try { await navigator.clipboard.writeText(url); showToast('Link copied!'); return; } catch {}
+        }
+        copyToClipboardFallback(url);
+        showToast('Link copied!');
+      });
+
+      // ===== Refresh Button =====
+      document.getElementById('refresh-btn').addEventListener('click', async () => {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        if (navigator.serviceWorker) {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg) await reg.update();
+        }
+        location.reload();
+      });
+
+      // ===== Service Worker =====
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
       }
