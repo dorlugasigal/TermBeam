@@ -1,12 +1,23 @@
 # Changelog
 
+## [0.1.1] - 2026-03-01
+
+- fix: adjust spacing in Copilot terminal screen for better alignment
+- feat: load JetBrainsMono font for improved typography in PhoneScene
+- feat: change video image format to jpeg and set quality to 100
+- feat: enhance animations and UI elements in TitleCard and PhoneScene
+- feat: update TermBeam to use explicit password management and improve security
+- Redesign outro scene with typewriter, particles, and consistent palette (#23)
+
 ## [0.2.0] - 2026-02-28
 
 ### Changed
+
 - **BREAKING:** Tunnel and auto-generated password are now enabled by default
 - Added `--no-tunnel` and `--no-password` flags to opt out of defaults
 
 ### Added
+
 - Mobile copy/paste: Copy button opens selectable text overlay, Paste button with clipboard API + fallback modal
 - Image paste support — paste images from clipboard, uploaded to server temp directory
 - Content-Security-Policy header (script/style/connect sources)
@@ -16,12 +27,14 @@
 - Folder browser defaults to server working directory
 
 ### Fixed
+
 - Key-bar double-press on touch devices (touchstart + synthetic mousedown)
 - Paste button not responding on iOS Safari (touchend handler)
 - Non-JSON WebSocket messages no longer forwarded to PTY (security)
 - Upload size limit now handled safely without destroying request stream
 
 ### Removed
+
 - X-XSS-Protection header (deprecated, replaced by CSP)
 
 ## [0.1.0] - 2026-02-28
