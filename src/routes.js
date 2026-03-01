@@ -44,9 +44,32 @@ function setupRoutes(app, { auth, sessions, config }) {
     res.json({ version: getVersion() });
   });
 
+  // Auto-login via URL parameter (from QR code)
+  // Handles ?p=<password> by validating, setting cookie, and redirecting without the param
+  const autoLogin = (req, res, next) => {
+    const urlPassword = req.query.p;
+    if (urlPassword && auth.password && urlPassword === auth.password) {
+      const token = auth.generateToken();
+      res.cookie('pty_token', token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
+        secure: false,
+      });
+      log.info(`Auth: auto-login via QR code from ${req.ip}`);
+      // Redirect to same path without the password param
+      const url = new URL(req.originalUrl, `http://${req.headers.host}`);
+      url.searchParams.delete('p');
+      return res.redirect(url.pathname + url.search);
+    }
+    next();
+  };
+
   // Pages
-  app.get('/', auth.middleware, (_req, res) => res.sendFile('index.html', { root: PUBLIC_DIR }));
-  app.get('/terminal', auth.middleware, (_req, res) =>
+  app.get('/', autoLogin, auth.middleware, (_req, res) =>
+    res.sendFile('index.html', { root: PUBLIC_DIR }),
+  );
+  app.get('/terminal', autoLogin, auth.middleware, (_req, res) =>
     res.sendFile('terminal.html', { root: PUBLIC_DIR }),
   );
 

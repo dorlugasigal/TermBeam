@@ -1,4 +1,6 @@
-# Copilot Instructions for TermBeam
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Build, Test, and Lint
 
@@ -65,29 +67,20 @@ TermBeam has two layers of documentation that must stay in sync with code change
 
 Preview docs locally: `pip install mkdocs-material && mkdocs serve`
 
-Changes to `docs/` or `mkdocs.yml` pushed to `main` auto-deploy to GitHub Pages.
-
 ## Demo Video
 
-The demo video lives in `demo-video/` and is built with Remotion 4 + TypeScript + React, using the remotion agent skill "npx skills add remotion-dev/skills".
+The demo video lives in `demo-video/` and is built with Remotion 4 + TypeScript + React.
 
-**Structure:** `demo-video/src/TermBeamDemo.tsx` is the main composition (3840×2160, 30fps). It sequences scenes via `<Sequence>` components: Intro → TitleCards → CliTerminal → PhoneScene → Outro. Each scene is a separate component in `demo-video/src/`.
+**Structure:** `demo-video/src/TermBeamDemo.tsx` is the main composition (3840×2160, 30fps). It sequences scenes via `<Sequence>` components.
 
-**Editing:** To preview changes, run `npm run dev` inside `demo-video/` to open Remotion Studio. Timing constants (frame durations) are at the top of `TermBeamDemo.tsx`. The design is authored at 1080p and scaled 2× to 4K.
+**Editing:** Run `npm run dev` inside `demo-video/` to open Remotion Studio.
 
 **Rendering:**
 
 ```bash
 cd demo-video
-
-# Highest quality under 10 MB (tune CRF — lower = better quality, larger file):
-npx remotion render TermBeamDemo "out/TermBeam-Demo-4K.mp4" --image-format png --crf 18
-
-# Near-lossless (large file, ~95 MB):
-npx remotion render TermBeamDemo "out/TermBeam-Demo-4K.mp4" --image-format png --crf 1
+npx remotion render TermBeamDemo "out/TermBeamDemo.mp4" --image-format png --crf 18
 ```
-
-CRF 0 is not supported by Remotion's H.264 encoder. Start with `--crf 18` for a good quality/size balance and adjust down if needed to stay under 10 MB.
 
 ## Security Decisions
 
@@ -98,6 +91,5 @@ These are intentional design choices — not bugs:
 - **Tunnel is on by default** — makes the tool useful out of the box (phone on cellular), but this means the terminal is internet-accessible. Password auto-generation compensates.
 - **`--no-password` exists** — for trusted localhost-only scenarios. Never combine with tunnel.
 - **Session IDs are 128-bit random** (`crypto.randomBytes(16)`) — unguessable, but not secret (visible in URLs). Auth tokens protect access, not session IDs.
-- **WebSocket origin validation** — cross-origin connections are rejected (close code 1008) unless one side is localhost, preventing malicious websites from connecting to a local instance.
-- **Security headers** — X-Frame-Options: DENY, CSP, no-store cache, nosniff, no-referrer on all responses.
+- **WebSocket origin validation** — cross-origin connections are rejected (close code 1008) unless one side is localhost.
 - **Shell path validation** — only shells detected by `src/shells.js` are accepted; arbitrary paths are rejected.

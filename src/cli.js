@@ -15,9 +15,9 @@ Options:
   --password <pw>       Set access password (or TERMBEAM_PASSWORD env var)
   --generate-password   Auto-generate a secure password (default: auto)
   --no-password         Disable password authentication
-  --tunnel              Create a public devtunnel URL (default: on)
+  --tunnel              Create a public ngrok tunnel URL (default: on)
   --no-tunnel           Disable tunnel (LAN-only mode)
-  --persisted-tunnel    Create a reusable devtunnel URL (stable across restarts)
+  --persisted-tunnel    Create a reusable ngrok tunnel URL (requires ngrok paid plan)
   --port <port>         Set port (default: 3456, or PORT env var)
   --host <addr>         Bind address (default: 0.0.0.0)
   --log-level <level>   Set log verbosity: error, warn, info, debug (default: info)
@@ -33,7 +33,7 @@ Examples:
   termbeam --no-tunnel              LAN-only, no tunnel
   termbeam --no-tunnel --no-password  LAN-only, no auth (local use)
   termbeam --password secret        Start with specific password
-  termbeam --persisted-tunnel       Stable tunnel URL across restarts
+  termbeam --persisted-tunnel       Stable tunnel URL across restarts (ngrok paid)
   termbeam /bin/bash                Use bash instead of default shell
 
 Environment:
@@ -41,6 +41,7 @@ Environment:
   TERMBEAM_PASSWORD     Access password
   TERMBEAM_CWD          Working directory
   TERMBEAM_LOG_LEVEL    Log level (default: info)
+  NGROK_AUTHTOKEN       ngrok authentication token (optional)
 `);
 }
 

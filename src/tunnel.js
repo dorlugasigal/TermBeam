@@ -5,26 +5,39 @@ const os = require('os');
 const log = require('./logger');
 
 const TUNNEL_CONFIG_DIR = path.join(os.homedir(), '.termbeam');
-const TUNNEL_CONFIG_PATH = path.join(TUNNEL_CONFIG_DIR, 'tunnel.json');
+const TUNNEL_CONFIG_PATH = path.join(TUNNEL_CONFIG_DIR, 'ngrok.json');
 
-let tunnelId = null;
 let tunnelProc = null;
-let devtunnelCmd = 'devtunnel';
+let ngrokCmd = 'ngrok';
 
-const SAFE_ID_RE = /^[a-zA-Z0-9._-]+$/;
-
-function findDevtunnel() {
-  // Try devtunnel directly
+function findNgrok() {
+  // Try ngrok directly
   try {
-    execSync('devtunnel --version', { stdio: 'pipe' });
-    return 'devtunnel';
+    execSync('ngrok version', { stdio: 'pipe' });
+    return 'ngrok';
   } catch {}
 
   // On Windows, check common install locations
   if (process.platform === 'win32') {
     const candidates = [
-      path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WindowsApps', 'devtunnel.exe'),
-      path.join(process.env.PROGRAMFILES || '', 'Microsoft', 'devtunnel', 'devtunnel.exe'),
+      path.join(process.env.LOCALAPPDATA || '', 'ngrok', 'ngrok.exe'),
+      path.join(process.env.PROGRAMFILES || '', 'ngrok', 'ngrok.exe'),
+      path.join(os.homedir(), 'ngrok', 'ngrok.exe'),
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        return p;
+      }
+    }
+  }
+
+  // On macOS/Linux, check common locations
+  if (process.platform !== 'win32') {
+    const candidates = [
+      '/usr/local/bin/ngrok',
+      '/opt/homebrew/bin/ngrok',
+      path.join(os.homedir(), 'ngrok'),
+      path.join(os.homedir(), '.local', 'bin', 'ngrok'),
     ];
     for (const p of candidates) {
       if (fs.existsSync(p)) {
@@ -36,7 +49,7 @@ function findDevtunnel() {
   return null;
 }
 
-function loadPersistedTunnel() {
+function loadPersistedConfig() {
   try {
     if (fs.existsSync(TUNNEL_CONFIG_PATH)) {
       return JSON.parse(fs.readFileSync(TUNNEL_CONFIG_PATH, 'utf-8'));
@@ -45,174 +58,177 @@ function loadPersistedTunnel() {
   return null;
 }
 
-function savePersistedTunnel(id) {
+function savePersistedConfig(domain) {
   fs.mkdirSync(TUNNEL_CONFIG_DIR, { recursive: true });
   fs.writeFileSync(
     TUNNEL_CONFIG_PATH,
-    JSON.stringify({ tunnelId: id, createdAt: new Date().toISOString() }, null, 2),
+    JSON.stringify({ domain, createdAt: new Date().toISOString() }, null, 2),
   );
-}
-
-function deletePersisted() {
-  const persisted = loadPersistedTunnel();
-  if (persisted) {
-    try {
-      if (SAFE_ID_RE.test(persisted.tunnelId)) {
-        execFileSync(devtunnelCmd, ['delete', persisted.tunnelId, '-f'], { stdio: 'pipe' });
-        log.info(`Deleted persisted tunnel ${persisted.tunnelId}`);
-      }
-    } catch {}
-    try {
-      fs.unlinkSync(TUNNEL_CONFIG_PATH);
-    } catch {}
-  }
-}
-
-function isTunnelValid(id) {
-  try {
-    if (!SAFE_ID_RE.test(id)) return false;
-    execFileSync(devtunnelCmd, ['show', id, '--json'], {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 let isPersisted = false;
 
 async function startTunnel(port, options = {}) {
-  // Check if devtunnel CLI is installed
-  const found = findDevtunnel();
+  // Check if ngrok CLI is installed
+  const found = findNgrok();
   if (!found) {
-    log.error('❌ devtunnel CLI is not installed.');
+    log.error('❌ ngrok CLI is not installed.');
     log.error('');
-    log.error('  The --tunnel flag requires the Azure Dev Tunnels CLI.');
+    log.error('  The --tunnel flag requires ngrok.');
     log.error('');
     log.error('  Install it:');
-    log.error('    Windows:  winget install Microsoft.devtunnel');
-    log.error(
-      '             or: Invoke-WebRequest -Uri https://aka.ms/TunnelsCliDownload/win-x64 -OutFile devtunnel.exe',
-    );
-    log.error('    macOS:    brew install --cask devtunnel');
-    log.error('    Linux:    curl -sL https://aka.ms/DevTunnelCliInstall | bash');
+    log.error('    macOS:    brew install ngrok/ngrok/ngrok');
+    log.error('    Windows:  choco install ngrok');
+    log.error('              or download from https://ngrok.com/download');
+    log.error('    Linux:    snap install ngrok');
+    log.error('              or download from https://ngrok.com/download');
     log.error('');
-    log.error('  Then restart your terminal and try again.');
-    log.error('  Docs: https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started');
+    log.error('  Then authenticate with your ngrok authtoken:');
+    log.error('    ngrok config add-authtoken <your-token>');
+    log.error('');
+    log.error('  Get your authtoken at: https://dashboard.ngrok.com/get-started/your-authtoken');
     log.error('');
     return null;
   }
-  devtunnelCmd = found;
+  ngrokCmd = found;
 
-  log.info('Starting devtunnel...');
+  log.info('Starting ngrok tunnel...');
   try {
-    // Ensure user is logged in
-    let loggedIn = false;
+    // Check if ngrok is authenticated
+    let authenticated = false;
     try {
-      const userOut = execFileSync(devtunnelCmd, ['user', 'show'], {
+      const configOut = execFileSync(ngrokCmd, ['config', 'check'], {
         encoding: 'utf-8',
         stdio: ['pipe', 'pipe', 'pipe'],
       });
-      // user show can succeed but show "not logged in" status
-      loggedIn = userOut && !userOut.toLowerCase().includes('not logged in');
-    } catch {}
+      authenticated = !configOut.toLowerCase().includes('error');
+    } catch {
+      // config check may fail if no config exists, but ngrok might still work
+      // with environment variable NGROK_AUTHTOKEN
+      authenticated = !!process.env.NGROK_AUTHTOKEN;
+    }
 
-    if (!loggedIn) {
-      log.info('devtunnel not logged in, launching login...');
-      log.info('A browser window will open for authentication.');
-      try {
-        execFileSync(devtunnelCmd, ['user', 'login'], { stdio: 'inherit' });
-      } catch (loginErr) {
-        log.error('');
-        log.error('  DevTunnel login failed. To use tunnels, run:');
-        log.error('    devtunnel user login');
-        log.error('');
-        log.error('  Or start without a tunnel:');
-        log.error('    termbeam --no-tunnel');
-        log.error('');
-        return null;
-      }
+    if (!authenticated) {
+      log.warn('ngrok may not be authenticated.');
+      log.warn('If tunnel fails, run: ngrok config add-authtoken <your-token>');
     }
 
     const persisted = options.persisted;
     isPersisted = !!persisted;
 
-    // Try to reuse persisted tunnel
-    let tunnelMode, tunnelExpiry;
+    // Build ngrok command arguments
+    const ngrokArgs = ['http', String(port)];
+
+    // For persisted tunnels, try to use a saved domain or request a static one
     if (persisted) {
-      tunnelMode = 'persisted';
-      tunnelExpiry = '30 days';
-      const saved = loadPersistedTunnel();
-      if (saved && isTunnelValid(saved.tunnelId)) {
-        tunnelId = saved.tunnelId;
-        log.info(`Reusing persisted tunnel ${tunnelId}`);
+      const saved = loadPersistedConfig();
+      if (saved && saved.domain) {
+        // Use the saved domain
+        ngrokArgs.push('--domain', saved.domain);
+        log.info(`Reusing persisted domain: ${saved.domain}`);
       } else {
-        if (saved) {
-          log.info('Persisted tunnel expired, creating new one');
-        }
-        const createOut = execFileSync(devtunnelCmd, ['create', '--expiration', '30d', '--json'], {
-          encoding: 'utf-8',
-        });
-        const tunnelData = JSON.parse(createOut);
-        tunnelId = tunnelData.tunnel.tunnelId;
-        savePersistedTunnel(tunnelId);
-        log.info(`Created new persisted tunnel ${tunnelId}`);
+        log.info('Creating new tunnel (domain will be saved for reuse)');
       }
-    } else {
-      tunnelMode = 'ephemeral';
-      tunnelExpiry = '1 day';
-      // Ephemeral tunnel — create fresh, will be deleted on shutdown
-      const createOut = execFileSync(devtunnelCmd, ['create', '--expiration', '1d', '--json'], {
-        encoding: 'utf-8',
-      });
-      const tunnelData = JSON.parse(createOut);
-      tunnelId = tunnelData.tunnel.tunnelId;
-      log.info(`Created ephemeral tunnel ${tunnelId}`);
     }
 
-    // Idempotent port and access setup
-    try {
-      execFileSync(
-        devtunnelCmd,
-        ['port', 'create', tunnelId, '-p', String(port), '--protocol', 'http'],
-        { stdio: 'pipe' },
-      );
-    } catch {}
-    try {
-      execFileSync(
-        devtunnelCmd,
-        ['access', 'create', tunnelId, '-p', String(port), '--anonymous'],
-        { stdio: 'pipe' },
-      );
-    } catch {}
-
-    const hostProc = spawn(devtunnelCmd, ['host', tunnelId], {
+    // Start ngrok process
+    const ngrokProc = spawn(ngrokCmd, ngrokArgs, {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-    tunnelProc = hostProc;
+    tunnelProc = ngrokProc;
 
     return new Promise((resolve) => {
       let output = '';
-      const timeout = setTimeout(() => resolve(null), 15000);
+      const timeout = setTimeout(() => {
+        log.error('Tunnel startup timed out');
+        resolve(null);
+      }, 15000);
 
-      hostProc.stdout.on('data', (data) => {
+      // ngrok outputs to stderr for logs
+      ngrokProc.stderr.on('data', (data) => {
         output += data.toString();
-        const match = output.match(/(https:\/\/[^\s]+devtunnels\.ms[^\s]*)/);
-        if (match) {
-          clearTimeout(timeout);
-          resolve({ url: match[1], mode: tunnelMode, expiry: tunnelExpiry });
-        }
+        log.debug(`ngrok stderr: ${data.toString().trim()}`);
       });
-      hostProc.stderr.on('data', (data) => {
+
+      ngrokProc.stdout.on('data', (data) => {
         output += data.toString();
+        log.debug(`ngrok stdout: ${data.toString().trim()}`);
       });
-      hostProc.on('error', (err) => {
+
+      ngrokProc.on('error', (err) => {
         log.error(`Tunnel process error: ${err.message}`);
         clearTimeout(timeout);
         resolve(null);
       });
+
+      ngrokProc.on('close', (code) => {
+        if (code !== null && code !== 0) {
+          log.error(`ngrok exited with code ${code}`);
+          log.debug(`ngrok output: ${output}`);
+          clearTimeout(timeout);
+          resolve(null);
+        }
+      });
+
+      // Poll the ngrok API to get the public URL
+      // ngrok exposes a local API at http://127.0.0.1:4040
+      const pollForUrl = async () => {
+        const http = require('http');
+        const maxAttempts = 30;
+        let attempts = 0;
+
+        const checkApi = () => {
+          attempts++;
+          const req = http.get('http://127.0.0.1:4040/api/tunnels', (res) => {
+            let body = '';
+            res.on('data', (chunk) => (body += chunk));
+            res.on('end', () => {
+              try {
+                const data = JSON.parse(body);
+                if (data.tunnels && data.tunnels.length > 0) {
+                  const tunnel = data.tunnels.find((t) => t.proto === 'https') || data.tunnels[0];
+                  const publicUrl = tunnel.public_url;
+                  clearTimeout(timeout);
+
+                  // Extract domain for persistence
+                  if (isPersisted && publicUrl) {
+                    try {
+                      const url = new URL(publicUrl);
+                      savePersistedConfig(url.hostname);
+                      log.info(`Saved domain for reuse: ${url.hostname}`);
+                    } catch {}
+                  }
+
+                  const tunnelMode = isPersisted ? 'persisted' : 'ephemeral';
+                  resolve({ url: publicUrl, mode: tunnelMode, expiry: 'session' });
+                  return;
+                }
+              } catch {}
+
+              if (attempts < maxAttempts) {
+                setTimeout(checkApi, 500);
+              } else {
+                clearTimeout(timeout);
+                resolve(null);
+              }
+            });
+          });
+
+          req.on('error', () => {
+            if (attempts < maxAttempts) {
+              setTimeout(checkApi, 500);
+            } else {
+              clearTimeout(timeout);
+              resolve(null);
+            }
+          });
+        };
+
+        // Give ngrok a moment to start before polling
+        setTimeout(checkApi, 1000);
+      };
+
+      pollForUrl();
     });
   } catch (e) {
     log.error(`Tunnel error: ${e.message}`);
@@ -221,7 +237,6 @@ async function startTunnel(port, options = {}) {
 }
 
 function cleanupTunnel() {
-  const id = tunnelId;
   if (tunnelProc) {
     try {
       // On Windows, kill the process tree to ensure all children die
@@ -235,25 +250,21 @@ function cleanupTunnel() {
           /* best effort */
         }
       } else {
-        tunnelProc.kill('SIGKILL');
+        tunnelProc.kill('SIGTERM');
+        // Give it a moment to exit gracefully, then force kill
+        setTimeout(() => {
+          try {
+            tunnelProc.kill('SIGKILL');
+          } catch {
+            /* already dead */
+          }
+        }, 1000);
       }
     } catch {
       /* best effort */
     }
     tunnelProc = null;
-  }
-  if (id) {
-    tunnelId = null;
-    if (isPersisted) {
-      log.info('Tunnel host stopped (tunnel preserved for reuse)');
-    } else {
-      try {
-        execFileSync(devtunnelCmd, ['delete', id, '-f'], { stdio: 'pipe', timeout: 10000 });
-        log.info('Tunnel cleaned up');
-      } catch {
-        /* best effort — tunnel will expire on its own */
-      }
-    }
+    log.info('Tunnel stopped');
   }
 }
 

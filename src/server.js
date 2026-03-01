@@ -137,7 +137,11 @@ function createTermBeamServer(overrides = {}) {
           console.log(`  LAN:      ${localUrl}`);
         }
 
-        const qrUrl = publicUrl || (isLanReachable ? localUrl : `http://localhost:${config.port}`);
+        const baseQrUrl =
+          publicUrl || (isLanReachable ? localUrl : `http://localhost:${config.port}`);
+        const qrUrl = config.password
+          ? `${baseQrUrl}?p=${encodeURIComponent(config.password)}`
+          : baseQrUrl;
         console.log('');
         console.log(`  ${dm}📋 Clipboard requires HTTPS — use the Public or localhost URL${rs}`);
         console.log('');
@@ -148,7 +152,7 @@ function createTermBeamServer(overrides = {}) {
           /* ignore */
         }
 
-        console.log(`  Scan the QR code or open: ${qrUrl}`);
+        console.log(`  Scan the QR code or open: ${baseQrUrl}`);
         if (config.password) console.log(`  Password: ${gn}${config.password}${rs}`);
         console.log('');
 

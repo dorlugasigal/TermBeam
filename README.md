@@ -64,7 +64,7 @@ termbeam --no-password          # disable password protection
 - **QR code on startup** for instant phone connection
 - **Light/dark theme** with persistent preference
 - **Adjustable font size** via status bar controls, saved across sessions
-- **Remote access via [DevTunnel](#remote-access)** — ephemeral or persisted public URLs
+- **Remote access via [ngrok](#remote-access)** — ephemeral or persisted public URLs
 
 ## Remote Access
 
@@ -72,20 +72,28 @@ termbeam --no-password          # disable password protection
 # Tunnel is on by default
 termbeam
 
-# Persisted tunnel (stable URL you can bookmark, reused across restarts, 30-day expiry)
+# Persisted tunnel (stable URL you can bookmark, requires ngrok paid plan)
 termbeam --persisted-tunnel
 
 # LAN-only (no tunnel)
 termbeam --no-tunnel
 ```
 
-Requires the [Dev Tunnels CLI](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started):
+Requires [ngrok](https://ngrok.com/download):
 
-- **Windows:** `winget install Microsoft.devtunnel`
-- **macOS:** `brew install --cask devtunnel`
-- **Linux:** `curl -sL https://aka.ms/DevTunnelCliInstall | bash`
+- **macOS:** `brew install ngrok/ngrok/ngrok`
+- **Windows:** `choco install ngrok` or download from https://ngrok.com/download
+- **Linux:** `snap install ngrok` or download from https://ngrok.com/download
 
-Persisted tunnels save a tunnel ID to `~/.termbeam/tunnel.json` so the URL stays the same between sessions.
+After installing, authenticate with your ngrok authtoken:
+
+```bash
+ngrok config add-authtoken <your-token>
+```
+
+Get your authtoken at: https://dashboard.ngrok.com/get-started/your-authtoken
+
+Persisted tunnels require an ngrok paid plan with custom domains. The domain is saved to `~/.termbeam/ngrok.json` for reuse.
 
 ## CLI Reference
 
@@ -95,17 +103,17 @@ termbeam --port 8080              # custom port (default: 3456)
 termbeam --host 127.0.0.1        # restrict to localhost (default: 0.0.0.0)
 ```
 
-| Flag                  | Description                              | Default          |
-| --------------------- | ---------------------------------------- | ---------------- |
+| Flag                  | Description                                          | Default        |
+| --------------------- | ---------------------------------------------------- | -------------- |
 | `--password <pw>`     | Set access password (also accepts `--password=<pw>`) | Auto-generated |
-| `--no-password`       | Disable password                         | —                |
-| `--generate-password` | Auto-generate a secure password          | On               |
-| `--tunnel`            | Create an ephemeral devtunnel URL        | On               |
-| `--no-tunnel`         | Disable tunnel (LAN-only)                | —                |
-| `--persisted-tunnel`  | Create a reusable devtunnel URL          | Off              |
-| `--port <port>`       | Server port                              | `3456`           |
-| `--host <addr>`       | Bind address                             | `0.0.0.0`        |
-| `--log-level <level>` | Log verbosity (error/warn/info/debug) | `info` |
+| `--no-password`       | Disable password                                     | —              |
+| `--generate-password` | Auto-generate a secure password                      | On             |
+| `--tunnel`            | Create an ephemeral devtunnel URL                    | On             |
+| `--no-tunnel`         | Disable tunnel (LAN-only)                            | —              |
+| `--persisted-tunnel`  | Create a reusable devtunnel URL                      | Off            |
+| `--port <port>`       | Server port                                          | `3456`         |
+| `--host <addr>`       | Bind address                                         | `0.0.0.0`      |
+| `--log-level <level>` | Log verbosity (error/warn/info/debug)                | `info`         |
 
 Environment variables: `PORT`, `TERMBEAM_PASSWORD`, `TERMBEAM_CWD`, `TERMBEAM_LOG_LEVEL`, `SHELL` (Unix fallback), `COMSPEC` (Windows fallback). See [Configuration docs](https://dorlugasigal.github.io/TermBeam/configuration/).
 
