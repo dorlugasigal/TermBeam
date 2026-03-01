@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.3] - 2026-03-01
+
+- fix(cli): validate detected shell against /etc/shells allowlist
+
 ## [1.0.2] - 2026-03-01
 
 - fix(cli): skip non-shell parent processes in shell detection
