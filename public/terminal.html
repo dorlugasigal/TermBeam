@@ -1350,12 +1350,16 @@
       }
 
       async function removeSession(id) {
-        try { await fetch('/api/sessions/' + encodeURIComponent(id), { method: 'DELETE' }); } catch {}
-
         const ms = managed.get(id);
         if (ms) {
+          ms.exited = true;
+          if (ms.reconnectTimer) { clearTimeout(ms.reconnectTimer); ms.reconnectTimer = null; }
           if (ms.ws) try { ms.ws.close(); } catch {}
-          if (ms.reconnectTimer) clearTimeout(ms.reconnectTimer);
+        }
+
+        try { await fetch('/api/sessions/' + encodeURIComponent(id), { method: 'DELETE' }); } catch {}
+
+        if (ms) {
           ms.term.dispose();
           ms.container.remove();
           managed.delete(id);
@@ -2169,8 +2173,9 @@
             for (const id of [...managed.keys()]) {
               if (!serverIds.has(id)) {
                 const ms = managed.get(id);
+                ms.exited = true;
+                if (ms.reconnectTimer) { clearTimeout(ms.reconnectTimer); ms.reconnectTimer = null; }
                 if (ms.ws) try { ms.ws.close(); } catch {}
-                if (ms.reconnectTimer) clearTimeout(ms.reconnectTimer);
                 ms.term.dispose();
                 ms.container.remove();
                 managed.delete(id);
