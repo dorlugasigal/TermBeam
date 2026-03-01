@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.2] - 2026-03-01
+
+- fix(ui): make side panel sessions list scrollable
+
 ## [1.2.1] - 2026-03-01
 
 - feat(ui): redesign touch key bar with modifier keys and iOS-style layout
