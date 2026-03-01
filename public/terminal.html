@@ -36,9 +36,10 @@
         --danger: #f14c4c;
         --danger-hover: #d73a3a;
         --success: #89d185;
-        --key-bg: #2d2d2d;
-        --key-border: #404040;
-        --key-shadow: rgba(0, 0, 0, 0.4);
+        --key-bg: #4a4a4c;
+        --key-border: #5a5a5c;
+        --key-shadow: rgba(0, 0, 0, 0.5);
+        --key-special-bg: #333335;
         --overlay-bg: rgba(0, 0, 0, 0.85);
       }
       [data-theme='light'] {
@@ -56,9 +57,10 @@
         --danger: #e51400;
         --danger-hover: #c20000;
         --success: #16825d;
-        --key-bg: #e8e8e8;
-        --key-border: #d0d0d0;
-        --key-shadow: rgba(0, 0, 0, 0.08);
+        --key-bg: #ffffff;
+        --key-border: #b5b5b5;
+        --key-shadow: rgba(0, 0, 0, 0.12);
+        --key-special-bg: #adb5bd;
         --overlay-bg: rgba(0, 0, 0, 0.5);
       }
       @font-face {
@@ -416,7 +418,7 @@
         top: calc(41px + env(safe-area-inset-top, 0px));
         left: env(safe-area-inset-left, 0px);
         right: env(safe-area-inset-right, 0px);
-        bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+        bottom: calc(80px + env(safe-area-inset-bottom, 0px));
         display: flex;
         overflow: hidden;
       }
@@ -449,76 +451,124 @@
         bottom: 0;
         left: 0;
         right: 0;
-        height: calc(52px + env(safe-area-inset-bottom, 0px));
+        height: calc(80px + env(safe-area-inset-bottom, 0px));
         display: flex;
-        align-items: center;
-        background: var(--surface);
+        flex-direction: column;
+        background: #1c1c1e;
         border-top: 1px solid var(--border);
-        padding: 0 calc(4px + env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px)
-          calc(4px + env(safe-area-inset-left, 0px));
-        gap: 4px;
+        padding: 4px calc(3px + env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px)
+          calc(3px + env(safe-area-inset-left, 0px));
+        gap: 6px;
         z-index: 50;
         transition:
           background 0.3s,
           border-color 0.3s;
       }
+      [data-theme='light'] #key-bar {
+        background: #d1d3d9;
+      }
+      .key-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex: 1;
+      }
       .key-btn {
         min-width: 0;
-        height: 40px;
+        height: 34px;
         background: var(--key-bg);
-        color: var(--text);
-        border: 1px solid var(--key-border);
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 600;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
         cursor: pointer;
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
         -webkit-tap-highlight-color: transparent;
         user-select: none;
         white-space: nowrap;
-        padding: 2px 8px;
+        padding: 0 6px;
         flex: 1 1 0;
-        gap: 0;
         line-height: 1;
         transition:
-          background 0.15s,
-          color 0.15s,
-          border-color 0.15s,
-          transform 0.1s,
-          box-shadow 0.15s;
-        box-shadow:
-          0 1px 3px var(--key-shadow),
-          inset 0 1px 0 rgba(255, 255, 255, 0.05);
+          background 0.1s,
+          transform 0.08s,
+          box-shadow 0.1s;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
       }
-      .key-btn .hint {
-        font-size: 8px;
-        font-weight: 400;
-        opacity: 0.5;
-        margin-top: 1px;
-        letter-spacing: 0.02em;
-      }
-      .key-btn:hover {
-        background: var(--border);
-        border-color: var(--accent);
-        box-shadow: 0 2px 6px var(--key-shadow);
+      [data-theme='light'] .key-btn {
+        color: #000;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
       }
       .key-btn:active {
-        background: var(--accent);
-        color: #fff;
-        border-color: var(--accent);
-        transform: scale(0.93);
+        background: #6e6e72;
+        transform: scale(0.95);
         box-shadow: none;
       }
-      .key-btn.wide {
-        flex: 1.4 1 0;
+      [data-theme='light'] .key-btn:active {
+        background: #c8c8cc;
+      }
+      .key-btn.flash {
+        background: #fff !important;
+        color: #000 !important;
+        transition: none;
+      }
+      [data-theme='light'] .key-btn.flash {
+        background: #333 !important;
+        color: #fff !important;
+      }
+      .key-btn.modifier,
+      .key-btn.special {
+        background: var(--key-special-bg);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      [data-theme='light'] .key-btn.modifier,
+      [data-theme='light'] .key-btn.special {
+        background: var(--key-special-bg);
+        color: #000;
+      }
+      .key-btn.modifier.active {
+        background: var(--accent);
+        color: #fff;
+        box-shadow:
+          0 1px 0 rgba(0, 0, 0, 0.2),
+          0 0 10px rgba(0, 120, 212, 0.5);
+      }
+      [data-theme='light'] .key-btn.modifier.active {
+        background: var(--accent);
+        color: #fff;
+        box-shadow:
+          0 1px 0 rgba(0, 0, 0, 0.2),
+          0 0 10px rgba(0, 120, 212, 0.3);
+      }
+      .key-btn.icon-btn {
+        font-size: 18px;
+      }
+      .key-btn.key-enter {
+        background: var(--accent);
+        color: #fff;
+        font-size: 20px;
+      }
+      .key-btn.key-enter:active {
+        background: var(--accent-active);
+      }
+      .key-btn.key-danger {
+        background: #5c2222;
+        color: #f87171;
+      }
+      [data-theme='light'] .key-btn.key-danger {
+        background: #fee2e2;
+        color: #dc2626;
+      }
+      .key-btn.key-danger:active {
+        background: var(--danger);
+        color: #fff;
       }
       .key-sep {
-        width: 1px;
-        height: 20px;
-        background: var(--border);
+        width: 0;
         flex-shrink: 0;
       }
 
@@ -1122,14 +1172,41 @@
 
       .side-panel-header {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 12px 14px;
+        flex-direction: column;
+        padding: 16px 14px 12px;
         border-bottom: 1px solid var(--border);
-        font-size: 15px;
+        position: relative;
+      }
+      .side-panel-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 18px;
         font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .side-panel-brand svg {
+        flex-shrink: 0;
+      }
+      .side-panel-version {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-weight: 400;
+        margin-top: 2px;
+        padding-left: 28px;
+      }
+      .side-panel-section-title {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-dim);
+        padding: 10px 14px 4px;
       }
       .side-panel-close {
+        position: absolute;
+        top: 14px;
+        right: 10px;
         background: none;
         border: none;
         color: var(--text-dim);
@@ -1299,9 +1376,26 @@
     <div id="side-panel-backdrop"></div>
     <div id="side-panel">
       <div class="side-panel-header">
-        <span>Sessions</span>
+        <div class="side-panel-brand">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+          TermBeam
+        </div>
+        <div class="side-panel-version" id="side-panel-version"></div>
         <button class="side-panel-close" id="side-panel-close" title="Close">×</button>
       </div>
+      <div class="side-panel-section-title">Sessions</div>
       <div class="side-panel-list" id="side-panel-list"></div>
       <div style="padding: 8px; border-top: 1px solid var(--border)">
         <button
@@ -1493,29 +1587,28 @@
     <div id="copy-toast">Copied!</div>
 
     <div id="key-bar">
-      <button class="key-btn" data-key="&#x1b;[A" title="Previous command">
-        ↑<span class="hint">prev</span>
-      </button>
-      <button class="key-btn" data-key="&#x1b;[B" title="Next command">
-        ↓<span class="hint">next</span>
-      </button>
-      <button class="key-btn" data-key="&#x1b;[D" title="Left">←</button>
-      <button class="key-btn" data-key="&#x1b;[C" title="Right">→</button>
-      <button class="key-btn" data-key="&#x1b;[H" title="Home">Home</button>
-      <button class="key-btn" data-key="&#x1b;[F" title="End">End</button>
-      <div class="key-sep"></div>
-      <button class="key-btn" id="select-btn" title="Copy text">Copy</button>
-      <button class="key-btn" id="paste-btn" title="Paste from clipboard">Paste</button>
-      <div class="key-sep"></div>
-      <button class="key-btn wide" data-key="&#x09;" title="Autocomplete">Tab</button>
-      <div class="key-sep"></div>
-      <button class="key-btn" data-key="&#x03;" title="Interrupt process">
-        ^C<span class="hint">stop</span>
-      </button>
-      <div class="key-sep"></div>
-      <button class="key-btn" data-key="enter" title="Enter / Return">
-        ↵<span class="hint">enter</span>
-      </button>
+      <div class="key-row">
+        <button class="key-btn special" data-key="&#x1b;" title="Escape">Esc</button>
+        <button class="key-btn special" id="select-btn" title="Copy text">Copy</button>
+        <button class="key-btn special" id="paste-btn" title="Paste from clipboard">Paste</button>
+        <button class="key-btn special" data-key="&#x1b;OH" title="Home">Home</button>
+        <button class="key-btn special" data-key="&#x1b;OF" title="End">End</button>
+        <button class="key-btn icon-btn" data-key="&#x1b;[A" title="Up">↑</button>
+        <button class="key-btn icon-btn key-enter" data-key="enter" title="Enter / Return">
+          ↵
+        </button>
+      </div>
+      <div class="key-row">
+        <button class="key-btn modifier" id="ctrl-btn" title="Toggle Ctrl modifier">Ctrl</button>
+        <button class="key-btn modifier" id="shift-btn" title="Toggle Shift modifier">Shift</button>
+        <button class="key-btn special" data-key="&#x09;" title="Autocomplete">Tab</button>
+        <button class="key-btn special key-danger" data-key="&#x03;" title="Interrupt process">
+          ^C
+        </button>
+        <button class="key-btn icon-btn" data-key="&#x1b;[D" title="Left">←</button>
+        <button class="key-btn icon-btn" data-key="&#x1b;[B" title="Down">↓</button>
+        <button class="key-btn icon-btn" data-key="&#x1b;[C" title="Right">→</button>
+      </div>
     </div>
 
     <div id="reconnect-overlay">
@@ -2030,9 +2123,9 @@
             const keyboardOpen = keyboardHeight > 50;
             if (keyboardOpen) {
               keyBar.style.bottom = keyboardHeight + 'px';
-              keyBar.style.height = '52px';
+              keyBar.style.height = '80px';
               keyBar.style.paddingBottom = '0px';
-              terminalsWrapper.style.bottom = 52 + keyboardHeight + 'px';
+              terminalsWrapper.style.bottom = 80 + keyboardHeight + 'px';
             } else {
               keyBar.style.bottom = '0px';
               keyBar.style.height = '';
@@ -2112,6 +2205,7 @@
           .then((r) => r.json())
           .then((d) => {
             document.getElementById('version-text').textContent = 'v' + d.version;
+            document.getElementById('side-panel-version').textContent = 'v' + d.version;
           })
           .catch(() => {});
       }
@@ -2265,7 +2359,18 @@
         // Terminal input → WebSocket
         term.onData((input) => {
           if (ms.ws && ms.ws.readyState === 1) {
-            ms.ws.send(JSON.stringify({ type: 'input', data: input }));
+            let data = input;
+            if (ctrlActive && input.length === 1) {
+              const code = input.toLowerCase().charCodeAt(0);
+              // a-z → Ctrl+letter (0x01-0x1a)
+              if (code >= 97 && code <= 122) {
+                data = String.fromCharCode(code - 96);
+              }
+              clearModifiers();
+            } else if (shiftActive && !ctrlActive) {
+              clearModifiers();
+            }
+            ms.ws.send(JSON.stringify({ type: 'input', data }));
           }
         });
 
@@ -2830,18 +2935,65 @@
       }
 
       // ===== Key Bar =====
+      // Modifier state (shared with terminal onData)
+      let ctrlActive = false;
+      let shiftActive = false;
+      function clearModifiers() {
+        ctrlActive = false;
+        shiftActive = false;
+        const ctrlBtn = document.getElementById('ctrl-btn');
+        const shiftBtn = document.getElementById('shift-btn');
+        if (ctrlBtn) ctrlBtn.classList.remove('active');
+        if (shiftBtn) shiftBtn.classList.remove('active');
+      }
+
       function setupKeyBar() {
         const keyBar = document.getElementById('key-bar');
+        const ctrlBtn = document.getElementById('ctrl-btn');
+        const shiftBtn = document.getElementById('shift-btn');
         let repeatTimer = null;
         let repeatInterval = null;
 
+        function toggleModifier(which) {
+          if (which === 'ctrl') {
+            ctrlActive = !ctrlActive;
+            ctrlBtn.classList.toggle('active', ctrlActive);
+          } else {
+            shiftActive = !shiftActive;
+            shiftBtn.classList.toggle('active', shiftActive);
+          }
+        }
+
+        function applyModifiers(key) {
+          if (!ctrlActive && !shiftActive) return key;
+          // Modifier param: Shift=2, Ctrl=5, Ctrl+Shift=6
+          const mod = ctrlActive && shiftActive ? 6 : ctrlActive ? 5 : 2;
+          // Arrow keys: \x1b[X → \x1b[1;{mod}X
+          const csiMatch = key.match(/^\x1b\[([ABCD])$/);
+          if (csiMatch) return '\x1b[1;' + mod + csiMatch[1];
+          // Home/End: \x1bOH/\x1bOF → \x1b[1;{mod}H/F
+          const ssMatch = key.match(/^\x1bO([HF])$/);
+          if (ssMatch) return '\x1b[1;' + mod + ssMatch[1];
+          // Tab with Shift → reverse tab
+          if (key === '\x09' && shiftActive && !ctrlActive) return '\x1b[Z';
+          return key;
+        }
+
+        function flashBtn(btn) {
+          btn.classList.add('flash');
+          setTimeout(() => btn.classList.remove('flash'), 120);
+        }
+
         function sendKey(btn) {
           if (!btn || !btn.dataset.key) return;
-          const data = btn.dataset.key === 'enter' ? '\r' : btn.dataset.key;
+          flashBtn(btn);
+          let data = btn.dataset.key === 'enter' ? '\r' : btn.dataset.key;
+          data = applyModifiers(data);
           const ms = managed.get(activeId);
           if (ms && ms.ws && ms.ws.readyState === 1) {
             ms.ws.send(JSON.stringify({ type: 'input', data }));
           }
+          clearModifiers();
         }
 
         function stopRepeat() {
@@ -2859,6 +3011,37 @@
           }, 400);
         }
 
+        ctrlBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleModifier('ctrl');
+        });
+        shiftBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleModifier('shift');
+        });
+        ctrlBtn.addEventListener('mousedown', (e) => e.preventDefault());
+        shiftBtn.addEventListener('mousedown', (e) => e.preventDefault());
+        ctrlBtn.addEventListener(
+          'touchstart',
+          (e) => {
+            e.preventDefault();
+            keyBarTouched = true;
+            toggleModifier('ctrl');
+          },
+          { passive: false },
+        );
+        shiftBtn.addEventListener(
+          'touchstart',
+          (e) => {
+            e.preventDefault();
+            keyBarTouched = true;
+            toggleModifier('shift');
+          },
+          { passive: false },
+        );
+
         let keyBarTouched = false;
         keyBar.addEventListener('mousedown', (e) => {
           if (keyBarTouched) {
@@ -2874,24 +3057,45 @@
         keyBar.addEventListener('mouseup', stopRepeat);
         keyBar.addEventListener('mouseleave', stopRepeat);
 
+        // Touch handling: allow native scroll when swiping, fire key only on tap
+        const SWIPE_THRESHOLD = 10;
+        let touchStartX = 0;
+        let touchBtn = null;
+        let touchMoved = false;
+
         keyBar.addEventListener(
           'touchstart',
           (e) => {
             keyBarTouched = true;
-            const btn = e.target.closest('.key-btn');
-            if (btn && btn.dataset.key) {
-              e.preventDefault();
-              startRepeat(btn);
+            touchBtn = e.target.closest('.key-btn');
+            touchMoved = false;
+            touchStartX = e.touches[0].clientX;
+            // Don't preventDefault — let the browser handle scroll
+          },
+          { passive: true },
+        );
+        keyBar.addEventListener(
+          'touchmove',
+          (e) => {
+            if (Math.abs(e.touches[0].clientX - touchStartX) > SWIPE_THRESHOLD) {
+              touchMoved = true;
+              stopRepeat();
             }
           },
-          { passive: false },
+          { passive: true },
         );
         keyBar.addEventListener('touchend', (e) => {
-          const btn = e.target.closest('.key-btn');
-          if (btn && btn.dataset.key) e.preventDefault();
+          if (!touchMoved && touchBtn && touchBtn.dataset.key) {
+            e.preventDefault();
+            sendKey(touchBtn);
+          }
           stopRepeat();
+          touchBtn = null;
         });
-        keyBar.addEventListener('touchcancel', stopRepeat);
+        keyBar.addEventListener('touchcancel', () => {
+          stopRepeat();
+          touchBtn = null;
+        });
 
         keyBar.addEventListener('click', (e) => {
           const btn = e.target.closest('.key-btn');
@@ -3059,7 +3263,21 @@
         });
 
         selectBtn.addEventListener('mousedown', (e) => e.preventDefault());
-        selectBtn.addEventListener('click', openSelectOverlay);
+        selectBtn.addEventListener(
+          'touchend',
+          (e) => {
+            e.preventDefault();
+            const ms = managed.get(activeId);
+            if (ms) ms.term.blur();
+            openSelectOverlay();
+          },
+          { passive: false },
+        );
+        selectBtn.addEventListener('click', () => {
+          const ms = managed.get(activeId);
+          if (ms) ms.term.blur();
+          openSelectOverlay();
+        });
 
         document.getElementById('select-copy').addEventListener('click', () => {
           // Copy finger selection if any, otherwise copy all loaded text
