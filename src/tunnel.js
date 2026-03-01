@@ -173,7 +173,8 @@ async function startTunnel(port, options = {}) {
       hostProc.stderr.on('data', (data) => {
         output += data.toString();
       });
-      hostProc.on('error', () => {
+      hostProc.on('error', (err) => {
+        console.error(`[termbeam] Tunnel process error: ${err.message}`);
         clearTimeout(timeout);
         resolve(null);
       });

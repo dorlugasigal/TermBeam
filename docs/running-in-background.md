@@ -9,7 +9,7 @@ TermBeam is designed as a lightweight, on-demand tool — start it when you need
 The simplest way to keep TermBeam running after you close your terminal:
 
 ```bash
-nohup termbeam --generate-password > ~/.termbeam.log 2>&1 &
+nohup termbeam --no-tunnel --password mysecret > ~/.termbeam.log 2>&1 &
 echo $! > ~/.termbeam.pid
 ```
 
@@ -33,7 +33,7 @@ kill $(cat ~/.termbeam.pid)
 npm install -g pm2
 
 # Start TermBeam
-pm2 start termbeam -- --generate-password
+pm2 start termbeam -- --no-tunnel --password mysecret
 
 # Or with specific options
 pm2 start termbeam -- --port 8080 --password mysecret --tunnel
@@ -158,20 +158,20 @@ launchctl unload ~/Library/LaunchAgents/com.termbeam.plist
 3. **Triggers**: "At startup" (or "At log on" for user-level)
 4. **Actions**: Start a program
       - Program: `node`
-      - Arguments: `C:\Users\you\AppData\Roaming\npm\node_modules\termbeam\bin\termbeam.js --generate-password`
+      - Arguments: `C:\Users\you\AppData\Roaming\npm\node_modules\termbeam\bin\termbeam.js --no-tunnel --password mysecret`
 5. **Settings**: Check "Restart on failure", set retry to 1 minute
 
 !!! tip
     On Windows, [NSSM](https://nssm.cc/) (Non-Sucking Service Manager) is a great alternative for running Node.js apps as proper Windows services:
     ```powershell
-    nssm install TermBeam node "C:\path\to\termbeam\bin\termbeam.js" --generate-password
+    nssm install TermBeam node "C:\path\to\termbeam\bin\termbeam.js" --no-tunnel --password mysecret
     nssm start TermBeam
     ```
 
 ## Tips
 
 !!! info "Password Management"
-    When running as a background service, use `--password` or the `TERMBEAM_PASSWORD` environment variable instead of `--generate-password`, since you won't see the generated password in the console output.
+    Since TermBeam auto-generates a password by default, background services **must** use `--password` or the `TERMBEAM_PASSWORD` environment variable to set a known password — otherwise the generated password is lost in the service logs.
 
 !!! info "Pairing with DevTunnel"
     If you use `--tunnel` with a background service, consider the persistent tunnel feature (when available) so your tunnel URL stays the same across restarts.

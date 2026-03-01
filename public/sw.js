@@ -1,4 +1,4 @@
-const CACHE_NAME = 'termbeam-v2';
+const CACHE_NAME = 'termbeam-v5';
 const SHELL_URLS = ['/', '/terminal'];
 
 self.addEventListener('install', (event) => {
@@ -56,7 +56,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for static assets
+  // Network-first for HTML pages (always get latest code)
+  if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(event.request).then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Cache-first for static assets (JS, CSS, images)
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;

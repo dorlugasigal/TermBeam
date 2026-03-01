@@ -30,18 +30,22 @@ termbeam
 
 Scan the QR code printed in your terminal, or open the URL on any device.
 
-### Password protection (recommended)
+### Secure by default
+
+TermBeam starts with a tunnel and auto-generated password out of the box — just run `termbeam` and scan the QR code.
 
 ```bash
-termbeam --generate-password
-
-# or set your own
-termbeam --password mysecret
+termbeam                        # tunnel + auto-password (default)
+termbeam --password mysecret    # use a specific password
+termbeam --no-tunnel            # LAN-only (no tunnel)
+termbeam --no-password          # disable password protection
 ```
 
 ## Features
 
 - **Mobile-first UI** with on-screen touch bar (arrow keys, Tab, Enter, Ctrl shortcuts, Esc) and touch-optimized controls
+- **Copy/paste support** — Copy button opens text overlay for finger-selectable terminal content; Paste button with clipboard API + fallback modal
+- **Image paste** — paste images from clipboard, uploaded to server
 - **Tabbed multi-session terminal** — open, switch, and manage multiple sessions from a single tab bar with drag-to-reorder
 - **Split view** — view two sessions side-by-side (horizontal on desktop, vertical on mobile)
 - **Session colors** — assign a color to each session for quick identification
@@ -65,11 +69,14 @@ termbeam --password mysecret
 ## Remote Access
 
 ```bash
-# One-off tunnel (deleted on shutdown)
-termbeam --tunnel --generate-password
+# Tunnel is on by default
+termbeam
 
 # Persisted tunnel (stable URL you can bookmark, reused across restarts, 30-day expiry)
-termbeam --persisted-tunnel --generate-password
+termbeam --persisted-tunnel
+
+# LAN-only (no tunnel)
+termbeam --no-tunnel
 ```
 
 Requires the [Dev Tunnels CLI](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started):
@@ -88,20 +95,22 @@ termbeam --port 8080              # custom port (default: 3456)
 termbeam --host 127.0.0.1        # restrict to localhost (default: 0.0.0.0)
 ```
 
-| Flag                  | Description                              | Default     |
-| --------------------- | ---------------------------------------- | ----------- |
-| `--password <pw>`     | Set access password (also accepts `--password=<pw>`) | None |
-| `--generate-password` | Auto-generate a secure password          | —           |
-| `--tunnel`            | Create an ephemeral devtunnel URL        | Off         |
-| `--persisted-tunnel`  | Create a reusable devtunnel URL          | Off         |
-| `--port <port>`       | Server port                              | `3456`      |
-| `--host <addr>`       | Bind address                             | `0.0.0.0`   |
+| Flag                  | Description                              | Default          |
+| --------------------- | ---------------------------------------- | ---------------- |
+| `--password <pw>`     | Set access password (also accepts `--password=<pw>`) | Auto-generated |
+| `--no-password`       | Disable password                         | —                |
+| `--generate-password` | Auto-generate a secure password          | On               |
+| `--tunnel`            | Create an ephemeral devtunnel URL        | On               |
+| `--no-tunnel`         | Disable tunnel (LAN-only)                | —                |
+| `--persisted-tunnel`  | Create a reusable devtunnel URL          | Off              |
+| `--port <port>`       | Server port                              | `3456`           |
+| `--host <addr>`       | Bind address                             | `0.0.0.0`        |
 
 Environment variables: `PORT`, `TERMBEAM_PASSWORD`, `TERMBEAM_CWD`, `SHELL` (Unix fallback), `COMSPEC` (Windows fallback). See [Configuration docs](https://dorlugasigal.github.io/TermBeam/configuration/).
 
 ## Security
 
-TermBeam binds to all interfaces (`0.0.0.0`) by default, so it's accessible on your local network out of the box. **Always set a password** when running on a shared network, or pass `--host 127.0.0.1` to restrict access to your machine only.
+TermBeam auto-generates a password and creates a tunnel by default, so your terminal is protected out of the box. Be aware that the tunnel exposes your terminal to the internet — use `--no-tunnel` for LAN-only access, or `--host 127.0.0.1` to restrict to your machine only.
 
 Auth uses secure httpOnly cookies with 24-hour expiry, login is rate-limited to 5 attempts per minute, and security headers (X-Frame-Options, X-Content-Type-Options, etc.) are set on all responses. API clients that can't use cookies can authenticate with an `Authorization: Bearer <password>` header. See the [Security Guide](https://dorlugasigal.github.io/TermBeam/security/) for more.
 

@@ -86,6 +86,8 @@ export const TermBeamDemo: React.FC = () => {
 
   return (
     <AbsoluteFill style={{ background: "#0a0a1a" }}>
+      {/* Scale 1080p design to 4K */}
+      <div style={{ position: 'absolute', top: 0, left: 0, width: 1920, height: 1080, transform: 'scale(2)', transformOrigin: 'top left' }}>
       {/* ── Background Music ──────────────────────────── */}
       <Audio
         src={staticFile("music.mp3")}
@@ -145,6 +147,7 @@ export const TermBeamDemo: React.FC = () => {
       <Sequence from={OUTRO_START} durationInFrames={OUTRO_DUR} name="Outro">
         <Outro />
       </Sequence>
+      </div>
     </AbsoluteFill>
   );
 };

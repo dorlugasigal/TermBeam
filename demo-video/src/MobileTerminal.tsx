@@ -35,9 +35,10 @@ const KEY_BUTTONS: {
   { label: "↓", pressAt: 75 },
   { label: "←" },
   { label: "→", pressAt: 105 },
+  { label: "Copy" },
+  { label: "Paste" },
   { label: "Tab", wide: true, pressAt: 10 },
   { label: "Enter", wide: true }, // pressed dynamically with commands
-  { label: "Esc" },
   { label: "^C", pressAt: 170 },
   { label: "^D" },
   { label: "^Z" },

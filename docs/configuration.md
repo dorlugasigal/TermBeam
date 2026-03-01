@@ -5,8 +5,10 @@
 | Flag                  | Description                     | Default   |
 | --------------------- | ------------------------------- | --------- |
 | `--password <pw>`     | Set access password (also accepts `--password=<pw>`) | None      |
-| `--generate-password` | Auto-generate a secure password | —         |
-| `--tunnel`            | Create an ephemeral devtunnel URL | Off       |
+| `--generate-password` | Auto-generate a secure password (default behavior) | On        |
+| `--no-password`       | Disable auto-generated password | —         |
+| `--tunnel`            | Create an ephemeral devtunnel URL | On        |
+| `--no-tunnel`         | Disable tunnel                  | —         |
 | `--persisted-tunnel`  | Create a reusable devtunnel URL (stable across restarts) | Off |
 | `--port <port>`       | Server port                     | `3456`    |
 | `--host <addr>`       | Bind address                    | `0.0.0.0` |
@@ -37,8 +39,14 @@ The environment variables `PTY_PASSWORD` and `PTY_CWD` are also supported as fal
 ### Basic Usage
 
 ```bash
-# Start with defaults (localhost only, no password)
+# Start with defaults (tunnel + auto-generated password)
 termbeam
+
+# Start without tunnel (LAN only, auto-generated password)
+termbeam --no-tunnel
+
+# Start without password (not recommended)
+termbeam --no-password
 
 # Use a specific shell
 termbeam /bin/bash
@@ -50,11 +58,8 @@ termbeam --port 8080 /usr/bin/fish
 ### With Authentication
 
 ```bash
-# Set a password
+# Set an explicit password
 termbeam --password mysecret
-
-# Auto-generate a secure password (recommended)
-termbeam --generate-password
 
 # Use environment variable
 TERMBEAM_PASSWORD=mysecret termbeam
@@ -63,11 +68,14 @@ TERMBEAM_PASSWORD=mysecret termbeam
 ### Network Access
 
 ```bash
-# Listen on all interfaces (LAN access)
-termbeam --host 0.0.0.0 --generate-password
+# Listen on all interfaces with auto-generated password (default behavior)
+termbeam
 
-# Create a public tunnel (internet access)
-termbeam --tunnel --generate-password
+# Localhost only, no tunnel
+termbeam --no-tunnel --host 127.0.0.1
+
+# Create a public tunnel (internet access) — on by default
+termbeam
 ```
 
 ### DevTunnel
@@ -75,7 +83,7 @@ termbeam --tunnel --generate-password
 The `--tunnel` flag creates an ephemeral public URL using [Azure DevTunnels](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/):
 
 ```bash
-termbeam --tunnel --password mysecret
+termbeam --password mysecret
 ```
 
 For a **stable URL** that persists across restarts, use `--persisted-tunnel`:
@@ -89,7 +97,7 @@ termbeam --persisted-tunnel --password mysecret
     - `--persisted-tunnel` — Saves the tunnel ID to `~/.termbeam/tunnel.json` and reuses it across restarts (30-day expiry). The URL stays the same so you can bookmark it on your phone. To get a fresh URL, just switch back to `--tunnel`.
 
 !!! warning
-Always use a password when using `--tunnel`. The tunnel URL is publicly accessible.
+A password is always auto-generated when using a tunnel. The tunnel URL is publicly accessible.
 
 Requirements:
 

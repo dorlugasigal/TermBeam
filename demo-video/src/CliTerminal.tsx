@@ -34,7 +34,7 @@ const OMP_TIME_BG = "#3e4451";
 const OMP_PROMPT_COLOR = "#22da6e";
 
 // ── Terminal content ────────────────────────────────────
-const COMMAND = "npx termbeam --generate-pass";
+const COMMAND = "npx termbeam";
 const TYPE_SPEED = 1.5;
 const COMMAND_FRAMES = Math.ceil(COMMAND.length * TYPE_SPEED);
 const PAUSE_AFTER_ENTER = 10;
@@ -51,13 +51,15 @@ const ASCII_LINES = [
 
 const SERVER_INFO = [
   { text: "", color: "" },
-  { text: "  Beam your terminal to any device 📡  v0.0.3", color: "#6c7086" },
+  { text: "  Beam your terminal to any device 📡  v0.2.0", color: "#6c7086" },
   { text: "", color: "" },
-  { text: "  Local:    http://localhost:3456", color: "#e0e0e0" },
-  { text: "  LAN:      http://192.168.1.42:3456", color: "#e0e0e0" },
   { text: "  Shell:    /bin/zsh", color: "#e0e0e0" },
   { text: "  Session:  termbeam", color: "#e0e0e0" },
   { text: "  Auth:     🔒 password", color: "#a6e3a1" },
+  { text: "", color: "" },
+  { text: "  🌐 Public:  https://8qh6jqpj-3456.euw.devtunnels.ms", color: "#e0e0e0" },
+  { text: "  Local:    http://localhost:3456", color: "#e0e0e0" },
+  { text: "  LAN:      http://192.168.1.42:3456", color: "#e0e0e0" },
   { text: "", color: "" },
 ];
 
@@ -76,7 +78,7 @@ const QR_LINES = [
 ];
 
 const FOOTER_LINES = [
-  { text: "  Scan the QR code or open: http://192.168.1.42:3456", color: "#6c7086" },
+  { text: "  Scan the QR code or open: https://8qh6jqpj-3456.euw.devtunnels.ms", color: "#6c7086" },
   { text: "  Password: x7kM_pN2rB4vQs", color: "#f9e2af" },
 ];
 
@@ -174,9 +176,9 @@ export const CliTerminal: React.FC = () => {
 
   // ── CLI option pills (slide in during Phase 3) ────────
   const CLI_OPTIONS = [
-    { label: "--password <pw>", desc: "Set access password" },
-    { label: "--tunnel", desc: "Public devtunnel URL" },
-    { label: "--generate-password", desc: "Auto-gen secure pass" },
+    { label: "--no-tunnel", desc: "Disable public tunnel" },
+    { label: "--no-password", desc: "Disable auth" },
+    { label: "--password <pw>", desc: "Set custom password" },
     { label: "--port <port>", desc: "Custom port" },
   ];
   const pillStagger = 8; // frames between each pill
@@ -475,7 +477,7 @@ export const CliTerminal: React.FC = () => {
           style={{
             position: "absolute",
             right: 30,
-            top: "60%",
+            top: "50%",
             transform: "translateY(-50%)",
             display: "flex",
             flexDirection: "column",

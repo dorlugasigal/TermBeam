@@ -24,6 +24,6 @@
     "dev": "remotion studio",
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
-    "render": "remotion render TermBeamDemo out/termbeam-demo.mp4"
+    "render": "remotion render TermBeamDemo out/termbeam-demo.mp4 --crf 28"
   }
 }

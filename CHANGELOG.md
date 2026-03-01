@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.2.0] - 2026-02-28
+
+### Changed
+- **BREAKING:** Tunnel and auto-generated password are now enabled by default
+- Added `--no-tunnel` and `--no-password` flags to opt out of defaults
+
+### Added
+- Mobile copy/paste: Copy button opens selectable text overlay, Paste button with clipboard API + fallback modal
+- Image paste support — paste images from clipboard, uploaded to server temp directory
+- Content-Security-Policy header (script/style/connect sources)
+- Cache-Control: no-store header
+- WebSocket maxPayload limit (1MB)
+- Necessary operational logging (auth events, uploads, WS auth, session lifecycle)
+- Folder browser defaults to server working directory
+
+### Fixed
+- Key-bar double-press on touch devices (touchstart + synthetic mousedown)
+- Paste button not responding on iOS Safari (touchend handler)
+- Non-JSON WebSocket messages no longer forwarded to PTY (security)
+- Upload size limit now handled safely without destroying request stream
+
+### Removed
+- X-XSS-Protection header (deprecated, replaced by CSP)
+
 ## [0.1.0] - 2026-02-28
 
 - feat: docs accuracy, side panel UX, SW font caching, test coverage (#22)

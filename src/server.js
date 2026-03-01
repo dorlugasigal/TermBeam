@@ -26,13 +26,14 @@ app.use(cookieParser());
 app.use((_req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' ws: wss:; font-src 'self' https://cdn.jsdelivr.net");
   next();
 });
 
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server, path: '/ws' });
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 1 * 1024 * 1024 });
 
 setupRoutes(app, { auth, sessions, config });
 setupWebSocket(wss, { auth, sessions });
@@ -105,31 +106,36 @@ server.listen(config.port, config.host, async () => {
   console.log('');
   console.log(`  Beam your terminal to any device 📡  v${config.version}`);
   console.log('');
-  console.log(`  Local:    http://localhost:${config.port}`);
   const isLanReachable = config.host === '0.0.0.0' || config.host === '::' || config.host === ip;
-  if (isLanReachable) {
-    console.log(`  LAN:      ${localUrl}`);
-  }
-  console.log(`  Shell:    ${config.shell}`);
-  console.log(`  Session:  ${defaultId}`);
   const gn = '\x1b[38;5;114m'; // green
-  console.log(`  Auth:     ${config.password ? `${gn}🔒 password${rs}` : '🔓 none'}`);
+  const dm = '\x1b[2m'; // dim
 
   let publicUrl = null;
   if (config.useTunnel) {
     const tunnel = await startTunnel(config.port, { persisted: config.persistedTunnel });
     if (tunnel) {
       publicUrl = tunnel.url;
-      console.log('');
-      console.log(`  🌐 Public:  ${publicUrl}`);
-      console.log(`  Tunnel:   ${tunnel.mode} (expires in ${tunnel.expiry})`);
     } else {
-      console.log('');
       console.log('  ⚠️  Tunnel failed to start. Using LAN only.');
     }
   }
 
+  console.log(`  Shell:    ${config.shell}`);
+  console.log(`  Session:  ${defaultId}`);
+  console.log(`  Auth:     ${config.password ? `${gn}🔒 password${rs}` : '🔓 none'}`);
+  console.log('');
+
+  if (publicUrl) {
+    console.log(`  🌐 Public:  ${publicUrl}`);
+  }
+  console.log(`  Local:    http://localhost:${config.port}`);
+  if (isLanReachable) {
+    console.log(`  LAN:      ${localUrl}`);
+  }
+
   const qrUrl = publicUrl || (isLanReachable ? localUrl : `http://localhost:${config.port}`);
+  console.log('');
+  console.log(`  ${dm}📋 Clipboard requires HTTPS — use the Public or localhost URL${rs}`);
   console.log('');
   try {
     const qr = await QRCode.toString(qrUrl, { type: 'terminal', small: true });

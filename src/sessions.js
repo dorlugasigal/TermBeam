@@ -82,6 +82,7 @@ class SessionManager {
   delete(id) {
     const s = this.sessions.get(id);
     if (!s) return false;
+    console.log(`[termbeam] Session "${s.name}" deleted (id=${id})`);
     s.pty.kill();
     return true;
   }

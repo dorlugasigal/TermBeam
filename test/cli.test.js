@@ -28,8 +28,9 @@ describe('CLI', () => {
     const config = parseArgs();
     assert.strictEqual(config.port, 3456);
     assert.strictEqual(config.host, '0.0.0.0');
-    assert.strictEqual(config.password, null);
-    assert.strictEqual(config.useTunnel, false);
+    assert.ok(config.password, 'should auto-generate password by default');
+    assert.ok(config.password.length > 10, 'auto-generated password should be long');
+    assert.strictEqual(config.useTunnel, true);
   });
 
   it('should parse --password flag', () => {
@@ -233,4 +234,35 @@ describe('CLI', () => {
     const config = parseArgs();
     assert.strictEqual(config.password, 'flagpw');
   });
+
+  it('should parse --no-tunnel flag', () => {
+    process.argv = ['node', 'termbeam', '--no-tunnel'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.useTunnel, false);
+  });
+
+  it('should parse --no-password flag', () => {
+    process.argv = ['node', 'termbeam', '--no-password'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.password, null);
+  });
+
+  it('--no-tunnel should override default tunnel', () => {
+    process.argv = ['node', 'termbeam', '--no-tunnel'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.useTunnel, false);
+  });
+
+  it('--no-password should disable auto-generated password', () => {
+    process.argv = ['node', 'termbeam', '--no-password'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.password, null);
+    assert.strictEqual(config.useTunnel, true);
+  });
+
 });
+

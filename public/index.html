@@ -647,7 +647,7 @@
         </div>
         <label for="sess-cwd">Working Directory</label>
         <div class="cwd-picker">
-          <input type="text" id="sess-cwd" placeholder="/Users/dorlugasigal" />
+          <input type="text" id="sess-cwd" placeholder="Uses server default" />
           <button type="button" class="cwd-browse-btn" id="browse-btn" title="Browse folders">
             <svg
               width="18"
@@ -838,6 +838,10 @@
         try {
           const res = await fetch('/api/shells');
           const data = await res.json();
+          if (data.cwd) {
+            document.getElementById('sess-cwd').placeholder = data.cwd;
+            hubServerCwd = data.cwd;
+          }
           shellSelect.innerHTML = '';
           for (const s of data.shells) {
             const opt = document.createElement('option');
@@ -952,9 +956,10 @@
       const browserBreadcrumb = document.getElementById('browser-breadcrumb');
       const browserPath = document.getElementById('browser-path');
       let currentBrowsePath = '/';
+      let hubServerCwd = '/';
 
       document.getElementById('browse-btn').addEventListener('click', () => {
-        const initial = cwdInput.value.trim() || '/';
+        const initial = cwdInput.value.trim() || hubServerCwd;
         navigateTo(initial);
         browserOverlay.classList.add('visible');
       });
@@ -980,11 +985,17 @@
         try {
           const res = await fetch(`/api/dirs?q=${encodeURIComponent(dir + '/')}`);
           const data = await res.json();
-          if (!data.dirs.length) {
-            browserList.innerHTML = '<div class="browser-empty">No subfolders</div>';
-            return;
+          let items = '';
+          // Add parent (..) entry unless at root
+          const parent = dir.replace(/[/\\][^/\\]+$/, '') || (dir.includes('\\') ? dir.match(/^[A-Za-z]:\\/)?.[0] : '/');
+          if (parent && parent !== dir) {
+            items += `<div class="folder-item" data-path="${esc(parent)}">
+            <span class="folder-icon">📁</span>
+            <span class="folder-name">..</span>
+            <span class="folder-arrow">›</span>
+          </div>`;
           }
-          browserList.innerHTML = data.dirs
+          items += data.dirs
             .map((d) => {
               const name = d.split(/[/\\]/).pop();
               return `<div class="folder-item" data-path="${esc(d)}">
@@ -995,6 +1006,7 @@
             })
             .join('');
 
+          browserList.innerHTML = items || '<div class="browser-empty">No subfolders</div>';
           browserList.querySelectorAll('.folder-item').forEach((el) => {
             el.addEventListener('click', () => navigateTo(el.dataset.path));
           });
@@ -1005,13 +1017,15 @@
       }
 
       function renderBreadcrumb(dir) {
-        const parts = dir.split('/').filter(Boolean);
-        let html = `<button class="crumb" data-path="/">/</button>`;
-        let accumulated = '';
+        const sep = dir.includes('\\') ? '\\' : '/';
+        const parts = dir.split(/[/\\]/).filter(Boolean);
+        const isWindows = /^[A-Za-z]:/.test(dir);
+        let html = isWindows ? '' : `<button class="crumb" data-path="/">/</button>`;
+        let accumulated = isWindows ? '' : '';
         parts.forEach((part, i) => {
-          accumulated += '/' + part;
+          accumulated += (i === 0 && isWindows ? '' : sep) + part;
           const isCurrent = i === parts.length - 1;
-          html += `<span class="crumb-sep">›</span>`;
+          if (i > 0 || isWindows) html += `<span class="crumb-sep">›</span>`;
           html += `<button class="crumb${isCurrent ? ' current' : ''}" data-path="${esc(accumulated)}">${esc(part)}</button>`;
         });
         browserBreadcrumb.innerHTML = html;
@@ -1031,6 +1045,7 @@
         .catch(() => {});
 
       loadSessions();
+      loadShells();
       setInterval(loadSessions, 3000);
 
       // Share button

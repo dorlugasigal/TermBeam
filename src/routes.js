@@ -1,6 +1,7 @@
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const crypto = require('crypto');
 const express = require('express');
 const { detectShells } = require('./shells');
 
@@ -27,8 +28,10 @@ function setupRoutes(app, { auth, sessions, config }) {
         maxAge: 24 * 60 * 60 * 1000,
         secure: false,
       });
+      console.log(`[termbeam] Auth: login success from ${req.ip}`);
       res.json({ ok: true });
     } else {
+      console.warn(`[termbeam] Auth: login failed from ${req.ip}`);
       res.status(401).json({ error: 'wrong password' });
     }
   });
@@ -66,7 +69,7 @@ function setupRoutes(app, { auth, sessions, config }) {
   // Available shells
   app.get('/api/shells', auth.middleware, (_req, res) => {
     const shells = detectShells();
-    res.json({ shells, default: config.defaultShell });
+    res.json({ shells, default: config.defaultShell, cwd: config.cwd });
   });
 
   app.delete('/api/sessions/:id', auth.middleware, (req, res) => {
@@ -89,11 +92,64 @@ function setupRoutes(app, { auth, sessions, config }) {
     }
   });
 
+  // Image upload
+  app.post('/api/upload', auth.middleware, (req, res) => {
+    const contentType = req.headers['content-type'] || '';
+    if (!contentType.startsWith('image/')) {
+      console.warn(`[termbeam] Upload rejected: invalid content-type "${contentType}"`);
+      return res.status(400).json({ error: 'Invalid content type' });
+    }
+
+    const chunks = [];
+    let size = 0;
+    let aborted = false;
+    const limit = 10 * 1024 * 1024;
+
+    req.on('data', (chunk) => {
+      if (aborted) return;
+      size += chunk.length;
+      if (size > limit) {
+        aborted = true;
+        console.warn(`[termbeam] Upload rejected: file too large (${size} bytes)`);
+        res.status(413).json({ error: 'File too large' });
+        req.resume(); // drain remaining data
+        return;
+      }
+      chunks.push(chunk);
+    });
+
+    req.on('end', () => {
+      if (aborted) return;
+      const buffer = Buffer.concat(chunks);
+      if (!buffer.length) {
+        return res.status(400).json({ error: 'No image data' });
+      }
+      const ext = {
+        'image/png': '.png',
+        'image/jpeg': '.jpg',
+        'image/gif': '.gif',
+        'image/webp': '.webp',
+        'image/bmp': '.bmp',
+      }[contentType] || '.png';
+      const filename = `termbeam-${crypto.randomUUID()}${ext}`;
+      const filepath = path.join(os.tmpdir(), filename);
+      fs.writeFileSync(filepath, buffer);
+      console.log(`[termbeam] Upload: ${filename} (${buffer.length} bytes)`);
+      res.json({ path: filepath });
+    });
+
+    req.on('error', (err) => {
+      console.error(`[termbeam] Upload error: ${err.message}`);
+      res.status(500).json({ error: 'Upload failed' });
+    });
+  });
+
   // Directory listing for folder browser
   app.get('/api/dirs', auth.middleware, (req, res) => {
-    const query = req.query.q || os.homedir();
-    const dir = query.endsWith('/') ? query : path.dirname(query);
-    const prefix = query.endsWith('/') ? '' : path.basename(query);
+    const query = req.query.q || (config.cwd + path.sep);
+    const endsWithSep = query.endsWith('/') || query.endsWith('\\');
+    const dir = endsWithSep ? query : path.dirname(query);
+    const prefix = endsWithSep ? '' : path.basename(query);
 
     try {
       const entries = fs.readdirSync(dir, { withFileTypes: true });

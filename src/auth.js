@@ -107,6 +107,7 @@ function createAuth(password) {
     const attempts = authAttempts.get(ip) || [];
     const recent = attempts.filter((t) => now - t < window);
     if (recent.length >= maxAttempts) {
+      console.warn(`[termbeam] Auth: rate limit exceeded for ${ip}`);
       return res.status(429).json({ error: 'Too many attempts. Try again later.' });
     }
     recent.push(now);

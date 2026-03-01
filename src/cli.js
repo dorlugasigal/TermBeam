@@ -11,19 +11,26 @@ Usage:
 
 Options:
   --password <pw>       Set access password (or TERMBEAM_PASSWORD env var)
-  --generate-password   Auto-generate a secure password
-  --tunnel              Create a public devtunnel URL (ephemeral)
+  --generate-password   Auto-generate a secure password (default: auto)
+  --no-password         Disable password authentication
+  --tunnel              Create a public devtunnel URL (default: on)
+  --no-tunnel           Disable tunnel (LAN-only mode)
   --persisted-tunnel    Create a reusable devtunnel URL (stable across restarts)
   --port <port>         Set port (default: 3456, or PORT env var)
   --host <addr>         Bind address (default: 0.0.0.0)
   -h, --help            Show this help
   -v, --version         Show version
 
+Defaults:
+  By default, TermBeam enables tunnel + auto-generated password for secure
+  mobile access (clipboard, HTTPS). Use --no-tunnel for LAN-only mode.
+
 Examples:
-  termbeam                          Start with default shell
-  termbeam --password secret        Start with password auth
-  termbeam --generate-password      Start with auto-generated password
-  termbeam --tunnel --password pw   Start with public tunnel
+  termbeam                          Start with tunnel + auto password
+  termbeam --no-tunnel              LAN-only, no tunnel
+  termbeam --no-tunnel --no-password  LAN-only, no auth (local use)
+  termbeam --password secret        Start with specific password
+  termbeam --persisted-tunnel       Stable tunnel URL across restarts
   termbeam /bin/bash                Use bash instead of default shell
 
 Environment:
@@ -146,8 +153,10 @@ function parseArgs() {
   const defaultShell = getDefaultShell();
   const cwd = process.env.TERMBEAM_CWD || process.env.PTY_CWD || process.cwd();
   let password = process.env.TERMBEAM_PASSWORD || process.env.PTY_PASSWORD || null;
-  let useTunnel = false;
+  let useTunnel = true;
+  let noTunnel = false;
   let persistedTunnel = false;
+  let explicitPassword = !!password;
 
   const args = process.argv.slice(2);
   const filteredArgs = [];
@@ -155,13 +164,17 @@ function parseArgs() {
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--password' && args[i + 1]) {
       password = args[++i];
+      explicitPassword = true;
     } else if (args[i] === '--tunnel') {
       useTunnel = true;
+    } else if (args[i] === '--no-tunnel') {
+      noTunnel = true;
     } else if (args[i] === '--persisted-tunnel') {
       useTunnel = true;
       persistedTunnel = true;
     } else if (args[i].startsWith('--password=')) {
       password = args[i].split('=')[1];
+      explicitPassword = true;
     } else if (args[i] === '--help' || args[i] === '-h') {
       printHelp();
       process.exit(0);
@@ -171,7 +184,10 @@ function parseArgs() {
       process.exit(0);
     } else if (args[i] === '--generate-password') {
       password = crypto.randomBytes(16).toString('base64url');
-      console.log(`Generated password: ${password}`);
+      explicitPassword = true;
+    } else if (args[i] === '--no-password') {
+      password = null;
+      explicitPassword = true;
     } else if (args[i] === '--port' && args[i + 1]) {
       port = parseInt(args[++i], 10);
     } else if (args[i] === '--host' && args[i + 1]) {
@@ -180,6 +196,14 @@ function parseArgs() {
       filteredArgs.push(args[i]);
     }
   }
+
+  // Default: auto-generate password if none specified
+  if (!explicitPassword && !password) {
+    password = crypto.randomBytes(16).toString('base64url');
+  }
+
+  // --no-tunnel disables the default tunnel
+  if (noTunnel) useTunnel = false;
 
   const shell = filteredArgs[0] || defaultShell;
   const shellArgs = filteredArgs.slice(1);

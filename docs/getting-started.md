@@ -22,17 +22,15 @@ termbeam
 
 ## First Run
 
-1. Start TermBeam with a password:
+1. Start TermBeam:
 
    ```bash
-   termbeam --generate-password
+   termbeam
    ```
 
 2. You'll see output like:
 
    ```
-   Generated password: xK9mP2vL8nQ4wR7j
-
      ████████╗███████╗██████╗ ███╗   ███╗██████╗ ███████╗ █████╗ ███╗   ███╗
      ╚══██╔══╝██╔════╝██╔══██╗████╗ ████║██╔══██╗██╔════╝██╔══██╗████╗ ████║
         ██║   █████╗  ██████╔╝██╔████╔██║██████╔╝█████╗  ███████║██╔████╔██║
@@ -44,12 +42,15 @@ termbeam
 
      Local:    http://localhost:3456
      LAN:      http://192.168.1.42:3456
+     Public:   https://abc123.devtunnels.ms
      Shell:    /bin/zsh
      Session:  a1b2c3d4
      Auth:     🔒 password
 
-     Scan the QR code or open: http://192.168.1.42:3456
      Password: xK9mP2vL8nQ4wR7j
+     (copied to clipboard)
+
+     Scan the QR code or open the Public URL
    ```
 
 3. **On your phone:** Scan the QR code or type the LAN URL
@@ -103,4 +104,6 @@ The bottom touch bar provides quick access to:
 | ^D      | Ctrl+D (EOF)       |
 | ^Z      | Ctrl+Z (suspend)   |
 | ^L      | Ctrl+L (clear)     |
+| Copy    | Copy terminal selection to clipboard |
+| Paste   | Paste from clipboard (with fallback modal) |
 | A+ / A- | Zoom in/out        |

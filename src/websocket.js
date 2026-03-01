@@ -35,7 +35,9 @@ function setupWebSocket(wss, { auth, sessions }) {
           if (msg.password === auth.password || auth.validateToken(msg.token)) {
             authenticated = true;
             ws.send(JSON.stringify({ type: 'auth_ok' }));
+            console.log('[termbeam] WS: auth success');
           } else {
+            console.warn('[termbeam] WS: auth failed');
             ws.send(JSON.stringify({ type: 'error', message: 'Unauthorized' }));
             ws.close();
           }
@@ -52,6 +54,7 @@ function setupWebSocket(wss, { auth, sessions }) {
           const session = sessions.get(msg.sessionId);
           if (!session) {
             ws.send(JSON.stringify({ type: 'error', message: 'Session not found' }));
+            console.warn(`[termbeam] WS: attach failed — session ${msg.sessionId} not found`);
             return;
           }
           attached = session;
@@ -76,8 +79,8 @@ function setupWebSocket(wss, { auth, sessions }) {
             recalcPtySize(attached);
           }
         }
-      } catch {
-        if (attached) attached.pty.write(raw.toString());
+      } catch (err) {
+        console.warn('WS: dropped unparseable message:', err.message);
       }
     });
 

@@ -309,7 +309,8 @@
       #paste-overlay {
         display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
         background: var(--overlay-bg); z-index: 150;
-        flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+        flex-direction: column; align-items: center; justify-content: flex-start;
+        padding-top: calc(80px + env(safe-area-inset-top, 0px)); gap: 12px;
       }
       #paste-overlay.visible { display: flex; }
       #paste-overlay label { font-size: 15px; color: #fff; font-weight: 600; }
@@ -317,6 +318,38 @@
         width: 80%; max-width: 400px; min-height: 80px; background: var(--surface);
         color: var(--text); border: 1px solid var(--border); border-radius: 8px;
         padding: 10px; font-size: 14px; font-family: 'NerdFont', 'JetBrains Mono', monospace; resize: vertical;
+      }
+
+      #select-overlay {
+        display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: var(--bg); z-index: 160;
+        flex-direction: column;
+      }
+      #select-overlay.visible { display: flex; }
+      .select-overlay-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 12px; border-bottom: 1px solid var(--border);
+        font-size: 15px; font-weight: 600; color: var(--text);
+        padding-top: calc(12px + env(safe-area-inset-top, 0px));
+        min-height: 48px; box-sizing: border-box;
+      }
+      .select-overlay-header button {
+        padding: 6px 12px; border: none; border-radius: 8px;
+        font-size: 13px; font-weight: 600; cursor: pointer;
+        white-space: nowrap; flex-shrink: 0;
+        transition: background 0.15s, transform 0.1s;
+      }
+      .select-overlay-header button:active { transform: scale(0.95); }
+      #select-copy { background: var(--accent); color: #fff; }
+      #select-close { background: var(--border); color: var(--text); }
+      #select-content {
+        flex: 1; overflow: auto; padding: 12px 16px;
+        font-family: 'NerdFont', 'JetBrains Mono', monospace;
+        font-size: 13px; line-height: 1.4; color: var(--text);
+        white-space: pre; word-break: normal;
+        -webkit-user-select: text; user-select: text;
+        margin: 0;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
       }
 
       #reconnect-overlay {
@@ -714,6 +747,7 @@
       <button class="key-btn" data-key="&#x1b;[H" title="Home">Home</button>
       <button class="key-btn" data-key="&#x1b;[F" title="End">End</button>
       <div class="key-sep"></div>
+      <button class="key-btn" id="select-btn" title="Copy text">Copy</button>
       <button class="key-btn" id="paste-btn" title="Paste from clipboard">Paste</button>
       <div class="key-sep"></div>
       <button class="key-btn wide" data-key="&#x09;" title="Autocomplete">Tab</button>
@@ -738,6 +772,18 @@
         <button id="paste-cancel" style="background:rgba(255,255,255,0.15);color:#fff;">Cancel</button>
         <button id="paste-send" style="background:var(--accent);color:#fff;">Send</button>
       </div>
+    </div>
+
+    <div id="select-overlay">
+      <div class="select-overlay-header">
+        <span id="select-title">Copy Text</span>
+        <div style="display:flex;gap:8px">
+          <button id="select-copy">Copy</button>
+          <button id="select-close">Done</button>
+        </div>
+      </div>
+      <button id="select-load-more" style="display:none;width:100%;padding:8px;background:var(--surface);color:var(--accent);border:1px solid var(--border);border-radius:6px;font-size:13px;cursor:pointer;">▲ Load more</button>
+      <pre id="select-content"></pre>
     </div>
 
     <!-- New Session Modal -->
@@ -804,7 +850,19 @@
       const managed = new Map(); // sessionId -> ManagedSession
       let activeId = null;
       let splitMode = false;
+
       let splitSecondId = null;
+
+      // Clipboard copy fallback for non-secure contexts (HTTP over LAN)
+      function copyFallback(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); showToast('Copied!'); } catch {}
+        document.body.removeChild(ta);
+      }
 
       // ===== DOM Refs =====
       const statusDot = document.getElementById('status-dot');
@@ -937,7 +995,10 @@
         renderTabs();
         setupKeyBar();
         setupPaste();
+        setupImagePaste();
+        setupSelectMode();
         setupNewSessionModal();
+        loadShellsForModal();
         startPolling();
 
         // Zoom
@@ -1120,8 +1181,14 @@
         // Copy on selection
         term.onSelectionChange(() => {
           const sel = term.getSelection();
-          if (sel && navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(sel).then(() => showToast('Copied!')).catch(() => {});
+          if (!sel) return;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(sel).then(() => showToast('Copied!')).catch(() => {
+              // Fallback for non-secure contexts (HTTP over LAN)
+              copyFallback(sel);
+            });
+          } else {
+            copyFallback(sel);
           }
         });
 
@@ -1203,6 +1270,11 @@
                 reconnectOverlay.classList.add('visible');
               }
             } else if (msg.type === 'error') {
+              if (msg.message === 'Session not found') {
+                ms.exited = true;
+                if (ms.reconnectTimer) { clearTimeout(ms.reconnectTimer); ms.reconnectTimer = null; }
+                renderTabs();
+              }
               if (ms.id === activeId) {
                 statusText.textContent = msg.message;
                 reconnectOverlay.querySelector('.msg').textContent = msg.message;
@@ -1655,18 +1727,25 @@
           }, 400);
         }
 
+        let keyBarTouched = false;
         keyBar.addEventListener('mousedown', e => {
+          if (keyBarTouched) { keyBarTouched = false; return; }
           const btn = e.target.closest('.key-btn');
-          if (btn) { e.preventDefault(); startRepeat(btn); }
+          if (btn && btn.dataset.key) { e.preventDefault(); startRepeat(btn); }
         });
         keyBar.addEventListener('mouseup', stopRepeat);
         keyBar.addEventListener('mouseleave', stopRepeat);
 
         keyBar.addEventListener('touchstart', e => {
+          keyBarTouched = true;
           const btn = e.target.closest('.key-btn');
-          if (btn) startRepeat(btn);
-        }, { passive: true });
-        keyBar.addEventListener('touchend', stopRepeat);
+          if (btn && btn.dataset.key) { e.preventDefault(); startRepeat(btn); }
+        }, { passive: false });
+        keyBar.addEventListener('touchend', (e) => {
+          const btn = e.target.closest('.key-btn');
+          if (btn && btn.dataset.key) e.preventDefault();
+          stopRepeat();
+        });
         keyBar.addEventListener('touchcancel', stopRepeat);
 
         keyBar.addEventListener('click', e => {
@@ -1679,6 +1758,7 @@
       function setupPaste() {
         const pasteOverlay = document.getElementById('paste-overlay');
         const pasteInput = document.getElementById('paste-input');
+        const pasteBtn = document.getElementById('paste-btn');
 
         function openPasteModal() {
           pasteInput.value = '';
@@ -1686,19 +1766,65 @@
           pasteInput.focus();
         }
 
-        document.getElementById('paste-btn').addEventListener('mousedown', e => e.preventDefault());
-        document.getElementById('paste-btn').addEventListener('click', () => {
+        async function handlePaste() {
+          // Try clipboard API for text first (most common), then images, then fallback to modal
           if (navigator.clipboard && navigator.clipboard.readText) {
-            navigator.clipboard.readText().then(text => {
-              const ms = managed.get(activeId);
-              if (text && ms && ms.ws && ms.ws.readyState === 1) {
-                ms.ws.send(JSON.stringify({ type: 'input', data: text }));
-                showToast('Pasted!');
+            try {
+              const text = await navigator.clipboard.readText();
+              if (text) {
+                const ms = managed.get(activeId);
+                if (ms && ms.ws && ms.ws.readyState === 1) {
+                  ms.ws.send(JSON.stringify({ type: 'input', data: text }));
+                  showToast('Pasted!');
+                }
+                return;
               }
-            }).catch(() => openPasteModal());
-          } else {
-            openPasteModal();
+            } catch (err) {
+              console.warn('clipboard.readText failed:', err.message);
+            }
           }
+          // Image paste: try clipboard.read() only if readText didn't work
+          if (navigator.clipboard && navigator.clipboard.read) {
+            try {
+              const items = await navigator.clipboard.read();
+              for (const item of items) {
+                const imageType = item.types.find(t => t.startsWith('image/'));
+                if (imageType) {
+                  const blob = await item.getType(imageType);
+                  const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': imageType },
+                    body: blob,
+                    credentials: 'same-origin',
+                  });
+                  if (!res.ok) throw new Error('Upload failed');
+                  const data = await res.json();
+                  const ms = managed.get(activeId);
+                  if (ms && ms.ws && ms.ws.readyState === 1) {
+                    ms.ws.send(JSON.stringify({ type: 'input', data: data.path + ' ' }));
+                    showToast('Image pasted: ' + data.path.split(/[/\\]/).pop());
+                  }
+                  return;
+                }
+              }
+            } catch (err) {
+              console.warn('clipboard.read failed:', err.message);
+            }
+          }
+          openPasteModal();
+        }
+
+        // Use touchend directly for iOS Safari (click may not fire reliably)
+        let pasteTouched = false;
+        pasteBtn.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          pasteTouched = true;
+          handlePaste();
+        });
+        pasteBtn.addEventListener('mousedown', e => e.preventDefault());
+        pasteBtn.addEventListener('click', () => {
+          if (pasteTouched) { pasteTouched = false; return; }
+          handlePaste();
         });
 
         document.getElementById('paste-send').addEventListener('click', () => {
@@ -1714,6 +1840,130 @@
         document.getElementById('paste-cancel').addEventListener('click', () => {
           pasteOverlay.classList.remove('visible');
           pasteInput.value = '';
+        });
+      }
+
+      // ===== Select Text Overlay =====
+      function setupSelectMode() {
+        const selectBtn = document.getElementById('select-btn');
+        const selectOverlay = document.getElementById('select-overlay');
+        const selectContent = document.getElementById('select-content');
+        const PAGE_SIZE = 200;
+        let allLines = [];
+        let loadedFrom = 0;
+
+        function renderLines(from, to) {
+          return allLines.slice(from, to).join('\n');
+        }
+
+        function openSelectOverlay() {
+          const ms = managed.get(activeId);
+          if (!ms) return;
+          const buf = ms.term.buffer.active;
+          allLines = [];
+          for (let i = 0; i < buf.length; i++) {
+            const line = buf.getLine(i);
+            if (line) allLines.push(line.translateToString(true));
+          }
+          // Trim trailing empty lines
+          while (allLines.length > 0 && allLines[allLines.length - 1].trim() === '') allLines.pop();
+
+          // Show last PAGE_SIZE lines
+          loadedFrom = Math.max(0, allLines.length - PAGE_SIZE);
+          selectContent.textContent = renderLines(loadedFrom, allLines.length);
+
+          // Show/hide "Load more" button
+          const loadMoreBtn = document.getElementById('select-load-more');
+          loadMoreBtn.style.display = loadedFrom > 0 ? 'block' : 'none';
+          loadMoreBtn.textContent = `▲ Load more (${loadedFrom} lines above)`;
+
+          // Show line count in title
+          const title = document.getElementById('select-title');
+          const shown = allLines.length - loadedFrom;
+          title.textContent = allLines.length <= PAGE_SIZE
+            ? `Copy Text (${allLines.length} lines)`
+            : `Copy Text (${shown}/${allLines.length} lines)`;
+
+          selectBtn.style.display = 'none';
+          selectOverlay.classList.add('visible');
+          selectContent.scrollTop = selectContent.scrollHeight;
+        }
+
+        document.getElementById('select-load-more').addEventListener('click', () => {
+          const prevHeight = selectContent.scrollHeight;
+          const newFrom = Math.max(0, loadedFrom - PAGE_SIZE);
+          const chunk = renderLines(newFrom, loadedFrom);
+          selectContent.textContent = chunk + '\n' + selectContent.textContent;
+          loadedFrom = newFrom;
+          // Keep scroll position stable
+          selectContent.scrollTop = selectContent.scrollHeight - prevHeight;
+          const loadMoreBtn = document.getElementById('select-load-more');
+          loadMoreBtn.style.display = loadedFrom > 0 ? 'block' : 'none';
+          loadMoreBtn.textContent = loadedFrom > 0 ? `▲ Load more (${loadedFrom} lines above)` : '';
+          // Update title
+          const title = document.getElementById('select-title');
+          const shown = allLines.length - loadedFrom;
+          title.textContent = `Copy Text (${shown}/${allLines.length} lines)`;
+        });
+
+        selectBtn.addEventListener('mousedown', e => e.preventDefault());
+        selectBtn.addEventListener('click', openSelectOverlay);
+
+        document.getElementById('select-copy').addEventListener('click', () => {
+          // Copy finger selection if any, otherwise copy all loaded text
+          const sel = window.getSelection();
+          const text = (sel && sel.toString()) ? sel.toString() : selectContent.textContent;
+          if (!text) return;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => showToast('Copied!')).catch(() => {
+              copyFallback(text);
+            });
+          } else {
+            copyFallback(text);
+          }
+        });
+
+        document.getElementById('select-close').addEventListener('click', () => {
+          selectOverlay.classList.remove('visible');
+          selectContent.textContent = '';
+          allLines = [];
+          selectBtn.style.display = '';
+          const ms = managed.get(activeId);
+          if (ms) ms.term.focus();
+        });
+      }
+
+      // ===== Image Paste =====
+      function setupImagePaste() {
+        document.addEventListener('paste', async (e) => {
+          const items = e.clipboardData && e.clipboardData.items;
+          if (!items) return;
+
+          for (const item of items) {
+            if (item.type.startsWith('image/')) {
+              e.preventDefault();
+              const blob = item.getAsFile();
+              if (!blob) return;
+
+              try {
+                const res = await fetch('/api/upload', {
+                  method: 'POST',
+                  headers: { 'Content-Type': item.type },
+                  body: blob,
+                });
+                if (!res.ok) throw new Error('Upload failed');
+                const data = await res.json();
+                const ms = managed.get(activeId);
+                if (ms && ms.ws && ms.ws.readyState === 1) {
+                  ms.ws.send(JSON.stringify({ type: 'input', data: data.path + ' ' }));
+                  showToast('Image pasted: ' + data.path.split(/[/\\]/).pop());
+                }
+              } catch (err) {
+                showToast('Image paste failed');
+              }
+              return;
+            }
+          }
         });
       }
 
@@ -1755,9 +2005,10 @@
         const nsBrowserBreadcrumb = document.getElementById('ns-browser-breadcrumb');
         const nsBrowserPath = document.getElementById('ns-browser-path');
         let nsBrowsePath = '/';
+        let serverCwd = '/';
 
         document.getElementById('ns-browse-btn').addEventListener('click', () => {
-          const initial = nsCwdInput.value.trim() || '/';
+          const initial = nsCwdInput.value.trim() || serverCwd;
           nsBrowseNavigate(initial);
           nsBrowserOverlay.classList.add('visible');
         });
@@ -1782,11 +2033,17 @@
           try {
             const res = await fetch(`/api/dirs?q=${encodeURIComponent(dir + '/')}`);
             const data = await res.json();
-            if (!data.dirs.length) {
-              nsBrowserList.innerHTML = '<div class="browser-empty">No subfolders</div>';
-              return;
+            let items = '';
+            // Add parent (..) entry unless at root
+            const parent = dir.replace(/[/\\][^/\\]+$/, '') || (dir.includes('\\') ? dir.match(/^[A-Za-z]:\\/)?.[0] : '/');
+            if (parent && parent !== dir) {
+              items += `<div class="folder-item" data-path="${escAttr(parent)}">
+                <span class="folder-icon">📁</span>
+                <span class="folder-name">..</span>
+                <span class="folder-arrow">›</span>
+              </div>`;
             }
-            nsBrowserList.innerHTML = data.dirs.map(d => {
+            items += data.dirs.map(d => {
               const name = d.split(/[/\\]/).pop();
               return `<div class="folder-item" data-path="${escAttr(d)}">
                 <span class="folder-icon">📁</span>
@@ -1794,6 +2051,7 @@
                 <span class="folder-arrow">›</span>
               </div>`;
             }).join('');
+            nsBrowserList.innerHTML = items || '<div class="browser-empty">No subfolders</div>';
             nsBrowserList.querySelectorAll('.folder-item').forEach(el => {
               el.addEventListener('click', () => nsBrowseNavigate(el.dataset.path));
             });
@@ -1804,13 +2062,15 @@
         }
 
         function nsBrowseRenderBreadcrumb(dir) {
-          const parts = dir.split('/').filter(Boolean);
-          let html = `<button class="crumb" data-path="/">/</button>`;
-          let accumulated = '';
+          const sep = dir.includes('\\') ? '\\' : '/';
+          const parts = dir.split(/[/\\]/).filter(Boolean);
+          const isWindows = /^[A-Za-z]:/.test(dir);
+          let html = isWindows ? '' : `<button class="crumb" data-path="/">/</button>`;
+          let accumulated = isWindows ? '' : '';
           parts.forEach((part, i) => {
-            accumulated += '/' + part;
+            accumulated += (i === 0 && isWindows ? '' : sep) + part;
             const isCurrent = i === parts.length - 1;
-            html += `<span class="crumb-sep">›</span>`;
+            if (i > 0 || isWindows) html += `<span class="crumb-sep">›</span>`;
             html += `<button class="crumb${isCurrent ? ' current' : ''}" data-path="${escAttr(accumulated)}">${esc(part)}</button>`;
           });
           nsBrowserBreadcrumb.innerHTML = html;
@@ -1826,6 +2086,10 @@
         const sel = document.getElementById('ns-shell');
         try {
           const data = await fetch('/api/shells').then(r => r.json());
+          if (data.cwd) {
+            serverCwd = data.cwd;
+            document.getElementById('ns-cwd').placeholder = data.cwd;
+          }
           sel.innerHTML = data.shells.map(s =>
             '<option value="' + escAttr(s.cmd) + '"' + (s.cmd === data.default ? ' selected' : '') + '>'
             + esc(s.name) + ' (' + esc(s.cmd) + ')</option>'
@@ -1913,6 +2177,7 @@
                     statusText.textContent = '';
                     statusDot.className = '';
                     document.getElementById('stop-btn').style.display = 'none';
+                    reconnectOverlay.classList.remove('visible');
                   }
                 }
               }
