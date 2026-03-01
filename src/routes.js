@@ -45,9 +45,9 @@ function setupRoutes(app, { auth, sessions, config }) {
   });
 
   // Pages
-  app.get('/', auth.middleware, (_req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
+  app.get('/', auth.middleware, (_req, res) => res.sendFile('index.html', { root: PUBLIC_DIR }));
   app.get('/terminal', auth.middleware, (_req, res) =>
-    res.sendFile(path.join(PUBLIC_DIR, 'terminal.html')),
+    res.sendFile('terminal.html', { root: PUBLIC_DIR }),
   );
 
   // Session API
@@ -61,7 +61,7 @@ function setupRoutes(app, { auth, sessions, config }) {
     // Validate shell field
     if (shell) {
       const availableShells = detectShells();
-      const isValid = availableShells.some(s => s.path === shell || s.cmd === shell);
+      const isValid = availableShells.some((s) => s.path === shell || s.cmd === shell);
       if (!isValid) {
         return res.status(400).json({ error: 'Invalid shell' });
       }
@@ -150,13 +150,14 @@ function setupRoutes(app, { auth, sessions, config }) {
       if (!buffer.length) {
         return res.status(400).json({ error: 'No image data' });
       }
-      const ext = {
-        'image/png': '.png',
-        'image/jpeg': '.jpg',
-        'image/gif': '.gif',
-        'image/webp': '.webp',
-        'image/bmp': '.bmp',
-      }[contentType] || '.png';
+      const ext =
+        {
+          'image/png': '.png',
+          'image/jpeg': '.jpg',
+          'image/gif': '.gif',
+          'image/webp': '.webp',
+          'image/bmp': '.bmp',
+        }[contentType] || '.png';
       const filename = `termbeam-${crypto.randomUUID()}${ext}`;
       const filepath = path.join(os.tmpdir(), filename);
       fs.writeFileSync(filepath, buffer);
@@ -173,7 +174,7 @@ function setupRoutes(app, { auth, sessions, config }) {
 
   // Directory listing for folder browser
   app.get('/api/dirs', auth.middleware, (req, res) => {
-    const query = req.query.q || (config.cwd + path.sep);
+    const query = req.query.q || config.cwd + path.sep;
     const endsWithSep = query.endsWith('/') || query.endsWith('\\');
     const dir = endsWithSep ? query : path.dirname(query);
     const prefix = endsWithSep ? '' : path.basename(query);
