@@ -1,9 +1,23 @@
 site_name: TermBeam
 site_url: https://dorlugasigal.github.io/TermBeam
-site_description: Beam your terminal to any device
+site_description: >-
+  TermBeam — access your terminal from any device. Mobile-optimized web terminal
+  with multi-session support, touch controls, and one-command setup via npx.
+  No SSH needed.
 site_author: dorlugasigal
 repo_url: https://github.com/dorlugasigal/TermBeam
 repo_name: dorlugasigal/TermBeam
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/dorlugasigal/TermBeam
+    - icon: fontawesome/brands/npm
+      link: https://www.npmjs.com/package/termbeam
+
+plugins:
+  - search
+  - social
 
 theme:
   name: material

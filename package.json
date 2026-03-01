@@ -24,7 +24,16 @@
     "remote-terminal",
     "xterm",
     "websocket",
-    "ssh-alternative"
+    "ssh-alternative",
+    "mobile-terminal",
+    "terminal-sharing",
+    "browser-terminal",
+    "remote-access",
+    "qr-code",
+    "touch-terminal",
+    "terminal-emulator",
+    "devtools",
+    "cli"
   ],
   "author": "",
   "license": "MIT",

@@ -1,18 +1,28 @@
-# 📡 TermBeam
+---
+title: TermBeam — Access Your Terminal from Any Device
+description: >-
+  TermBeam is a mobile-optimized web terminal that lets you access your
+  terminal from a phone, tablet, or any browser. No SSH needed — just run
+  one command and scan the QR code.
+---
 
-**Beam your terminal to any device**
+# TermBeam
 
-TermBeam lets you access your terminal from your phone, tablet, or any browser. It's mobile-optimized, supports multiple sessions, and comes with touch controls designed for small screens.
+**Beam your terminal to any device — no SSH, no config, one command.**
+
+TermBeam is a mobile-optimized **web terminal** that lets you access your terminal from your phone, tablet, or any browser. It supports multiple sessions, touch-friendly controls, and works over a secure tunnel — all from a single `npx` command.
+
+Built for developers who need quick remote terminal access without the hassle of SSH clients on mobile.
 
 ## Why TermBeam?
 
-- 🚫 No SSH client needed — just a web browser
-- 📱 Built for mobile — touch bar, swipe gestures, zoom, touch scrolling
-- 🗂️ Tabbed sessions — switch, split, reorder, and preview multiple terminals
-- 🎨 Session colors & activity indicators
-- 📤 Share & refresh buttons for easy link sharing and PWA cache updates
-- ⚡ One command to start — `npx termbeam`
-- 🔐 Secure by default — localhost-only, password auth, rate limiting
+- **No SSH client needed** — just open a web browser on any device
+- **Built for mobile** — touch bar, swipe gestures, zoom, touch scrolling
+- **Tabbed sessions** — switch, split, reorder, and preview multiple terminals
+- **Session colors & activity indicators** for at-a-glance status
+- **Share & refresh buttons** for easy link sharing and PWA cache updates
+- **One command to start** — `npx termbeam`
+- **Secure by default** — password auth, rate limiting, tunnel encryption
 
 ## Quick Start
 

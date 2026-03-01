@@ -1,3 +1,8 @@
+---
+title: Getting Started with TermBeam
+description: Install and run TermBeam in under a minute. Access your terminal from any device with one command.
+---
+
 # Getting Started
 
 ## Prerequisites
