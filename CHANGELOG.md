@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.0] - 2026-03-01
+
+- fix(docs): update terminology from one-time tokens to share tokens for clarity
+- feat(auth): QR code auto-login with one-time tokens (#29)
+
 ## [1.0.7] - 2026-03-01
 
 - fix(security): allow CDN in connect-src CSP for font loading
