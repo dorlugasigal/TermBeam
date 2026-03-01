@@ -44,11 +44,41 @@ function setupRoutes(app, { auth, sessions, config }) {
     res.json({ version: getVersion() });
   });
 
+  // OTT auto-login middleware: validates ?ott= param, sets session cookie, redirects to clean URL
+  function autoLogin(req, res, next) {
+    const { ott } = req.query;
+    if (!ott || !auth.password) return next();
+    if (auth.validateAndConsumeOTT(ott)) {
+      const token = auth.generateToken();
+      res.cookie('pty_token', token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
+        secure: false,
+      });
+      log.info(`Auth: OTT auto-login from ${req.ip}`);
+      // Redirect to the same path without ?ott= to keep the URL clean
+      return res.redirect(req.path);
+    }
+    log.warn(`Auth: invalid or expired OTT from ${req.ip}`);
+    next();
+  }
+
   // Pages
-  app.get('/', auth.middleware, (_req, res) => res.sendFile('index.html', { root: PUBLIC_DIR }));
-  app.get('/terminal', auth.middleware, (_req, res) =>
+  app.get('/', autoLogin, auth.middleware, (_req, res) =>
+    res.sendFile('index.html', { root: PUBLIC_DIR }),
+  );
+  app.get('/terminal', autoLogin, auth.middleware, (_req, res) =>
     res.sendFile('terminal.html', { root: PUBLIC_DIR }),
   );
+
+  // Share token — generates a fresh single-use OTT for the share button
+  app.get('/api/share-token', auth.middleware, (req, res) => {
+    if (!auth.password) return res.status(404).json({ error: 'auth disabled' });
+    const ott = auth.generateOTT();
+    const base = `${req.protocol}://${req.get('host')}`;
+    res.json({ url: `${base}/?ott=${ott}` });
+  });
 
   // Session API
   app.get('/api/sessions', auth.middleware, (_req, res) => {

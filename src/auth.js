@@ -61,19 +61,40 @@ const LOGIN_HTML = `<!DOCTYPE html>
 function createAuth(password) {
   const tokens = new Map();
   const authAttempts = new Map();
+  const otts = new Map(); // one-time tokens: token -> expiry
 
   // Periodically clean up expired tokens and stale rate-limit entries
-  setInterval(() => {
-    const now = Date.now();
-    for (const [token, expiry] of tokens) {
-      if (now > expiry) tokens.delete(token);
-    }
-    for (const [ip, attempts] of authAttempts) {
-      const recent = attempts.filter((t) => now - t < 60 * 1000);
-      if (recent.length === 0) authAttempts.delete(ip);
-      else authAttempts.set(ip, recent);
-    }
-  }, 60 * 60 * 1000).unref();
+  setInterval(
+    () => {
+      const now = Date.now();
+      for (const [token, expiry] of tokens) {
+        if (now > expiry) tokens.delete(token);
+      }
+      for (const [ip, attempts] of authAttempts) {
+        const recent = attempts.filter((t) => now - t < 60 * 1000);
+        if (recent.length === 0) authAttempts.delete(ip);
+        else authAttempts.set(ip, recent);
+      }
+      for (const [ott, expiry] of otts) {
+        if (now > expiry) otts.delete(ott);
+      }
+    },
+    60 * 60 * 1000,
+  ).unref();
+
+  function generateOTT() {
+    const ott = crypto.randomBytes(32).toString('hex');
+    otts.set(ott, Date.now() + 5 * 60 * 1000); // 5 minute expiry
+    return ott;
+  }
+
+  function validateAndConsumeOTT(ott) {
+    const expiry = otts.get(ott);
+    if (!expiry) return false;
+    otts.delete(ott); // single use — always delete
+    if (Date.now() > expiry) return false;
+    return true;
+  }
 
   function generateToken() {
     const token = crypto.randomBytes(32).toString('hex');
@@ -129,6 +150,8 @@ function createAuth(password) {
     password,
     generateToken,
     validateToken,
+    generateOTT,
+    validateAndConsumeOTT,
     middleware,
     rateLimit,
     parseCookies,

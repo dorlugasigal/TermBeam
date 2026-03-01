@@ -54,7 +54,8 @@ termbeam --no-password          # disable password protection
 - **Side panel** (mobile) — slide-out session list with output previews for quick switching
 - **Create sessions anywhere** — new session modal available from both the hub page and the terminal page
 - **Touch scrolling** — swipe to scroll through terminal history
-- **Share button** — share the TermBeam URL via Web Share API, clipboard, or legacy copy fallback (works over HTTP)
+- **Share button** — share the TermBeam URL via Web Share API, clipboard, or legacy copy fallback (works over HTTP); each share gets a fresh single-use auto-login link
+- **QR code auto-login** — scan the QR code to log in automatically without typing the password (one-time token, 5-minute expiry)
 - **Refresh button** — clear PWA/service worker cache and reload to get the latest version
 - **iPhone PWA safe area** — full support for `viewport-fit=cover` and safe area insets on notched devices
 - **Password auth** with token-based cookies and rate-limited login
@@ -95,17 +96,17 @@ termbeam --port 8080              # custom port (default: 3456)
 termbeam --host 127.0.0.1        # restrict to localhost (default: 0.0.0.0)
 ```
 
-| Flag                  | Description                              | Default          |
-| --------------------- | ---------------------------------------- | ---------------- |
+| Flag                  | Description                                          | Default        |
+| --------------------- | ---------------------------------------------------- | -------------- |
 | `--password <pw>`     | Set access password (also accepts `--password=<pw>`) | Auto-generated |
-| `--no-password`       | Disable password                         | —                |
-| `--generate-password` | Auto-generate a secure password          | On               |
-| `--tunnel`            | Create an ephemeral devtunnel URL        | On               |
-| `--no-tunnel`         | Disable tunnel (LAN-only)                | —                |
-| `--persisted-tunnel`  | Create a reusable devtunnel URL          | Off              |
-| `--port <port>`       | Server port                              | `3456`           |
-| `--host <addr>`       | Bind address                             | `0.0.0.0`        |
-| `--log-level <level>` | Log verbosity (error/warn/info/debug) | `info` |
+| `--no-password`       | Disable password                                     | —              |
+| `--generate-password` | Auto-generate a secure password                      | On             |
+| `--tunnel`            | Create an ephemeral devtunnel URL                    | On             |
+| `--no-tunnel`         | Disable tunnel (LAN-only)                            | —              |
+| `--persisted-tunnel`  | Create a reusable devtunnel URL                      | Off            |
+| `--port <port>`       | Server port                                          | `3456`         |
+| `--host <addr>`       | Bind address                                         | `0.0.0.0`      |
+| `--log-level <level>` | Log verbosity (error/warn/info/debug)                | `info`         |
 
 Environment variables: `PORT`, `TERMBEAM_PASSWORD`, `TERMBEAM_CWD`, `TERMBEAM_LOG_LEVEL`, `SHELL` (Unix fallback), `COMSPEC` (Windows fallback). See [Configuration docs](https://dorlugasigal.github.io/TermBeam/configuration/).
 
@@ -113,7 +114,7 @@ Environment variables: `PORT`, `TERMBEAM_PASSWORD`, `TERMBEAM_CWD`, `TERMBEAM_LO
 
 TermBeam auto-generates a password and creates a tunnel by default, so your terminal is protected out of the box. Be aware that the tunnel exposes your terminal to the internet — use `--no-tunnel` for LAN-only access, or `--host 127.0.0.1` to restrict to your machine only.
 
-Auth uses secure httpOnly cookies with 24-hour expiry, login is rate-limited to 5 attempts per minute, and security headers (X-Frame-Options, X-Content-Type-Options, etc.) are set on all responses. API clients that can't use cookies can authenticate with an `Authorization: Bearer <password>` header. See the [Security Guide](https://dorlugasigal.github.io/TermBeam/security/) for more.
+Auth uses secure httpOnly cookies with 24-hour expiry, login is rate-limited to 5 attempts per minute, and security headers (X-Frame-Options, X-Content-Type-Options, etc.) are set on all responses. The QR code on startup embeds a one-time token (OTT) for password-free login — the token is single-use and expires after 5 minutes. API clients that can't use cookies can authenticate with an `Authorization: Bearer <password>` header. See the [Security Guide](https://dorlugasigal.github.io/TermBeam/security/) for more.
 
 ## Contributing
 

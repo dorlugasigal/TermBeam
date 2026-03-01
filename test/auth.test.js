@@ -170,11 +170,15 @@ describe('Auth', () => {
       let count = 0;
       const req = { socket: { remoteAddress: '10.0.0.1' } };
       const res = {
-        status() { return this; },
+        status() {
+          return this;
+        },
         json() {},
       };
       for (let i = 0; i < 5; i++) {
-        auth.rateLimit(req, res, () => { count++; });
+        auth.rateLimit(req, res, () => {
+          count++;
+        });
       }
       assert.strictEqual(count, 5);
     });
@@ -185,6 +189,47 @@ describe('Auth', () => {
       const auth = createAuth('pw');
       assert.ok(auth.loginHTML.includes('TermBeam'));
       assert.ok(auth.loginHTML.includes('Term<span>Beam</span>'));
+    });
+  });
+
+  describe('OTT (one-time tokens)', () => {
+    it('should generate a valid OTT', () => {
+      const auth = createAuth('pw');
+      const ott = auth.generateOTT();
+      assert.ok(ott);
+      assert.strictEqual(typeof ott, 'string');
+      assert.ok(ott.length > 0);
+    });
+
+    it('should validate and consume a valid OTT', () => {
+      const auth = createAuth('pw');
+      const ott = auth.generateOTT();
+      assert.strictEqual(auth.validateAndConsumeOTT(ott), true);
+    });
+
+    it('should reject a consumed OTT (single use)', () => {
+      const auth = createAuth('pw');
+      const ott = auth.generateOTT();
+      auth.validateAndConsumeOTT(ott);
+      assert.strictEqual(auth.validateAndConsumeOTT(ott), false);
+    });
+
+    it('should reject an unknown OTT', () => {
+      const auth = createAuth('pw');
+      assert.strictEqual(auth.validateAndConsumeOTT('not-a-real-ott'), false);
+    });
+
+    it('should reject an expired OTT', () => {
+      const auth = createAuth('pw');
+      const ott = auth.generateOTT();
+      // Simulate expiry by overriding Date.now temporarily
+      const realNow = Date.now;
+      Date.now = () => realNow() + 6 * 60 * 1000; // advance 6 minutes past 5-min expiry
+      try {
+        assert.strictEqual(auth.validateAndConsumeOTT(ott), false);
+      } finally {
+        Date.now = realNow;
+      }
     });
   });
 });

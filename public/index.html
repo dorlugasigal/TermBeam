@@ -9,7 +9,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#1e1e1e" />
-    <meta name="description" content="TermBeam — beam your terminal to any device. Mobile-optimized web terminal with multi-session support, touch controls, and QR code connection. No SSH needed." />
+    <meta
+      name="description"
+      content="TermBeam — beam your terminal to any device. Mobile-optimized web terminal with multi-session support, touch controls, and QR code connection. No SSH needed."
+    />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>TermBeam — Beam Your Terminal to Any Device</title>
@@ -30,10 +33,10 @@
         --danger-hover: #d73a3a;
         --success: #89d185;
         --info: #b0b0b0;
-        --shadow: rgba(0,0,0,0.15);
-        --overlay-bg: rgba(0,0,0,0.7);
+        --shadow: rgba(0, 0, 0, 0.15);
+        --overlay-bg: rgba(0, 0, 0, 0.7);
       }
-      [data-theme="light"] {
+      [data-theme='light'] {
         --bg: #ffffff;
         --surface: #f3f3f3;
         --border: #e0e0e0;
@@ -49,8 +52,8 @@
         --danger-hover: #c20000;
         --success: #16825d;
         --info: #616161;
-        --shadow: rgba(0,0,0,0.06);
-        --overlay-bg: rgba(0,0,0,0.4);
+        --shadow: rgba(0, 0, 0, 0.06);
+        --overlay-bg: rgba(0, 0, 0, 0.4);
       }
       * {
         margin: 0;
@@ -64,7 +67,9 @@
         background: var(--bg);
         color: var(--text);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        transition: background 0.3s, color 0.3s;
+        transition:
+          background 0.3s,
+          color 0.3s;
       }
 
       .header {
@@ -100,7 +105,10 @@
         align-items: center;
         justify-content: center;
         font-size: 16px;
-        transition: color 0.15s, border-color 0.15s, background 0.15s;
+        transition:
+          color 0.15s,
+          border-color 0.15s,
+          background 0.15s;
         -webkit-tap-highlight-color: transparent;
       }
       .header-btn:hover {
@@ -123,7 +131,10 @@
         align-items: center;
         justify-content: center;
         font-size: 16px;
-        transition: color 0.15s, border-color 0.15s, background 0.15s;
+        transition:
+          color 0.15s,
+          border-color 0.15s,
+          background 0.15s;
         -webkit-tap-highlight-color: transparent;
       }
       .theme-toggle:hover {
@@ -150,7 +161,10 @@
         gap: 8px;
         text-decoration: none;
         color: inherit;
-        transition: transform 0.2s ease, border-color 0.15s, background 0.3s;
+        transition:
+          transform 0.2s ease,
+          border-color 0.15s,
+          background 0.3s;
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
         position: relative;
@@ -222,7 +236,9 @@
         background: var(--bg);
         padding: 2px 8px;
         border-radius: 4px;
-        transition: background 0.3s, color 0.3s;
+        transition:
+          background 0.3s,
+          color 0.3s;
       }
       .session-card .details {
         display: flex;
@@ -246,7 +262,9 @@
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.15s, transform 0.1s;
+        transition:
+          background 0.15s,
+          transform 0.1s;
       }
       .session-card .connect-btn:hover {
         background: var(--accent-hover);
@@ -271,7 +289,10 @@
         cursor: pointer;
         text-align: center;
         z-index: 50;
-        transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+        transition:
+          background 0.15s,
+          transform 0.1s,
+          box-shadow 0.15s;
         box-shadow: 0 2px 8px rgba(0, 120, 212, 0.3);
       }
       .new-session:hover {
@@ -338,7 +359,10 @@
         outline: none;
         -webkit-appearance: none;
         appearance: none;
-        transition: background 0.3s, border-color 0.15s, color 0.3s;
+        transition:
+          background 0.3s,
+          border-color 0.15s,
+          color 0.3s;
       }
       .modal select {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
@@ -364,7 +388,9 @@
         font-size: 15px;
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.15s, transform 0.1s;
+        transition:
+          background 0.15s,
+          transform 0.1s;
       }
       .modal-actions button:active {
         transform: scale(0.95);
@@ -403,7 +429,9 @@
         flex-shrink: 0;
         display: flex;
         align-items: center;
-        transition: background 0.15s, border-color 0.15s;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
       }
       .cwd-browse-btn:hover {
         border-color: var(--accent);
@@ -488,7 +516,9 @@
         padding: 4px 6px;
         border-radius: 4px;
         flex-shrink: 0;
-        transition: background 0.15s, color 0.15s;
+        transition:
+          background 0.15s,
+          color 0.15s;
       }
       .crumb:active,
       .crumb:hover {
@@ -576,7 +606,9 @@
         font-size: 16px;
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.15s, transform 0.1s;
+        transition:
+          background 0.15s,
+          transform 0.1s;
       }
       .browser-select-btn:hover {
         background: var(--accent-hover);
@@ -598,7 +630,9 @@
         border-radius: 50%;
         border: 3px solid transparent;
         cursor: pointer;
-        transition: border-color 0.15s, transform 0.1s;
+        transition:
+          border-color 0.15s,
+          transform 0.1s;
         -webkit-tap-highlight-color: transparent;
         padding: 0;
         outline: none;
@@ -615,10 +649,70 @@
   <body>
     <div class="header">
       <h1>📡 Term<span>Beam</span></h1>
-      <p>Beam your terminal to any device · <span id="version" style="color: var(--accent)"></span></p>
-      <button class="header-btn" id="share-btn" style="right: 96px;top:16px" title="Share link"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
-      <button class="header-btn" id="refresh-btn" style="right: 56px;top:16px" title="Refresh app"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
-      <button class="theme-toggle" id="theme-toggle" title="Toggle theme"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button>
+      <p>
+        Beam your terminal to any device · <span id="version" style="color: var(--accent)"></span>
+      </p>
+      <button class="header-btn" id="share-btn" style="right: 96px; top: 16px" title="Share link">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="18" cy="5" r="3" />
+          <circle cx="6" cy="12" r="3" />
+          <circle cx="18" cy="19" r="3" />
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+        </svg>
+      </button>
+      <button
+        class="header-btn"
+        id="refresh-btn"
+        style="right: 56px; top: 16px"
+        title="Refresh app"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="23 4 23 10 17 10" />
+          <polyline points="1 20 1 14 7 14" />
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+        </svg>
+      </button>
+      <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+      </button>
     </div>
 
     <div class="sessions-list" id="sessions-list"></div>
@@ -633,18 +727,69 @@
         <select id="sess-shell">
           <option value="">Loading shells…</option>
         </select>
-        <label for="sess-cmd">Initial Command <span style="color:var(--text-muted);font-weight:normal">(optional)</span></label>
+        <label for="sess-cmd"
+          >Initial Command
+          <span style="color: var(--text-muted); font-weight: normal">(optional)</span></label
+        >
         <input type="text" id="sess-cmd" placeholder="e.g. copilot, htop, vim" />
         <label>Color</label>
         <div class="color-picker" id="color-picker">
-          <button type="button" class="color-swatch selected" data-color="#4a9eff" style="background:#4a9eff" title="Blue"></button>
-          <button type="button" class="color-swatch" data-color="#4ade80" style="background:#4ade80" title="Green"></button>
-          <button type="button" class="color-swatch" data-color="#fbbf24" style="background:#fbbf24" title="Amber"></button>
-          <button type="button" class="color-swatch" data-color="#c084fc" style="background:#c084fc" title="Purple"></button>
-          <button type="button" class="color-swatch" data-color="#f87171" style="background:#f87171" title="Red"></button>
-          <button type="button" class="color-swatch" data-color="#22d3ee" style="background:#22d3ee" title="Cyan"></button>
-          <button type="button" class="color-swatch" data-color="#fb923c" style="background:#fb923c" title="Orange"></button>
-          <button type="button" class="color-swatch" data-color="#f472b6" style="background:#f472b6" title="Pink"></button>
+          <button
+            type="button"
+            class="color-swatch selected"
+            data-color="#4a9eff"
+            style="background: #4a9eff"
+            title="Blue"
+          ></button>
+          <button
+            type="button"
+            class="color-swatch"
+            data-color="#4ade80"
+            style="background: #4ade80"
+            title="Green"
+          ></button>
+          <button
+            type="button"
+            class="color-swatch"
+            data-color="#fbbf24"
+            style="background: #fbbf24"
+            title="Amber"
+          ></button>
+          <button
+            type="button"
+            class="color-swatch"
+            data-color="#c084fc"
+            style="background: #c084fc"
+            title="Purple"
+          ></button>
+          <button
+            type="button"
+            class="color-swatch"
+            data-color="#f87171"
+            style="background: #f87171"
+            title="Red"
+          ></button>
+          <button
+            type="button"
+            class="color-swatch"
+            data-color="#22d3ee"
+            style="background: #22d3ee"
+            title="Cyan"
+          ></button>
+          <button
+            type="button"
+            class="color-swatch"
+            data-color="#fb923c"
+            style="background: #fb923c"
+            title="Orange"
+          ></button>
+          <button
+            type="button"
+            class="color-swatch"
+            data-color="#f472b6"
+            style="background: #f472b6"
+            title="Pink"
+          ></button>
         </div>
         <label for="sess-cwd">Working Directory</label>
         <div class="cwd-picker">
@@ -707,15 +852,19 @@
 
     <script>
       // Theme
-      function getTheme() { return localStorage.getItem('termbeam-theme') || 'dark'; }
+      function getTheme() {
+        return localStorage.getItem('termbeam-theme') || 'dark';
+      }
       function applyTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
         document.querySelector('meta[name="theme-color"]').content =
           theme === 'light' ? '#f3f3f3' : '#1e1e1e';
         const btn = document.getElementById('theme-toggle');
-        if (btn) btn.innerHTML = theme === 'light'
-          ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
-          : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+        if (btn)
+          btn.innerHTML =
+            theme === 'light'
+              ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+              : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
         localStorage.setItem('termbeam-theme', theme);
       }
       applyTheme(getTheme());
@@ -771,13 +920,15 @@
 
         // Attach swipe handlers and click handlers after rendering
         listEl.querySelectorAll('.swipe-wrap').forEach(initSwipe);
-        listEl.querySelectorAll('[data-delete-id]').forEach(btn => {
+        listEl.querySelectorAll('[data-delete-id]').forEach((btn) => {
           btn.addEventListener('click', (e) => deleteSession(btn.dataset.deleteId, e));
         });
-        listEl.querySelectorAll('[data-nav-id]').forEach(card => {
-          card.addEventListener('click', () => { location.href = '/terminal?id=' + encodeURIComponent(card.dataset.navId); });
+        listEl.querySelectorAll('[data-nav-id]').forEach((card) => {
+          card.addEventListener('click', () => {
+            location.href = '/terminal?id=' + encodeURIComponent(card.dataset.navId);
+          });
         });
-        listEl.querySelectorAll('.dot[data-color]').forEach(dot => {
+        listEl.querySelectorAll('.dot[data-color]').forEach((dot) => {
           dot.style.background = dot.dataset.color || 'var(--success)';
         });
       }
@@ -803,7 +954,9 @@
       document.getElementById('color-picker').addEventListener('click', (e) => {
         const swatch = e.target.closest('.color-swatch');
         if (!swatch) return;
-        document.querySelectorAll('#color-picker .color-swatch').forEach(s => s.classList.remove('selected'));
+        document
+          .querySelectorAll('#color-picker .color-swatch')
+          .forEach((s) => s.classList.remove('selected'));
         swatch.classList.add('selected');
       });
 
@@ -962,7 +1115,7 @@
       document.getElementById('browse-btn').addEventListener('click', async () => {
         if (hubServerCwd === '/') {
           try {
-            const data = await fetch('/api/shells').then(r => r.json());
+            const data = await fetch('/api/shells').then((r) => r.json());
             if (data.cwd) hubServerCwd = data.cwd;
           } catch {}
         }
@@ -994,7 +1147,9 @@
           const data = await res.json();
           let items = '';
           // Add parent (..) entry unless at root
-          const parent = dir.replace(/[/\\][^/\\]+$/, '') || (dir.includes('\\') ? dir.match(/^[A-Za-z]:\\/)?.[0] : '/');
+          const parent =
+            dir.replace(/[/\\][^/\\]+$/, '') ||
+            (dir.includes('\\') ? dir.match(/^[A-Za-z]:\\/)?.[0] : '/');
           if (parent && parent !== dir) {
             items += `<div class="folder-item" data-path="${esc(parent)}">
             <span class="folder-icon">📁</span>
@@ -1062,22 +1217,36 @@
         ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
         document.body.appendChild(ta);
         ta.select();
-        try { document.execCommand('copy'); } catch {}
+        try {
+          document.execCommand('copy');
+        } catch {}
         document.body.removeChild(ta);
       }
 
       function showShareToast(msg) {
         const toast = document.createElement('div');
         toast.textContent = msg;
-        toast.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--surface);color:var(--text);border:1px solid var(--border);padding:6px 16px;border-radius:8px;font-size:13px;font-weight:600;z-index:200;';
+        toast.style.cssText =
+          'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--surface);color:var(--text);border:1px solid var(--border);padding:6px 16px;border-radius:8px;font-size:13px;font-weight:600;z-index:200;';
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 1500);
       }
 
       document.getElementById('share-btn').addEventListener('click', async () => {
-        const url = location.href;
+        let url = location.href;
+        try {
+          const res = await fetch('/api/share-token');
+          if (res.ok) {
+            const data = await res.json();
+            url = data.url;
+          }
+        } catch {}
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          try { await navigator.clipboard.writeText(url); showShareToast('Link copied!'); return; } catch {}
+          try {
+            await navigator.clipboard.writeText(url);
+            showShareToast('Link copied!');
+            return;
+          } catch {}
         }
         copyToClipboardFallback(url);
         showShareToast('Link copied!');
@@ -1087,7 +1256,7 @@
       document.getElementById('refresh-btn').addEventListener('click', async () => {
         if ('caches' in window) {
           const keys = await caches.keys();
-          await Promise.all(keys.map(k => caches.delete(k)));
+          await Promise.all(keys.map((k) => caches.delete(k)));
         }
         if (navigator.serviceWorker) {
           const reg = await navigator.serviceWorker.getRegistration();

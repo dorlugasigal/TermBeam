@@ -25,6 +25,15 @@ TermBeam is designed for **trusted local networks**. It is NOT designed as a pro
 - Cookie uses `sameSite: lax` to prevent CSRF
 - Cookie `secure` flag is off for HTTP compatibility (tunnels use TLS at the proxy layer)
 
+### QR Code Auto-Login (One-Time Tokens)
+
+- On startup, a **one-time token (OTT)** is generated and embedded in the QR code URL as `?ott=<token>`
+- Scanning the QR code sets a full session cookie and redirects to the clean URL — no password typing required
+- OTTs are **single-use**: consumed immediately on first access, regardless of validity
+- OTTs **expire after 5 minutes** even if unused
+- The share button generates a fresh per-share OTT via `GET /api/share-token` (authenticated endpoint)
+- Raw password is never embedded in any URL
+
 ### Shell Path Validation
 
 - The `POST /api/sessions` endpoint validates the `shell` parameter against the list of detected shells on the host
@@ -46,13 +55,13 @@ TermBeam is designed for **trusted local networks**. It is NOT designed as a pro
 
 Every response includes:
 
-| Header                    | Value                              | Purpose               |
-| ------------------------- | ---------------------------------- | --------------------- |
-| `X-Content-Type-Options`  | `nosniff`                          | Prevent MIME sniffing |
-| `X-Frame-Options`         | `DENY`                             | Prevent clickjacking  |
-| `Content-Security-Policy` | script/style/connect sources       | Prevent XSS           |
-| `Cache-Control`           | `no-store`                         | Prevent caching       |
-| `Referrer-Policy`         | `no-referrer`                      | No referrer leaks     |
+| Header                    | Value                        | Purpose               |
+| ------------------------- | ---------------------------- | --------------------- |
+| `X-Content-Type-Options`  | `nosniff`                    | Prevent MIME sniffing |
+| `X-Frame-Options`         | `DENY`                       | Prevent clickjacking  |
+| `Content-Security-Policy` | script/style/connect sources | Prevent XSS           |
+| `Cache-Control`           | `no-store`                   | Prevent caching       |
+| `Referrer-Policy`         | `no-referrer`                | No referrer leaks     |
 
 ### Network Binding
 

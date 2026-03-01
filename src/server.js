@@ -138,17 +138,19 @@ function createTermBeamServer(overrides = {}) {
         }
 
         const qrUrl = publicUrl || (isLanReachable ? localUrl : `http://localhost:${config.port}`);
+        const qrDisplayUrl = qrUrl; // clean URL shown in console text
+        const qrCodeUrl = config.password ? `${qrUrl}?ott=${auth.generateOTT()}` : qrUrl;
         console.log('');
         console.log(`  ${dm}📋 Clipboard requires HTTPS — use the Public or localhost URL${rs}`);
         console.log('');
         try {
-          const qr = await QRCode.toString(qrUrl, { type: 'terminal', small: true });
+          const qr = await QRCode.toString(qrCodeUrl, { type: 'terminal', small: true });
           console.log(qr);
         } catch {
           /* ignore */
         }
 
-        console.log(`  Scan the QR code or open: ${qrUrl}`);
+        console.log(`  Scan the QR code or open: ${qrDisplayUrl}`);
         if (config.password) console.log(`  Password: ${gn}${config.password}${rs}`);
         console.log('');
 

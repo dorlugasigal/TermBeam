@@ -184,12 +184,35 @@ List available shells on the host system.
 
 | Field     | Type   | Description                                                        |
 | --------- | ------ | ------------------------------------------------------------------ |
-| `name`    | string | Display name of the shell                                           |
-| `path`    | string | Full path to the shell executable                                   |
-| `cmd`     | string | Original command name (on Windows this differs from the full path)  |
-| `default` | string | Path to the server's default shell                                  |
-| `cwd`     | string | Server's default working directory                                  |
+| `name`    | string | Display name of the shell                                          |
+| `path`    | string | Full path to the shell executable                                  |
+| `cmd`     | string | Original command name (on Windows this differs from the full path) |
+| `default` | string | Path to the server's default shell                                 |
+| `cwd`     | string | Server's default working directory                                 |
+
+````
+
+---
+
+#### `GET /api/share-token`
+
+Generate a fresh single-use OTT (one-time token) for sharing access. Requires authentication.
+
+**Response (200):**
+
+```json
+{ "url": "https://your-tunnel-url/?ott=<token>" }
+````
+
+The returned URL auto-logs in whoever opens it. The token is single-use and expires in 5 minutes.
+
+**Response (404):**
+
+```json
+{ "error": "auth disabled" }
 ```
+
+Returned when the server was started with `--no-password`.
 
 ---
 
