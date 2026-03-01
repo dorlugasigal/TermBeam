@@ -13,7 +13,7 @@ I built this because I kept needing to run quick commands on my dev machine whil
 
 [Full documentation](https://dorlugasigal.github.io/TermBeam/)
 
-https://github.com/user-attachments/assets/4b097ec1-c88b-47f4-920e-4c6885ff13b0
+https://github.com/user-attachments/assets/9dd4f3d7-f017-4314-9b3a-f6a5688e3671
 
 ## Quick Start
 

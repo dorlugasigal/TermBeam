@@ -530,8 +530,8 @@ const CopilotTerminalScreen: React.FC<{
         <div style={{ ...mono, whiteSpace: "pre", lineHeight: 1.2 }}>
           <span style={{ color: cyan }}>╭─╮ ╭─╮</span>{"\n"}
           <span style={{ color: cyan }}>╰─╯ ╰─╯</span>{"  "}<span style={{ fontWeight: 700, color: "#89d185" }}>GitHub Copilot</span>{" "}<span style={{ color: "#d4d4d4" }}>v0.0.420</span>{"\n"}
-          <span style={{ color: magenta }}>█</span><span style={{ color: "#89d185" }}> ▘▝ </span><span style={{ color: magenta }}>█</span>{"  "}<span style={{ color: "#d4d4d4" }}>Describe a task to get started.</span>{"\n"}
-          <span style={{ color: magenta }}>▔▔▔▔</span>
+          <span style={{ color: magenta }}>  █</span><span style={{ color: "#89d185" }}> ▘▝ </span><span style={{ color: magenta }}>█</span>{"  "}<span style={{ color: "#d4d4d4" }}>Describe a task to get started.</span>{"\n"}
+          <span style={{ color: magenta }}>  ▔▔▔▔</span>
         </div>
       </div>
 
