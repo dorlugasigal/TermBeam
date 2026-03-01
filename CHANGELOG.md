@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.3] - 2026-03-01
+
+- fix(ui): prevent session cards from shrinking in side panel
+
 ## [1.2.2] - 2026-03-01
 
 - fix(ui): make side panel sessions list scrollable
