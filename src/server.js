@@ -47,7 +47,10 @@ function createTermBeamServer(overrides = {}) {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' ws: wss:; font-src 'self' https://cdn.jsdelivr.net");
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' ws: wss:; font-src 'self' https://cdn.jsdelivr.net",
+    );
     next();
   });
 
@@ -106,7 +109,8 @@ function createTermBeamServer(overrides = {}) {
         console.log('');
         console.log(`  Beam your terminal to any device 📡  v${config.version}`);
         console.log('');
-        const isLanReachable = config.host === '0.0.0.0' || config.host === '::' || config.host === ip;
+        const isLanReachable =
+          config.host === '0.0.0.0' || config.host === '::' || config.host === ip;
         const gn = '\x1b[38;5;114m'; // green
         const dm = '\x1b[2m'; // dim
 
@@ -159,7 +163,8 @@ function createTermBeamServer(overrides = {}) {
 module.exports = { createTermBeamServer };
 
 // Auto-start when run directly (CLI entry point)
-if (require.main === module || process.argv[1]?.endsWith('termbeam.js')) {
+const _entryBase = path.basename(process.argv[1] || '');
+if (require.main === module || _entryBase === 'termbeam' || _entryBase === 'termbeam.js') {
   const instance = createTermBeamServer();
 
   process.on('SIGINT', () => {
