@@ -3,13 +3,109 @@ const pty = require('node-pty');
 const log = require('./logger');
 
 const SESSION_COLORS = [
-  '#4a9eff', '#4ade80', '#fbbf24', '#c084fc',
-  '#f87171', '#22d3ee', '#fb923c', '#f472b6',
+  '#4a9eff',
+  '#4ade80',
+  '#fbbf24',
+  '#c084fc',
+  '#f87171',
+  '#22d3ee',
+  '#fb923c',
+  '#f472b6',
 ];
 
 class SessionManager {
-  constructor() {
+  constructor(options = {}) {
     this.sessions = new Map();
+    this.mirror = options.mirror || false;
+    this.mirroredSessionId = null;
+    this.stdinHandler = null;
+    this.resizeHandler = null;
+    this.originalStdinRaw = null;
+    this.onStopRequest = options.onStopRequest || null; // Callback when user requests stop
+    this.lastCtrlBackslash = 0; // Track double-tap timing
+  }
+
+  /**
+   * Set up bidirectional mirroring for a session.
+   * Puts stdin in raw mode and forwards input to the PTY.
+   */
+  setupMirror(sessionId) {
+    const session = this.sessions.get(sessionId);
+    if (!session || !this.mirror) return;
+
+    this.mirroredSessionId = sessionId;
+
+    // Only set up stdin forwarding if stdin is a TTY
+    if (process.stdin.isTTY) {
+      this.originalStdinRaw = process.stdin.isRaw;
+      process.stdin.setRawMode(true);
+      process.stdin.resume();
+
+      this.stdinHandler = (data) => {
+        // Ctrl+\ (0x1c) to stop the server (double-tap within 500ms)
+        if (data.length === 1 && data[0] === 0x1c) {
+          const now = Date.now();
+          if (now - this.lastCtrlBackslash < 500) {
+            // Double-tap: stop the server
+            console.log('\n[termbeam] Stopping server (Ctrl+\\ twice)...');
+            if (this.onStopRequest) {
+              this.onStopRequest();
+            }
+            return;
+          }
+          this.lastCtrlBackslash = now;
+          console.log('\n[termbeam] Press Ctrl+\\ again to stop server, or continue typing.');
+          return;
+        }
+        // Ctrl+Q to detach from mirror mode (like screen/tmux)
+        if (data.length === 1 && data[0] === 0x11) {
+          this.teardownMirror();
+          console.log('\n[termbeam] Detached from mirror mode (Ctrl+Q). Server still running.');
+          return;
+        }
+        session.pty.write(data);
+      };
+      process.stdin.on('data', this.stdinHandler);
+
+      // Handle terminal resize
+      this.resizeHandler = () => {
+        const { columns, rows } = process.stdout;
+        if (columns && rows) {
+          session.pty.resize(columns, rows);
+          // Notify WebSocket clients of resize
+          for (const ws of session.clients) {
+            if (ws.readyState === 1) {
+              ws.send(JSON.stringify({ type: 'resize', cols: columns, rows: rows }));
+            }
+          }
+        }
+      };
+      process.stdout.on('resize', this.resizeHandler);
+
+      // Set initial size from local terminal
+      const { columns, rows } = process.stdout;
+      if (columns && rows) {
+        session.pty.resize(columns, rows);
+      }
+    }
+  }
+
+  /**
+   * Tear down mirroring - restore stdin to normal mode.
+   */
+  teardownMirror() {
+    if (this.stdinHandler) {
+      process.stdin.removeListener('data', this.stdinHandler);
+      this.stdinHandler = null;
+    }
+    if (this.resizeHandler) {
+      process.stdout.removeListener('resize', this.resizeHandler);
+      this.resizeHandler = null;
+    }
+    if (process.stdin.isTTY && this.originalStdinRaw !== null) {
+      process.stdin.setRawMode(this.originalStdinRaw);
+    }
+    this.mirroredSessionId = null;
   }
 
   create({ name, shell, args = [], cwd, initialCommand = null, color = null }) {
@@ -49,6 +145,10 @@ class SessionManager {
       // Cap scrollback at ~200KB
       if (session.scrollbackBuf.length > 200000) {
         session.scrollbackBuf = session.scrollbackBuf.slice(-100000);
+      }
+      // Mirror output to local terminal if enabled
+      if (this.mirror) {
+        process.stdout.write(data);
       }
       for (const ws of session.clients) {
         if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'output', data }));
@@ -107,6 +207,7 @@ class SessionManager {
   }
 
   shutdown() {
+    this.teardownMirror();
     for (const [id, s] of this.sessions) {
       try {
         s.pty.kill();

@@ -36,7 +36,7 @@ function createTermBeamServer(overrides = {}) {
   const log = require('./logger');
   if (config.logLevel) log.setLevel(config.logLevel);
   const auth = createAuth(config.password);
-  const sessions = new SessionManager();
+  const sessions = new SessionManager({ mirror: config.mirror });
 
   // --- Express ---
   const app = express();
@@ -70,7 +70,12 @@ function createTermBeamServer(overrides = {}) {
     cleanupTunnel();
     server.close();
     wss.close();
+    // Exit process after a short delay to allow cleanup
+    setTimeout(() => process.exit(0), 300).unref();
   }
+
+  // Set up callback for mirror mode stop request
+  sessions.onStopRequest = shutdown;
 
   function start() {
     return new Promise((resolve) => {
@@ -155,6 +160,13 @@ function createTermBeamServer(overrides = {}) {
         console.log(`  Scan the QR code or open: ${baseQrUrl}`);
         if (config.password) console.log(`  Password: ${gn}${config.password}${rs}`);
         console.log('');
+
+        // Set up bidirectional mirror mode after banner is printed
+        if (config.mirror) {
+          console.log(`  ${dm}Mirror mode: Ctrl+Q to detach, Ctrl+\\ twice to stop server.${rs}`);
+          console.log('');
+          sessions.setupMirror(defaultId);
+        }
 
         resolve({ url: `http://localhost:${config.port}`, defaultId });
       });

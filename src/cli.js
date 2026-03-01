@@ -18,6 +18,7 @@ Options:
   --tunnel              Create a public ngrok tunnel URL (default: on)
   --no-tunnel           Disable tunnel (LAN-only mode)
   --persisted-tunnel    Create a reusable ngrok tunnel URL (requires ngrok paid plan)
+  --mirror              Mirror terminal locally (bidirectional: type here, see output)
   --port <port>         Set port (default: 3456, or PORT env var)
   --host <addr>         Bind address (default: 0.0.0.0)
   --log-level <level>   Set log verbosity: error, warn, info, debug (default: info)
@@ -228,6 +229,7 @@ function parseArgs() {
   let useTunnel = true;
   let noTunnel = false;
   let persistedTunnel = false;
+  let mirror = false;
   let explicitPassword = !!password;
 
   const args = process.argv.slice(2);
@@ -244,6 +246,8 @@ function parseArgs() {
     } else if (args[i] === '--persisted-tunnel') {
       useTunnel = true;
       persistedTunnel = true;
+    } else if (args[i] === '--mirror') {
+      mirror = true;
     } else if (args[i].startsWith('--password=')) {
       password = args[i].split('=')[1];
       explicitPassword = true;
@@ -291,6 +295,7 @@ function parseArgs() {
     password,
     useTunnel,
     persistedTunnel,
+    mirror,
     shell,
     shellArgs,
     cwd,
