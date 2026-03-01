@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.1] - 2026-03-01
+
+- feat(ui): redesign touch key bar with modifier keys and iOS-style layout
+
 ## [1.2.0] - 2026-03-01
 
 - feat: add preview proxy, Docker support, and UI improvements
