@@ -61,7 +61,7 @@ const LOGIN_HTML = `<!DOCTYPE html>
 function createAuth(password) {
   const tokens = new Map();
   const authAttempts = new Map();
-  const otts = new Map(); // one-time tokens: token -> expiry
+  const shareTokens = new Map(); // share tokens: token -> expiry
 
   // Periodically clean up expired tokens and stale rate-limit entries
   setInterval(
@@ -75,24 +75,37 @@ function createAuth(password) {
         if (recent.length === 0) authAttempts.delete(ip);
         else authAttempts.set(ip, recent);
       }
-      for (const [ott, expiry] of otts) {
-        if (now > expiry) otts.delete(ott);
+      for (const [st, expiry] of shareTokens) {
+        if (now > expiry) shareTokens.delete(st);
       }
     },
     60 * 60 * 1000,
   ).unref();
 
-  function generateOTT() {
-    const ott = crypto.randomBytes(32).toString('hex');
-    otts.set(ott, Date.now() + 5 * 60 * 1000); // 5 minute expiry
-    return ott;
+  function generateShareToken() {
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = Date.now() + 5 * 60 * 1000;
+    shareTokens.set(token, expiry); // 5 minute expiry
+    log.info(`Share: created ${token.slice(0, 8)}… (expires in 5m)`);
+    return token;
   }
 
-  function validateAndConsumeOTT(ott) {
-    const expiry = otts.get(ott);
-    if (!expiry) return false;
-    otts.delete(ott); // single use — always delete
-    if (Date.now() > expiry) return false;
+  function validateShareToken(token) {
+    const expiry = shareTokens.get(token);
+    const tag = token.slice(0, 8);
+    if (!expiry) {
+      log.warn(`Share: unknown token ${tag}…`);
+      return false;
+    }
+    const remaining = Math.round((expiry - Date.now()) / 1000);
+    if (remaining <= 0) {
+      shareTokens.delete(token);
+      log.warn(`Share: expired token ${tag}…`);
+      return false;
+    }
+    const min = Math.floor(remaining / 60);
+    const sec = remaining % 60;
+    log.info(`Share: valid token ${tag}… (${min}m ${sec}s remaining)`);
     return true;
   }
 
@@ -150,8 +163,8 @@ function createAuth(password) {
     password,
     generateToken,
     validateToken,
-    generateOTT,
-    validateAndConsumeOTT,
+    generateShareToken,
+    validateShareToken,
     middleware,
     rateLimit,
     parseCookies,

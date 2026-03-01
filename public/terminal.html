@@ -3316,22 +3316,63 @@
         ta.value = text;
         ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
         document.body.appendChild(ta);
+        ta.focus();
         ta.select();
+        let ok = false;
         try {
-          document.execCommand('copy');
+          ok = document.execCommand('copy');
         } catch {}
         document.body.removeChild(ta);
+        return ok;
+      }
+
+      function showShareUrlPrompt(url) {
+        const overlay = document.createElement('div');
+        overlay.style.cssText =
+          'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:flex;align-items:center;justify-content:center;';
+        const box = document.createElement('div');
+        box.style.cssText =
+          'background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;max-width:90vw;width:360px;text-align:center;';
+        box.innerHTML =
+          '<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px;">Copy this link</div>';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.readOnly = true;
+        input.value = url;
+        input.style.cssText =
+          'width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;margin-bottom:12px;';
+        box.appendChild(input);
+        const btn = document.createElement('button');
+        btn.textContent = 'Close';
+        btn.style.cssText =
+          'padding:6px 20px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;';
+        btn.onclick = () => overlay.remove();
+        box.appendChild(btn);
+        overlay.appendChild(box);
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) overlay.remove();
+        });
+        document.body.appendChild(overlay);
+        input.focus();
+        input.select();
       }
 
       document.getElementById('share-btn').addEventListener('click', async () => {
-        let url = location.href;
-        try {
-          const res = await fetch('/api/share-token');
-          if (res.ok) {
-            const data = await res.json();
-            url = data.url;
-          }
-        } catch {}
+        const urlPromise = fetch('/api/share-token')
+          .then((r) => (r.ok ? r.json() : null))
+          .then((data) => (data && data.url) || location.href)
+          .catch(() => location.href);
+        // ClipboardItem with a promise preserves user activation across the fetch
+        if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+          try {
+            const blobPromise = urlPromise.then((u) => new Blob([u], { type: 'text/plain' }));
+            await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blobPromise })]);
+            showToast('Link copied!');
+            return;
+          } catch {}
+        }
+        // Fallback: resolve URL first, then try legacy methods
+        const url = await urlPromise;
         if (navigator.clipboard && navigator.clipboard.writeText) {
           try {
             await navigator.clipboard.writeText(url);
@@ -3339,8 +3380,11 @@
             return;
           } catch {}
         }
-        copyToClipboardFallback(url);
-        showToast('Link copied!');
+        if (copyToClipboardFallback(url)) {
+          showToast('Link copied!');
+        } else {
+          showShareUrlPrompt(url);
+        }
       });
 
       // ===== Refresh Button =====

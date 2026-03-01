@@ -192,41 +192,41 @@ describe('Auth', () => {
     });
   });
 
-  describe('OTT (one-time tokens)', () => {
-    it('should generate a valid OTT', () => {
+  describe('share tokens', () => {
+    it('should generate a valid share token', () => {
       const auth = createAuth('pw');
-      const ott = auth.generateOTT();
-      assert.ok(ott);
-      assert.strictEqual(typeof ott, 'string');
-      assert.ok(ott.length > 0);
+      const token = auth.generateShareToken();
+      assert.ok(token);
+      assert.strictEqual(typeof token, 'string');
+      assert.ok(token.length > 0);
     });
 
-    it('should validate and consume a valid OTT', () => {
+    it('should validate a valid share token', () => {
       const auth = createAuth('pw');
-      const ott = auth.generateOTT();
-      assert.strictEqual(auth.validateAndConsumeOTT(ott), true);
+      const token = auth.generateShareToken();
+      assert.strictEqual(auth.validateShareToken(token), true);
     });
 
-    it('should reject a consumed OTT (single use)', () => {
+    it('should allow reuse within expiry window', () => {
       const auth = createAuth('pw');
-      const ott = auth.generateOTT();
-      auth.validateAndConsumeOTT(ott);
-      assert.strictEqual(auth.validateAndConsumeOTT(ott), false);
+      const token = auth.generateShareToken();
+      assert.strictEqual(auth.validateShareToken(token), true);
+      assert.strictEqual(auth.validateShareToken(token), true);
     });
 
-    it('should reject an unknown OTT', () => {
+    it('should reject an unknown share token', () => {
       const auth = createAuth('pw');
-      assert.strictEqual(auth.validateAndConsumeOTT('not-a-real-ott'), false);
+      assert.strictEqual(auth.validateShareToken('not-a-real-token'), false);
     });
 
-    it('should reject an expired OTT', () => {
+    it('should reject an expired share token', () => {
       const auth = createAuth('pw');
-      const ott = auth.generateOTT();
+      const token = auth.generateShareToken();
       // Simulate expiry by overriding Date.now temporarily
       const realNow = Date.now;
       Date.now = () => realNow() + 6 * 60 * 1000; // advance 6 minutes past 5-min expiry
       try {
-        assert.strictEqual(auth.validateAndConsumeOTT(ott), false);
+        assert.strictEqual(auth.validateShareToken(token), false);
       } finally {
         Date.now = realNow;
       }

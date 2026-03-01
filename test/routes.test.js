@@ -367,14 +367,14 @@ describe('Routes', () => {
     });
   });
 
-  // === OTT auto-login ===
-  describe('OTT auto-login', () => {
+  // === Share token auto-login ===
+  describe('share token auto-login', () => {
     let inst;
     after(() => inst?.shutdown());
 
     it('GET /?ott=<valid> should set cookie and redirect to /', async () => {
       inst = await startServer({ password: 'secret' });
-      const ott = inst.auth.generateOTT();
+      const ott = inst.auth.generateShareToken();
       const res = await httpRequest({
         hostname: '127.0.0.1',
         port: inst.port,
@@ -387,30 +387,28 @@ describe('Routes', () => {
       assert.ok(res.headers['set-cookie'].some((c) => c.startsWith('pty_token=')));
     });
 
-    it('GET /?ott=<valid> token is single use — second use should not set cookie', async () => {
+    it('GET /?ott=<valid> with existing cookie should redirect without re-validating', async () => {
       if (!inst) inst = await startServer({ password: 'secret' });
-      const ott = inst.auth.generateOTT();
-      // First use — should succeed
-      await httpRequest({
+      const ott = inst.auth.generateShareToken();
+      // First use — get a cookie
+      const first = await httpRequest({
         hostname: '127.0.0.1',
         port: inst.port,
         path: `/?ott=${ott}`,
         method: 'GET',
       });
-      // Second use — should fail (no redirect with cookie)
+      const setCookie = first.headers['set-cookie'] || [];
+      const cookieHeader = setCookie.map((c) => c.split(';')[0]).join('; ');
+      // Second use with cookie — should just redirect
       const res = await httpRequest({
         hostname: '127.0.0.1',
         port: inst.port,
         path: `/?ott=${ott}`,
         method: 'GET',
+        headers: { Cookie: cookieHeader },
       });
-      // Without a valid cookie the request should redirect to login (302) or return 401
-      // Either way, there should be no new pty_token cookie set
-      const cookies = res.headers['set-cookie'] || [];
-      assert.ok(
-        !cookies.some((c) => c.startsWith('pty_token=')),
-        'Should not set pty_token on second use',
-      );
+      assert.strictEqual(res.statusCode, 302);
+      assert.strictEqual(res.headers.location, '/');
     });
 
     it('GET /?ott=<invalid> should not set cookie', async () => {
@@ -418,13 +416,13 @@ describe('Routes', () => {
       const res = await httpRequest({
         hostname: '127.0.0.1',
         port: inst.port,
-        path: '/?ott=invalid-fake-ott',
+        path: '/?ott=invalid-fake-token',
         method: 'GET',
       });
       const cookies = res.headers['set-cookie'] || [];
       assert.ok(
         !cookies.some((c) => c.startsWith('pty_token=')),
-        'Should not set pty_token for invalid OTT',
+        'Should not set pty_token for invalid share token',
       );
     });
 
@@ -458,7 +456,7 @@ describe('Routes', () => {
       assert.strictEqual(res.statusCode, 404);
     });
 
-    it('should return a URL with OTT when authenticated', async () => {
+    it('should return a URL with share token when authenticated', async () => {
       inst?.shutdown();
       inst = await startServer({ password: 'secret' });
       // Get a session token via login first
@@ -490,7 +488,7 @@ describe('Routes', () => {
       assert.strictEqual(res.statusCode, 200);
       const data = JSON.parse(res.data);
       assert.ok(data.url, 'Response should contain url');
-      assert.ok(data.url.includes('?ott='), 'URL should contain OTT parameter');
+      assert.ok(data.url.includes('?ott='), 'URL should contain share token parameter');
     });
 
     it('should return 401/302 when not authenticated', async () => {

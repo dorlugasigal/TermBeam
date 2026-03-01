@@ -9,7 +9,7 @@ const log = require('./logger');
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const uploadedFiles = [];
 
-function setupRoutes(app, { auth, sessions, config }) {
+function setupRoutes(app, { auth, sessions, config, state }) {
   // Serve static files (manifest.json, sw.js, icons, etc.)
   app.use(express.static(PUBLIC_DIR, { index: false }));
 
@@ -44,11 +44,15 @@ function setupRoutes(app, { auth, sessions, config }) {
     res.json({ version: getVersion() });
   });
 
-  // OTT auto-login middleware: validates ?ott= param, sets session cookie, redirects to clean URL
+  // Share token auto-login middleware: validates ?ott= param, sets session cookie, redirects to clean URL
   function autoLogin(req, res, next) {
     const { ott } = req.query;
     if (!ott || !auth.password) return next();
-    if (auth.validateAndConsumeOTT(ott)) {
+    // Already authenticated (e.g. DevTunnel anti-phishing re-sent the request) — just redirect
+    if (req.cookies.pty_token && auth.validateToken(req.cookies.pty_token)) {
+      return res.redirect(req.path);
+    }
+    if (auth.validateShareToken(ott)) {
       const token = auth.generateToken();
       res.cookie('pty_token', token, {
         httpOnly: true,
@@ -56,11 +60,11 @@ function setupRoutes(app, { auth, sessions, config }) {
         maxAge: 24 * 60 * 60 * 1000,
         secure: false,
       });
-      log.info(`Auth: OTT auto-login from ${req.ip}`);
+      log.info(`Auth: share-token auto-login from ${req.ip}`);
       // Redirect to the same path without ?ott= to keep the URL clean
       return res.redirect(req.path);
     }
-    log.warn(`Auth: invalid or expired OTT from ${req.ip}`);
+    log.warn(`Auth: invalid or expired share token from ${req.ip}`);
     next();
   }
 
@@ -72,12 +76,12 @@ function setupRoutes(app, { auth, sessions, config }) {
     res.sendFile('terminal.html', { root: PUBLIC_DIR }),
   );
 
-  // Share token — generates a fresh single-use OTT for the share button
+  // Share token — generates a temporary share token for the share button
   app.get('/api/share-token', auth.middleware, (req, res) => {
     if (!auth.password) return res.status(404).json({ error: 'auth disabled' });
-    const ott = auth.generateOTT();
-    const base = `${req.protocol}://${req.get('host')}`;
-    res.json({ url: `${base}/?ott=${ott}` });
+    const shareToken = auth.generateShareToken();
+    const base = (state && state.shareBaseUrl) || `${req.protocol}://${req.get('host')}`;
+    res.json({ url: `${base}/?ott=${shareToken}` });
   });
 
   // Session API
