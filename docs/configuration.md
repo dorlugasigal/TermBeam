@@ -19,6 +19,7 @@ description: All TermBeam CLI flags and options — ports, passwords, tunnels, s
 | `--host <addr>`       | Bind address                    | `0.0.0.0` |
 | `-h, --help`          | Show help                       | —         |
 | `-v, --version`       | Show version                    | —         |
+| `--log-level <level>` | Set log verbosity: `error`, `warn`, `info`, `debug` | `info` |
 
 ## Environment Variables
 
@@ -27,6 +28,7 @@ description: All TermBeam CLI flags and options — ports, passwords, tunnels, s
 | `PORT`              | Server port               | `3456`            |
 | `TERMBEAM_PASSWORD` | Access password           | None              |
 | `TERMBEAM_CWD`      | Default working directory | Current directory |
+| `TERMBEAM_LOG_LEVEL`| Log level                 | `info`            |
 | `SHELL`             | Fallback shell on Unix (used only if auto-detection fails) | `/bin/sh` |
 | `COMSPEC`           | Fallback shell on Windows (used only if auto-detection fails) | `cmd.exe` |
 

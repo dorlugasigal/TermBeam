@@ -14,6 +14,8 @@ termbeam/
 │   ├── routes.js            # Express HTTP routes
 │   ├── websocket.js         # WebSocket connection handling
 │   ├── tunnel.js            # DevTunnel integration
+│   ├── shells.js            # Shell detection (cross-platform)
+│   ├── logger.js            # Structured logger with levels
 │   └── version.js           # Smart version detection
 ├── public/
 │   ├── index.html           # Session manager (mobile UI)
@@ -24,6 +26,9 @@ termbeam/
 ├── test/
 │   ├── auth.test.js
 │   ├── cli.test.js
+│   ├── integration.test.js
+│   ├── logger.test.js
+│   ├── routes.test.js
 │   ├── sessions.test.js
 │   ├── shells.test.js
 │   ├── version.test.js
@@ -37,7 +42,7 @@ termbeam/
 
 ### `server.js` — Orchestrator
 
-Wires all modules together. Creates the Express app, HTTP server, WebSocket server, and starts listening. Handles process lifecycle (shutdown, uncaught exceptions).
+Wires all modules together. Exports `createTermBeamServer()` which creates the Express app, HTTP server, WebSocket server, and returns `{ app, server, wss, sessions, config, auth, start, shutdown }`. The `start()` method begins listening and creates the default session. Handles process lifecycle (shutdown, uncaught exceptions).
 
 ### `cli.js` — CLI Interface
 
@@ -53,11 +58,19 @@ Factory function `createAuth(password)` returns an object with middleware, token
 
 ### `routes.js` — HTTP Routes
 
-Registers all Express routes: login page (`GET /login`), auth API, session CRUD (including `PATCH` for updating session color/name), shell detection, directory browser, version endpoint. The `POST /api/sessions` endpoint accepts optional `shell`, `args`, `cwd`, `initialCommand`, and `color` parameters.
+Registers all Express routes: login page (`GET /login`), auth API, session CRUD (including `PATCH` for updating session color/name), shell detection, directory browser, image upload, version endpoint. The `POST /api/sessions` endpoint validates `shell` against detected shells and `cwd` against the filesystem, and accepts optional `args`, `initialCommand`, and `color` parameters.
 
 ### `websocket.js` — WebSocket Handler
 
-Handles real-time communication: WebSocket-level authentication (password or token), session attachment, terminal I/O forwarding, and resize events. When multiple clients are connected to the same session, the PTY is resized to the minimum dimensions across all clients.
+Handles real-time communication: validates the Origin header to reject cross-origin connections, WebSocket-level authentication (password or token), session attachment, terminal I/O forwarding, and resize events. When multiple clients are connected to the same session, the PTY is resized to the minimum dimensions across all clients.
+
+### `shells.js` — Shell Detection
+
+Detects available shells on the host system. Returns a list of shell objects with `name`, `path`, and `cmd` fields. Cross-platform: scans known paths on Unix and queries the registry on Windows.
+
+### `logger.js` — Logger
+
+Structured logger with configurable levels (`error`, `warn`, `info`, `debug`). Used by all modules. Level is set via `--log-level` flag or `TERMBEAM_LOG_LEVEL` environment variable.
 
 ### `tunnel.js` — DevTunnel
 

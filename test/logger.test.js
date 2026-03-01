@@ -65,6 +65,17 @@ describe('logger', () => {
     assert.strictEqual(errorCalls.length, 1);
   });
 
+  it('at warn level, only warn and error are shown', () => {
+    log.setLevel('warn');
+    log.debug('d');
+    log.info('i');
+    log.warn('w');
+    log.error('e');
+    assert.strictEqual(logCalls.length, 0);
+    assert.strictEqual(warnCalls.length, 1);
+    assert.strictEqual(errorCalls.length, 1);
+  });
+
   it('at error level, only errors are shown', () => {
     log.setLevel('error');
     log.debug('d');

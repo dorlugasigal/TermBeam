@@ -17,6 +17,7 @@ const baseConfig = {
   cwd: process.cwd(),
   defaultShell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
   version: '0.1.0-test',
+  logLevel: 'error',
 };
 
 function makeConfig(overrides = {}) {

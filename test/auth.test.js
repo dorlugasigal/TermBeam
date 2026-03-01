@@ -86,6 +86,23 @@ describe('Auth', () => {
       assert.strictEqual(statusCode, 401);
     });
 
+    it('should redirect to /login when accepts html', () => {
+      const auth = createAuth('secret');
+      let redirectPath = null;
+      const req = { cookies: {}, headers: {}, accepts: () => true };
+      const res = {
+        redirect(path) {
+          redirectPath = path;
+        },
+        status() {
+          return this;
+        },
+        json() {},
+      };
+      auth.middleware(req, res, () => {});
+      assert.strictEqual(redirectPath, '/login');
+    });
+
     it('should accept valid Bearer token', () => {
       const auth = createAuth('secret');
       let called = false;
@@ -146,6 +163,20 @@ describe('Auth', () => {
         auth.rateLimit(req, res, () => {});
       }
       assert.ok(blocked);
+    });
+
+    it('should fall back to socket.remoteAddress when ip is missing', () => {
+      const auth = createAuth('pw');
+      let count = 0;
+      const req = { socket: { remoteAddress: '10.0.0.1' } };
+      const res = {
+        status() { return this; },
+        json() {},
+      };
+      for (let i = 0; i < 5; i++) {
+        auth.rateLimit(req, res, () => { count++; });
+      }
+      assert.strictEqual(count, 5);
     });
   });
 

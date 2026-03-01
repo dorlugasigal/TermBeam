@@ -123,4 +123,56 @@ describe('SessionManager', () => {
     assert.ok(list[0].pid);
     assert.ok(list[0].createdAt);
   });
+
+  it('should assign colors from SESSION_COLORS in order', () => {
+    const mgr = new SessionManager();
+    const id1 = mgr.create({ name: 's1', shell: '/bin/sh', cwd: '/tmp' });
+    const id2 = mgr.create({ name: 's2', shell: '/bin/sh', cwd: '/tmp' });
+    const list = mgr.list();
+    assert.ok(list[0].color, 'First session should have a color');
+    assert.ok(list[1].color, 'Second session should have a color');
+    assert.notStrictEqual(list[0].color, list[1].color, 'First two sessions should have different colors');
+  });
+
+  it('should accept a custom color', () => {
+    const mgr = new SessionManager();
+    const id = mgr.create({ name: 'custom', shell: '/bin/sh', cwd: '/tmp', color: '#ff0000' });
+    const list = mgr.list();
+    assert.strictEqual(list[0].color, '#ff0000');
+  });
+
+  it('should update session name and color', () => {
+    const mgr = new SessionManager();
+    const id = mgr.create({ name: 'original', shell: '/bin/sh', cwd: '/tmp' });
+    assert.strictEqual(mgr.update(id, { name: 'renamed', color: '#00ff00' }), true);
+    const session = mgr.get(id);
+    assert.strictEqual(session.name, 'renamed');
+    assert.strictEqual(session.color, '#00ff00');
+  });
+
+  it('should return false when updating nonexistent session', () => {
+    const mgr = new SessionManager();
+    assert.strictEqual(mgr.update('nonexistent', { name: 'x' }), false);
+  });
+
+  it('should accumulate scrollback buffer from pty data', () => {
+    const mgr = new SessionManager();
+    const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });
+    const session = mgr.get(id);
+    // Simulate pty data via the mock's onData callback
+    const mockProcess = mockPtyProcesses[mockPtyProcesses.length - 1];
+    mockProcess._callbacks.onData('hello ');
+    mockProcess._callbacks.onData('world');
+    assert.strictEqual(session.scrollbackBuf, 'hello world');
+  });
+
+  it('should track lastActivity on pty data', () => {
+    const mgr = new SessionManager();
+    const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });
+    const session = mgr.get(id);
+    const before = session.lastActivity;
+    const mockProcess = mockPtyProcesses[mockPtyProcesses.length - 1];
+    mockProcess._callbacks.onData('data');
+    assert.ok(session.lastActivity >= before);
+  });
 });

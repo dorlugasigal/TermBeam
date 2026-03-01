@@ -91,13 +91,33 @@ Create a new session.
 
 All fields are optional. If `initialCommand` is provided, it will be sent to the shell after startup. If `color` is omitted, a color is assigned automatically from a built-in palette.
 
-**Response:**
+The `shell` field is validated against the list of detected shells (see `GET /api/shells`). The `cwd` field must be an absolute path to an existing directory.
+
+**Response (200):**
 
 ```json
 {
   "id": "e5f6g7h8",
   "url": "/terminal?id=e5f6g7h8"
 }
+```
+
+**Response (400):**
+
+```json
+{ "error": "Invalid shell" }
+```
+
+```json
+{ "error": "cwd must be an absolute path" }
+```
+
+```json
+{ "error": "cwd is not a directory" }
+```
+
+```json
+{ "error": "cwd does not exist" }
 ```
 
 #### `PATCH /api/sessions/:id`
@@ -157,15 +177,18 @@ List available shells on the host system.
     { "name": "bash", "path": "/bin/bash", "cmd": "/bin/bash" },
     { "name": "zsh", "path": "/bin/zsh", "cmd": "/bin/zsh" }
   ],
-  "default": "/bin/zsh"
+  "default": "/bin/zsh",
+  "cwd": "/home/user"
 }
 ```
 
-| Field  | Type   | Description                                                        |
-| ------ | ------ | ------------------------------------------------------------------ |
-| `name` | string | Display name of the shell                                           |
-| `path` | string | Full path to the shell executable                                   |
-| `cmd`  | string | Original command name (on Windows this differs from the full path)  |
+| Field     | Type   | Description                                                        |
+| --------- | ------ | ------------------------------------------------------------------ |
+| `name`    | string | Display name of the shell                                           |
+| `path`    | string | Full path to the shell executable                                   |
+| `cmd`     | string | Original command name (on Windows this differs from the full path)  |
+| `default` | string | Path to the server's default shell                                  |
+| `cwd`     | string | Server's default working directory                                  |
 ```
 
 ---
@@ -194,6 +217,38 @@ List subdirectories for the folder browser.
   "dirs": ["/home/user/projects", "/home/user/documents"]
 }
 ```
+
+#### `POST /api/upload`
+
+Upload an image file. The request body is the raw image data with the appropriate `Content-Type` header (e.g., `image/png`, `image/jpeg`).
+
+**Request headers:**
+
+- `Content-Type`: Must be an `image/*` type
+
+**Response (200):**
+
+```json
+{ "path": "/tmp/termbeam-uuid.png" }
+```
+
+**Response (400):**
+
+```json
+{ "error": "Invalid content type" }
+```
+
+```json
+{ "error": "No image data" }
+```
+
+**Response (413):**
+
+```json
+{ "error": "File too large" }
+```
+
+Maximum file size is 10 MB.
 
 ---
 

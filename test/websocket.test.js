@@ -144,6 +144,41 @@ describe('WebSocket', () => {
       assert.strictEqual(ws._closeCode, 1008);
       assert.strictEqual(ws._closeReason, 'Origin not allowed');
     });
+
+    it('should allow connections when origin is localhost', () => {
+      const session = createMockSession('s1');
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws, { headers: { host: 'example.com:3000', origin: 'http://localhost:3000' } });
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      const attached = ws._sent.find((m) => m.type === 'attached');
+      assert.ok(attached);
+      assert.ok(!ws._closed);
+    });
+
+    it('should allow connections when host is localhost', () => {
+      const session = createMockSession('s1');
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws, { headers: { host: 'localhost:3000', origin: 'http://192.168.1.1:3000' } });
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      const attached = ws._sent.find((m) => m.type === 'attached');
+      assert.ok(attached);
+      assert.ok(!ws._closed);
+    });
+
+    it('should reject connections with invalid Origin URL', () => {
+      const ws = createMockWs();
+      wss._simulateConnection(ws, { headers: { host: 'example.com:3000', origin: 'not-a-valid-url' } });
+
+      assert.ok(ws._closed);
+      assert.strictEqual(ws._closeCode, 1008);
+      assert.strictEqual(ws._closeReason, 'Invalid origin');
+    });
   });
 
   describe('no password', () => {
@@ -211,6 +246,17 @@ describe('WebSocket', () => {
 
       const attached = ws._sent.find((m) => m.type === 'attached');
       assert.ok(attached);
+    });
+
+    it('should authenticate via token in auth message', () => {
+      const token = auth.generateToken();
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'auth', token });
+
+      const ok = ws._sent.find((m) => m.type === 'auth_ok');
+      assert.ok(ok);
+      assert.ok(!ws._closed);
     });
   });
 
@@ -379,6 +425,20 @@ describe('WebSocket', () => {
       ws._simulateMessage({ type: 'resize', cols: -1, rows: 24 });
       ws._simulateMessage({ type: 'resize', cols: 80, rows: -5 });
       ws._simulateMessage({ type: 'resize', cols: 'abc', rows: 24 });
+
+      assert.strictEqual(session._resizes.length, 0);
+    });
+
+    it('should reject dimensions exceeding maximum bounds', () => {
+      const session = createMockSession('s1');
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      ws._simulateMessage({ type: 'resize', cols: 501, rows: 24 });
+      ws._simulateMessage({ type: 'resize', cols: 80, rows: 201 });
 
       assert.strictEqual(session._resizes.length, 0);
     });

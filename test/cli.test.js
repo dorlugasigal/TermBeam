@@ -10,6 +10,7 @@ describe('CLI', () => {
     // Clean env vars that affect parsing
     delete process.env.TERMBEAM_PASSWORD;
     delete process.env.TERMBEAM_CWD;
+    delete process.env.TERMBEAM_LOG_LEVEL;
     delete process.env.PTY_PASSWORD;
     delete process.env.PTY_CWD;
     delete process.env.PORT;
@@ -262,6 +263,51 @@ describe('CLI', () => {
     const config = parseArgs();
     assert.strictEqual(config.password, null);
     assert.strictEqual(config.useTunnel, true);
+  });
+
+  it('should parse --log-level flag', () => {
+    process.argv = ['node', 'termbeam', '--log-level', 'debug'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.logLevel, 'debug');
+  });
+
+  it('should default logLevel to info', () => {
+    process.argv = ['node', 'termbeam'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.logLevel, 'info');
+  });
+
+  it('should read TERMBEAM_LOG_LEVEL from env', () => {
+    process.env.TERMBEAM_LOG_LEVEL = 'warn';
+    process.argv = ['node', 'termbeam'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.logLevel, 'warn');
+  });
+
+  it('--log-level flag should override TERMBEAM_LOG_LEVEL env', () => {
+    process.env.TERMBEAM_LOG_LEVEL = 'error';
+    process.argv = ['node', 'termbeam', '--log-level', 'debug'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.logLevel, 'debug');
+  });
+
+  it('printHelp should mention --log-level and TERMBEAM_LOG_LEVEL', () => {
+    const lines = [];
+    const origLog = console.log;
+    console.log = (msg) => lines.push(msg);
+    try {
+      const { printHelp } = require('../src/cli');
+      printHelp();
+      const output = lines.join('\n');
+      assert.ok(output.includes('--log-level'), 'Should mention --log-level flag');
+      assert.ok(output.includes('TERMBEAM_LOG_LEVEL'), 'Should mention TERMBEAM_LOG_LEVEL env');
+    } finally {
+      console.log = origLog;
+    }
   });
 
 });

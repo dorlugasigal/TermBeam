@@ -44,7 +44,7 @@ Instead, report vulnerabilities privately:
 When running TermBeam:
 
 - Always use a **strong password** (`--generate-password` or `--password`)
-- Keep TermBeam bound to **localhost** (default) unless you need LAN access
+- Bind TermBeam to **localhost** (`--host 127.0.0.1`) unless you need LAN access (default is `0.0.0.0`)
 - Use a **reverse proxy with TLS** (nginx, Caddy) for production deployments
 - Keep dependencies **up to date** (`npm update`)
 - Review the [Security documentation](https://dorlugasigal.github.io/TermBeam/security/) for detailed guidance

@@ -49,7 +49,9 @@ termbeam/
 │   ├── server.js             # Main orchestrator — wires everything together
 │   ├── cli.js                # CLI argument parsing, --help, --version
 │   ├── auth.js               # Authentication, tokens, rate limiting, login page
+│   ├── logger.js             # Structured logger with configurable levels
 │   ├── sessions.js           # SessionManager class — PTY lifecycle
+│   ├── shells.js             # Shell detection (Windows + Unix)
 │   ├── routes.js             # Express HTTP routes (API + pages)
 │   ├── websocket.js          # WebSocket connection handling
 │   ├── tunnel.js             # DevTunnel integration
@@ -58,9 +60,15 @@ termbeam/
 │   ├── index.html            # Session manager UI (mobile)
 │   └── terminal.html         # Terminal UI (xterm.js + touch controls)
 ├── test/
-│   ├── cli.test.js           # CLI argument parsing tests
 │   ├── auth.test.js          # Auth module tests
-│   └── sessions.test.js      # Session manager tests (mocked PTY)
+│   ├── cli.test.js           # CLI argument parsing tests
+│   ├── integration.test.js   # Integration tests (HTTP + WebSocket)
+│   ├── logger.test.js        # Logger module tests
+│   ├── routes.test.js        # HTTP route tests
+│   ├── sessions.test.js      # Session manager tests (mocked PTY)
+│   ├── shells.test.js        # Shell detection tests
+│   ├── version.test.js       # Version detection tests
+│   └── websocket.test.js     # WebSocket handler tests
 ├── docs/                     # MkDocs documentation source
 ├── .github/workflows/        # CI, release, and docs deployment
 ├── package.json
@@ -72,10 +80,14 @@ termbeam/
 | File                   | What it does      | When to edit                              |
 | ---------------------- | ----------------- | ----------------------------------------- |
 | `src/server.js`        | Orchestrator      | Adding new middleware or startup logic    |
+| `src/cli.js`           | CLI parsing       | Adding new flags or env vars              |
 | `src/routes.js`        | HTTP routes       | Adding new API endpoints                  |
 | `src/websocket.js`     | WebSocket handler | Changing terminal I/O behavior            |
 | `src/auth.js`          | Auth system       | Changing authentication logic             |
 | `src/sessions.js`      | PTY management    | Changing how sessions are created/managed |
+| `src/logger.js`        | Logging           | Changing log format or levels             |
+| `src/shells.js`        | Shell detection   | Adding new shell types                    |
+| `src/tunnel.js`        | DevTunnel         | Changing tunnel creation or lifecycle     |
 | `public/index.html`    | Session list UI   | UI changes on the main screen             |
 | `public/terminal.html` | Terminal UI       | Terminal rendering, touch controls        |
 
