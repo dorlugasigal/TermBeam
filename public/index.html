@@ -959,7 +959,13 @@
       let currentBrowsePath = '/';
       let hubServerCwd = '/';
 
-      document.getElementById('browse-btn').addEventListener('click', () => {
+      document.getElementById('browse-btn').addEventListener('click', async () => {
+        if (hubServerCwd === '/') {
+          try {
+            const data = await fetch('/api/shells').then(r => r.json());
+            if (data.cwd) hubServerCwd = data.cwd;
+          } catch {}
+        }
         const initial = cwdInput.value.trim() || hubServerCwd;
         navigateTo(initial);
         browserOverlay.classList.add('visible');

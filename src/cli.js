@@ -1,6 +1,7 @@
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const log = require('./logger');
 
 function printHelp() {
   console.log(`
@@ -18,6 +19,7 @@ Options:
   --persisted-tunnel    Create a reusable devtunnel URL (stable across restarts)
   --port <port>         Set port (default: 3456, or PORT env var)
   --host <addr>         Bind address (default: 0.0.0.0)
+  --log-level <level>   Set log verbosity: error, warn, info, debug (default: info)
   -h, --help            Show this help
   -v, --version         Show version
 
@@ -37,6 +39,7 @@ Environment:
   PORT                  Server port (default: 3456)
   TERMBEAM_PASSWORD     Access password
   TERMBEAM_CWD          Working directory
+  TERMBEAM_LOG_LEVEL    Log level (default: info)
 `);
 }
 
@@ -82,13 +85,13 @@ function getWindowsAncestors(startPid, maxDepth = 4) {
     for (let i = 0; i < maxDepth; i++) {
       const proc = processes.get(currentPid);
       if (!proc) break;
-      console.log(`[termbeam] Process tree: ${proc.name}`);
+      log.debug(`Process tree: ${proc.name}`);
       names.push(proc.name);
       if (!Number.isFinite(proc.ppid) || proc.ppid === 0 || proc.ppid === currentPid) break;
       currentPid = proc.ppid;
     }
   } catch (err) {
-    console.log(`[termbeam] Could not query process tree: ${err.message}`);
+    log.debug(`Could not query process tree: ${err.message}`);
   }
 
   return names;
@@ -97,7 +100,7 @@ function getWindowsAncestors(startPid, maxDepth = 4) {
 function getDefaultShell() {
   const { execFileSync } = require('child_process');
   const ppid = process.ppid;
-  console.log(`[termbeam] Detecting shell (parent PID: ${ppid}, platform: ${os.platform()})`);
+  log.debug(`Detecting shell (parent PID: ${ppid}, platform: ${os.platform()})`);
 
   if (os.platform() === 'win32') {
     // Walk up the process tree (up to 4 ancestors) to find the real user shell.
@@ -109,18 +112,18 @@ function getDefaultShell() {
     let foundCmd = false;
     for (const name of ancestors) {
       if (preferredShells.includes(name)) {
-        console.log(`[termbeam] Found shell in process tree: ${name}`);
+        log.debug(`Found shell in process tree: ${name}`);
         return name;
       }
       if (name === 'cmd.exe') foundCmd = true;
     }
 
     if (foundCmd) {
-      console.log(`[termbeam] Using detected shell: cmd.exe`);
+      log.debug(`Using detected shell: cmd.exe`);
       return 'cmd.exe';
     }
     const fallback = process.env.COMSPEC || 'cmd.exe';
-    console.log(`[termbeam] Falling back to: ${fallback}`);
+    log.debug(`Falling back to: ${fallback}`);
     return fallback;
   }
 
@@ -134,22 +137,33 @@ function getDefaultShell() {
     const comm = result.trim();
     if (comm) {
       const shell = comm.startsWith('-') ? comm.slice(1) : comm;
-      console.log(`[termbeam] Detected parent shell: ${shell}`);
+      log.debug(`Detected parent shell: ${shell}`);
       return shell;
     }
   } catch (err) {
-    console.log(`[termbeam] Could not detect parent shell: ${err.message}`);
+    log.debug(`Could not detect parent shell: ${err.message}`);
   }
 
   // Fallback to SHELL env or /bin/sh
   const fallback = process.env.SHELL || '/bin/sh';
-  console.log(`[termbeam] Falling back to: ${fallback}`);
+  log.debug(`Falling back to: ${fallback}`);
   return fallback;
 }
 
 function parseArgs() {
   let port = parseInt(process.env.PORT || '3456', 10);
   let host = '0.0.0.0';
+
+  // Resolve log level early (env + args) so shell detection logs are visible
+  let logLevel = process.env.TERMBEAM_LOG_LEVEL || 'info';
+  for (const arg of process.argv.slice(2)) {
+    if (arg.startsWith('--log-level=')) { logLevel = arg.split('=')[1]; break; }
+  }
+  for (let i = 2; i < process.argv.length; i++) {
+    if (process.argv[i] === '--log-level' && process.argv[i + 1]) { logLevel = process.argv[i + 1]; break; }
+  }
+  log.setLevel(logLevel);
+
   const defaultShell = getDefaultShell();
   const cwd = process.env.TERMBEAM_CWD || process.env.PTY_CWD || process.cwd();
   let password = process.env.TERMBEAM_PASSWORD || process.env.PTY_PASSWORD || null;
@@ -192,6 +206,8 @@ function parseArgs() {
       port = parseInt(args[++i], 10);
     } else if (args[i] === '--host' && args[i + 1]) {
       host = args[++i];
+    } else if (args[i] === '--log-level' && args[i + 1]) {
+      logLevel = args[++i];
     } else {
       filteredArgs.push(args[i]);
     }
@@ -211,7 +227,7 @@ function parseArgs() {
   const { getVersion } = require('./version');
   const version = getVersion();
 
-  return { port, host, password, useTunnel, persistedTunnel, shell, shellArgs, cwd, defaultShell, version };
+  return { port, host, password, useTunnel, persistedTunnel, shell, shellArgs, cwd, defaultShell, version, logLevel };
 }
 
 module.exports = { parseArgs, printHelp };

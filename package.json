@@ -10,7 +10,7 @@
     "start": "node bin/termbeam.js",
     "dev": "node bin/termbeam.js --generate-password",
     "test": "node --test test/*.test.js",
-    "test:coverage": "c8 --reporter=text --reporter=lcov --reporter=json-summary --reporter=json node --test --test-reporter=spec --test-reporter-destination=stdout test/*.test.js",
+    "test:coverage": "c8 --exclude=src/tunnel.js --reporter=text --reporter=lcov --reporter=json-summary --reporter=json node --test --test-reporter=spec --test-reporter-destination=stdout test/*.test.js",
     "prepare": "husky",
     "format": "prettier --write .",
     "lint": "node --check src/*.js bin/*.js",
@@ -35,7 +35,7 @@
     "devtools",
     "cli"
   ],
-  "author": "",
+  "author": "Dor Lugasi <dorlugasigal@gmail.com>",
   "license": "MIT",
   "homepage": "https://github.com/dorlugasigal/TermBeam",
   "repository": {

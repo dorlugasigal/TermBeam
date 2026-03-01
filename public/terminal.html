@@ -2008,7 +2008,13 @@
         let nsBrowsePath = '/';
         let serverCwd = '/';
 
-        document.getElementById('ns-browse-btn').addEventListener('click', () => {
+        document.getElementById('ns-browse-btn').addEventListener('click', async () => {
+          if (serverCwd === '/') {
+            try {
+              const data = await fetch('/api/shells').then(r => r.json());
+              if (data.cwd) serverCwd = data.cwd;
+            } catch {}
+          }
           const initial = nsCwdInput.value.trim() || serverCwd;
           nsBrowseNavigate(initial);
           nsBrowserOverlay.classList.add('visible');

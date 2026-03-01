@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const pty = require('node-pty');
+const log = require('./logger');
 
 const SESSION_COLORS = [
   '#4a9eff', '#4ade80', '#fbbf24', '#c084fc',
@@ -12,7 +13,7 @@ class SessionManager {
   }
 
   create({ name, shell, args = [], cwd, initialCommand = null, color = null }) {
-    const id = crypto.randomBytes(4).toString('hex');
+    const id = crypto.randomBytes(16).toString('hex');
     if (!color) {
       color = SESSION_COLORS[this.sessions.size % SESSION_COLORS.length];
     }
@@ -55,7 +56,7 @@ class SessionManager {
     });
 
     ptyProcess.onExit(({ exitCode }) => {
-      console.log(`[termbeam] Session "${name}" (${id}) exited (code ${exitCode})`);
+      log.info(`Session "${name}" (${id}) exited (code ${exitCode})`);
       for (const ws of session.clients) {
         if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'exit', code: exitCode }));
       }
@@ -63,7 +64,7 @@ class SessionManager {
     });
 
     this.sessions.set(id, session);
-    console.log(`[termbeam] Session "${name}" created (id=${id}, pid=${ptyProcess.pid})`);
+    log.info(`Session "${name}" created (id=${id}, pid=${ptyProcess.pid})`);
     return id;
   }
 
@@ -82,7 +83,7 @@ class SessionManager {
   delete(id) {
     const s = this.sessions.get(id);
     if (!s) return false;
-    console.log(`[termbeam] Session "${s.name}" deleted (id=${id})`);
+    log.info(`Session "${s.name}" deleted (id=${id})`);
     s.pty.kill();
     return true;
   }

@@ -1,3 +1,5 @@
+const log = require('./logger');
+
 function recalcPtySize(session) {
   let minCols = Infinity;
   let minRows = Infinity;
@@ -16,6 +18,23 @@ function recalcPtySize(session) {
 
 function setupWebSocket(wss, { auth, sessions }) {
   wss.on('connection', (ws, req) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      try {
+        const originHost = new URL(origin).hostname;
+        const reqHost = (req.headers.host || '').split(':')[0];
+        if (originHost !== reqHost && originHost !== 'localhost' && reqHost !== 'localhost') {
+          log.warn(`WS: rejected cross-origin connection from ${origin}`);
+          ws.close(1008, 'Origin not allowed');
+          return;
+        }
+      } catch {
+        log.warn(`WS: rejected invalid origin: ${origin}`);
+        ws.close(1008, 'Invalid origin');
+        return;
+      }
+    }
+
     let authenticated = !auth.password;
     let attached = null;
 
@@ -35,9 +54,9 @@ function setupWebSocket(wss, { auth, sessions }) {
           if (msg.password === auth.password || auth.validateToken(msg.token)) {
             authenticated = true;
             ws.send(JSON.stringify({ type: 'auth_ok' }));
-            console.log('[termbeam] WS: auth success');
+            log.info('WS: auth success');
           } else {
-            console.warn('[termbeam] WS: auth failed');
+            log.warn('WS: auth failed');
             ws.send(JSON.stringify({ type: 'error', message: 'Unauthorized' }));
             ws.close();
           }
@@ -54,7 +73,7 @@ function setupWebSocket(wss, { auth, sessions }) {
           const session = sessions.get(msg.sessionId);
           if (!session) {
             ws.send(JSON.stringify({ type: 'error', message: 'Session not found' }));
-            console.warn(`[termbeam] WS: attach failed — session ${msg.sessionId} not found`);
+            log.warn(`WS: attach failed — session ${msg.sessionId} not found`);
             return;
           }
           attached = session;
@@ -63,7 +82,7 @@ function setupWebSocket(wss, { auth, sessions }) {
             ws.send(JSON.stringify({ type: 'output', data: session.scrollbackBuf }));
           }
           ws.send(JSON.stringify({ type: 'attached', sessionId: msg.sessionId }));
-          console.log(`[termbeam] Client attached to session ${msg.sessionId}`);
+          log.info(`Client attached to session ${msg.sessionId}`);
           return;
         }
 
@@ -80,7 +99,7 @@ function setupWebSocket(wss, { auth, sessions }) {
           }
         }
       } catch (err) {
-        console.warn('WS: dropped unparseable message:', err.message);
+        log.warn(`WS: dropped unparseable message: ${err.message}`);
       }
     });
 
@@ -88,7 +107,7 @@ function setupWebSocket(wss, { auth, sessions }) {
       if (attached) {
         attached.clients.delete(ws);
         recalcPtySize(attached);
-        console.log('[termbeam] Client detached');
+        log.info('Client detached');
       }
     });
   });

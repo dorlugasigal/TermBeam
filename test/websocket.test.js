@@ -67,8 +67,10 @@ function createMockWs() {
     send(data) {
       sent.push(JSON.parse(data));
     },
-    close() {
+    close(code, reason) {
       this._closed = true;
+      this._closeCode = code;
+      this._closeReason = reason;
     },
     on(event, cb) {
       if (event === 'message') this._onMessage = cb;
@@ -105,6 +107,43 @@ describe('WebSocket', () => {
     auth = createMockAuth();
     sessions = createMockSessions();
     setupWebSocket(wss, { auth, sessions });
+  });
+
+  describe('origin validation', () => {
+    it('should allow connections with no Origin header', () => {
+      const session = createMockSession('s1');
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws, { headers: { host: 'example.com:3000' } });
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      const attached = ws._sent.find((m) => m.type === 'attached');
+      assert.ok(attached);
+      assert.ok(!ws._closed);
+    });
+
+    it('should allow connections with matching Origin', () => {
+      const session = createMockSession('s1');
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws, { headers: { host: 'example.com:3000', origin: 'https://example.com' } });
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      const attached = ws._sent.find((m) => m.type === 'attached');
+      assert.ok(attached);
+      assert.ok(!ws._closed);
+    });
+
+    it('should reject connections with mismatched Origin', () => {
+      const ws = createMockWs();
+      wss._simulateConnection(ws, { headers: { host: 'example.com:3000', origin: 'https://evil.com' } });
+
+      assert.ok(ws._closed);
+      assert.strictEqual(ws._closeCode, 1008);
+      assert.strictEqual(ws._closeReason, 'Origin not allowed');
+    });
   });
 
   describe('no password', () => {

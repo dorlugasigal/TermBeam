@@ -65,7 +65,7 @@ describe('SessionManager', () => {
     const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });
     assert.ok(id);
     assert.strictEqual(typeof id, 'string');
-    assert.strictEqual(id.length, 8);
+    assert.strictEqual(id.length, 32);
   });
 
   it('should list created sessions', () => {

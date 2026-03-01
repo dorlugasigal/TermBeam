@@ -4,8 +4,10 @@ const fs = require('fs');
 const crypto = require('crypto');
 const express = require('express');
 const { detectShells } = require('./shells');
+const log = require('./logger');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const uploadedFiles = [];
 
 function setupRoutes(app, { auth, sessions, config }) {
   // Serve static files (manifest.json, sw.js, icons, etc.)
@@ -28,10 +30,10 @@ function setupRoutes(app, { auth, sessions, config }) {
         maxAge: 24 * 60 * 60 * 1000,
         secure: false,
       });
-      console.log(`[termbeam] Auth: login success from ${req.ip}`);
+      log.info(`Auth: login success from ${req.ip}`);
       res.json({ ok: true });
     } else {
-      console.warn(`[termbeam] Auth: login failed from ${req.ip}`);
+      log.warn(`Auth: login failed from ${req.ip}`);
       res.status(401).json({ error: 'wrong password' });
     }
   });
@@ -55,6 +57,30 @@ function setupRoutes(app, { auth, sessions, config }) {
 
   app.post('/api/sessions', auth.middleware, (req, res) => {
     const { name, shell, args: shellArgs, cwd, initialCommand, color } = req.body || {};
+
+    // Validate shell field
+    if (shell) {
+      const availableShells = detectShells();
+      const isValid = availableShells.some(s => s.path === shell || s.cmd === shell);
+      if (!isValid) {
+        return res.status(400).json({ error: 'Invalid shell' });
+      }
+    }
+
+    // Validate cwd field
+    if (cwd) {
+      if (!path.isAbsolute(cwd)) {
+        return res.status(400).json({ error: 'cwd must be an absolute path' });
+      }
+      try {
+        if (!fs.statSync(cwd).isDirectory()) {
+          return res.status(400).json({ error: 'cwd is not a directory' });
+        }
+      } catch {
+        return res.status(400).json({ error: 'cwd does not exist' });
+      }
+    }
+
     const id = sessions.create({
       name: name || `Session ${sessions.sessions.size + 1}`,
       shell: shell || config.defaultShell,
@@ -96,7 +122,7 @@ function setupRoutes(app, { auth, sessions, config }) {
   app.post('/api/upload', auth.middleware, (req, res) => {
     const contentType = req.headers['content-type'] || '';
     if (!contentType.startsWith('image/')) {
-      console.warn(`[termbeam] Upload rejected: invalid content-type "${contentType}"`);
+      log.warn(`Upload rejected: invalid content-type "${contentType}"`);
       return res.status(400).json({ error: 'Invalid content type' });
     }
 
@@ -110,7 +136,7 @@ function setupRoutes(app, { auth, sessions, config }) {
       size += chunk.length;
       if (size > limit) {
         aborted = true;
-        console.warn(`[termbeam] Upload rejected: file too large (${size} bytes)`);
+        log.warn(`Upload rejected: file too large (${size} bytes)`);
         res.status(413).json({ error: 'File too large' });
         req.resume(); // drain remaining data
         return;
@@ -134,12 +160,13 @@ function setupRoutes(app, { auth, sessions, config }) {
       const filename = `termbeam-${crypto.randomUUID()}${ext}`;
       const filepath = path.join(os.tmpdir(), filename);
       fs.writeFileSync(filepath, buffer);
-      console.log(`[termbeam] Upload: ${filename} (${buffer.length} bytes)`);
+      uploadedFiles.push(filepath);
+      log.info(`Upload: ${filename} (${buffer.length} bytes)`);
       res.json({ path: filepath });
     });
 
     req.on('error', (err) => {
-      console.error(`[termbeam] Upload error: ${err.message}`);
+      log.error(`Upload error: ${err.message}`);
       res.status(500).json({ error: 'Upload failed' });
     });
   });
@@ -165,4 +192,17 @@ function setupRoutes(app, { auth, sessions, config }) {
   });
 }
 
-module.exports = { setupRoutes };
+function cleanupUploadedFiles() {
+  for (const filepath of uploadedFiles) {
+    try {
+      if (fs.existsSync(filepath)) {
+        fs.unlinkSync(filepath);
+      }
+    } catch (err) {
+      log.error(`Failed to cleanup ${filepath}: ${err.message}`);
+    }
+  }
+  uploadedFiles.length = 0;
+}
+
+module.exports = { setupRoutes, cleanupUploadedFiles };

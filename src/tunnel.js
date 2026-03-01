@@ -2,6 +2,7 @@ const { execSync, execFileSync, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const log = require('./logger');
 
 const TUNNEL_CONFIG_DIR = path.join(os.homedir(), '.termbeam');
 const TUNNEL_CONFIG_PATH = path.join(TUNNEL_CONFIG_DIR, 'tunnel.json');
@@ -55,7 +56,7 @@ function deletePersisted() {
     try {
       if (SAFE_ID_RE.test(persisted.tunnelId)) {
         execFileSync(devtunnelCmd, ['delete', persisted.tunnelId, '-f'], { stdio: 'pipe' });
-        console.log(`[termbeam] Deleted persisted tunnel ${persisted.tunnelId}`);
+        log.info(`Deleted persisted tunnel ${persisted.tunnelId}`);
       }
     } catch {}
     try {
@@ -80,24 +81,24 @@ async function startTunnel(port, options = {}) {
   // Check if devtunnel CLI is installed
   const found = findDevtunnel();
   if (!found) {
-    console.error('[termbeam] ❌ devtunnel CLI is not installed.');
-    console.error('');
-    console.error('  The --tunnel flag requires the Azure Dev Tunnels CLI.');
-    console.error('');
-    console.error('  Install it:');
-    console.error('    Windows:  winget install Microsoft.devtunnel');
-    console.error('             or: Invoke-WebRequest -Uri https://aka.ms/TunnelsCliDownload/win-x64 -OutFile devtunnel.exe');
-    console.error('    macOS:    brew install --cask devtunnel');
-    console.error('    Linux:    curl -sL https://aka.ms/DevTunnelCliInstall | bash');
-    console.error('');
-    console.error('  Then restart your terminal and try again.');
-    console.error('  Docs: https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started');
-    console.error('');
+    log.error('❌ devtunnel CLI is not installed.');
+    log.error('');
+    log.error('  The --tunnel flag requires the Azure Dev Tunnels CLI.');
+    log.error('');
+    log.error('  Install it:');
+    log.error('    Windows:  winget install Microsoft.devtunnel');
+    log.error('             or: Invoke-WebRequest -Uri https://aka.ms/TunnelsCliDownload/win-x64 -OutFile devtunnel.exe');
+    log.error('    macOS:    brew install --cask devtunnel');
+    log.error('    Linux:    curl -sL https://aka.ms/DevTunnelCliInstall | bash');
+    log.error('');
+    log.error('  Then restart your terminal and try again.');
+    log.error('  Docs: https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started');
+    log.error('');
     return null;
   }
   devtunnelCmd = found;
 
-  console.log('[termbeam] Starting devtunnel...');
+  log.info('Starting devtunnel...');
   try {
     // Ensure user is logged in
     let loggedIn = false;
@@ -108,8 +109,8 @@ async function startTunnel(port, options = {}) {
     } catch {}
 
     if (!loggedIn) {
-      console.log('[termbeam] devtunnel not logged in, launching login...');
-      console.log('[termbeam] A browser window will open for authentication.');
+      log.info('devtunnel not logged in, launching login...');
+      log.info('A browser window will open for authentication.');
       execFileSync(devtunnelCmd, ['user', 'login'], { stdio: 'inherit' });
     }
 
@@ -124,16 +125,16 @@ async function startTunnel(port, options = {}) {
       const saved = loadPersistedTunnel();
       if (saved && isTunnelValid(saved.tunnelId)) {
         tunnelId = saved.tunnelId;
-        console.log(`[termbeam] Reusing persisted tunnel ${tunnelId}`);
+        log.info(`Reusing persisted tunnel ${tunnelId}`);
       } else {
         if (saved) {
-          console.log('[termbeam] Persisted tunnel expired, creating new one');
+          log.info('Persisted tunnel expired, creating new one');
         }
         const createOut = execFileSync(devtunnelCmd, ['create', '--expiration', '30d', '--json'], { encoding: 'utf-8' });
         const tunnelData = JSON.parse(createOut);
         tunnelId = tunnelData.tunnel.tunnelId;
         savePersistedTunnel(tunnelId);
-        console.log(`[termbeam] Created new persisted tunnel ${tunnelId}`);
+        log.info(`Created new persisted tunnel ${tunnelId}`);
       }
     } else {
       tunnelMode = 'ephemeral';
@@ -142,7 +143,7 @@ async function startTunnel(port, options = {}) {
       const createOut = execFileSync(devtunnelCmd, ['create', '--expiration', '1d', '--json'], { encoding: 'utf-8' });
       const tunnelData = JSON.parse(createOut);
       tunnelId = tunnelData.tunnel.tunnelId;
-      console.log(`[termbeam] Created ephemeral tunnel ${tunnelId}`);
+      log.info(`Created ephemeral tunnel ${tunnelId}`);
     }
 
     // Idempotent port and access setup
@@ -174,13 +175,13 @@ async function startTunnel(port, options = {}) {
         output += data.toString();
       });
       hostProc.on('error', (err) => {
-        console.error(`[termbeam] Tunnel process error: ${err.message}`);
+        log.error(`Tunnel process error: ${err.message}`);
         clearTimeout(timeout);
         resolve(null);
       });
     });
   } catch (e) {
-    console.error(`[termbeam] Tunnel error: ${e.message}`);
+    log.error(`Tunnel error: ${e.message}`);
     return null;
   }
 }
@@ -205,11 +206,11 @@ function cleanupTunnel() {
   if (id) {
     tunnelId = null;
     if (isPersisted) {
-      console.log('[termbeam] Tunnel host stopped (tunnel preserved for reuse)');
+      log.info('Tunnel host stopped (tunnel preserved for reuse)');
     } else {
       try {
         execFileSync(devtunnelCmd, ['delete', id, '-f'], { stdio: 'pipe', timeout: 10000 });
-        console.log('[termbeam] Tunnel cleaned up');
+        log.info('Tunnel cleaned up');
       } catch {
         /* best effort — tunnel will expire on its own */
       }
