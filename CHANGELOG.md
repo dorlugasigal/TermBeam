@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.5] - 2026-03-01
+
+- fix: use require.resolve to find hoisted node-pty in postinstall
+
 ## [1.0.4] - 2026-03-01
 
 - fix: add postinstall to fix node-pty spawn-helper permissions
