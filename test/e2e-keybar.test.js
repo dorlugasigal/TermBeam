@@ -44,7 +44,27 @@ test.afterEach(async ({ page }) => {
   const unexpected = consoleErrors.filter(
     (e) => !e.includes('net::ERR_') && !e.includes('WebSocket'),
   );
-  await inst?.shutdown();
+
+  if (inst) {
+    // On Windows, node-pty's conpty kill() tries to AttachConsole to enumerate
+    // child processes — this fails in headless CI, producing stderr noise and
+    // leaving child processes behind. We kill the entire process tree ourselves
+    // using taskkill /T before shutdown to ensure clean teardown.
+    if (isWindows) {
+      for (const [, session] of inst.sessions.sessions) {
+        try {
+          const pid = session.pty.pid;
+          require('child_process').execSync(`taskkill /pid ${pid} /T /F`, {
+            stdio: 'ignore',
+          });
+        } catch {
+          // Process may already be gone
+        }
+      }
+    }
+    await inst.shutdown();
+  }
+
   if (unexpected.length > 0) {
     throw new Error(`Unexpected browser console errors:\n${unexpected.join('\n')}`);
   }
