@@ -2,10 +2,22 @@ const { describe, it, beforeEach, afterEach, mock } = require('node:test');
 const assert = require('node:assert');
 const os = require('os');
 const fs = require('fs');
+const child_process = require('child_process');
 
 describe('Shell Detection', () => {
   beforeEach(() => {
     delete require.cache[require.resolve('../src/shells')];
+    if (os.platform() === 'win32') {
+      // Mock execFileSync to avoid flaky `where` calls on Windows CI (Node 22)
+      const found = {
+        'cmd.exe': 'C:\\Windows\\System32\\cmd.exe',
+        'powershell.exe': 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
+      };
+      mock.method(child_process, 'execFileSync', (cmd, args) => {
+        if (cmd === 'where' && found[args[0]]) return found[args[0]] + '\n';
+        throw new Error('not found');
+      });
+    }
   });
 
   afterEach(() => {
@@ -60,9 +72,7 @@ describe('Shell Detection', () => {
     it('should detect powershell on Windows', () => {
       const { detectShells } = require('../src/shells');
       const shells = detectShells();
-      const ps = shells.find(
-        (s) => s.cmd === 'powershell.exe' || s.cmd === 'pwsh.exe',
-      );
+      const ps = shells.find((s) => s.cmd === 'powershell.exe' || s.cmd === 'pwsh.exe');
       assert.ok(ps, 'PowerShell should be detected on Windows');
     });
   } else {
@@ -126,7 +136,9 @@ describe('detectUnixShells (mocked)', () => {
   });
 
   it('should fallback to common paths when /etc/shells is unavailable', () => {
-    mock.method(fs, 'readFileSync', () => { throw new Error('ENOENT'); });
+    mock.method(fs, 'readFileSync', () => {
+      throw new Error('ENOENT');
+    });
     const accessiblePaths = new Set(['/bin/bash', '/bin/sh']);
     mock.method(fs, 'accessSync', (p) => {
       if (!accessiblePaths.has(p)) throw new Error('ENOENT');
@@ -138,8 +150,12 @@ describe('detectUnixShells (mocked)', () => {
   });
 
   it('should return empty array when no shells are found in fallback', () => {
-    mock.method(fs, 'readFileSync', () => { throw new Error('ENOENT'); });
-    mock.method(fs, 'accessSync', () => { throw new Error('ENOENT'); });
+    mock.method(fs, 'readFileSync', () => {
+      throw new Error('ENOENT');
+    });
+    mock.method(fs, 'accessSync', () => {
+      throw new Error('ENOENT');
+    });
     const shells = detectUnixShells();
     assert.strictEqual(shells.length, 0);
   });

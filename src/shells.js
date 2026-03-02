@@ -1,6 +1,6 @@
 const os = require('os');
 const fs = require('fs');
-const { execFileSync } = require('child_process');
+const child_process = require('child_process');
 
 const KNOWN_WINDOWS_SHELLS = [
   { name: 'PowerShell (Core)', cmd: 'pwsh.exe' },
@@ -21,7 +21,7 @@ function detectWindowsShells() {
   const shells = [];
   for (const { name, cmd } of KNOWN_WINDOWS_SHELLS) {
     try {
-      const result = execFileSync('where', [cmd], {
+      const result = child_process.execFileSync('where', [cmd], {
         stdio: ['pipe', 'pipe', 'ignore'],
         encoding: 'utf8',
         timeout: 3000,
