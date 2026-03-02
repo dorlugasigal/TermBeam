@@ -174,6 +174,8 @@ function createTermBeamServer(overrides = {}) {
         const gn = '\x1b[38;5;114m'; // green
         const dm = '\x1b[2m'; // dim
 
+        const bl = '\x1b[38;5;75m'; // light blue
+
         let publicUrl = null;
         if (config.useTunnel) {
           const tunnel = await startTunnel(config.port, {
@@ -199,7 +201,6 @@ function createTermBeamServer(overrides = {}) {
         console.log('');
 
         if (publicUrl) {
-          const bl = '\x1b[34m'; // blue
           console.log(`  Public:   ${bl}${publicUrl}${rs}`);
         }
         console.log(`  Local:    http://localhost:${config.port}`);
@@ -211,8 +212,6 @@ function createTermBeamServer(overrides = {}) {
         const qrDisplayUrl = qrUrl; // clean URL shown in console text
         const qrCodeUrl = config.password ? `${qrUrl}?ott=${auth.generateShareToken()}` : qrUrl;
         console.log('');
-        console.log(`  ${dm}📋 Clipboard requires HTTPS — use the Public or localhost URL${rs}`);
-        console.log('');
         try {
           const qr = await QRCode.toString(qrCodeUrl, { type: 'terminal', small: true });
           console.log(qr);
@@ -220,7 +219,7 @@ function createTermBeamServer(overrides = {}) {
           /* ignore */
         }
 
-        console.log(`  Scan the QR code or open: ${qrDisplayUrl}`);
+        console.log(`  Scan the QR code or open: ${bl}${qrDisplayUrl}${rs}`);
         if (config.password) console.log(`  Password: ${gn}${config.password}${rs}`);
         console.log('');
 
