@@ -129,7 +129,22 @@ function createAuth(password) {
     if (!password) return next();
     if (req.cookies.pty_token && validateToken(req.cookies.pty_token)) return next();
     const authHeader = req.headers.authorization;
-    if (authHeader === `Bearer ${password}`) return next();
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const ip = req.ip || req.socket.remoteAddress;
+      const now = Date.now();
+      const window = 60 * 1000;
+      const maxAttempts = 5;
+      const attempts = authAttempts.get(ip) || [];
+      const recent = attempts.filter((t) => now - t < window);
+      if (recent.length >= maxAttempts) {
+        log.warn(`Auth: rate limit exceeded for ${ip}`);
+        return res.status(429).json({ error: 'Too many attempts. Try again later.' });
+      }
+      if (authHeader === `Bearer ${password}`) return next();
+      recent.push(now);
+      authAttempts.set(ip, recent);
+      return res.status(401).json({ error: 'unauthorized' });
+    }
     if (req.accepts('html')) return res.redirect('/login');
     res.status(401).json({ error: 'unauthorized' });
   }
