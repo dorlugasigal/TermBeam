@@ -76,7 +76,8 @@ describe('Routes', () => {
       assert.ok(body.id, 'Response should contain an id');
       assert.ok(body.url, 'Response should contain a url');
       assert.strictEqual(body.url, `/uploads/${body.id}`);
-      assert.strictEqual(body.path, undefined, 'Response must not contain absolute path');
+      assert.ok(body.path, 'Response should contain a filesystem path');
+      assert.ok(body.path.endsWith('.png'), 'Path should have correct extension');
     });
 
     it('GET /uploads/:id should serve uploaded file', async () => {

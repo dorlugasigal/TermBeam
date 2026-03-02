@@ -3203,23 +3203,7 @@
         }
 
         async function handlePaste() {
-          // Try clipboard API for text first (most common), then images, then fallback to modal
-          if (navigator.clipboard && navigator.clipboard.readText) {
-            try {
-              const text = await navigator.clipboard.readText();
-              if (text) {
-                const ms = managed.get(activeId);
-                if (ms && ms.ws && ms.ws.readyState === 1) {
-                  ms.ws.send(JSON.stringify({ type: 'input', data: text }));
-                  showToast('Pasted!');
-                }
-                return;
-              }
-            } catch (err) {
-              console.warn('clipboard.readText failed:', err.message);
-            }
-          }
-          // Image paste: try clipboard.read() only if readText didn't work
+          // Try image first via clipboard.read()
           if (navigator.clipboard && navigator.clipboard.read) {
             try {
               const items = await navigator.clipboard.read();
@@ -3237,14 +3221,31 @@
                   const data = await res.json();
                   const ms = managed.get(activeId);
                   if (ms && ms.ws && ms.ws.readyState === 1) {
-                    ms.ws.send(JSON.stringify({ type: 'input', data: data.url + ' ' }));
-                    showToast('Image pasted: ' + data.id);
+                    ms.ws.send(
+                      JSON.stringify({ type: 'input', data: (data.path || data.url) + ' ' }),
+                    );
                   }
                   return;
                 }
               }
             } catch (err) {
               console.warn('clipboard.read failed:', err.message);
+            }
+          }
+          // Text paste
+          if (navigator.clipboard && navigator.clipboard.readText) {
+            try {
+              const text = await navigator.clipboard.readText();
+              if (text) {
+                const ms = managed.get(activeId);
+                if (ms && ms.ws && ms.ws.readyState === 1) {
+                  ms.ws.send(JSON.stringify({ type: 'input', data: text }));
+                  showToast('Pasted!');
+                }
+                return;
+              }
+            } catch (err) {
+              console.warn('clipboard.readText failed:', err.message);
             }
           }
           openPasteModal();
@@ -3392,36 +3393,44 @@
 
       // ===== Image Paste =====
       function setupImagePaste() {
-        document.addEventListener('paste', async (e) => {
-          const items = e.clipboardData && e.clipboardData.items;
-          if (!items) return;
+        // Use capture phase so we intercept before xterm.js pastes a file path as text
+        document.addEventListener(
+          'paste',
+          async (e) => {
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
 
-          for (const item of items) {
-            if (item.type.startsWith('image/')) {
-              e.preventDefault();
-              const blob = item.getAsFile();
-              if (!blob) return;
+            for (const item of items) {
+              if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                e.stopPropagation();
+                const blob = item.getAsFile();
+                if (!blob) return;
 
-              try {
-                const res = await fetch('/api/upload', {
-                  method: 'POST',
-                  headers: { 'Content-Type': item.type },
-                  body: blob,
-                });
-                if (!res.ok) throw new Error('Upload failed');
-                const data = await res.json();
-                const ms = managed.get(activeId);
-                if (ms && ms.ws && ms.ws.readyState === 1) {
-                  ms.ws.send(JSON.stringify({ type: 'input', data: data.url + ' ' }));
-                  showToast('Image pasted: ' + data.id);
+                try {
+                  const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': item.type },
+                    body: blob,
+                    credentials: 'same-origin',
+                  });
+                  if (!res.ok) throw new Error('Upload failed');
+                  const data = await res.json();
+                  const ms = managed.get(activeId);
+                  if (ms && ms.ws && ms.ws.readyState === 1) {
+                    ms.ws.send(
+                      JSON.stringify({ type: 'input', data: (data.path || data.url) + ' ' }),
+                    );
+                  }
+                } catch (err) {
+                  showToast('Image paste failed');
                 }
-              } catch (err) {
-                showToast('Image paste failed');
+                return;
               }
-              return;
             }
-          }
-        });
+          },
+          true,
+        );
       }
 
       // ===== New Session Modal =====

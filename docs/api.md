@@ -276,7 +276,7 @@ Upload an image file. The request body is the raw image data with the appropriat
 **Response (200):**
 
 ```json
-{ "path": "/tmp/termbeam-uuid.png" }
+{ "id": "uuid", "url": "/uploads/uuid", "path": "/tmp/termbeam-uuid.png" }
 ```
 
 **Response (400):**

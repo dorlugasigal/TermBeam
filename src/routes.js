@@ -218,7 +218,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       fs.writeFileSync(filepath, buffer);
       uploadedFiles.set(id, filepath);
       log.info(`Upload: ${filename} (${buffer.length} bytes)`);
-      res.json({ id, url: `/uploads/${id}` });
+      res.json({ id, url: `/uploads/${id}`, path: filepath });
     });
 
     req.on('error', (err) => {
