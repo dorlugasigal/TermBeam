@@ -3237,8 +3237,8 @@
                   const data = await res.json();
                   const ms = managed.get(activeId);
                   if (ms && ms.ws && ms.ws.readyState === 1) {
-                    ms.ws.send(JSON.stringify({ type: 'input', data: data.path + ' ' }));
-                    showToast('Image pasted: ' + data.path.split(/[/\\]/).pop());
+                    ms.ws.send(JSON.stringify({ type: 'input', data: data.url + ' ' }));
+                    showToast('Image pasted: ' + data.id);
                   }
                   return;
                 }
@@ -3412,8 +3412,8 @@
                 const data = await res.json();
                 const ms = managed.get(activeId);
                 if (ms && ms.ws && ms.ws.readyState === 1) {
-                  ms.ws.send(JSON.stringify({ type: 'input', data: data.path + ' ' }));
-                  showToast('Image pasted: ' + data.path.split(/[/\\]/).pop());
+                  ms.ws.send(JSON.stringify({ type: 'input', data: data.url + ' ' }));
+                  showToast('Image pasted: ' + data.id);
                 }
               } catch (err) {
                 showToast('Image paste failed');

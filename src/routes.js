@@ -7,7 +7,7 @@ const { detectShells } = require('./shells');
 const log = require('./logger');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
-const uploadedFiles = [];
+const uploadedFiles = new Map(); // id -> filepath
 
 function setupRoutes(app, { auth, sessions, config, state }) {
   // Serve static files (manifest.json, sw.js, icons, etc.)
@@ -212,18 +212,30 @@ function setupRoutes(app, { auth, sessions, config, state }) {
           'image/webp': '.webp',
           'image/bmp': '.bmp',
         }[contentType] || '.png';
-      const filename = `termbeam-${crypto.randomUUID()}${ext}`;
+      const id = crypto.randomUUID();
+      const filename = `termbeam-${id}${ext}`;
       const filepath = path.join(os.tmpdir(), filename);
       fs.writeFileSync(filepath, buffer);
-      uploadedFiles.push(filepath);
+      uploadedFiles.set(id, filepath);
       log.info(`Upload: ${filename} (${buffer.length} bytes)`);
-      res.json({ path: filepath });
+      res.json({ id, url: `/uploads/${id}` });
     });
 
     req.on('error', (err) => {
       log.error(`Upload error: ${err.message}`);
       res.status(500).json({ error: 'Upload failed' });
     });
+  });
+
+  // Serve uploaded files by opaque ID
+  app.get('/uploads/:id', auth.middleware, (req, res) => {
+    const filepath = uploadedFiles.get(req.params.id);
+    if (!filepath) return res.status(404).json({ error: 'not found' });
+    if (!fs.existsSync(filepath)) {
+      uploadedFiles.delete(req.params.id);
+      return res.status(404).json({ error: 'not found' });
+    }
+    res.sendFile(filepath);
   });
 
   // Directory listing for folder browser
@@ -248,7 +260,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
 }
 
 function cleanupUploadedFiles() {
-  for (const filepath of uploadedFiles) {
+  for (const [id, filepath] of uploadedFiles) {
     try {
       if (fs.existsSync(filepath)) {
         fs.unlinkSync(filepath);
@@ -257,7 +269,7 @@ function cleanupUploadedFiles() {
       log.error(`Failed to cleanup ${filepath}: ${err.message}`);
     }
   }
-  uploadedFiles.length = 0;
+  uploadedFiles.clear();
 }
 
 module.exports = { setupRoutes, cleanupUploadedFiles };

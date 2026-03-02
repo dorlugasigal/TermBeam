@@ -58,7 +58,7 @@ describe('Routes', () => {
     let inst;
     after(() => inst?.shutdown());
 
-    it('should accept valid image upload and return path', async () => {
+    it('should accept valid image upload and return opaque id', async () => {
       inst = await startServer();
       const imageData = Buffer.from('fakepngdata');
       const res = await httpRequest(
@@ -73,8 +73,47 @@ describe('Routes', () => {
       );
       assert.strictEqual(res.statusCode, 200);
       const body = JSON.parse(res.data);
-      assert.ok(body.path, 'Response should contain a path');
-      assert.ok(body.path.includes('termbeam-'), 'Path should contain termbeam prefix');
+      assert.ok(body.id, 'Response should contain an id');
+      assert.ok(body.url, 'Response should contain a url');
+      assert.strictEqual(body.url, `/uploads/${body.id}`);
+      assert.strictEqual(body.path, undefined, 'Response must not contain absolute path');
+    });
+
+    it('GET /uploads/:id should serve uploaded file', async () => {
+      if (!inst) inst = await startServer();
+      const imageData = Buffer.from('fakepngdata');
+      const uploadRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/upload',
+          method: 'POST',
+          headers: { 'Content-Type': 'image/png', 'Content-Length': imageData.length },
+        },
+        imageData,
+      );
+      const body = JSON.parse(uploadRes.data);
+      const getRes = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: body.url,
+        method: 'GET',
+      });
+      assert.strictEqual(getRes.statusCode, 200);
+      assert.strictEqual(getRes.data, imageData.toString());
+    });
+
+    it('GET /uploads/:id should return 404 for unknown id', async () => {
+      if (!inst) inst = await startServer();
+      const getRes = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/uploads/nonexistent-id',
+        method: 'GET',
+      });
+      assert.strictEqual(getRes.statusCode, 404);
+      const body = JSON.parse(getRes.data);
+      assert.strictEqual(body.error, 'not found');
     });
 
     it('should reject non-image content-type with 400', async () => {
