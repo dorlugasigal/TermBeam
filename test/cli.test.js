@@ -310,6 +310,63 @@ describe('CLI', () => {
     }
   });
 
+  it('--public --no-password should exit with error', () => {
+    process.argv = ['node', 'termbeam', '--public', '--no-password'];
+    const exitCalls = [];
+    const errorMessages = [];
+    const origExit = process.exit;
+    const origError = console.error;
+    process.exit = (code) => exitCalls.push(code);
+    console.error = (msg) => errorMessages.push(msg);
+    try {
+      const { parseArgs } = require('../src/cli');
+      parseArgs();
+      assert.ok(exitCalls.includes(1), 'Should call process.exit(1)');
+      assert.ok(
+        errorMessages.some((m) => m.includes('Public tunnels require password')),
+        'Should mention public tunnels require password',
+      );
+    } finally {
+      process.exit = origExit;
+      console.error = origError;
+    }
+  });
+
+  it('--public with password should work without error', () => {
+    process.argv = ['node', 'termbeam', '--public', '--password', 'secret'];
+    const exitCalls = [];
+    const origExit = process.exit;
+    process.exit = (code) => exitCalls.push(code);
+    try {
+      const { parseArgs } = require('../src/cli');
+      const config = parseArgs();
+      assert.strictEqual(config.publicTunnel, true);
+      assert.strictEqual(config.password, 'secret');
+      assert.ok(!exitCalls.includes(1), 'Should not exit with error when password is provided');
+    } finally {
+      process.exit = origExit;
+    }
+  });
+
+  it('--public with auto-generated password should work without error', () => {
+    process.argv = ['node', 'termbeam', '--public'];
+    const exitCalls = [];
+    const origExit = process.exit;
+    process.exit = (code) => exitCalls.push(code);
+    try {
+      const { parseArgs } = require('../src/cli');
+      const config = parseArgs();
+      assert.strictEqual(config.publicTunnel, true);
+      assert.ok(config.password, 'Should have auto-generated password');
+      assert.ok(
+        !exitCalls.includes(1),
+        'Should not exit with error when password is auto-generated',
+      );
+    } finally {
+      process.exit = origExit;
+    }
+  });
+
   describe('isKnownShell', () => {
     it('should recognize common shells', () => {
       const { isKnownShell } = require('../src/cli');
