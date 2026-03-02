@@ -9,6 +9,30 @@ const log = require('./logger');
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const uploadedFiles = [];
 
+const IMAGE_SIGNATURES = [
+  { type: 'image/png', bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
+  { type: 'image/jpeg', bytes: [0xff, 0xd8, 0xff] },
+  { type: 'image/gif', bytes: [0x47, 0x49, 0x46, 0x38] },
+  { type: 'image/webp', offset: 8, bytes: [0x57, 0x45, 0x42, 0x50] },
+  { type: 'image/bmp', bytes: [0x42, 0x4d] },
+];
+
+function validateMagicBytes(buffer, contentType) {
+  const sig = IMAGE_SIGNATURES.find((s) => s.type === contentType);
+  if (!sig) return true; // unknown type, skip validation
+  const offset = sig.offset || 0;
+  if (buffer.length < offset + sig.bytes.length) return false;
+  const match = sig.bytes.every((b, i) => buffer[offset + i] === b);
+  if (!match) return false;
+  // WebP requires RIFF header at offset 0
+  if (contentType === 'image/webp') {
+    const riff = [0x52, 0x49, 0x46, 0x46];
+    if (buffer.length < 4) return false;
+    return riff.every((b, i) => buffer[i] === b);
+  }
+  return true;
+}
+
 function setupRoutes(app, { auth, sessions, config, state }) {
   // Serve static files (manifest.json, sw.js, icons, etc.)
   app.use(express.static(PUBLIC_DIR, { index: false }));
@@ -203,6 +227,10 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       const buffer = Buffer.concat(chunks);
       if (!buffer.length) {
         return res.status(400).json({ error: 'No image data' });
+      }
+      if (!validateMagicBytes(buffer, contentType)) {
+        log.warn(`Upload rejected: content-type "${contentType}" does not match file signature`);
+        return res.status(400).json({ error: 'File content does not match declared image type' });
       }
       const ext =
         {

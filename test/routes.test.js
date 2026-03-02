@@ -60,7 +60,7 @@ describe('Routes', () => {
 
     it('should accept valid image upload and return path', async () => {
       inst = await startServer();
-      const imageData = Buffer.from('fakepngdata');
+      const imageData = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
       const res = await httpRequest(
         {
           hostname: '127.0.0.1',
@@ -106,6 +106,137 @@ describe('Routes', () => {
       assert.strictEqual(res.statusCode, 400);
       const body = JSON.parse(res.data);
       assert.strictEqual(body.error, 'No image data');
+    });
+
+    it('should accept valid JPEG magic bytes', async () => {
+      if (!inst) inst = await startServer();
+      const imageData = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/upload',
+          method: 'POST',
+          headers: { 'Content-Type': 'image/jpeg', 'Content-Length': imageData.length },
+        },
+        imageData,
+      );
+      assert.strictEqual(res.statusCode, 200);
+      const body = JSON.parse(res.data);
+      assert.ok(body.path, 'Response should contain a path');
+    });
+
+    it('should accept valid GIF magic bytes', async () => {
+      if (!inst) inst = await startServer();
+      // GIF89a header
+      const imageData = Buffer.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00]);
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/upload',
+          method: 'POST',
+          headers: { 'Content-Type': 'image/gif', 'Content-Length': imageData.length },
+        },
+        imageData,
+      );
+      assert.strictEqual(res.statusCode, 200);
+    });
+
+    it('should accept valid WebP magic bytes', async () => {
+      if (!inst) inst = await startServer();
+      // RIFF....WEBP header
+      const imageData = Buffer.from([
+        0x52, 0x49, 0x46, 0x46, // RIFF
+        0x24, 0x00, 0x00, 0x00, // file size
+        0x57, 0x45, 0x42, 0x50, // WEBP
+        0x00, 0x00, 0x00, 0x00,
+      ]);
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/upload',
+          method: 'POST',
+          headers: { 'Content-Type': 'image/webp', 'Content-Length': imageData.length },
+        },
+        imageData,
+      );
+      assert.strictEqual(res.statusCode, 200);
+    });
+
+    it('should accept valid BMP magic bytes', async () => {
+      if (!inst) inst = await startServer();
+      // BM header
+      const imageData = Buffer.from([0x42, 0x4d, 0x36, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/upload',
+          method: 'POST',
+          headers: { 'Content-Type': 'image/bmp', 'Content-Length': imageData.length },
+        },
+        imageData,
+      );
+      assert.strictEqual(res.statusCode, 200);
+    });
+
+    it('should reject WebP data missing RIFF header', async () => {
+      if (!inst) inst = await startServer();
+      // Has WEBP at offset 8 but no RIFF at offset 0
+      const imageData = Buffer.from([
+        0x00, 0x00, 0x00, 0x00, // NOT RIFF
+        0x24, 0x00, 0x00, 0x00,
+        0x57, 0x45, 0x42, 0x50, // WEBP
+      ]);
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/upload',
+          method: 'POST',
+          headers: { 'Content-Type': 'image/webp', 'Content-Length': imageData.length },
+        },
+        imageData,
+      );
+      assert.strictEqual(res.statusCode, 400);
+    });
+
+    it('should reject fake data with image/png content-type', async () => {
+      if (!inst) inst = await startServer();
+      const imageData = Buffer.from('this is not a png');
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/upload',
+          method: 'POST',
+          headers: { 'Content-Type': 'image/png', 'Content-Length': imageData.length },
+        },
+        imageData,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const body = JSON.parse(res.data);
+      assert.strictEqual(body.error, 'File content does not match declared image type');
+    });
+
+    it('should reject JPEG data with image/png content-type', async () => {
+      if (!inst) inst = await startServer();
+      const imageData = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/upload',
+          method: 'POST',
+          headers: { 'Content-Type': 'image/png', 'Content-Length': imageData.length },
+        },
+        imageData,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const body = JSON.parse(res.data);
+      assert.strictEqual(body.error, 'File content does not match declared image type');
     });
   });
 
