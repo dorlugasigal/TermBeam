@@ -54,7 +54,7 @@ Out of the box, TermBeam is configured conservatively:
 - ✅ **Localhost bind** — server listens on `127.0.0.1` only
 - ✅ **Private tunnel** — tunnel requires Microsoft account login (owner-only)
 - ✅ **Ephemeral tunnel** — tunnel URL is deleted when TermBeam exits
-- ✅ **Security headers** — X-Frame-Options, CSP, no-cache, nosniff on all responses
+- ✅ **Security headers** — X-Frame-Options, CSP, no-store, nosniff on all responses
 - ✅ **Rate-limited login** — 5 attempts per minute per IP
 - ✅ **httpOnly cookies** — tokens not accessible to JavaScript
 - ✅ **WebSocket origin validation** — cross-origin connections rejected
@@ -160,4 +160,4 @@ Without authentication, anyone on the network can access your terminal with your
 
 ## Reporting Vulnerabilities
 
-If you find a security vulnerability, please email the maintainers directly rather than opening a public issue. See the repository for contact details.
+**Please do NOT open a public GitHub issue for security vulnerabilities.** Instead, report vulnerabilities privately via the [Security Advisories](https://github.com/dorlugasigal/TermBeam/security/advisories) page — click "Report a vulnerability" and provide a detailed description.

@@ -53,7 +53,7 @@ Out of the box, TermBeam is configured conservatively:
 - ✅ **Localhost bind** — server listens on `127.0.0.1` only, not reachable from the network
 - ✅ **Private tunnel** — tunnel requires Microsoft account login (owner-only access)
 - ✅ **Ephemeral tunnel** — tunnel URL is deleted when TermBeam exits
-- ✅ **Security headers** — X-Frame-Options, CSP, no-cache, nosniff on all responses
+- ✅ **Security headers** — X-Frame-Options, CSP, no-store, nosniff on all responses
 - ✅ **Rate-limited login** — 5 attempts per minute per IP
 - ✅ **httpOnly cookies** — tokens not accessible to JavaScript
 - ✅ **WebSocket origin validation** — cross-origin connections rejected
