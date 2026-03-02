@@ -230,7 +230,7 @@ function parseArgs() {
   let useTunnel = true;
   let noTunnel = false;
   let persistedTunnel = false;
-  let anonymousTunnel = false;
+  let publicTunnel = false;
   let explicitPassword = !!password;
 
   const args = process.argv.slice(2);
@@ -248,7 +248,7 @@ function parseArgs() {
       useTunnel = true;
       persistedTunnel = true;
     } else if (args[i] === '--public') {
-      anonymousTunnel = true;
+      publicTunnel = true;
     } else if (args[i].startsWith('--password=')) {
       password = args[i].split('=')[1];
       explicitPassword = true;
@@ -285,8 +285,22 @@ function parseArgs() {
   if (noTunnel) useTunnel = false;
 
   // --public requires a tunnel
-  if (anonymousTunnel && !useTunnel) {
-    console.error('Error: --public requires a tunnel. Remove --no-tunnel or remove --public.');
+  if (publicTunnel && !useTunnel) {
+    const rd = '\x1b[31m';
+    const rs = '\x1b[0m';
+    console.error(
+      `${rd}Error: --public requires a tunnel. Remove --no-tunnel or remove --public.${rs}`,
+    );
+    process.exit(1);
+  }
+
+  // --public requires password authentication
+  if (publicTunnel && !password) {
+    const rd = '\x1b[31m';
+    const rs = '\x1b[0m';
+    console.error(
+      `${rd}Error: Public tunnels require password authentication. Remove --no-password or remove --public.${rs}`,
+    );
     process.exit(1);
   }
 
@@ -302,7 +316,7 @@ function parseArgs() {
     password,
     useTunnel,
     persistedTunnel,
-    anonymousTunnel,
+    publicTunnel,
     shell,
     shellArgs,
     cwd,

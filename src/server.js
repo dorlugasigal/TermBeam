@@ -27,10 +27,10 @@ function getLocalIP() {
   return '127.0.0.1';
 }
 
-function confirmAnonymousTunnel() {
+function confirmPublicTunnel() {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise((resolve) => {
-    rl.question('  Do you want to continue with anonymous access? (y/N): ', (answer) => {
+    rl.question('  Do you want to continue with public access? (y/N): ', (answer) => {
       rl.close();
       resolve(answer.trim().toLowerCase() === 'y');
     });
@@ -110,8 +110,8 @@ function createTermBeamServer(overrides = {}) {
       }
     }
 
-    // Warn and require consent for anonymous tunnel access
-    if (config.useTunnel && config.anonymousTunnel) {
+    // Warn and require consent for public tunnel access
+    if (config.useTunnel && config.publicTunnel) {
       const rd = '\x1b[31m';
       const yl = '\x1b[33m';
       const rs = '\x1b[0m';
@@ -123,7 +123,7 @@ function createTermBeamServer(overrides = {}) {
       console.log(`  ${yl}No Microsoft login will be required to reach the tunnel.${rs}`);
       console.log(`  ${yl}Only the TermBeam password will protect your terminal.${rs}`);
       console.log('');
-      const confirmed = await confirmAnonymousTunnel();
+      const confirmed = await confirmPublicTunnel();
       if (!confirmed) {
         console.log('');
         console.log('  Aborted. Restart without --public for private access.');
@@ -178,7 +178,7 @@ function createTermBeamServer(overrides = {}) {
         if (config.useTunnel) {
           const tunnel = await startTunnel(config.port, {
             persisted: config.persistedTunnel,
-            anonymous: config.anonymousTunnel,
+            anonymous: config.publicTunnel,
           });
           if (tunnel) {
             publicUrl = tunnel.url;
