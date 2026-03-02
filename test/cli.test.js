@@ -28,7 +28,7 @@ describe('CLI', () => {
     const { parseArgs } = require('../src/cli');
     const config = parseArgs();
     assert.strictEqual(config.port, 3456);
-    assert.strictEqual(config.host, '0.0.0.0');
+    assert.strictEqual(config.host, '127.0.0.1');
     assert.ok(config.password, 'should auto-generate password by default');
     assert.ok(config.password.length > 10, 'auto-generated password should be long');
     assert.strictEqual(config.useTunnel, true);
@@ -234,6 +234,20 @@ describe('CLI', () => {
     const { parseArgs } = require('../src/cli');
     const config = parseArgs();
     assert.strictEqual(config.password, 'flagpw');
+  });
+
+  it('should parse --lan flag', () => {
+    process.argv = ['node', 'termbeam', '--lan'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.host, '0.0.0.0');
+  });
+
+  it('--host should override --lan', () => {
+    process.argv = ['node', 'termbeam', '--lan', '--host', '192.168.1.1'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.host, '192.168.1.1');
   });
 
   it('should parse --no-tunnel flag', () => {

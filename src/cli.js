@@ -20,7 +20,8 @@ Options:
   --persisted-tunnel    Create a reusable devtunnel URL (stable across restarts)
   --public              Allow public tunnel access (default: private, owner-only)
   --port <port>         Set port (default: 3456, or PORT env var)
-  --host <addr>         Bind address (default: 0.0.0.0)
+  --host <addr>         Bind address (default: 127.0.0.1)
+  --lan                 Bind to 0.0.0.0 (allow LAN access, default: localhost only)
   --log-level <level>   Set log verbosity: error, warn, info, debug (default: info)
   -h, --help            Show this help
   -v, --version         Show version
@@ -206,7 +207,7 @@ function getDefaultShell() {
 
 function parseArgs() {
   let port = parseInt(process.env.PORT || '3456', 10);
-  let host = '0.0.0.0';
+  let host = '127.0.0.1';
 
   // Resolve log level early (env + args) so shell detection logs are visible
   let logLevel = process.env.TERMBEAM_LOG_LEVEL || 'info';
@@ -267,6 +268,8 @@ function parseArgs() {
       explicitPassword = true;
     } else if (args[i] === '--port' && args[i + 1]) {
       port = parseInt(args[++i], 10);
+    } else if (args[i] === '--lan') {
+      host = '0.0.0.0';
     } else if (args[i] === '--host' && args[i + 1]) {
       host = args[++i];
     } else if (args[i] === '--log-level' && args[i + 1]) {

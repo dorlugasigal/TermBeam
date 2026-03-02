@@ -17,7 +17,8 @@ description: All TermBeam CLI flags and options — ports, passwords, tunnels, s
 | `--persisted-tunnel`  | Create a reusable devtunnel URL (stable across restarts)         | Off       |
 | `--public`            | Allow public tunnel access (no Microsoft login required)         | Off       |
 | `--port <port>`       | Server port                                                      | `3456`    |
-| `--host <addr>`       | Bind address                                                     | `0.0.0.0` |
+| `--host <addr>`       | Bind address                                                     | `127.0.0.1` |
+| `--lan`               | Bind to all interfaces (LAN access)                              | Off       |
 | `-h, --help`          | Show help                                                        | —         |
 | `-v, --version`       | Show version                                                     | —         |
 | `--log-level <level>` | Set log verbosity: `error`, `warn`, `info`, `debug`              | `info`    |
@@ -75,12 +76,17 @@ TERMBEAM_PASSWORD=mysecret termbeam
 
 ### Network Access
 
+By default, TermBeam binds to localhost only. Use `--lan` or `--host 0.0.0.0` to allow connections from other devices on your network.
+
 ```bash
-# Listen on all interfaces with auto-generated password (default behavior)
+# Localhost only (default behavior)
 termbeam
 
-# Localhost only, no tunnel
-termbeam --no-tunnel --host 127.0.0.1
+# Allow LAN access
+termbeam --lan
+
+# Allow LAN access (equivalent to --lan)
+termbeam --host 0.0.0.0
 
 # Create a public tunnel (internet access) — on by default
 termbeam
