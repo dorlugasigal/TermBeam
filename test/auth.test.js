@@ -71,7 +71,7 @@ describe('Auth', () => {
       const auth = createAuth('secret');
       let statusCode = null;
       let jsonBody = null;
-      const req = { cookies: {}, headers: {}, accepts: () => false };
+      const req = { cookies: {}, headers: {}, accepts: () => false, path: '/api/sessions' };
       const res = {
         status(code) {
           statusCode = code;
@@ -84,12 +84,54 @@ describe('Auth', () => {
       };
       auth.middleware(req, res, () => {});
       assert.strictEqual(statusCode, 401);
+      assert.deepStrictEqual(jsonBody, { error: 'unauthorized' });
     });
 
-    it('should redirect to /login when accepts html', () => {
+    it('should redirect to /login for non-API paths', () => {
       const auth = createAuth('secret');
       let redirectPath = null;
-      const req = { cookies: {}, headers: {}, accepts: () => true };
+      const req = { cookies: {}, headers: {}, accepts: () => true, path: '/terminal' };
+      const res = {
+        redirect(path) {
+          redirectPath = path;
+        },
+        status() {
+          return this;
+        },
+        json() {},
+      };
+      auth.middleware(req, res, () => {});
+      assert.strictEqual(redirectPath, '/login');
+    });
+
+    it('should return JSON 401 for /api/* routes regardless of Accept header', () => {
+      const auth = createAuth('secret');
+      let statusCode = null;
+      let jsonBody = null;
+      let redirectPath = null;
+      const req = { cookies: {}, headers: {}, accepts: () => true, path: '/api/sessions' };
+      const res = {
+        status(code) {
+          statusCode = code;
+          return this;
+        },
+        json(body) {
+          jsonBody = body;
+        },
+        redirect(path) {
+          redirectPath = path;
+        },
+      };
+      auth.middleware(req, res, () => {});
+      assert.strictEqual(statusCode, 401);
+      assert.deepStrictEqual(jsonBody, { error: 'unauthorized' });
+      assert.strictEqual(redirectPath, null);
+    });
+
+    it('should redirect non-API routes to /login', () => {
+      const auth = createAuth('secret');
+      let redirectPath = null;
+      const req = { cookies: {}, headers: {}, accepts: () => false, path: '/terminal' };
       const res = {
         redirect(path) {
           redirectPath = path;
