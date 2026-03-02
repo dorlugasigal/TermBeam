@@ -26,14 +26,28 @@ const baseConfig = {
 };
 
 let inst;
+let consoleErrors;
 
-test.beforeEach(async () => {
+test.beforeEach(async ({ page }) => {
   inst = createTermBeamServer({ config: { ...baseConfig } });
   await inst.start();
+
+  // Track browser console errors so frontend JS bugs don't go unnoticed
+  consoleErrors = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') consoleErrors.push(msg.text());
+  });
 });
 
-test.afterEach(async () => {
+test.afterEach(async ({ page }) => {
+  // Fail-loud if the frontend emitted any console.error() during the test
+  const unexpected = consoleErrors.filter(
+    (e) => !e.includes('net::ERR_') && !e.includes('WebSocket'),
+  );
   await inst?.shutdown();
+  if (unexpected.length > 0) {
+    throw new Error(`Unexpected browser console errors:\n${unexpected.join('\n')}`);
+  }
 });
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

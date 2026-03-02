@@ -95,6 +95,7 @@ jobs:
     name: E2E (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
@@ -104,5 +105,27 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install chromium
-      - run: npx playwright test test/e2e-keybar.test.js
+      - name: Install Playwright (Linux)
+        if: runner.os == 'Linux'
+        run: npx playwright install --with-deps chromium
+      - name: Install Playwright
+        if: runner.os != 'Linux'
+        run: npx playwright install chromium
+      - name: Run E2E tests
+        run: npx playwright test
+        env:
+          CI: true
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.os }}
+          path: playwright-report/
+          retention-days: 7
+      - name: Upload test traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces-${{ matrix.os }}
+          path: test-results/
+          retention-days: 7
