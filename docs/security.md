@@ -30,7 +30,7 @@ TermBeam is designed for **trusted local networks**. It is NOT designed as a pro
 
 - On startup, a **share token** is generated and embedded in the QR code URL as `?ott=<token>`
 - Scanning the QR code sets a full session cookie and redirects to the clean URL — no password typing required
-- Share tokens are **reusable within their validity window** to handle tunnel proxy retries and link preview services
+- Share tokens are **one-time use** — consumed on first successful login to prevent replay attacks
 - Share tokens **expire after 5 minutes**
 - The share button generates a fresh share token via `GET /api/share-token` (authenticated endpoint)
 - If the user already has a valid session cookie, a repeated `?ott=` request simply redirects without re-validating

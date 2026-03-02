@@ -441,6 +441,37 @@ describe('Routes', () => {
       );
     });
 
+    it('GET /?ott=<valid> should fail on second use (one-time token)', async () => {
+      if (!inst) {
+        inst?.shutdown();
+        inst = await startServer({ password: 'secret' });
+      }
+      const ott = inst.auth.generateShareToken();
+      // First use — should succeed
+      const first = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/?ott=${ott}`,
+        method: 'GET',
+      });
+      assert.strictEqual(first.statusCode, 302);
+      assert.ok(first.headers['set-cookie']);
+
+      // Second use — token already consumed, should fall through to auth middleware
+      const second = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/?ott=${ott}`,
+        method: 'GET',
+      });
+      // Should either redirect to /login (302) or serve login page — NOT set a new cookie
+      const secondCookies = second.headers['set-cookie'] || [];
+      assert.ok(
+        !secondCookies.some((c) => c.startsWith('pty_token=')),
+        'Should not set pty_token on second use of consumed token',
+      );
+    });
+
     it('GET /?ott= is ignored when no password is set', async () => {
       inst?.shutdown();
       inst = await startServer({ password: null });

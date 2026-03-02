@@ -103,9 +103,8 @@ function createAuth(password) {
       log.warn(`Share: expired token ${tag}…`);
       return false;
     }
-    const min = Math.floor(remaining / 60);
-    const sec = remaining % 60;
-    log.info(`Share: valid token ${tag}… (${min}m ${sec}s remaining)`);
+    shareTokens.delete(token);
+    log.info('share token consumed');
     return true;
   }
 
