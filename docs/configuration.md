@@ -113,5 +113,5 @@ A password is always auto-generated when using a tunnel. By default, tunnel acce
 
 Requirements:
 
-- `devtunnel` CLI must be installed
+- `devtunnel` CLI — TermBeam will offer to install it automatically if not found
 - Login is handled automatically — if not already logged in, TermBeam will launch `devtunnel user login` for you

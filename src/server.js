@@ -90,27 +90,24 @@ function createTermBeamServer(overrides = {}) {
   }
 
   async function start() {
-    // Fail early if tunnel mode is on but devtunnel CLI is not installed
+    // If tunnel mode is on but devtunnel is missing, offer to install it
     if (config.useTunnel && !findDevtunnel()) {
-      log.error('❌ devtunnel CLI is not installed.');
-      log.error('');
-      log.error('  TermBeam uses tunnels by default for remote access.');
-      log.error('  Install the Azure Dev Tunnels CLI, or use --no-tunnel for LAN-only mode.');
-      log.error('');
-      log.error('  Install it:');
-      log.error('    Windows:  winget install Microsoft.devtunnel');
-      log.error(
-        '             or: Invoke-WebRequest -Uri https://aka.ms/TunnelsCliDownload/win-x64 -OutFile devtunnel.exe',
-      );
-      log.error('    macOS:    brew install --cask devtunnel');
-      log.error('    Linux:    curl -sL https://aka.ms/DevTunnelCliInstall | bash');
-      log.error('');
-      log.error('  Then restart your terminal and try again.');
-      log.error(
-        '  Docs: https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started',
-      );
-      log.error('');
-      process.exit(1);
+      const { promptInstall } = require('./devtunnel-install');
+      const installed = await promptInstall();
+      if (!installed) {
+        log.error('❌ DevTunnel CLI is not available.');
+        log.error('');
+        log.error('  Use --no-tunnel for LAN-only mode, or install manually:');
+        log.error('    Windows:  winget install Microsoft.devtunnel');
+        log.error('    macOS:    brew install --cask devtunnel');
+        log.error('    Linux:    curl -sL https://aka.ms/DevTunnelCliInstall | bash');
+        log.error('');
+        log.error(
+          '  Docs: https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started',
+        );
+        log.error('');
+        process.exit(1);
+      }
     }
 
     // Warn and require consent for anonymous tunnel access

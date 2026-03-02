@@ -130,3 +130,19 @@ jobs:
           name: playwright-traces-${{ matrix.os }}
           path: test-results/
           retention-days: 7
+
+  devtunnel-install:
+    name: DevTunnel Install (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test test/devtunnel-install.test.js

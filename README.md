@@ -91,7 +91,7 @@ termbeam --persisted-tunnel
 termbeam --no-tunnel
 ```
 
-Requires the [Dev Tunnels CLI](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started):
+If the [Dev Tunnels CLI](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started) is not installed, TermBeam will offer to install it for you automatically. You can also install it manually:
 
 - **Windows:** `winget install Microsoft.devtunnel`
 - **macOS:** `brew install --cask devtunnel`

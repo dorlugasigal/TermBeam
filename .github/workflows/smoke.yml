@@ -1,0 +1,35 @@
+name: Smoke Test
+
+on:
+  workflow_run:
+    workflows: ['Release']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Smoke Test
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Wait for npm registry propagation
+        run: sleep 30
+
+      - name: Verify npx termbeam --help
+        run: |
+          OUTPUT=$(npx termbeam@latest --help 2>&1)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -i "termbeam"
+
+      - name: Verify global install
+        run: |
+          npm install -g termbeam@latest
+          termbeam --version
+          termbeam --help

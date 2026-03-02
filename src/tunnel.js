@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const log = require('./logger');
+const { promptInstall } = require('./devtunnel-install');
 
 const TUNNEL_CONFIG_DIR = path.join(os.homedir(), '.termbeam');
 const TUNNEL_CONFIG_PATH = path.join(TUNNEL_CONFIG_DIR, 'tunnel.json');
@@ -31,6 +32,19 @@ function findDevtunnel() {
         return p;
       }
     }
+  }
+
+  // Check ~/bin (where the Linux install script places it)
+  const homeBin = path.join(
+    os.homedir(),
+    'bin',
+    process.platform === 'win32' ? 'devtunnel.exe' : 'devtunnel',
+  );
+  if (fs.existsSync(homeBin)) {
+    try {
+      execFileSync(homeBin, ['--version'], { stdio: 'pipe' });
+      return homeBin;
+    } catch {}
   }
 
   return null;
@@ -85,22 +99,18 @@ let isPersisted = false;
 
 async function startTunnel(port, options = {}) {
   // Check if devtunnel CLI is installed
-  const found = findDevtunnel();
+  let found = findDevtunnel();
   if (!found) {
-    log.error('❌ devtunnel CLI is not installed.');
+    found = await promptInstall();
+  }
+  if (!found) {
+    log.error('❌ DevTunnel CLI is not available.');
     log.error('');
-    log.error('  TermBeam uses tunnels by default for remote access.');
-    log.error('  Install the Azure Dev Tunnels CLI, or use --no-tunnel for LAN-only mode.');
-    log.error('');
-    log.error('  Install it:');
+    log.error('  Use --no-tunnel for LAN-only mode, or install manually:');
     log.error('    Windows:  winget install Microsoft.devtunnel');
-    log.error(
-      '             or: Invoke-WebRequest -Uri https://aka.ms/TunnelsCliDownload/win-x64 -OutFile devtunnel.exe',
-    );
     log.error('    macOS:    brew install --cask devtunnel');
     log.error('    Linux:    curl -sL https://aka.ms/DevTunnelCliInstall | bash');
     log.error('');
-    log.error('  Then restart your terminal and try again.');
     log.error('  Docs: https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started');
     log.error('');
     return null;

@@ -9,8 +9,8 @@
   "scripts": {
     "start": "node bin/termbeam.js",
     "dev": "node bin/termbeam.js --generate-password",
-    "test": "node -e \"require('child_process').execFileSync(process.execPath,['--test',...require('fs').readdirSync('test').filter(f=>f.endsWith('.test.js')&&!f.startsWith('e2e-')).map(f=>'test/'+f)],{stdio:'inherit'})\"",
-    "test:coverage": "c8 --exclude=src/tunnel.js --reporter=text --reporter=lcov --reporter=json-summary --reporter=json node -e \"require('child_process').execFileSync(process.execPath,['--test','--test-reporter=spec','--test-reporter-destination=stdout',...require('fs').readdirSync('test').filter(f=>f.endsWith('.test.js')&&!f.startsWith('e2e-')).map(f=>'test/'+f)],{stdio:'inherit'})\"",
+    "test": "node -e \"require('child_process').execFileSync(process.execPath,['--test',...require('fs').readdirSync('test').filter(f=>f.endsWith('.test.js')&&!f.startsWith('e2e-')&&f!=='devtunnel-install.test.js').map(f=>'test/'+f)],{stdio:'inherit'})\"",
+    "test:coverage": "c8 --exclude=src/tunnel.js --reporter=text --reporter=lcov --reporter=json-summary --reporter=json node -e \"require('child_process').execFileSync(process.execPath,['--test','--test-reporter=spec','--test-reporter-destination=stdout',...require('fs').readdirSync('test').filter(f=>f.endsWith('.test.js')&&!f.startsWith('e2e-')&&f!=='devtunnel-install.test.js').map(f=>'test/'+f)],{stdio:'inherit'})\"",
     "prepare": "husky",
     "format": "prettier --write .",
     "lint": "node --check src/*.js bin/*.js",
