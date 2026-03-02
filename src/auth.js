@@ -86,21 +86,21 @@ function createAuth(password) {
     const token = crypto.randomBytes(32).toString('hex');
     const expiry = Date.now() + 5 * 60 * 1000;
     shareTokens.set(token, expiry); // 5 minute expiry
-    log.info(`Share: created ${token.slice(0, 8)}… (expires in 5m)`);
+    log.info('Share: created new token (expires in 5m)');
+    log.debug(`Share: token expires at ${new Date(expiry).toISOString()}`);
     return token;
   }
 
   function validateShareToken(token) {
     const expiry = shareTokens.get(token);
-    const tag = token.slice(0, 8);
     if (!expiry) {
-      log.warn(`Share: unknown token ${tag}…`);
+      log.warn('Share: unknown token presented');
       return false;
     }
     const remaining = Math.round((expiry - Date.now()) / 1000);
     if (remaining <= 0) {
       shareTokens.delete(token);
-      log.warn(`Share: expired token ${tag}…`);
+      log.warn('Share: expired token presented');
       return false;
     }
     shareTokens.delete(token);
