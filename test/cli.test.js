@@ -425,8 +425,11 @@ describe('CLI', () => {
 
   describe('getDefaultShell edge cases', () => {
     it('should fall back when ps command fails', () => {
+      const os = require('os');
       const child_process = require('child_process');
+      const origPlatform = os.platform;
       const origExecFileSync = child_process.execFileSync;
+      os.platform = () => 'linux';
       child_process.execFileSync = (cmd, ...args) => {
         if (cmd === 'ps') throw new Error('ps not available');
         return origExecFileSync(cmd, ...args);
@@ -438,13 +441,17 @@ describe('CLI', () => {
         const config = parseArgs();
         assert.ok(config.defaultShell, 'Should have a fallback shell');
       } finally {
+        os.platform = origPlatform;
         child_process.execFileSync = origExecFileSync;
       }
     });
 
     it('should use detected shell when ps returns a known shell', () => {
+      const os = require('os');
       const child_process = require('child_process');
+      const origPlatform = os.platform;
       const origExecFileSync = child_process.execFileSync;
+      os.platform = () => 'linux';
       child_process.execFileSync = (cmd, args, opts) => {
         if (cmd === 'ps') return 'bash\n';
         return origExecFileSync(cmd, args, opts);
@@ -456,6 +463,7 @@ describe('CLI', () => {
         const config = parseArgs();
         assert.strictEqual(config.defaultShell, 'bash');
       } finally {
+        os.platform = origPlatform;
         child_process.execFileSync = origExecFileSync;
       }
     });
