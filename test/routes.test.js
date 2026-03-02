@@ -440,6 +440,76 @@ describe('Routes', () => {
     });
   });
 
+  // === Cookie Secure flag ===
+  describe('cookie Secure flag', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('POST /api/auth should set Secure cookie when X-Forwarded-Proto is https', async () => {
+      inst = await startServer({ password: 'secret' });
+      const body = JSON.stringify({ password: 'secret' });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/auth',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+            'X-Forwarded-Proto': 'https',
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 200);
+      const cookies = res.headers['set-cookie'] || [];
+      const ptyCookie = cookies.find((c) => c.startsWith('pty_token='));
+      assert.ok(ptyCookie, 'Should set pty_token cookie');
+      assert.ok(/;\s*Secure/i.test(ptyCookie), 'Cookie should include Secure flag');
+    });
+
+    it('POST /api/auth should NOT set Secure cookie over plain HTTP', async () => {
+      if (!inst) inst = await startServer({ password: 'secret' });
+      const body = JSON.stringify({ password: 'secret' });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/auth',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 200);
+      const cookies = res.headers['set-cookie'] || [];
+      const ptyCookie = cookies.find((c) => c.startsWith('pty_token='));
+      assert.ok(ptyCookie, 'Should set pty_token cookie');
+      assert.ok(!/;\s*Secure/i.test(ptyCookie), 'Cookie should NOT include Secure flag');
+    });
+
+    it('GET /?ott=<valid> should set Secure cookie when X-Forwarded-Proto is https', async () => {
+      if (!inst) inst = await startServer({ password: 'secret' });
+      const ott = inst.auth.generateShareToken();
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/?ott=${ott}`,
+        method: 'GET',
+        headers: { 'X-Forwarded-Proto': 'https' },
+      });
+      assert.strictEqual(res.statusCode, 302);
+      const cookies = res.headers['set-cookie'] || [];
+      const ptyCookie = cookies.find((c) => c.startsWith('pty_token='));
+      assert.ok(ptyCookie, 'Should set pty_token cookie');
+      assert.ok(/;\s*Secure/i.test(ptyCookie), 'Cookie should include Secure flag');
+    });
+  });
+
   // === Share token endpoint ===
   describe('GET /api/share-token', () => {
     let inst;

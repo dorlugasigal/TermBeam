@@ -28,7 +28,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
         httpOnly: true,
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000,
-        secure: false,
+        secure: req.secure,
       });
       log.info(`Auth: login success from ${req.ip}`);
       res.json({ ok: true });
@@ -58,7 +58,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
         httpOnly: true,
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000,
-        secure: false,
+        secure: req.secure,
       });
       log.info(`Auth: share-token auto-login from ${req.ip}`);
       // Redirect to the same path without ?ott= to keep the URL clean

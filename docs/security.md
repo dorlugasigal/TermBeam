@@ -23,7 +23,7 @@ TermBeam is designed for **trusted local networks**. It is NOT designed as a pro
 - Session IDs use 128-bit entropy (`crypto.randomBytes(16)`, hex-encoded)
 - Stored in httpOnly cookies (not accessible via JavaScript)
 - Cookie uses `sameSite: lax` to prevent CSRF
-- Cookie `secure` flag is off for HTTP compatibility (tunnels use TLS at the proxy layer)
+- Cookie `Secure` flag is set dynamically based on the request protocol — enabled automatically when accessed over HTTPS (including via `X-Forwarded-Proto` from tunnel proxies), omitted for plain HTTP
 
 ### QR Code & Share Auto-Login (Share Tokens)
 
