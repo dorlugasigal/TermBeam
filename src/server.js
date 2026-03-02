@@ -6,7 +6,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const http = require('http');
 const { WebSocketServer } = require('ws');
-const { generate: generateQR } = require('lean-qr');
+const QRCode = require('qrcode');
 
 const { parseArgs } = require('./cli');
 const { createAuth } = require('./auth');
@@ -213,22 +213,7 @@ function createTermBeamServer(overrides = {}) {
         const qrCodeUrl = config.password ? `${qrUrl}?ott=${auth.generateShareToken()}` : qrUrl;
         console.log('');
         try {
-          const code = generateQR(qrCodeUrl);
-          const size = code.size;
-          const margin = 1;
-          let qr = '';
-          for (let y = -margin; y < size + margin; y += 2) {
-            let line = '';
-            for (let x = -margin; x < size + margin; x++) {
-              const top = y >= 0 && y < size && x >= 0 && x < size && code.get(x, y);
-              const btm = y + 1 >= 0 && y + 1 < size && x >= 0 && x < size && code.get(x, y + 1);
-              if (top && btm) line += '\u2588';
-              else if (top) line += '\u2580';
-              else if (btm) line += '\u2584';
-              else line += ' ';
-            }
-            qr += '  ' + line + '\n';
-          }
+          const qr = await QRCode.toString(qrCodeUrl, { type: 'terminal', small: true });
           console.log(qr);
         } catch {
           /* ignore */
