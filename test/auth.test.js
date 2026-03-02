@@ -319,11 +319,11 @@ describe('Auth', () => {
       assert.strictEqual(auth.validateShareToken(token), true);
     });
 
-    it('should allow reuse within expiry window', () => {
+    it('should NOT allow reuse after consumption', () => {
       const auth = createAuth('pw');
       const token = auth.generateShareToken();
       assert.strictEqual(auth.validateShareToken(token), true);
-      assert.strictEqual(auth.validateShareToken(token), true);
+      assert.strictEqual(auth.validateShareToken(token), false);
     });
 
     it('should reject an unknown share token', () => {
