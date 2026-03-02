@@ -145,8 +145,8 @@ function createAuth(password) {
       authAttempts.set(ip, recent);
       return res.status(401).json({ error: 'unauthorized' });
     }
-    if (req.accepts('html')) return res.redirect('/login');
-    res.status(401).json({ error: 'unauthorized' });
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'unauthorized' });
+    res.redirect('/login');
   }
 
   function rateLimit(req, res, next) {

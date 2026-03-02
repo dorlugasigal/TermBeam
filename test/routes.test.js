@@ -344,6 +344,21 @@ describe('Routes', () => {
       assert.ok(res.headers.location === '/' || res.headers.location.includes('/'));
     });
 
+    it('GET /api/sessions without auth should return 401 JSON', async () => {
+      inst?.shutdown();
+      inst = await startServer({ password: 'secret123' });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions',
+        method: 'GET',
+        headers: { Accept: '*/*' },
+      });
+      assert.strictEqual(res.statusCode, 401);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'unauthorized');
+    });
+
     it('POST /api/auth with wrong password should return 401', async () => {
       inst?.shutdown();
       inst = await startServer({ password: 'secret123' });
@@ -561,7 +576,7 @@ describe('Routes', () => {
       assert.ok(data.url.includes('?ott='), 'URL should contain share token parameter');
     });
 
-    it('should return 401/302 when not authenticated', async () => {
+    it('should return 401 when not authenticated', async () => {
       if (!inst) inst = await startServer({ password: 'secret' });
       const res = await httpRequest({
         hostname: '127.0.0.1',
@@ -569,8 +584,7 @@ describe('Routes', () => {
         path: '/api/share-token',
         method: 'GET',
       });
-      // API endpoint returns 401 (not HTML-accepting)
-      assert.ok(res.statusCode === 401 || res.statusCode === 302);
+      assert.strictEqual(res.statusCode, 401);
     });
   });
 });

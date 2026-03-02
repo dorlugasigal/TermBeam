@@ -24,6 +24,7 @@ TermBeam is designed for **trusted local networks**. It is NOT designed as a pro
 - Stored in httpOnly cookies (not accessible via JavaScript)
 - Cookie uses `sameSite: lax` to prevent CSRF
 - Cookie `Secure` flag is set dynamically based on the request protocol — enabled automatically when accessed over HTTPS (including via `X-Forwarded-Proto` from tunnel proxies), omitted for plain HTTP
+- API routes (`/api/*`) always return JSON `401`/`429` responses. UI routes redirect to the login page.
 
 ### QR Code & Share Auto-Login (Share Tokens)
 
