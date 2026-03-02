@@ -301,6 +301,20 @@ describe('CLI', () => {
     assert.strictEqual(config.logLevel, 'warn');
   });
 
+  it('should parse --allow-fs-browse-root flag', () => {
+    process.argv = ['node', 'termbeam', '--allow-fs-browse-root'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.allowFsBrowseRoot, true);
+  });
+
+  it('should default allowFsBrowseRoot to false', () => {
+    process.argv = ['node', 'termbeam'];
+    const { parseArgs } = require('../src/cli');
+    const config = parseArgs();
+    assert.strictEqual(config.allowFsBrowseRoot, false);
+  });
+
   it('--log-level flag should override TERMBEAM_LOG_LEVEL env', () => {
     process.env.TERMBEAM_LOG_LEVEL = 'error';
     process.argv = ['node', 'termbeam', '--log-level', 'debug'];

@@ -41,6 +41,12 @@ TermBeam is designed for **trusted local networks**. It is NOT designed as a pro
 - Arbitrary shell paths are rejected — only shells returned by `GET /api/shells` are allowed
 - The `cwd` parameter is validated to be an existing, absolute directory path
 
+### Directory Browsing Restriction
+
+- By default, the `/api/dirs` endpoint only lists directories under the configured working directory (`config.cwd`)
+- Requests for paths outside the working directory return HTTP `403`
+- Use `--allow-fs-browse-root` to allow browsing the full filesystem (not recommended when using tunnels)
+
 ### WebSocket Origin Validation
 
 - WebSocket connections include Origin header checks

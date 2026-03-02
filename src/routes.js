@@ -233,6 +233,17 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     const dir = endsWithSep ? query : path.dirname(query);
     const prefix = endsWithSep ? '' : path.basename(query);
 
+    // Restrict browsing to config.cwd unless --allow-fs-browse-root is set
+    if (!config.allowFsBrowseRoot) {
+      const resolved = path.resolve(dir);
+      const root = path.resolve(config.cwd);
+      if (!resolved.startsWith(root + path.sep) && resolved !== root) {
+        return res
+          .status(403)
+          .json({ error: 'Directory browsing restricted to working directory' });
+      }
+    }
+
     try {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       const dirs = entries

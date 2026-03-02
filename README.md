@@ -108,19 +108,20 @@ termbeam --host 0.0.0.0           # allow LAN access (default: 127.0.0.1)
 termbeam --lan                    # shortcut for --host 0.0.0.0
 ```
 
-| Flag                  | Description                                          | Default        |
-| --------------------- | ---------------------------------------------------- | -------------- |
-| `--password <pw>`     | Set access password (also accepts `--password=<pw>`) | Auto-generated |
-| `--no-password`       | Disable password (cannot combine with `--public`)    | —              |
-| `--generate-password` | Auto-generate a secure password                      | On             |
-| `--tunnel`            | Create an ephemeral devtunnel URL (private)          | On             |
-| `--no-tunnel`         | Disable tunnel (LAN-only)                            | —              |
-| `--persisted-tunnel`  | Create a reusable devtunnel URL                      | Off            |
-| `--public`            | Allow public tunnel access                           | Off            |
-| `--port <port>`       | Server port                                          | `3456`         |
-| `--host <addr>`       | Bind address                                         | `127.0.0.1`    |
-| `--lan`               | Bind to all interfaces (LAN access)                  | Off            |
-| `--log-level <level>` | Log verbosity (error/warn/info/debug)                | `info`         |
+| Flag                     | Description                                          | Default        |
+| ------------------------ | ---------------------------------------------------- | -------------- |
+| `--password <pw>`        | Set access password (also accepts `--password=<pw>`) | Auto-generated |
+| `--no-password`          | Disable password (cannot combine with `--public`)    | —              |
+| `--generate-password`    | Auto-generate a secure password                      | On             |
+| `--tunnel`               | Create an ephemeral devtunnel URL (private)          | On             |
+| `--no-tunnel`            | Disable tunnel (LAN-only)                            | —              |
+| `--persisted-tunnel`     | Create a reusable devtunnel URL                      | Off            |
+| `--public`               | Allow public tunnel access                           | Off            |
+| `--port <port>`          | Server port                                          | `3456`         |
+| `--host <addr>`          | Bind address                                         | `127.0.0.1`    |
+| `--lan`                  | Bind to all interfaces (LAN access)                  | Off            |
+| `--log-level <level>`    | Log verbosity (error/warn/info/debug)                | `info`         |
+| `--allow-fs-browse-root` | Allow directory browsing outside working directory   | Off            |
 
 Environment variables: `PORT`, `TERMBEAM_PASSWORD`, `TERMBEAM_CWD`, `TERMBEAM_LOG_LEVEL`, `SHELL` (Unix fallback), `COMSPEC` (Windows fallback). See [Configuration docs](https://dorlugasigal.github.io/TermBeam/configuration/).
 

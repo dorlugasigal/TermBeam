@@ -145,12 +145,9 @@ describe('Routes', () => {
       assert.ok(body.dirs.length > 0, 'Should have subdirectories');
     });
 
-    it('should return empty dirs for nonexistent path', async () => {
+    it('should return empty dirs for nonexistent path within cwd', async () => {
       if (!inst) inst = await startServer();
-      const fakePath =
-        process.platform === 'win32'
-          ? 'C:\\nonexistent_termbeam_test_dir\\'
-          : '/nonexistent_termbeam_test_dir/';
+      const fakePath = process.cwd() + path.sep + 'nonexistent_termbeam_test_dir' + path.sep;
       const q = encodeURIComponent(fakePath);
       const res = await httpRequest({
         hostname: '127.0.0.1',
@@ -162,6 +159,63 @@ describe('Routes', () => {
       const body = JSON.parse(res.data);
       assert.ok(Array.isArray(body.dirs), 'dirs should be an array');
       assert.strictEqual(body.dirs.length, 0, 'Should have no dirs for nonexistent path');
+    });
+
+    it('should return 403 for paths outside cwd', async () => {
+      if (!inst) inst = await startServer();
+      const outsidePath = process.platform === 'win32' ? 'C:\\' : '/';
+      const q = encodeURIComponent(outsidePath);
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/dirs?q=${q}`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 403);
+      const body = JSON.parse(res.data);
+      assert.ok(body.error.includes('restricted'));
+    });
+
+    it('should return 403 for parent traversal attempts', async () => {
+      if (!inst) inst = await startServer();
+      const traversal = encodeURIComponent(process.cwd() + '/../');
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/dirs?q=${traversal}`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 403);
+    });
+
+    it('should allow browsing within cwd', async () => {
+      if (!inst) inst = await startServer();
+      const q = encodeURIComponent(process.cwd() + path.sep);
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/dirs?q=${q}`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const body = JSON.parse(res.data);
+      assert.ok(Array.isArray(body.dirs));
+    });
+
+    it('should allow unrestricted browsing with allowFsBrowseRoot', async () => {
+      inst?.shutdown();
+      inst = await startServer({ allowFsBrowseRoot: true });
+      const outsidePath = process.platform === 'win32' ? 'C:\\' : '/tmp/';
+      const q = encodeURIComponent(outsidePath);
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/dirs?q=${q}`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const body = JSON.parse(res.data);
+      assert.ok(Array.isArray(body.dirs));
     });
   });
 

@@ -23,6 +23,7 @@ Options:
   --host <addr>         Bind address (default: 127.0.0.1)
   --lan                 Bind to 0.0.0.0 (allow LAN access, default: localhost only)
   --log-level <level>   Set log verbosity: error, warn, info, debug (default: info)
+  --allow-fs-browse-root  Allow directory browsing outside working directory
   -h, --help            Show this help
   -v, --version         Show version
 
@@ -233,6 +234,7 @@ function parseArgs() {
   let persistedTunnel = false;
   let publicTunnel = false;
   let explicitPassword = !!password;
+  let allowFsBrowseRoot = false;
 
   const args = process.argv.slice(2);
   const filteredArgs = [];
@@ -274,6 +276,8 @@ function parseArgs() {
       host = args[++i];
     } else if (args[i] === '--log-level' && args[i + 1]) {
       logLevel = args[++i];
+    } else if (args[i] === '--allow-fs-browse-root') {
+      allowFsBrowseRoot = true;
     } else {
       filteredArgs.push(args[i]);
     }
@@ -326,6 +330,7 @@ function parseArgs() {
     defaultShell,
     version,
     logLevel,
+    allowFsBrowseRoot,
   };
 }
 
