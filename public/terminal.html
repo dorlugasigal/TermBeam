@@ -591,6 +591,34 @@
         touch-action: none;
       }
 
+      /* ===== Scroll-to-bottom indicator ===== */
+      .scroll-bottom-btn {
+        display: none;
+        position: absolute;
+        bottom: 8px;
+        right: 16px;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        font-size: 18px;
+        line-height: 36px;
+        text-align: center;
+        cursor: pointer;
+        z-index: 50;
+        opacity: 0.85;
+        transition: opacity 0.15s;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      }
+      .scroll-bottom-btn:hover {
+        opacity: 1;
+      }
+      .scroll-bottom-btn.visible {
+        display: block;
+      }
+
       /* ===== Toasts & Overlays ===== */
       #copy-toast {
         position: fixed;
@@ -2119,6 +2147,7 @@
             document.documentElement.scrollTop = 0;
             document.body.scrollTop = 0;
           }
+          let wasKeyboardOpen = false;
           function onViewportResize() {
             const vv = window.visualViewport;
             const keyboardHeight = window.innerHeight - vv.height;
@@ -2134,11 +2163,22 @@
               keyBar.style.paddingBottom = '';
               terminalsWrapper.style.bottom = '';
             }
+            const keyboardJustClosed = wasKeyboardOpen && !keyboardOpen;
+            wasKeyboardOpen = keyboardOpen;
             resetScroll();
             clearTimeout(vpResizeTimer);
             vpResizeTimer = setTimeout(() => {
               resetScroll();
               doResize();
+              // When keyboard closes, the terminal grows taller — scroll to
+              // bottom so the cursor stays visible instead of appearing offset.
+              if (keyboardJustClosed) {
+                for (const [, ms] of managed) {
+                  if (ms.container.classList.contains('visible')) {
+                    ms.term.scrollToBottom();
+                  }
+                }
+              }
             }, 150);
           }
           function onViewportScroll() {
@@ -2228,6 +2268,7 @@
           theme: getTheme() === 'light' ? lightTermTheme : darkTermTheme,
           allowProposedApi: true,
           scrollback: 10000,
+          scrollOnOutput: false,
         });
 
         const fitAddon = new window.FitAddon.FitAddon();
@@ -2237,8 +2278,43 @@
 
         const container = document.createElement('div');
         container.className = 'terminal-pane';
+        container.style.position = 'relative';
         terminalsWrapper.appendChild(container);
         term.open(container);
+
+        // Scroll-to-bottom button
+        const scrollBtn = document.createElement('button');
+        scrollBtn.className = 'scroll-bottom-btn';
+        scrollBtn.textContent = '↓';
+        scrollBtn.title = 'Scroll to bottom';
+        scrollBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          term.scrollToBottom();
+        });
+        container.appendChild(scrollBtn);
+
+        // Write coalescer — batch rapid term.write() calls into one per frame
+        // so ANSI cursor-up/down pairs within a frame are processed atomically
+        let writeBuf = '';
+        let writeRaf = null;
+        function coalescedWrite(data) {
+          writeBuf += data;
+          if (!writeRaf) {
+            writeRaf = requestAnimationFrame(() => {
+              term.write(writeBuf);
+              writeBuf = '';
+              writeRaf = null;
+            });
+          }
+        }
+
+        // Track whether user has scrolled away from bottom
+        let userScrolledUp = false;
+        term.onScroll(() => {
+          const buf = term.buffer.active;
+          userScrolledUp = buf.viewportY < buf.baseY;
+          scrollBtn.classList.toggle('visible', userScrolledUp);
+        });
 
         // Pointer-event scroll handler — uses setPointerCapture so scrolling
         // survives xterm DOM re-renders under the finger (touch on a letter).
@@ -2349,6 +2425,8 @@
           term,
           fitAddon,
           container,
+          coalescedWrite,
+          scrollBtn,
           ws: null,
           exited: false,
           reconnectTimer: null,
@@ -2361,6 +2439,10 @@
         // Terminal input → WebSocket
         term.onData((input) => {
           if (ms.ws && ms.ws.readyState === 1) {
+            // Auto-scroll to bottom on user input
+            if (userScrolledUp) {
+              ms.term.scrollToBottom();
+            }
             let data = input;
             if (ctrlActive && input.length === 1) {
               const code = input.toLowerCase().charCodeAt(0);
@@ -2412,7 +2494,7 @@
           try {
             const msg = JSON.parse(event.data);
             if (msg.type === 'output') {
-              ms.term.write(msg.data);
+              ms.coalescedWrite(msg.data);
               ms.lastActivity = Date.now();
             } else if (msg.type === 'attached') {
               if (ms.container.classList.contains('visible')) {
@@ -2448,7 +2530,7 @@
               }
             }
           } catch {
-            ms.term.write(event.data);
+            ms.coalescedWrite(event.data);
           }
         };
 
