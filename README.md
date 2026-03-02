@@ -15,10 +15,14 @@ I built this because I kept needing to run quick commands on my dev machine whil
 
 https://github.com/user-attachments/assets/9dd4f3d7-f017-4314-9b3a-f6a5688e3671
 
+### Mobile UI
+
 <p align="center">
-  <img src="docs/assets/screenshots/mobile-session-hub.png" alt="Session hub on mobile" width="280" />
+  <img src="docs/assets/screenshots/mobile-session-hub.jpeg" alt="Session hub on mobile" width="280" />
   &nbsp;&nbsp;
-  <img src="docs/assets/screenshots/mobile-terminal.png" alt="Terminal on mobile" width="280" />
+  <img src="docs/assets/screenshots/mobile-session-preview.jpeg" alt="Session preview on mobile" width="280" />
+  &nbsp;&nbsp;
+  <img src="docs/assets/screenshots/mobile-terminal.jpeg" alt="Terminal on mobile" width="280" />
 </p>
 
 ## Quick Start
