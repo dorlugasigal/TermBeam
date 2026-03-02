@@ -373,6 +373,71 @@ describe('Auth', () => {
       assert.strictEqual(auth.validateShareToken('not-a-real-token'), false);
     });
 
+    it('should not log token substrings when generating share tokens', () => {
+      const log = require('../src/logger');
+      const messages = [];
+      const origInfo = log.info;
+      const origDebug = log.debug;
+      log.info = (msg) => messages.push(msg);
+      log.debug = (msg) => messages.push(msg);
+      try {
+        const auth = createAuth('pw');
+        const token = auth.generateShareToken();
+        for (const msg of messages) {
+          assert.strictEqual(msg.includes(token), false, `Log should not contain token: ${msg}`);
+        }
+      } finally {
+        log.info = origInfo;
+        log.debug = origDebug;
+      }
+    });
+
+    it('should not log token substrings when validation fails', () => {
+      const log = require('../src/logger');
+      const messages = [];
+      const origWarn = log.warn;
+      log.warn = (msg) => messages.push(msg);
+      try {
+        const auth = createAuth('pw');
+        const fakeToken = 'abcdef1234567890abcdef1234567890';
+        auth.validateShareToken(fakeToken);
+        for (const msg of messages) {
+          assert.strictEqual(msg.includes(fakeToken), false, `Log should not contain token: ${msg}`);
+        }
+      } finally {
+        log.warn = origWarn;
+      }
+    });
+
+    it('should not log token substrings when expired token is validated', () => {
+      const log = require('../src/logger');
+      const messages = [];
+      const origWarn = log.warn;
+      const origInfo = log.info;
+      const origDebug = log.debug;
+      log.warn = (msg) => messages.push(msg);
+      log.info = (msg) => messages.push(msg);
+      log.debug = (msg) => messages.push(msg);
+      try {
+        const auth = createAuth('pw');
+        const token = auth.generateShareToken();
+        const realNow = Date.now;
+        Date.now = () => realNow() + 6 * 60 * 1000;
+        try {
+          auth.validateShareToken(token);
+          for (const msg of messages) {
+            assert.strictEqual(msg.includes(token), false, `Log should not contain token: ${msg}`);
+          }
+        } finally {
+          Date.now = realNow;
+        }
+      } finally {
+        log.warn = origWarn;
+        log.info = origInfo;
+        log.debug = origDebug;
+      }
+    });
+
     it('should reject an expired share token', () => {
       const auth = createAuth('pw');
       const token = auth.generateShareToken();
