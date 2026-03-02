@@ -96,6 +96,7 @@ These are intentional design choices — not bugs:
 - **Cookie `secure` flag is off** — TermBeam runs over HTTP locally; TLS is handled at the tunnel proxy layer (DevTunnels). Setting `secure` would break cookie auth on LAN.
 - **Password compared in constant time?** No — the password is short-lived and auto-generated; rate limiting (5 attempts/min/IP) is the primary brute-force defense.
 - **Tunnel is on by default** — makes the tool useful out of the box (phone on cellular), but this means the terminal is internet-accessible. Password auto-generation compensates.
+- **Default bind is `127.0.0.1`** — localhost only by default. Use `--lan` or `--host 0.0.0.0` for LAN access.
 - **`--no-password` exists** — for trusted localhost-only scenarios. Never combine with tunnel.
 - **Session IDs are 128-bit random** (`crypto.randomBytes(16)`) — unguessable, but not secret (visible in URLs). Auth tokens protect access, not session IDs.
 - **WebSocket origin validation** — cross-origin connections are rejected (close code 1008) unless one side is localhost, preventing malicious websites from connecting to a local instance.

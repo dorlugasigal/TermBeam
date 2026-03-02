@@ -191,10 +191,16 @@ function createTermBeamServer(overrides = {}) {
         console.log(`  Shell:    ${config.shell}`);
         console.log(`  Session:  ${defaultId}`);
         console.log(`  Auth:     ${config.password ? `${gn}🔒 password${rs}` : '🔓 none'}`);
+        if (isLanReachable) {
+          console.log(`  Bind:     ${config.host} (LAN accessible)`);
+        } else {
+          console.log(`  Bind:     ${config.host} (localhost only)`);
+        }
         console.log('');
 
         if (publicUrl) {
-          console.log(`  🌐 Public:  ${publicUrl}`);
+          const bl = '\x1b[34m'; // blue
+          console.log(`  Public:   ${bl}${publicUrl}${rs}`);
         }
         console.log(`  Local:    http://localhost:${config.port}`);
         if (isLanReachable) {
