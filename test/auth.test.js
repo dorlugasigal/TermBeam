@@ -109,6 +109,7 @@ describe('Auth', () => {
       const req = {
         cookies: {},
         headers: { authorization: 'Bearer secret' },
+        ip: '127.0.0.1',
         accepts: () => false,
       };
       auth.middleware(req, {}, () => {
@@ -122,6 +123,117 @@ describe('Auth', () => {
       const token = auth.generateToken();
       let called = false;
       const req = { cookies: { pty_token: token }, headers: {}, accepts: () => false };
+      auth.middleware(req, {}, () => {
+        called = true;
+      });
+      assert.ok(called);
+    });
+
+    it('should allow 5 wrong Bearer attempts (all return 401)', () => {
+      const auth = createAuth('secret');
+      let status401Count = 0;
+      for (let i = 0; i < 5; i++) {
+        let statusCode = null;
+        const req = {
+          cookies: {},
+          headers: { authorization: 'Bearer wrong' },
+          ip: '10.10.10.1',
+          accepts: () => false,
+        };
+        const res = {
+          status(code) {
+            statusCode = code;
+            return this;
+          },
+          json() {},
+        };
+        auth.middleware(req, res, () => {});
+        if (statusCode === 401) status401Count++;
+      }
+      assert.strictEqual(status401Count, 5);
+    });
+
+    it('should return 429 on 6th wrong Bearer attempt', () => {
+      const auth = createAuth('secret');
+      let lastStatus = null;
+      for (let i = 0; i < 6; i++) {
+        let statusCode = null;
+        const req = {
+          cookies: {},
+          headers: { authorization: 'Bearer wrong' },
+          ip: '10.10.10.2',
+          accepts: () => false,
+        };
+        const res = {
+          status(code) {
+            statusCode = code;
+            return this;
+          },
+          json() {},
+        };
+        auth.middleware(req, res, () => {});
+        lastStatus = statusCode;
+      }
+      assert.strictEqual(lastStatus, 429);
+    });
+
+    it('should allow correct Bearer auth after 4 failed attempts', () => {
+      const auth = createAuth('secret');
+      for (let i = 0; i < 4; i++) {
+        const req = {
+          cookies: {},
+          headers: { authorization: 'Bearer wrong' },
+          ip: '10.10.10.3',
+          accepts: () => false,
+        };
+        const res = {
+          status() {
+            return this;
+          },
+          json() {},
+        };
+        auth.middleware(req, res, () => {});
+      }
+      let called = false;
+      const req = {
+        cookies: {},
+        headers: { authorization: 'Bearer secret' },
+        ip: '10.10.10.3',
+        accepts: () => false,
+      };
+      auth.middleware(req, {}, () => {
+        called = true;
+      });
+      assert.ok(called);
+    });
+
+    it('should not rate-limit cookie auth due to Bearer failures', () => {
+      const auth = createAuth('secret');
+      const token = auth.generateToken();
+      // Exhaust Bearer rate limit
+      for (let i = 0; i < 6; i++) {
+        const req = {
+          cookies: {},
+          headers: { authorization: 'Bearer wrong' },
+          ip: '10.10.10.4',
+          accepts: () => false,
+        };
+        const res = {
+          status() {
+            return this;
+          },
+          json() {},
+        };
+        auth.middleware(req, res, () => {});
+      }
+      // Cookie auth should still work
+      let called = false;
+      const req = {
+        cookies: { pty_token: token },
+        headers: {},
+        ip: '10.10.10.4',
+        accepts: () => false,
+      };
       auth.middleware(req, {}, () => {
         called = true;
       });
