@@ -102,6 +102,30 @@ function findInstalledBinary() {
     return 'devtunnel';
   } catch {}
 
+  // On Windows, winget modifies PATH but the current process won't see it.
+  // Use 'where' to find it via the system PATH registry.
+  if (process.platform === 'win32') {
+    try {
+      const wherePath = execSync('where devtunnel.exe', {
+        encoding: 'utf-8',
+        stdio: 'pipe',
+        timeout: 10000,
+      })
+        .trim()
+        .split(/\r?\n/)[0];
+      if (wherePath && fs.existsSync(wherePath)) return wherePath;
+    } catch {}
+
+    const candidates = [
+      path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Links', 'devtunnel.exe'),
+      path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WindowsApps', 'devtunnel.exe'),
+      path.join(process.env.PROGRAMFILES || '', 'Microsoft', 'devtunnel', 'devtunnel.exe'),
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) return p;
+    }
+  }
+
   // Check ~/bin (where the Linux install script puts it)
   const homeBin = path.join(os.homedir(), 'bin', getBinaryName());
   if (fs.existsSync(homeBin)) {
@@ -109,17 +133,6 @@ function findInstalledBinary() {
       execFileSync(homeBin, ['--version'], { stdio: 'pipe', timeout: 10000 });
       return homeBin;
     } catch {}
-  }
-
-  // Windows-specific locations
-  if (process.platform === 'win32') {
-    const candidates = [
-      path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WindowsApps', 'devtunnel.exe'),
-      path.join(process.env.PROGRAMFILES || '', 'Microsoft', 'devtunnel', 'devtunnel.exe'),
-    ];
-    for (const p of candidates) {
-      if (fs.existsSync(p)) return p;
-    }
   }
 
   return null;
