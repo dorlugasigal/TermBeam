@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.0] - 2026-03-03
+
+- feat(service): add interactive PM2 service wizard (#57)
+- fix(test): mock os.platform in ps-based shell detection tests
+- test: boost coverage from 80% to 94.81%
+- test: improve coverage and exclude test/ from report
+- docs: update README, API, and configuration docs; add new CLI flags and improve security notes
+- docs: fix security doc inaccuracies found during review
+- Revert "perf: replace qrcode with lean-qr to reduce install size"
+- perf: replace qrcode with lean-qr to reduce install size
+
 ## [1.2.10] - 2026-03-02
 
 - fix(test): use real PNG magic bytes in upload serve test
