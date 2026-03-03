@@ -880,7 +880,7 @@ describe('actionLogs error handler', () => {
     });
 
     loaded.service.actionLogs();
-    await new Promise((r) => setTimeout(r, 50));
+    await new Promise((r) => setImmediate(r));
     assert.ok(errors.some((e) => e.includes('Failed to stream logs')));
   });
 });
