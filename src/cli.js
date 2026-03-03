@@ -10,6 +10,14 @@ termbeam — Beam your terminal to any device
 
 Usage:
   termbeam [options] [shell] [args...]
+  termbeam service <action>            Manage as a background service (PM2)
+
+Actions (service):
+  install      Interactive setup & start as PM2 service
+  uninstall    Stop & remove from PM2
+  status       Show service status
+  logs         Tail service logs
+  restart      Restart the service
 
 Options:
   --password <pw>       Set access password (or TERMBEAM_PASSWORD env var)
@@ -39,6 +47,7 @@ Examples:
   termbeam --password secret        Start with specific password
   termbeam --persisted-tunnel       Stable tunnel URL across restarts
   termbeam /bin/bash                Use bash instead of default shell
+  termbeam service install          Set up as background service (PM2)
 
 Environment:
   PORT                  Server port (default: 3456)

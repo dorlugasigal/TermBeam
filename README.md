@@ -106,6 +106,11 @@ termbeam [shell] [args...]        # start with a specific shell (default: auto-d
 termbeam --port 8080              # custom port (default: 3456)
 termbeam --host 0.0.0.0           # allow LAN access (default: 127.0.0.1)
 termbeam --lan                    # shortcut for --host 0.0.0.0
+termbeam service install          # interactive PM2 service setup wizard
+termbeam service uninstall        # stop & remove PM2 service
+termbeam service status           # show PM2 service status
+termbeam service logs             # tail PM2 service logs
+termbeam service restart          # restart PM2 service
 ```
 
 | Flag                  | Description                                          | Default        |
@@ -123,6 +128,14 @@ termbeam --lan                    # shortcut for --host 0.0.0.0
 | `--log-level <level>` | Log verbosity (error/warn/info/debug)                | `info`         |
 | `-h, --help`          | Show help                                            | —              |
 | `-v, --version`       | Show version                                         | —              |
+
+| Subcommand          | Description                   |
+| ------------------- | ----------------------------- |
+| `service install`   | Interactive PM2 service setup |
+| `service uninstall` | Stop & remove from PM2        |
+| `service status`    | Show PM2 service status       |
+| `service logs`      | Tail PM2 service logs         |
+| `service restart`   | Restart PM2 service           |
 
 Environment variables: `PORT`, `TERMBEAM_PASSWORD`, `TERMBEAM_CWD`, `TERMBEAM_LOG_LEVEL`, `SHELL` (Unix fallback), `COMSPEC` (Windows fallback). See [Configuration docs](https://dorlugasigal.github.io/TermBeam/configuration/).
 

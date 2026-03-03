@@ -5,41 +5,70 @@ const LOGIN_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#1a1a2e" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#1e1e1e" />
   <title>TermBeam — Login</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { height: 100%; background: #1a1a2e; color: #e0e0e0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      display: flex; align-items: center; justify-content: center; }
-    .card { background: #16213e; border: 1px solid #0f3460; border-radius: 16px;
-      padding: 32px 24px; width: 320px; text-align: center; }
-    h1 { font-size: 20px; margin-bottom: 8px; }
-    h1 span { color: #533483; }
-    p { font-size: 13px; color: #888; margin-bottom: 24px; }
-    input { width: 100%; padding: 12px; background: #1a1a2e; border: 1px solid #0f3460;
-      border-radius: 8px; color: #e0e0e0; font-size: 16px; outline: none;
-      text-align: center; letter-spacing: 2px; }
-    input:focus { border-color: #533483; }
-    button { width: 100%; padding: 12px; margin-top: 16px; background: #533483;
-      color: white; border: none; border-radius: 8px; font-size: 16px;
-      font-weight: 600; cursor: pointer; }
-    button:active { background: #6a42a8; }
-    .error { color: #e74c3c; font-size: 13px; margin-top: 12px; display: none; }
+    :root { --bg:#1e1e1e; --surface:#252526; --border:#3c3c3c; --border-subtle:#474747;
+      --text:#d4d4d4; --text-secondary:#858585; --text-dim:#6e6e6e;
+      --accent:#0078d4; --accent-hover:#1a8ae8; --accent-active:#005a9e;
+      --danger:#f14c4c; --shadow:rgba(0,0,0,0.15); }
+    [data-theme='light'] { --bg:#ffffff; --surface:#f3f3f3; --border:#e0e0e0;
+      --border-subtle:#d0d0d0; --text:#1e1e1e; --text-secondary:#616161;
+      --text-dim:#767676; --accent:#0078d4; --accent-hover:#106ebe;
+      --accent-active:#005a9e; --danger:#e51400; --shadow:rgba(0,0,0,0.06); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { height:100%; background:var(--bg); color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      transition:background 0.3s,color 0.3s;
+      padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+    .theme-toggle { position:fixed; top:16px; right:16px; background:none;
+      border:1px solid var(--border); color:var(--text-dim); width:32px; height:32px;
+      border-radius:8px; cursor:pointer; display:flex; align-items:center;
+      justify-content:center; font-size:16px; transition:color 0.15s,border-color 0.15s,background 0.15s;
+      -webkit-tap-highlight-color:transparent; z-index:10; }
+    .theme-toggle:hover { color:var(--text); border-color:var(--border-subtle); background:var(--border); }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px;
+      padding:32px 24px; width:320px; max-width:calc(100vw - 32px); text-align:center;
+      box-shadow:0 2px 8px var(--shadow); transition:background 0.3s,border-color 0.3s,box-shadow 0.3s; }
+    h1 { font-size:22px; font-weight:700; margin-bottom:4px; }
+    h1 span { color:var(--accent); }
+    .subtitle { font-size:13px; color:var(--text-secondary); margin-bottom:24px; }
+    input { width:100%; padding:12px; background:var(--bg); border:1px solid var(--border);
+      border-radius:8px; color:var(--text); font-size:16px; outline:none;
+      text-align:center; letter-spacing:2px; transition:border-color 0.15s,background 0.3s,color 0.3s; }
+    input:focus { border-color:var(--accent); }
+    .btn { width:100%; padding:12px; margin-top:16px; background:var(--accent);
+      color:#fff; border:none; border-radius:8px; font-size:16px;
+      font-weight:600; cursor:pointer; transition:background 0.15s; }
+    .btn:hover { background:var(--accent-hover); }
+    .btn:active { background:var(--accent-active); }
+    .error { color:var(--danger); font-size:13px; margin-top:12px; display:none; transition:color 0.3s; }
+    .tagline { margin-top:24px; font-size:12px; color:var(--text-dim); transition:color 0.3s; }
   </style>
 </head>
 <body>
+  <button class="theme-toggle" id="themeBtn" aria-label="Toggle theme">🌙</button>
   <div class="card">
     <h1>📡 Term<span>Beam</span></h1>
-    <p>Enter the access password</p>
+    <p class="subtitle">Enter the access password</p>
     <form id="form">
       <input type="password" id="pw" placeholder="Password" autocomplete="off" autofocus />
-      <button type="submit">Unlock</button>
+      <button type="submit" class="btn">Unlock</button>
     </form>
     <div class="error" id="err">Incorrect password</div>
   </div>
+  <p class="tagline">Beam your terminal to any device</p>
   <script>
+    const t=document.getElementById('themeBtn'), h=document.documentElement;
+    function applyTheme(light){h.setAttribute('data-theme',light?'light':'');t.textContent=light?'☀️':'🌙';
+      document.querySelector('meta[name=theme-color]').content=light?'#ffffff':'#1e1e1e';}
+    applyTheme(localStorage.getItem('theme')==='light');
+    t.addEventListener('click',()=>{const light=h.getAttribute('data-theme')!=='light';
+      localStorage.setItem('theme',light?'light':'dark');applyTheme(light);});
     document.getElementById('form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const pw = document.getElementById('pw').value;

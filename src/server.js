@@ -233,9 +233,8 @@ function createTermBeamServer(overrides = {}) {
 
 module.exports = { createTermBeamServer, getLocalIP };
 
-// Auto-start when run directly (CLI entry point)
-const _entryBase = path.basename(process.argv[1] || '');
-if (require.main === module || _entryBase === 'termbeam' || _entryBase === 'termbeam.js') {
+// Auto-start when run directly (e.g. `node src/server.js`)
+if (require.main === module) {
   const instance = createTermBeamServer();
 
   process.on('SIGINT', () => {

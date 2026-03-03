@@ -2050,7 +2050,17 @@
       // ===== Zoom =====
       const MIN_FONT = 2,
         MAX_FONT = 28;
-      let fontSize = parseInt(localStorage.getItem('termbeam-fontsize') || '8', 10);
+      function defaultFontSize() {
+        const w = window.innerWidth;
+        if (w <= 480) return 12;
+        if (w <= 768) return 13;
+        if (w <= 1280) return 14;
+        return 15;
+      }
+      let fontSize = parseInt(
+        localStorage.getItem('termbeam-fontsize') || String(defaultFontSize()),
+        10,
+      );
 
       function applyZoom(size) {
         fontSize = Math.max(MIN_FONT, Math.min(MAX_FONT, size));

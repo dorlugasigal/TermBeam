@@ -46,6 +46,26 @@ description: All TermBeam CLI flags and options — ports, passwords, tunnels, s
 !!! info "Legacy Variables"
     The environment variables `PTY_PASSWORD` and `PTY_CWD` are also supported as fallbacks for `TERMBEAM_PASSWORD` and `TERMBEAM_CWD` respectively.
 
+## Subcommands
+
+### `termbeam service`
+
+TermBeam includes a `service` subcommand for managing a PM2-based background service. Run `termbeam service install` to launch an interactive wizard that configures and starts the service.
+
+| Subcommand          | Description                                                           |
+| ------------------- | --------------------------------------------------------------------- |
+| `service install`   | Interactive wizard — configures password, port, access mode, and more |
+| `service uninstall` | Stops the PM2 process, removes it, and deletes the ecosystem config   |
+| `service status`    | Shows detailed PM2 process status (uptime, memory, restarts)          |
+| `service logs`      | Tails PM2 logs (last 200 lines + live stream)                         |
+| `service restart`   | Restarts the PM2 process                                              |
+
+<!-- prettier-ignore -->
+!!! info "Ecosystem config"
+    The wizard saves its configuration to `~/.termbeam/ecosystem.config.js`. You can edit this file manually and run `termbeam service restart` to apply changes.
+
+For a full walkthrough of the wizard steps and each subcommand, see [Running in Background](running-in-background.md#interactive-setup-easiest).
+
 ## Examples
 
 ### Basic Usage

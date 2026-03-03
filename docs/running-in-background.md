@@ -27,7 +27,75 @@ kill $(cat ~/.termbeam.pid)
 
 [PM2](https://pm2.keymetrics.io/) is the most popular Node.js process manager. It handles restarts, logging, and monitoring out of the box.
 
-### Setup
+### Interactive Setup (Easiest)
+
+TermBeam includes a built-in interactive installer that configures PM2 for you:
+
+```bash
+termbeam service install
+```
+
+The wizard checks if PM2 is installed (and offers to install it globally if not), then walks you through 7 configuration steps:
+
+| Step                     | Question                   | Options / Default                                                 |
+| ------------------------ | -------------------------- | ----------------------------------------------------------------- |
+| 1. **Service name**      | Name for the PM2 process   | Default: `termbeam`                                               |
+| 2. **Password**          | How to protect the service | Auto-generate (recommended), enter custom, or no password         |
+| 3. **Port**              | Server port                | Default: `3456`                                                   |
+| 4. **Access mode**       | How to reach the service   | DevTunnel (from anywhere), LAN (local network), or Localhost only |
+| 5. **Working directory** | Default terminal directory | Default: current directory                                        |
+| 6. **Log level**         | Logging verbosity          | `info` (default), `debug`, `warn`, or `error`                     |
+| 7. **Boot auto-start**   | Start on system boot?      | Default: Yes — runs `pm2 startup`                                 |
+
+If you choose **DevTunnel** access, a follow-up question asks whether the tunnel should be **private** (Microsoft login required) or **public** (anyone with the link). Choosing public with no password will auto-generate one for safety.
+
+After confirming, the wizard generates an ecosystem config file, starts the PM2 process, and saves the process list.
+
+<!-- prettier-ignore -->
+!!! tip "Ecosystem config location"
+    The wizard saves the PM2 ecosystem file to `~/.termbeam/ecosystem.config.js`. This file contains all the CLI flags and environment variables for your service. You can edit it manually and run `termbeam service restart` to apply changes.
+
+### Service Subcommands
+
+After installation, manage the service with these subcommands:
+
+#### `termbeam service status`
+
+Shows detailed PM2 process information (equivalent to `pm2 describe <name>`), including uptime, restarts, memory usage, and log file paths.
+
+```bash
+termbeam service status
+```
+
+#### `termbeam service logs`
+
+Tails the PM2 log output, showing the last 200 lines and streaming new output in real time. Press `Ctrl+C` to stop.
+
+```bash
+termbeam service logs
+```
+
+#### `termbeam service restart`
+
+Restarts the PM2 process. Useful after editing the ecosystem config file or updating TermBeam.
+
+```bash
+termbeam service restart
+```
+
+#### `termbeam service uninstall`
+
+Stops the PM2 process, removes it from PM2, and deletes the ecosystem config file. Prompts for confirmation before proceeding.
+
+```bash
+termbeam service uninstall
+```
+
+<!-- prettier-ignore -->
+!!! warning
+    `uninstall` removes the service from PM2 and deletes the ecosystem config at `~/.termbeam/ecosystem.config.js`. If you've customized the config, back it up first.
+
+### Manual Setup
 
 ```bash
 # Install PM2 globally

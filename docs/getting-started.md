@@ -118,3 +118,13 @@ The bottom touch bar provides quick access to:
 | ^C      | Ctrl+C (interrupt process)                          |
 
 Font size can be adjusted with **−** / **+** buttons in the top toolbar.
+
+## Running as a Service
+
+Want TermBeam always available in the background? The built-in service installer configures [PM2](https://pm2.keymetrics.io/) for you with an interactive wizard:
+
+```bash
+termbeam service install
+```
+
+After installation, manage the service with `termbeam service status`, `logs`, `restart`, or `uninstall`. For the full setup guide and alternative methods (systemd, launchd, Windows), see [Running in Background](running-in-background.md).
