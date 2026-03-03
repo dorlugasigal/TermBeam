@@ -17,7 +17,7 @@ TermBeam lets you access your terminal from a phone, tablet, or any browser — 
 
 I built this because I kept needing to run quick commands on my dev machine while away from my desk, and SSH on a phone is painful. TermBeam gives you a real terminal with a touch-friendly UI that actually works on small screens.
 
-[Full documentation](https://dorlugasigal.github.io/TermBeam/)
+[Full documentation](https://dorlugasigal.github.io/TermBeam/) · [Website](https://termbeam.pages.dev)
 
 https://github.com/user-attachments/assets/9dd4f3d7-f017-4314-9b3a-f6a5688e3671
 
