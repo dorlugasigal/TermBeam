@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TermBeam — Beam Your Terminal to Any Device</title>
+    <meta
+      name="description"
+      content="Access your terminal from your phone, tablet, or any browser. No SSH, no config — one command and a QR code."
+    />
+    <meta property="og:title" content="TermBeam — Beam Your Terminal to Any Device" />
+    <meta
+      property="og:description"
+      content="Access your terminal from your phone, tablet, or any browser. No SSH, no config — one command."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <!-- Nav -->
+    <nav class="nav">
+      <div class="nav-inner">
+        <a href="#" class="nav-logo">
+          <span class="nav-logo-icon">▸</span>
+          <span>TermBeam</span>
+        </a>
+        <div class="nav-links">
+          <a href="#features">Features</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="https://dorlugasigal.github.io/TermBeam/" target="_blank">Docs</a>
+          <a
+            href="https://github.com/dorlugasigal/TermBeam"
+            target="_blank"
+            class="nav-github"
+            aria-label="GitHub"
+          >
+            <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor">
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+              />
+            </svg>
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-glow"></div>
+      <div class="hero-grid-bg"></div>
+      <div class="hero-content">
+        <div class="hero-badge" data-reveal>
+          <span class="badge-dot"></span>
+          Open Source · MIT Licensed
+        </div>
+        <h1 data-reveal data-reveal-delay="1">
+          Beam your terminal<br />
+          to <span class="gradient-text">any device</span>
+        </h1>
+        <p class="hero-sub" data-reveal data-reveal-delay="2">
+          Access your terminal from your phone, tablet, or any browser. No SSH, no port forwarding,
+          no config — just one command.
+        </p>
+
+        <!-- Animated terminal -->
+        <div class="terminal-window" data-reveal data-reveal-delay="3">
+          <div class="terminal-bar">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot yellow"></span>
+            <span class="terminal-dot green"></span>
+            <span class="terminal-title">Terminal</span>
+          </div>
+          <div class="terminal-body">
+            <div class="terminal-line">
+              <span class="terminal-prompt">$</span>
+              <span class="terminal-typed" id="typed-command"></span>
+              <span class="terminal-cursor">▋</span>
+            </div>
+            <div class="terminal-output" id="terminal-output"></div>
+          </div>
+        </div>
+
+        <div class="hero-actions" data-reveal data-reveal-delay="4">
+          <a href="https://dorlugasigal.github.io/TermBeam/getting-started/" class="btn-primary">
+            Get Started
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M6 3l5 5-5 5"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </a>
+          <button class="btn-install" id="copy-btn" onclick="copyInstall()">
+            <span class="btn-install-dollar">$</span>
+            <span>npx termbeam</span>
+            <span class="btn-install-copy" id="copy-icon">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+              </svg>
+            </span>
+          </button>
+        </div>
+
+        <div class="hero-badges" data-reveal data-reveal-delay="5">
+          <a href="https://www.npmjs.com/package/termbeam"
+            ><img
+              src="https://img.shields.io/npm/v/termbeam.svg?style=flat-square&color=0078d4"
+              alt="npm"
+          /></a>
+          <a href="https://www.npmjs.com/package/termbeam"
+            ><img
+              src="https://img.shields.io/npm/dm/termbeam.svg?style=flat-square&color=16825d"
+              alt="downloads"
+          /></a>
+          <a href="https://github.com/dorlugasigal/TermBeam/actions/workflows/ci.yml"
+            ><img
+              src="https://img.shields.io/github/actions/workflow/status/dorlugasigal/TermBeam/ci.yml?style=flat-square&label=CI"
+              alt="CI"
+          /></a>
+          <a href="https://opensource.org/licenses/MIT"
+            ><img
+              src="https://img.shields.io/badge/license-MIT-orange.svg?style=flat-square"
+              alt="License"
+          /></a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Logos / social proof -->
+    <section class="social-proof" data-reveal>
+      <p>Works everywhere you do</p>
+      <div class="platform-list">
+        <span class="platform-chip">🍎 macOS</span>
+        <span class="platform-chip">🐧 Linux</span>
+        <span class="platform-chip">🪟 Windows</span>
+        <span class="platform-chip">📱 Mobile browsers</span>
+        <span class="platform-chip">🌐 Any browser</span>
+      </div>
+    </section>
+
+    <!-- Phone Showcase -->
+    <section class="showcase" id="features">
+      <div class="section-container">
+        <div class="section-header" data-reveal>
+          <span class="section-label">See it in action</span>
+          <h2>A real terminal,<br />designed for your phone</h2>
+        </div>
+
+        <div class="phone-showcase" data-reveal>
+          <div class="phone-frame">
+            <div class="phone-notch"></div>
+            <img
+              src="/mobile-terminal.jpeg"
+              alt="Terminal with touch bar"
+              loading="lazy"
+              style="object-position: center 40%"
+            />
+            <div class="phone-label">Touch Terminal</div>
+          </div>
+          <div class="phone-frame phone-frame-center">
+            <div class="phone-notch"></div>
+            <img src="/mobile-session-hub.jpeg" alt="Session hub" loading="lazy" />
+            <div class="phone-label">Session Hub</div>
+          </div>
+          <div class="phone-frame">
+            <div class="phone-notch"></div>
+            <img
+              src="/mobile-session-preview.jpeg"
+              alt="Session preview"
+              loading="lazy"
+              style="object-position: center 15%"
+            />
+            <div class="phone-label">Session Preview</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features">
+      <div class="section-container">
+        <div class="section-header" data-reveal>
+          <span class="section-label">Features</span>
+          <h2>Everything you need,<br />nothing you don't</h2>
+          <p class="section-sub">
+            Built for developers who need quick terminal access from any device — without the pain
+            of mobile SSH.
+          </p>
+        </div>
+
+        <div class="feature-grid" data-reveal>
+          <div class="feature-card">
+            <div class="feature-icon-wrap">📱</div>
+            <h3>Mobile-first touch UI</h3>
+            <p>
+              Purpose-built touch bar with arrow keys, Tab, Ctrl+C, Esc. Copy/paste that works.
+              Swipe to scroll.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">⚡</div>
+            <h3>Multi-session tabs</h3>
+            <p>
+              Multiple terminals in tabs. Drag to reorder, split side-by-side, assign colors,
+              activity indicators.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">🔐</div>
+            <h3>Secure by default</h3>
+            <p>
+              Auto-generated passwords, rate-limited login, token-based auth, CSP headers, origin
+              validation.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">🌍</div>
+            <h3>Instant remote access</h3>
+            <p>
+              Built-in DevTunnel creates a public HTTPS URL automatically. Works from anywhere —
+              even cellular.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">🎯</div>
+            <h3>Zero config</h3>
+            <p>
+              No SSH keys, no port forwarding, no config files. Auto-detects your shell on every
+              platform.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">📲</div>
+            <h3>QR code auto-login</h3>
+            <p>
+              Scan the QR code to connect and authenticate instantly. Share tokens expire after 5
+              minutes.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">📦</div>
+            <h3>Install as PWA</h3>
+            <p>
+              Add TermBeam to your home screen as a native-feeling app. Works offline-ready with
+              service worker caching.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">🎨</div>
+            <h3>Themes & font size</h3>
+            <p>
+              Light and dark mode with persistent preference. Adjustable font size saved across
+              sessions.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">📂</div>
+            <h3>Folder browser</h3>
+            <p>
+              Pick working directories visually without typing paths. Launch sessions with initial
+              commands.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="how-it-works" id="how-it-works">
+      <div class="section-container">
+        <div class="section-header" data-reveal>
+          <span class="section-label">How it works</span>
+          <h2>Three steps. That's it.</h2>
+        </div>
+
+        <div class="steps" data-reveal>
+          <div class="step">
+            <div class="step-num">01</div>
+            <div class="step-content">
+              <h3>Run one command</h3>
+              <p>
+                Run <code>npx termbeam</code> in your terminal. TermBeam starts a server, generates
+                a password, and opens a tunnel.
+              </p>
+            </div>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step">
+            <div class="step-num">02</div>
+            <div class="step-content">
+              <h3>Scan the QR code</h3>
+              <p>
+                Point your phone camera at the QR code. It auto-logs you in — no password typing on
+                a tiny keyboard.
+              </p>
+            </div>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step">
+            <div class="step-num">03</div>
+            <div class="step-content">
+              <h3>Use your terminal</h3>
+              <p>
+                A full terminal with touch controls, tabs, split view — right in your mobile
+                browser. It's that simple.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Architecture -->
+        <div class="arch-diagram" data-reveal>
+          <div class="arch-node">
+            <div class="arch-icon">📱</div>
+            <div class="arch-label">Your Phone</div>
+            <div class="arch-sublabel">Any browser</div>
+          </div>
+          <div class="arch-arrow">
+            <div class="arch-arrow-line"></div>
+            <div class="arch-arrow-label">WebSocket</div>
+          </div>
+          <div class="arch-node arch-node-center">
+            <div class="arch-icon">⚡</div>
+            <div class="arch-label">TermBeam</div>
+            <div class="arch-sublabel">Express + WS</div>
+          </div>
+          <div class="arch-arrow">
+            <div class="arch-arrow-line"></div>
+            <div class="arch-arrow-label">PTY</div>
+          </div>
+          <div class="arch-node">
+            <div class="arch-icon">▸_</div>
+            <div class="arch-label">Your Shell</div>
+            <div class="arch-sublabel">zsh / bash / pwsh</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+      <div class="cta-glow"></div>
+      <div class="section-container">
+        <div class="cta-content" data-reveal>
+          <h2>Ready to beam<br />your terminal?</h2>
+          <p>One command. Any device. Open source.</p>
+          <div class="cta-actions">
+            <a
+              href="https://dorlugasigal.github.io/TermBeam/getting-started/"
+              class="btn-primary btn-large"
+            >
+              Get Started
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M6 3l5 5-5 5"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </a>
+            <a
+              href="https://github.com/dorlugasigal/TermBeam"
+              class="btn-secondary btn-large"
+              target="_blank"
+            >
+              <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor">
+                <path
+                  d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+                />
+              </svg>
+              Star on GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="footer-left">
+          <span class="nav-logo-icon">▸</span>
+          <span>TermBeam</span>
+          <span class="footer-sep">·</span>
+          <span class="footer-muted"
+            >Built by
+            <a href="https://github.com/dorlugasigal" target="_blank">dorlugasigal</a></span
+          >
+        </div>
+        <div class="footer-links">
+          <a href="https://dorlugasigal.github.io/TermBeam/" target="_blank">Docs</a>
+          <a href="https://www.npmjs.com/package/termbeam" target="_blank">npm</a>
+          <a href="https://github.com/dorlugasigal/TermBeam" target="_blank">GitHub</a>
+          <a href="https://github.com/dorlugasigal/TermBeam/blob/main/LICENSE" target="_blank"
+            >MIT License</a
+          >
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
