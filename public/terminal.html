@@ -2794,29 +2794,6 @@
         // Split toggle
         document.getElementById('split-toggle').addEventListener('click', toggleSplit);
 
-        // Tab title activity indicator for unread output
-        const originalTitle = document.title;
-        let hasUnread = false;
-        let titleUpdatePending = false;
-
-        function markUnreadOutput() {
-          if (!document.hidden || hasUnread) return;
-          hasUnread = true;
-          if (!titleUpdatePending) {
-            titleUpdatePending = true;
-            requestAnimationFrame(() => {
-              document.title = '(\u25CF) ' + originalTitle;
-              titleUpdatePending = false;
-            });
-          }
-        }
-
-        function clearUnreadIndicator() {
-          if (!hasUnread) return;
-          hasUnread = false;
-          document.title = originalTitle;
-        }
-
         // Scroll to bottom when returning from idle / tab switch
         document.addEventListener('visibilitychange', () => {
           if (!document.hidden && activeId) {
@@ -3078,6 +3055,29 @@
 
         connectSession(ms);
         return ms;
+      }
+
+      // Tab title activity indicator for unread output
+      const originalTitle = document.title;
+      let hasUnread = false;
+      let titleUpdatePending = false;
+
+      function markUnreadOutput() {
+        if (!document.hidden || hasUnread) return;
+        hasUnread = true;
+        if (!titleUpdatePending) {
+          titleUpdatePending = true;
+          requestAnimationFrame(() => {
+            document.title = '(\u25CF) ' + originalTitle;
+            titleUpdatePending = false;
+          });
+        }
+      }
+
+      function clearUnreadIndicator() {
+        if (!hasUnread) return;
+        hasUnread = false;
+        document.title = originalTitle;
       }
 
       function connectSession(ms) {
