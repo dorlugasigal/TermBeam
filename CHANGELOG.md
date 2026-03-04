@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.7.0] - 2026-03-04
+
+- chore: bump version to 1.6.0
+- feat(sessions): show git repo info in session cards (#70)
+- docs: enhance description of touch-optimized UI and features in README
+- docs: restructure README features and fix documentation gaps
+- docs: reorder screenshots — terminal in center
+- docs: update screenshots to consistent dark theme
+- docs: update screenshots for README and landing page
+
 ## [1.5.0] - 2026-03-04
 
 - feat(ui): add command notifications, terminal search, and command palette (#68)
