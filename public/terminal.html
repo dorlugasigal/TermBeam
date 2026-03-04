@@ -3060,7 +3060,6 @@
       // Tab title activity indicator for unread output
       const originalTitle = document.title;
       let hasUnread = false;
-      let titleUpdatePending = false;
 
       function playNotificationSound() {
         try {
@@ -3085,13 +3084,7 @@
         if (!document.hidden || hasUnread) return;
         hasUnread = true;
         playNotificationSound();
-        if (!titleUpdatePending) {
-          titleUpdatePending = true;
-          requestAnimationFrame(() => {
-            document.title = '(\u25CF) ' + originalTitle;
-            titleUpdatePending = false;
-          });
-        }
+        document.title = '(\u25CF) ' + originalTitle;
       }
 
       function clearUnreadIndicator() {
