@@ -10,18 +10,33 @@ if (subcommand === 'service') {
   });
 } else {
   const { createTermBeamServer } = require('../src/server.js');
-  const instance = createTermBeamServer();
+  const { parseArgs } = require('../src/cli');
+  const { runInteractiveSetup } = require('../src/interactive');
 
-  process.on('SIGINT', () => {
-    console.log('\n[termbeam] Shutting down...');
-    instance.shutdown();
-    setTimeout(() => process.exit(0), 500).unref();
-  });
-  process.on('SIGTERM', () => {
-    console.log('\n[termbeam] Shutting down...');
-    instance.shutdown();
-    setTimeout(() => process.exit(0), 500).unref();
-  });
+  async function main() {
+    const baseConfig = parseArgs();
+    let config;
+    if (baseConfig.interactive) {
+      config = await runInteractiveSetup(baseConfig);
+    }
+    const instance = createTermBeamServer(config ? { config } : undefined);
 
-  instance.start();
+    process.on('SIGINT', () => {
+      console.log('\n[termbeam] Shutting down...');
+      instance.shutdown();
+      setTimeout(() => process.exit(0), 500).unref();
+    });
+    process.on('SIGTERM', () => {
+      console.log('\n[termbeam] Shutting down...');
+      instance.shutdown();
+      setTimeout(() => process.exit(0), 500).unref();
+    });
+
+    instance.start();
+  }
+
+  main().catch((err) => {
+    console.error(err.message);
+    process.exit(1);
+  });
 }

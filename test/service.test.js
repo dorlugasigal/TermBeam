@@ -167,8 +167,10 @@ const Module = require('module');
 function loadServiceWithMocks(mocks = {}) {
   const originalLoad = Module._load;
   const servicePath = require.resolve('../src/service');
+  const promptsPath = require.resolve('../src/prompts');
 
   delete require.cache[servicePath];
+  delete require.cache[promptsPath];
 
   const mockModules = {};
   if (mocks.childProcess) {
@@ -181,8 +183,11 @@ function loadServiceWithMocks(mocks = {}) {
     mockModules['readline'] = { ...require('readline'), ...mocks.readline };
   }
 
+  // Apply mocks to both service.js and prompts.js (prompts uses readline)
+  const mockTargets = new Set([servicePath, promptsPath]);
+
   Module._load = function (request, parent, isMain) {
-    if (mockModules[request] && parent && parent.filename === servicePath) {
+    if (mockModules[request] && parent && mockTargets.has(parent.filename)) {
       return mockModules[request];
     }
     return originalLoad.call(this, request, parent, isMain);
@@ -194,6 +199,7 @@ function loadServiceWithMocks(mocks = {}) {
     service,
     restore() {
       delete require.cache[servicePath];
+      delete require.cache[promptsPath];
       Module._load = originalLoad;
     },
   };

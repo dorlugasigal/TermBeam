@@ -27,6 +27,14 @@ termbeam
 
 ## First Run
 
+For a guided setup that walks you through password, port, access mode, and log level:
+
+```bash
+termbeam -i
+```
+
+Or start directly with defaults:
+
 1. Start TermBeam:
 
    ```bash
@@ -43,7 +51,7 @@ termbeam
         ██║   ███████╗██║  ██║██║ ╚═╝ ██║██████╔╝███████╗██║  ██║██║ ╚═╝ ██║
         ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝
 
-     Beam your terminal to any device 📡  v1.5.0
+     Beam your terminal to any device 📡  v1.7.0
 
      Shell:    /bin/zsh
      Session:  a1b2c3d4

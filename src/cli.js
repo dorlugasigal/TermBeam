@@ -31,6 +31,7 @@ Options:
   --host <addr>         Bind address (default: 127.0.0.1)
   --lan                 Bind to 0.0.0.0 (allow LAN access, default: localhost only)
   --log-level <level>   Set log verbosity: error, warn, info, debug (default: info)
+  -i, --interactive     Interactive setup wizard (guided configuration)
   -h, --help            Show this help
   -v, --version         Show version
 
@@ -47,6 +48,7 @@ Examples:
   termbeam --password secret        Start with specific password
   termbeam --persisted-tunnel       Stable tunnel URL across restarts
   termbeam /bin/bash                Use bash instead of default shell
+  termbeam --interactive               Guided setup wizard
   termbeam service install          Set up as background service (PM2)
 
 Environment:
@@ -241,6 +243,7 @@ function parseArgs() {
   let noTunnel = false;
   let persistedTunnel = false;
   let publicTunnel = false;
+  let interactive = false;
   let explicitPassword = !!password;
 
   const args = process.argv.slice(2);
@@ -281,6 +284,8 @@ function parseArgs() {
       host = '0.0.0.0';
     } else if (args[i] === '--host' && args[i + 1]) {
       host = args[++i];
+    } else if (args[i] === '--interactive' || (args[i] === '-i' && filteredArgs.length === 0)) {
+      interactive = true;
     } else if (args[i] === '--log-level' && args[i + 1]) {
       logLevel = args[++i];
     } else {
@@ -335,6 +340,7 @@ function parseArgs() {
     defaultShell,
     version,
     logLevel,
+    interactive,
   };
 }
 

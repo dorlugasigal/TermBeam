@@ -47,6 +47,7 @@ Built for developers who need quick remote terminal access without the hassle of
 - **Password auth** with auto-generation, rate limiting, and httpOnly cookies
 - **QR code auto-login** with single-use share tokens (5-min expiry)
 - **Shell validation** — only detected shells are allowed
+- **Interactive setup wizard** — run `termbeam -i` for guided configuration
 
 ## Quick Start
 

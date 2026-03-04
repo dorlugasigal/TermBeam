@@ -18,6 +18,8 @@ termbeam/
 │   ├── tunnel.js            # DevTunnel integration
 │   ├── preview.js           # Port preview reverse proxy
 │   ├── service.js           # PM2 service management
+│   ├── interactive.js      # Interactive setup wizard
+│   ├── prompts.js          # Terminal prompt primitives (color, ask, choose, confirm)
 │   ├── shells.js            # Shell detection (cross-platform)
 │   ├── logger.js            # Structured logger with levels
 │   └── version.js           # Smart version detection
@@ -30,6 +32,8 @@ termbeam/
 ├── test/
 │   ├── auth.test.js
 │   ├── cli.test.js
+│   ├── interactive.test.js
+│   ├── prompts.test.js
 │   ├── devtunnel-install.test.js
 │   ├── e2e-keybar.test.js
 │   ├── integration.test.js
@@ -98,6 +102,14 @@ Handles automatic installation of the DevTunnel CLI when it's not found on the s
 ### `service.js` — PM2 Service Manager
 
 Manages TermBeam as a background service via PM2. Provides an interactive wizard for `termbeam service install` that walks through configuration (name, password, port, access mode, working directory, log level, boot auto-start). Also handles `service status`, `logs`, `restart`, and `uninstall` subcommands. Generates an ecosystem config file at `~/.termbeam/ecosystem.config.js`.
+
+### `interactive.js` — Setup Wizard
+
+Runs a step-by-step terminal wizard (in an alternate screen buffer) that walks the user through password, port, access mode, and log level configuration. Returns a config object compatible with `createTermBeamServer()`. Invoked by `bin/termbeam.js` when `--interactive` is passed. Uses prompt primitives from `prompts.js`.
+
+### `prompts.js` — Terminal Prompts
+
+Provides ANSI color helpers (`green`, `yellow`, `red`, `cyan`, `bold`, `dim`) and interactive prompt functions (`ask`, `choose`, `confirm`, `createRL`). Extracted from `service.js` so both the service install wizard and the interactive setup wizard can share the same prompt primitives.
 
 ### `version.js` — Version Detection
 

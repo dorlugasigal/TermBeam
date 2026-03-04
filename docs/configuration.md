@@ -7,21 +7,22 @@ description: All TermBeam CLI flags and options — ports, passwords, tunnels, s
 
 ## CLI Flags
 
-| Flag                  | Description                                                      | Default        |
-| --------------------- | ---------------------------------------------------------------- | -------------- |
-| `--password <pw>`     | Set access password (also accepts `--password=<pw>`)             | Auto-generated |
-| `--generate-password` | Auto-generate a secure password (default behavior)               | On             |
-| `--no-password`       | Disable password authentication (cannot combine with `--public`) | —              |
-| `--tunnel`            | Create an ephemeral devtunnel URL (private access)               | On             |
-| `--no-tunnel`         | Disable tunnel                                                   | —              |
-| `--persisted-tunnel`  | Create a reusable devtunnel URL (stable across restarts)         | Off            |
-| `--public`            | Allow public tunnel access (no Microsoft login required)         | Off            |
-| `--port <port>`       | Server port                                                      | `3456`         |
-| `--host <addr>`       | Bind address                                                     | `127.0.0.1`    |
-| `--lan`               | Bind to all interfaces (LAN access)                              | Off            |
-| `-h, --help`          | Show help                                                        | —              |
-| `-v, --version`       | Show version                                                     | —              |
-| `--log-level <level>` | Set log verbosity: `error`, `warn`, `info`, `debug`              | `info`         |
+| Flag                  | Description                                                                                                   | Default        |
+| --------------------- | ------------------------------------------------------------------------------------------------------------- | -------------- |
+| `--password <pw>`     | Set access password (also accepts `--password=<pw>`)                                                          | Auto-generated |
+| `--generate-password` | Auto-generate a secure password (default behavior)                                                            | On             |
+| `--no-password`       | Disable password authentication (cannot combine with `--public`)                                              | —              |
+| `--tunnel`            | Create an ephemeral devtunnel URL (private access)                                                            | On             |
+| `--no-tunnel`         | Disable tunnel                                                                                                | —              |
+| `--persisted-tunnel`  | Create a reusable devtunnel URL (stable across restarts)                                                      | Off            |
+| `--public`            | Allow public tunnel access (no Microsoft login required)                                                      | Off            |
+| `--port <port>`       | Server port                                                                                                   | `3456`         |
+| `--host <addr>`       | Bind address                                                                                                  | `127.0.0.1`    |
+| `--lan`               | Bind to all interfaces (LAN access)                                                                           | Off            |
+| `-i, --interactive`   | Interactive setup wizard — walks through password, port, access mode (tunnel type, visibility), and log level | Off            |
+| `-h, --help`          | Show help                                                                                                     | —              |
+| `-v, --version`       | Show version                                                                                                  | —              |
+| `--log-level <level>` | Set log verbosity: `error`, `warn`, `info`, `debug`                                                           | `info`         |
 
 ## Environment Variables
 
@@ -98,6 +99,15 @@ termbeam /bin/bash
 # Use fish shell with custom port
 termbeam --port 8080 /usr/bin/fish
 ```
+
+### Interactive Setup
+
+```bash
+# Launch the guided setup wizard
+termbeam -i
+```
+
+The wizard walks through password, port, access mode, and log level with an interactive TUI.
 
 ### With Authentication
 

@@ -46,6 +46,8 @@ termbeam
 
 Scan the QR code printed in your terminal, or open the URL on any device.
 
+> **First time?** Run `termbeam -i` for a guided setup wizard that walks you through password, port, and access mode.
+
 ### Secure by default
 
 TermBeam starts with a tunnel and auto-generated password out of the box — just run `termbeam` and scan the QR code.
@@ -55,6 +57,7 @@ termbeam                        # tunnel + auto-password (default)
 termbeam --password mysecret    # use a specific password
 termbeam --no-tunnel            # LAN-only (no tunnel)
 termbeam --no-password          # disable password protection
+termbeam -i                     # interactive setup wizard
 ```
 
 ## Remote Access
@@ -85,6 +88,7 @@ termbeam [shell] [args...]        # start with a specific shell (default: auto-d
 termbeam --port 8080              # custom port (default: 3456)
 termbeam --host 0.0.0.0           # allow LAN access (default: 127.0.0.1)
 termbeam --lan                    # shortcut for --host 0.0.0.0
+termbeam -i                       # interactive setup wizard
 termbeam service install          # interactive PM2 service setup wizard
 termbeam service uninstall        # stop & remove PM2 service
 termbeam service status           # show PM2 service status
@@ -105,6 +109,7 @@ termbeam service restart          # restart PM2 service
 | `--host <addr>`       | Bind address                                         | `127.0.0.1`    |
 | `--lan`               | Bind to all interfaces (LAN access)                  | Off            |
 | `--log-level <level>` | Log verbosity (error/warn/info/debug)                | `info`         |
+| `-i, --interactive`   | Interactive setup wizard (guided configuration)      | Off            |
 | `-h, --help`          | Show help                                            | —              |
 | `-v, --version`       | Show version                                         | —              |
 
