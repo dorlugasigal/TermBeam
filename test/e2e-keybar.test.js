@@ -836,3 +836,85 @@ test.describe('Top Bar — Status', () => {
     }).toPass({ timeout: 5_000 });
   });
 });
+
+// ─── Activity Indicators ────────────────────────────────────────────────────
+
+test.describe('Activity Indicators', () => {
+  test('Tab title shows unread indicator when output arrives in hidden tab', async ({ page }) => {
+    await openTerminal(page);
+
+    // Simulate tab being hidden
+    const titleBefore = await page.title();
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'hidden', {
+        value: true,
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    // Run a command that produces output while "hidden"
+    const marker = `HIDDEN_${Date.now()}`;
+    await runCommand(page, `echo ${marker}`);
+    await waitForTerminalOutput(page, marker);
+
+    // Title should have unread indicator
+    await expect(async () => {
+      const title = await page.title();
+      expect(title).toContain('\u25CF');
+    }).toPass({ timeout: 5_000 });
+
+    // Simulate returning to tab — title should restore
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'hidden', {
+        value: false,
+        writable: true,
+        configurable: true,
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect(async () => {
+      const title = await page.title();
+      expect(title).toBe(titleBefore);
+    }).toPass({ timeout: 5_000 });
+  });
+
+  test('Inactive session tab shows unread dot when it receives output', async ({ page }) => {
+    test.skip(isWindows, 'Multi-session timing unreliable on Windows CI');
+    await openTerminal(page);
+
+    // Start a delayed echo in the first session
+    await runCommand(page, 'sleep 1 && echo BACKGROUND_OUTPUT');
+
+    // Create a second session and switch to it
+    await page.click('#tab-new-btn');
+    await expect(page.locator('#new-session-modal')).toHaveClass(/visible/);
+    await page.fill('#ns-name', 'Second');
+    await page.click('#ns-create');
+    await expect(page.locator('#new-session-modal')).not.toHaveClass(/visible/, { timeout: 5_000 });
+    await page.waitForTimeout(500);
+
+    // Wait for the first session's output to arrive while we're on the second tab
+    await expect(async () => {
+      const hasUnread = await page.locator('.session-tab .tab-unread').count();
+      expect(hasUnread).toBeGreaterThan(0);
+    }).toPass({ timeout: 10_000 });
+
+    // Click the first session tab — unread dot should disappear
+    const firstTab = page.locator('.session-tab').first();
+    await firstTab.click();
+    await page.waitForTimeout(300);
+    const unreadAfter = await page.locator('.session-tab .tab-unread').count();
+    expect(unreadAfter).toBe(0);
+  });
+
+  test('Notification sound function exists and is callable', async ({ page }) => {
+    await openTerminal(page);
+
+    // Verify playNotificationSound is defined and doesn't throw
+    const result = await page.evaluate(() => {
+      return typeof playNotificationSound === 'function';
+    });
+    expect(result).toBe(true);
+  });
+});

@@ -3417,6 +3417,14 @@
             activateSession(tab.dataset.id);
           });
 
+          // Middle-click to close tab
+          tab.addEventListener('auxclick', (e) => {
+            if (e.button === 1) {
+              e.preventDefault();
+              removeSession(tab.dataset.id);
+            }
+          });
+
           // Desktop: hover preview (non-active tabs only)
           tab.addEventListener('mouseenter', () => {
             if (tab.dataset.id === activeId) return;
