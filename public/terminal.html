@@ -611,7 +611,7 @@
       }
       .theme-wrap {
         position: relative;
-        display: flex;
+        display: none;
         align-items: center;
       }
       .theme-picker {
@@ -662,7 +662,7 @@
         height: 30px;
         border-radius: 8px;
         cursor: pointer;
-        display: flex;
+        display: none;
         align-items: center;
         justify-content: center;
         gap: 4px;
@@ -683,6 +683,75 @@
         background: var(--danger-hover);
         color: #fff;
         transform: scale(0.9);
+      }
+
+      /* ===== Notification Toggle ===== */
+      .notify-btn.active {
+        color: var(--accent) !important;
+      }
+
+      /* ===== Search Bar ===== */
+      .search-bar {
+        display: none;
+        position: absolute;
+        top: 4px;
+        right: 12px;
+        z-index: 100;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 4px 6px;
+        gap: 4px;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        font-size: 13px;
+        color: var(--text);
+      }
+      .search-bar.visible {
+        display: flex;
+      }
+      .search-bar input {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        padding: 3px 6px;
+        font-size: 13px;
+        font-family: inherit;
+        width: 160px;
+        outline: none;
+      }
+      .search-bar input:focus {
+        border-color: var(--accent);
+      }
+      .search-bar .search-count {
+        color: var(--text-secondary);
+        font-size: 11px;
+        min-width: 40px;
+        text-align: center;
+        white-space: nowrap;
+      }
+      .search-bar button {
+        background: none;
+        border: 1px solid transparent;
+        color: var(--text-dim);
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        padding: 0;
+      }
+      .search-bar button:hover {
+        background: var(--border);
+        color: var(--text);
+      }
+      .search-bar button.active {
+        color: var(--accent);
+        border-color: var(--accent);
       }
 
       /* ===== Terminals Wrapper ===== */
@@ -1668,17 +1737,12 @@
         #tab-list {
           display: none;
         }
-        #split-toggle {
-          display: none;
-        }
-        #version-text {
-          display: none;
-        }
+
         #back-btn {
           display: none;
         }
         #theme-wrap {
-          display: flex;
+          display: none;
         }
         #stop-btn {
           padding: 0 8px;
@@ -1694,6 +1758,195 @@
           padding: 0 8px;
           width: auto;
         }
+      }
+
+      /* ===== Command Palette / Tool Panel ===== */
+      .palette-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 250;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+      .palette-backdrop.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .palette-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 280px;
+        max-width: 85vw;
+        height: 100%;
+        background: var(--surface);
+        border-left: 1px solid var(--border);
+        z-index: 260;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .palette-panel.open {
+        transform: translateX(0);
+      }
+      .palette-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 600;
+        font-size: 15px;
+        color: var(--text);
+      }
+      .palette-close {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 18px;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+      .palette-close:hover {
+        background: var(--hover-bg, rgba(255, 255, 255, 0.08));
+        color: var(--text);
+      }
+      .palette-body {
+        padding: 8px 0;
+        flex: 1;
+      }
+      .palette-category {
+        padding: 8px 16px 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted, var(--text-secondary));
+      }
+      .palette-action {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 16px;
+        background: none;
+        border: none;
+        color: var(--text);
+        font-size: 13px;
+        cursor: pointer;
+        text-align: left;
+        transition: background 0.15s;
+      }
+      .palette-action:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .palette-action:active {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      [data-theme='light'] .palette-action:hover,
+      [data-theme='solarized-light'] .palette-action:hover {
+        background: rgba(0, 0, 0, 0.06);
+      }
+      [data-theme='light'] .palette-action:active,
+      [data-theme='solarized-light'] .palette-action:active {
+        background: rgba(0, 0, 0, 0.1);
+      }
+      .palette-action-icon {
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: var(--text-secondary);
+      }
+      .palette-action-icon svg {
+        width: 16px;
+      }
+      /* ===== Theme Sub-Panel ===== */
+      .theme-subpanel {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 240px;
+        max-height: 70vh;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        z-index: 270;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+      .theme-subpanel.open {
+        display: block;
+      }
+      .theme-subpanel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--text);
+      }
+      .theme-subpanel-close {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 16px;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+      .theme-subpanel-close:hover {
+        background: var(--hover-bg, rgba(255, 255, 255, 0.08));
+        color: var(--text);
+      }
+      .theme-subpanel-list {
+        padding: 6px 0;
+      }
+      .theme-subpanel-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 9px 14px;
+        background: none;
+        border: none;
+        color: var(--text);
+        font-size: 13px;
+        cursor: pointer;
+        text-align: left;
+        transition: background 0.15s;
+      }
+      .theme-subpanel-item:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+      [data-theme='light'] .theme-subpanel-item:hover,
+      [data-theme='solarized-light'] .theme-subpanel-item:hover {
+        background: rgba(0, 0, 0, 0.06);
+      }
+      .theme-subpanel-item.active {
+        color: var(--accent);
+      }
+      .theme-subpanel-swatch {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 1px solid rgba(128, 128, 128, 0.3);
+      }
+        height: 16px;
       }
     </style>
   </head>
@@ -1792,7 +2045,6 @@
       </div>
       <div id="tab-list"></div>
       <div class="right">
-        <span id="version-text" style="font-size: 11px; color: var(--text-muted)"></span>
         <button class="tab-bar-btn" id="tab-new-btn" title="New session">
           <svg
             width="14"
@@ -1806,67 +2058,6 @@
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" /></svg
           ><span class="new-btn-label">New</span>
-        </button>
-        <button class="tab-bar-btn" id="split-toggle" title="Split view">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <line x1="12" y1="3" x2="12" y2="21" />
-          </svg>
-        </button>
-        <div class="bar-group">
-          <button class="bar-btn" id="zoom-out" title="Decrease font size">−</button>
-          <button class="bar-btn" id="zoom-in" title="Increase font size">+</button>
-        </div>
-        <button
-          class="bar-btn"
-          id="preview-btn"
-          title="Preview local port"
-          onclick="openPreviewModal()"
-        >
-          🌐
-        </button>
-        <button class="bar-btn" id="share-btn" title="Share link">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="18" cy="5" r="3" />
-            <circle cx="6" cy="12" r="3" />
-            <circle cx="18" cy="19" r="3" />
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-          </svg>
-        </button>
-        <button class="bar-btn" id="refresh-btn" title="Refresh app">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline points="23 4 23 10 17 10" />
-            <polyline points="1 20 1 14 7 14" />
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-          </svg>
         </button>
         <div class="theme-wrap" id="theme-wrap">
           <button class="bar-btn" id="theme-toggle" title="Switch theme">
@@ -1928,6 +2119,23 @@
             </div>
           </div>
         </div>
+        <button class="bar-btn" id="palette-trigger" title="Tools (Ctrl+K)">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+          </svg>
+        </button>
         <button id="stop-btn" title="Stop session">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
             <rect x="6" y="6" width="12" height="12" rx="2" /></svg
@@ -1946,7 +2154,16 @@
     </div>
 
     <!-- Terminals Wrapper (panes created dynamically) -->
-    <div id="terminals-wrapper"></div>
+    <div id="terminals-wrapper">
+      <div class="search-bar" id="search-bar">
+        <input type="text" id="search-input" placeholder="Search…" autocomplete="off" />
+        <span class="search-count" id="search-count"></span>
+        <button id="search-regex" title="Regex">.*</button>
+        <button id="search-prev" title="Previous">▲</button>
+        <button id="search-next" title="Next">▼</button>
+        <button id="search-close" title="Close">✕</button>
+      </div>
+    </div>
 
     <div id="copy-toast">Copied!</div>
 
@@ -1965,7 +2182,7 @@
       <div class="key-row">
         <button class="key-btn modifier" id="ctrl-btn" title="Toggle Ctrl modifier">Ctrl</button>
         <button class="key-btn modifier" id="shift-btn" title="Toggle Shift modifier">Shift</button>
-        <button class="key-btn special" data-key="&#x09;" title="Autocomplete">Tab</button>
+        <button class="key-btn special" data-key="tab" title="Autocomplete">Tab</button>
         <button class="key-btn special key-danger" data-key="&#x03;" title="Interrupt process">
           ^C
         </button>
@@ -2212,9 +2429,29 @@
       </div>
     </div>
 
+    <!-- Command Palette / Tool Panel -->
+    <div id="palette-backdrop" class="palette-backdrop"></div>
+    <div id="palette-panel" class="palette-panel">
+      <div class="palette-header">
+        <span>Tools</span>
+        <button class="palette-close" id="palette-close">✕</button>
+      </div>
+      <div class="palette-body" id="palette-body"></div>
+    </div>
+
+    <!-- Theme Sub-Panel -->
+    <div class="theme-subpanel" id="theme-subpanel">
+      <div class="theme-subpanel-header">
+        <span>Theme</span>
+        <button class="theme-subpanel-close" id="theme-subpanel-close">✕</button>
+      </div>
+      <div class="theme-subpanel-list" id="theme-subpanel-list"></div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-search@0.15.0/lib/addon-search.min.js"></script>
     <script>
       // ===== Constants =====
       const SESSION_COLORS = [
@@ -2234,6 +2471,33 @@
       let splitMode = false;
 
       let splitSecondId = null;
+
+      // ===== Notification State =====
+      let notificationsEnabled = localStorage.getItem('termbeam-notifications') !== 'false';
+
+      function updateNotifyToggle() {
+        // notify-toggle button removed from top bar; function kept for palette use
+      }
+
+      function sendCommandNotification(sessionName) {
+        if (Notification.permission !== 'granted') return;
+        try {
+          new Notification('Command finished in ' + sessionName, {
+            icon: '/icons/icon-192.png',
+            tag: 'termbeam-cmd',
+          });
+        } catch {}
+      }
+
+      function resetSilenceTimer(ms) {
+        if (ms.silenceTimer) clearTimeout(ms.silenceTimer);
+        ms.silenceTimer = setTimeout(() => {
+          ms.silenceTimer = null;
+          if (document.hidden && notificationsEnabled) {
+            sendCommandNotification(ms.name || ms.id);
+          }
+        }, 3000);
+      }
 
       // Clipboard copy fallback for non-secure contexts (HTTP over LAN)
       function copyFallback(text) {
@@ -2592,8 +2856,96 @@
         el.addEventListener('click', (e) => {
           e.stopPropagation();
           applyTheme(el.dataset.themeOption);
-          document.getElementById('theme-picker').classList.remove('open');
         });
+      });
+
+      // ===== Terminal Search =====
+      const searchBar = document.getElementById('search-bar');
+      const searchInput = document.getElementById('search-input');
+      const searchCount = document.getElementById('search-count');
+      const searchRegexBtn = document.getElementById('search-regex');
+      let searchRegex = false;
+      let searchResultIndex = 0;
+      let searchResultTotal = 0;
+
+      function getActiveSearchAddon() {
+        if (!activeId) return null;
+        const ms = managed.get(activeId);
+        return ms ? ms.searchAddon : null;
+      }
+
+      function updateSearchCount(idx, total) {
+        searchResultIndex = idx;
+        searchResultTotal = total;
+        searchCount.textContent = total > 0 ? idx + 1 + ' of ' + total : 'No results';
+      }
+
+      function doSearch(direction) {
+        const addon = getActiveSearchAddon();
+        if (!addon) return;
+        const query = searchInput.value;
+        if (!query) {
+          searchCount.textContent = '';
+          return;
+        }
+        const opts = {
+          regex: searchRegex,
+          caseSensitive: false,
+          incremental: direction === 'next',
+        };
+        let result;
+        if (direction === 'prev') {
+          result = addon.findPrevious(query, opts);
+        } else {
+          result = addon.findNext(query, opts);
+        }
+        // SearchAddon returns boolean; no match count API in v0.15
+        searchCount.textContent = result ? 'Found' : 'No results';
+      }
+
+      function openSearchBar() {
+        searchBar.classList.add('visible');
+        searchInput.focus();
+        searchInput.select();
+      }
+
+      function closeSearchBar() {
+        searchBar.classList.remove('visible');
+        searchCount.textContent = '';
+        searchInput.value = '';
+        const addon = getActiveSearchAddon();
+        if (addon) addon.clearDecorations();
+        // Re-focus terminal
+        if (activeId) {
+          const ms = managed.get(activeId);
+          if (ms) ms.term.focus();
+        }
+      }
+
+      searchInput.addEventListener('input', () => doSearch('next'));
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeSearchBar();
+          e.preventDefault();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          doSearch(e.shiftKey ? 'prev' : 'next');
+        }
+      });
+      document.getElementById('search-next').addEventListener('click', () => doSearch('next'));
+      document.getElementById('search-prev').addEventListener('click', () => doSearch('prev'));
+      document.getElementById('search-close').addEventListener('click', closeSearchBar);
+      document.getElementById('search-regex').addEventListener('click', () => {
+        searchRegex = !searchRegex;
+        searchRegexBtn.classList.toggle('active', searchRegex);
+        if (searchInput.value) doSearch('next');
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+          e.preventDefault();
+          openSearchBar();
+        }
       });
 
       // ===== Font Loading (non-blocking) =====
@@ -2731,12 +3083,6 @@
         loadShellsForModal();
         startPolling();
 
-        // Zoom
-        document.getElementById('zoom-in').addEventListener('click', () => applyZoom(fontSize + 2));
-        document
-          .getElementById('zoom-out')
-          .addEventListener('click', () => applyZoom(fontSize - 2));
-
         // Pinch-to-zoom
         (function setupPinchZoom() {
           const wrapper = document.getElementById('terminals-wrapper');
@@ -2864,9 +3210,6 @@
           );
         }
 
-        // Split toggle
-        document.getElementById('split-toggle').addEventListener('click', toggleSplit);
-
         // Scroll to bottom when returning from idle / tab switch
         document.addEventListener('visibilitychange', () => {
           if (!document.hidden && activeId) {
@@ -2914,7 +3257,7 @@
         fetch('/api/version')
           .then((r) => r.json())
           .then((d) => {
-            document.getElementById('version-text').textContent = 'v' + d.version;
+            window._termbeamVersion = 'v' + d.version;
             document.getElementById('side-panel-version').textContent = 'v' + d.version;
           })
           .catch(() => {});
@@ -2923,6 +3266,7 @@
       // ===== Session Management =====
       function addSession(data) {
         if (managed.has(data.id)) return;
+        managed.set(data.id, null); // reserve slot to prevent race condition
 
         const term = new window.Terminal({
           cursorBlink: true,
@@ -2941,8 +3285,10 @@
 
         const fitAddon = new window.FitAddon.FitAddon();
         const webLinksAddon = new window.WebLinksAddon.WebLinksAddon();
+        const searchAddon = new window.SearchAddon.SearchAddon();
         term.loadAddon(fitAddon);
         term.loadAddon(webLinksAddon);
+        term.loadAddon(searchAddon);
 
         const container = document.createElement('div');
         container.className = 'terminal-pane';
@@ -3092,6 +3438,7 @@
           pid: data.pid,
           term,
           fitAddon,
+          searchAddon,
           container,
           coalescedWrite,
           scrollBtn,
@@ -3100,6 +3447,7 @@
           reconnectTimer: null,
           reconnectDelay: 3000,
           lastActivity: data.lastActivity || Date.now(),
+          silenceTimer: null,
         };
 
         managed.set(data.id, ms);
@@ -3211,6 +3559,7 @@
             if (msg.type === 'output') {
               ms.coalescedWrite(msg.data);
               ms.lastActivity = Date.now();
+              resetSilenceTimer(ms);
               markUnreadOutput();
               if (ms.id !== activeId && !ms.hasUnread) {
                 ms.hasUnread = true;
@@ -3330,6 +3679,10 @@
           if (ms.reconnectTimer) {
             clearTimeout(ms.reconnectTimer);
             ms.reconnectTimer = null;
+          }
+          if (ms.silenceTimer) {
+            clearTimeout(ms.silenceTimer);
+            ms.silenceTimer = null;
           }
           if (ms.ws)
             try {
@@ -3717,7 +4070,6 @@
       // ===== Split View =====
       function toggleSplit() {
         splitMode = !splitMode;
-        document.getElementById('split-toggle').classList.toggle('active', splitMode);
 
         if (splitMode) {
           // Find a second session to show
@@ -3804,7 +4156,12 @@
         function sendKey(btn) {
           if (!btn || !btn.dataset.key) return;
           flashBtn(btn);
-          let data = btn.dataset.key === 'enter' ? '\r' : btn.dataset.key;
+          let data =
+            btn.dataset.key === 'enter'
+              ? '\r'
+              : btn.dataset.key === 'tab'
+                ? '\x09'
+                : btn.dataset.key;
           data = applyModifiers(data);
           const ms = managed.get(activeId);
           if (ms && ms.ws && ms.ws.readyState === 1) {
@@ -4337,6 +4694,18 @@
         if (cmd) body.initialCommand = cmd;
         if (color) body.color = color;
 
+        // Include current terminal dimensions so the PTY spawns at the right
+        // size — prevents oh-my-posh and other slow prompts from rendering
+        // at the default 120×30 size and triggering a duplicate on SIGWINCH.
+        const activeMs = managed.get(activeId);
+        if (activeMs && activeMs.fitAddon) {
+          const dims = activeMs.fitAddon.proposeDimensions();
+          if (dims) {
+            body.cols = dims.cols;
+            body.rows = dims.rows;
+          }
+        }
+
         try {
           const res = await fetch('/api/sessions', {
             method: 'POST',
@@ -4390,6 +4759,10 @@
                 if (ms.reconnectTimer) {
                   clearTimeout(ms.reconnectTimer);
                   ms.reconnectTimer = null;
+                }
+                if (ms.silenceTimer) {
+                  clearTimeout(ms.silenceTimer);
+                  ms.silenceTimer = null;
                 }
                 if (ms.ws)
                   try {
@@ -4524,12 +4897,11 @@
         });
       }
 
-      document.getElementById('share-btn').addEventListener('click', async () => {
+      async function shareLink() {
         const urlPromise = fetch('/api/share-token')
           .then((r) => (r.ok ? r.json() : null))
           .then((data) => (data && data.url) || location.href)
           .catch(() => location.href);
-        // ClipboardItem with a promise preserves user activation across the fetch
         if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
           try {
             const blobPromise = urlPromise.then((u) => new Blob([u], { type: 'text/plain' }));
@@ -4538,7 +4910,6 @@
             return;
           } catch {}
         }
-        // Fallback: resolve URL first, then try legacy methods
         const url = await urlPromise;
         if (navigator.clipboard && navigator.clipboard.writeText) {
           try {
@@ -4552,10 +4923,9 @@
         } else {
           showShareUrlPrompt(url);
         }
-      });
+      }
 
-      // ===== Refresh Button =====
-      document.getElementById('refresh-btn').addEventListener('click', async () => {
+      async function refreshApp() {
         if ('caches' in window) {
           const keys = await caches.keys();
           await Promise.all(keys.map((k) => caches.delete(k)));
@@ -4565,7 +4935,294 @@
           if (reg) await reg.update();
         }
         location.reload();
-      });
+      }
+
+      // ===== Command Palette =====
+      (function setupPalette() {
+        const paletteActions = [
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+            label: 'New tab',
+            category: 'Session',
+            action: () => openNewSessionModal(),
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+            label: 'Close tab',
+            category: 'Session',
+            action: () => {
+              if (!activeId) return;
+              const ms = managed.get(activeId);
+              const name = (ms && ms.name) || activeId.slice(0, 8);
+              if (confirm('Close session "' + name + '"?')) {
+                removeSession(activeId);
+              }
+            },
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
+            label: 'Rename session',
+            category: 'Session',
+            action: () => {
+              if (!activeId) return;
+              const ms = managed.get(activeId);
+              if (!ms) return;
+              const name = prompt('Rename session:', ms.name || '');
+              if (name !== null && name.trim()) {
+                ms.name = name.trim();
+                renderTabs();
+                updateStatusBar();
+              }
+            },
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>',
+            label: 'Split view',
+            category: 'Session',
+            action: () => toggleSplit(),
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+            label: 'Stop session',
+            category: 'Session',
+            action: () => {
+              if (!activeId) return;
+              if (!confirm('Stop this session? The process will be killed.')) return;
+              removeSession(activeId);
+            },
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+            label: 'Find in terminal',
+            category: 'Search',
+            action: () => openSearchBar(),
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+            label: 'Increase font size',
+            category: 'View',
+            action: () => applyZoom(fontSize + 1),
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+            label: 'Decrease font size',
+            category: 'View',
+            action: () => applyZoom(fontSize - 1),
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>',
+            get label() {
+              const current = THEMES.find((x) => x.id === getTheme()) || THEMES[0];
+              return 'Theme (' + current.name + ')';
+            },
+            category: 'View',
+            action: () => {
+              openThemeSubpanel();
+            },
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+            label: 'Preview port',
+            category: 'View',
+            action: () => openPreviewModal(),
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+            label: 'Copy link',
+            category: 'Share',
+            action: () => {
+              const url = location.href;
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(
+                  () => showToast('Link copied!'),
+                  () => {
+                    if (copyToClipboardFallback(url)) showToast('Link copied!');
+                    else showShareUrlPrompt(url);
+                  },
+                );
+              } else if (copyToClipboardFallback(url)) {
+                showToast('Link copied!');
+              } else {
+                showShareUrlPrompt(url);
+              }
+            },
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+            get label() {
+              return notificationsEnabled ? 'Notifications (on)' : 'Notifications (off)';
+            },
+            category: 'Notifications',
+            keepOpen: true,
+            action: () => {
+              notificationsEnabled = !notificationsEnabled;
+              localStorage.setItem('termbeam-notifications', notificationsEnabled);
+              if (
+                notificationsEnabled &&
+                'Notification' in window &&
+                Notification.permission === 'default'
+              ) {
+                Notification.requestPermission();
+              }
+              showToast(notificationsEnabled ? 'Notifications on' : 'Notifications off');
+              renderPalette();
+            },
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
+            label: 'Refresh',
+            category: 'System',
+            action: () => refreshApp(),
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>',
+            label: 'Clear terminal',
+            category: 'System',
+            action: () => {
+              if (!activeId) return;
+              const ms = managed.get(activeId);
+              if (ms) ms.term.clear();
+            },
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+            label: 'About',
+            category: 'System',
+            action: () => {
+              const ver = window._termbeamVersion || 'TermBeam';
+              const overlay = document.createElement('div');
+              overlay.style.cssText =
+                'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:flex;align-items:center;justify-content:center;';
+              const box = document.createElement('div');
+              box.style.cssText =
+                'background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:90vw;width:320px;text-align:center;';
+              box.innerHTML =
+                '<div style="font-size:24px;margin-bottom:8px;">⚡</div>' +
+                '<div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">TermBeam</div>' +
+                '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">' +
+                esc(ver) +
+                '</div>' +
+                '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;">Terminal in your browser, optimized for mobile.</div>' +
+                '<div style="display:flex;gap:16px;justify-content:center;margin-bottom:16px;">' +
+                '<a href="https://github.com/dorlugasigal/TermBeam" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;text-decoration:none;">GitHub</a>' +
+                '<a href="https://dorlugasigal.github.io/TermBeam/" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;text-decoration:none;">Docs</a>' +
+                '<a href="https://termbeam.pages.dev" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;text-decoration:none;">Website</a>' +
+                '</div>';
+              const btn = document.createElement('button');
+              btn.textContent = 'Close';
+              btn.style.cssText =
+                'padding:6px 20px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;';
+              btn.onclick = () => overlay.remove();
+              box.appendChild(btn);
+              overlay.appendChild(box);
+              overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) overlay.remove();
+              });
+              document.body.appendChild(overlay);
+            },
+          },
+        ];
+
+        const backdrop = document.getElementById('palette-backdrop');
+        const panel = document.getElementById('palette-panel');
+        const body = document.getElementById('palette-body');
+
+        function renderPalette() {
+          const grouped = {};
+          paletteActions.forEach((a) => {
+            if (!grouped[a.category]) grouped[a.category] = [];
+            grouped[a.category].push(a);
+          });
+          body.innerHTML = '';
+          Object.keys(grouped).forEach((cat) => {
+            const header = document.createElement('div');
+            header.className = 'palette-category';
+            header.textContent = cat;
+            body.appendChild(header);
+            grouped[cat].forEach((a) => {
+              const btn = document.createElement('button');
+              btn.className = 'palette-action';
+              btn.innerHTML =
+                '<span class="palette-action-icon">' + a.icon + '</span>' + esc(a.label);
+              btn.addEventListener('click', () => {
+                if (!a.keepOpen) closePalette();
+                a.action();
+              });
+              body.appendChild(btn);
+            });
+          });
+        }
+
+        function openPalette() {
+          backdrop.classList.add('open');
+          panel.classList.add('open');
+        }
+
+        function closePalette() {
+          backdrop.classList.remove('open');
+          panel.classList.remove('open');
+        }
+
+        function togglePalette() {
+          if (panel.classList.contains('open')) closePalette();
+          else openPalette();
+        }
+
+        backdrop.addEventListener('click', closePalette);
+        document.getElementById('palette-close').addEventListener('click', closePalette);
+        document.getElementById('palette-trigger').addEventListener('click', togglePalette);
+
+        document.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            togglePalette();
+          }
+          if (e.key === 'Escape' && panel.classList.contains('open')) {
+            closePalette();
+          }
+        });
+
+        renderPalette();
+      })();
+
+      // ===== Theme Sub-Panel =====
+      (function setupThemeSubpanel() {
+        const subpanel = document.getElementById('theme-subpanel');
+        const list = document.getElementById('theme-subpanel-list');
+        document.getElementById('theme-subpanel-close').addEventListener('click', () => {
+          subpanel.classList.remove('open');
+        });
+        function renderThemeList() {
+          const cur = getTheme();
+          list.innerHTML = THEMES.map(
+            (t) =>
+              '<button class="theme-subpanel-item' +
+              (t.id === cur ? ' active' : '') +
+              '" data-tid="' +
+              t.id +
+              '"><span class="theme-subpanel-swatch" style="background:' +
+              t.bg +
+              '"></span>' +
+              esc(t.name) +
+              '</button>',
+          ).join('');
+          list.querySelectorAll('.theme-subpanel-item').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              applyTheme(btn.dataset.tid);
+              renderThemeList();
+            });
+          });
+        }
+        window.openThemeSubpanel = function () {
+          renderThemeList();
+          subpanel.classList.add('open');
+        };
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && subpanel.classList.contains('open')) {
+            subpanel.classList.remove('open');
+          }
+        });
+      })();
 
       // ===== Service Worker =====
       if ('serviceWorker' in navigator) {

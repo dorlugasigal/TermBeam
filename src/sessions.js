@@ -18,15 +18,24 @@ class SessionManager {
     this.sessions = new Map();
   }
 
-  create({ name, shell, args = [], cwd, initialCommand = null, color = null }) {
+  create({
+    name,
+    shell,
+    args = [],
+    cwd,
+    initialCommand = null,
+    color = null,
+    cols = 120,
+    rows = 30,
+  }) {
     const id = crypto.randomBytes(16).toString('hex');
     if (!color) {
       color = SESSION_COLORS[this.sessions.size % SESSION_COLORS.length];
     }
     const ptyProcess = pty.spawn(shell, args, {
       name: 'xterm-256color',
-      cols: 120,
-      rows: 30,
+      cols,
+      rows,
       cwd,
       env: { ...process.env, TERM: 'xterm-256color' },
     });
@@ -47,6 +56,9 @@ class SessionManager {
       clients: new Set(),
       scrollback: [],
       scrollbackBuf: '',
+      hasHadClient: false,
+      _lastCols: cols,
+      _lastRows: rows,
     };
 
     ptyProcess.onData((data) => {

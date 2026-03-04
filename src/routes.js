@@ -114,7 +114,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
   });
 
   app.post('/api/sessions', auth.middleware, (req, res) => {
-    const { name, shell, args: shellArgs, cwd, initialCommand, color } = req.body || {};
+    const { name, shell, args: shellArgs, cwd, initialCommand, color, cols, rows } = req.body || {};
 
     // Validate shell field
     if (shell) {
@@ -146,6 +146,8 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       cwd: cwd || config.cwd,
       initialCommand: initialCommand || null,
       color: color || null,
+      cols: typeof cols === 'number' && cols > 0 && cols <= 500 ? Math.floor(cols) : undefined,
+      rows: typeof rows === 'number' && rows > 0 && rows <= 200 ? Math.floor(rows) : undefined,
     });
     res.json({ id, url: `/terminal?id=${id}` });
   });
@@ -153,7 +155,9 @@ function setupRoutes(app, { auth, sessions, config, state }) {
   // Available shells
   app.get('/api/shells', auth.middleware, (_req, res) => {
     const shells = detectShells();
-    res.json({ shells, default: config.defaultShell, cwd: config.cwd });
+    const ds = config.defaultShell;
+    const match = shells.find((s) => s.cmd === ds || s.path === ds || s.name === ds);
+    res.json({ shells, default: match ? match.cmd : ds, cwd: config.cwd });
   });
 
   app.get('/api/sessions/:id/detect-port', auth.middleware, (req, res) => {

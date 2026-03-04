@@ -21,7 +21,7 @@ termbeam/
 │   └── version.js           # Smart version detection
 ├── public/
 │   ├── index.html           # Session manager (mobile UI)
-│   ├── terminal.html        # Terminal view (xterm.js)
+│   ├── terminal.html        # Terminal view (xterm.js, search, notifications, command palette)
 │   ├── sw.js                # Service worker (PWA caching)
 │   ├── manifest.json        # Web app manifest
 │   └── icons/               # PWA icons
@@ -92,6 +92,14 @@ Handles automatic installation of the DevTunnel CLI when it's not found on the s
 ### `version.js` — Version Detection
 
 Smart version that shows `1.0.0` for npm installs and `1.0.0-dev (git-hash)` for local development.
+
+### Client-Side Features (`terminal.html`)
+
+The terminal page includes several client-side features that run entirely in the browser:
+
+- **Terminal search** — <kbd>Ctrl+F</kbd> / <kbd>Cmd+F</kbd> opens a search bar overlay powered by the xterm.js `SearchAddon`. Supports regex matching with next/previous navigation.
+- **Command completion notifications** — uses the browser Notification API to alert when a command finishes in a background tab. Toggled via a bell icon; preference stored in `localStorage` (`termbeam-notifications`).
+- **Command palette** — <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd> (or the floating ⚙️ button) opens a slide-out tool panel with categorized actions (Session, Search, View, Share, Notifications, System).
 
 ## Data Flow
 

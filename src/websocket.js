@@ -77,9 +77,16 @@ function setupWebSocket(wss, { auth, sessions }) {
             return;
           }
           attached = session;
-          session.clients.add(ws);
-          if (session.scrollbackBuf.length > 0) {
-            ws.send(JSON.stringify({ type: 'output', data: session.scrollbackBuf }));
+          // First client: defer adding to session.clients until after the
+          // first resize so we can decide whether the PTY needs resizing.
+          if (!session.hasHadClient) {
+            session.hasHadClient = true;
+            ws._pendingResize = true;
+          } else {
+            session.clients.add(ws);
+            if (session.scrollbackBuf.length > 0) {
+              ws.send(JSON.stringify({ type: 'output', data: session.scrollbackBuf }));
+            }
           }
           ws.send(JSON.stringify({ type: 'attached', sessionId: msg.sessionId }));
           log.info(`Client attached to session ${msg.sessionId}`);
@@ -95,7 +102,27 @@ function setupWebSocket(wss, { auth, sessions }) {
           const rows = Math.floor(msg.rows);
           if (cols > 0 && cols <= 500 && rows > 0 && rows <= 200) {
             ws._dims = { cols, rows };
-            recalcPtySize(attached);
+            if (ws._pendingResize) {
+              ws._pendingResize = false;
+              // Only discard scrollback and send SIGWINCH if the PTY was
+              // spawned at a different size (e.g. default 120×30).
+              // If the PTY already matches (new session sent dims in POST),
+              // just add the client and replay scrollback — no SIGWINCH,
+              // no duplicate prompt from slow themes like oh-my-posh.
+              const sizeChanged = cols !== attached._lastCols || rows !== attached._lastRows;
+              if (sizeChanged) {
+                attached.scrollbackBuf = '';
+                attached.clients.add(ws);
+                recalcPtySize(attached);
+              } else {
+                attached.clients.add(ws);
+                if (attached.scrollbackBuf.length > 0) {
+                  ws.send(JSON.stringify({ type: 'output', data: attached.scrollbackBuf }));
+                }
+              }
+            } else {
+              recalcPtySize(attached);
+            }
           }
         }
       } catch (err) {

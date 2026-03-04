@@ -35,6 +35,10 @@ function createMockSession(id, opts = {}) {
     clients: new Set(),
     scrollback: opts.scrollback || [],
     scrollbackBuf: opts.scrollbackBuf || (opts.scrollback ? opts.scrollback.join('') : ''),
+    hasHadClient: opts.hasHadClient !== undefined ? opts.hasHadClient : false,
+    // Default spawn size mirrors sessions.js defaults (120×30)
+    _lastCols: opts._lastCols !== undefined ? opts._lastCols : 120,
+    _lastRows: opts._lastRows !== undefined ? opts._lastRows : 30,
     pty: {
       write(data) {
         written.push(data);
@@ -281,8 +285,11 @@ describe('WebSocket', () => {
       assert.strictEqual(err.message, 'Session not found');
     });
 
-    it('should send scrollback on attach', () => {
-      const session = createMockSession('s1', { scrollback: ['hello ', 'world'] });
+    it('should send scrollback on attach for returning clients', () => {
+      const session = createMockSession('s1', {
+        scrollback: ['hello ', 'world'],
+        hasHadClient: true,
+      });
       sessions._add(session);
 
       const ws = createMockWs();
@@ -294,8 +301,63 @@ describe('WebSocket', () => {
       assert.strictEqual(output.data, 'hello world');
     });
 
-    it('should add client to session on attach', () => {
-      const session = createMockSession('s1');
+    it('should defer first-ever client until first resize (size mismatch)', () => {
+      // Default spawn size 120×30, client resizes to 40×20 → sizeChanged
+      const session = createMockSession('s1', { scrollbackBuf: 'prompt-at-120-cols' });
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      // Client deferred — not yet in session.clients, scrollback NOT pre-cleared
+      const output = ws._sent.find((m) => m.type === 'output');
+      assert.strictEqual(output, undefined);
+      assert.strictEqual(session.hasHadClient, true);
+      assert.ok(!session.clients.has(ws));
+      assert.strictEqual(ws._pendingResize, true);
+
+      // Simulate more wrong-size output arriving while deferred
+      session.scrollbackBuf = 'garbled-120-col-prompt';
+
+      // First resize (40×20 ≠ 120×30): discard scrollback, add client, resize PTY
+      ws._simulateMessage({ type: 'resize', cols: 40, rows: 20 });
+      assert.ok(session.clients.has(ws));
+      assert.strictEqual(ws._pendingResize, false);
+      assert.strictEqual(session.scrollbackBuf, '');
+      assert.strictEqual(session._resizes.length, 1);
+    });
+
+    it('should not clear scrollback or SIGWINCH when PTY was spawned at correct size', () => {
+      // PTY spawned at 40×20, client resizes to same 40×20 → no sizeChanged
+      const session = createMockSession('s1', {
+        scrollbackBuf: 'correct-prompt',
+        _lastCols: 40,
+        _lastRows: 20,
+      });
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      assert.ok(!session.clients.has(ws));
+      assert.strictEqual(ws._pendingResize, true);
+
+      // First resize matches spawn size → send scrollback, no SIGWINCH
+      ws._simulateMessage({ type: 'resize', cols: 40, rows: 20 });
+      assert.ok(session.clients.has(ws));
+      assert.strictEqual(ws._pendingResize, false);
+      assert.strictEqual(session.scrollbackBuf, 'correct-prompt'); // NOT cleared
+      assert.strictEqual(session._resizes.length, 0); // no SIGWINCH
+
+      const output = ws._sent.find((m) => m.type === 'output');
+      assert.ok(output);
+      assert.strictEqual(output.data, 'correct-prompt');
+    });
+
+    it('should add returning client to session on attach', () => {
+      const session = createMockSession('s1', { hasHadClient: true });
       sessions._add(session);
 
       const ws = createMockWs();
@@ -306,7 +368,7 @@ describe('WebSocket', () => {
     });
 
     it('should remove client on close', () => {
-      const session = createMockSession('s1');
+      const session = createMockSession('s1', { hasHadClient: true });
       sessions._add(session);
 
       const ws = createMockWs();

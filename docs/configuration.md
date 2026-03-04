@@ -46,6 +46,18 @@ description: All TermBeam CLI flags and options — ports, passwords, tunnels, s
 !!! info "Legacy Variables"
     The environment variables `PTY_PASSWORD` and `PTY_CWD` are also supported as fallbacks for `TERMBEAM_PASSWORD` and `TERMBEAM_CWD` respectively.
 
+## Client-Side Settings (localStorage)
+
+The browser UI stores the following preferences in `localStorage`:
+
+| Key                      | Description                                               | Default |
+| ------------------------ | --------------------------------------------------------- | ------- |
+| `termbeam-notifications` | Command completion notifications enabled (`true`/`false`) | `true`  |
+| `termbeam-fontsize`      | Terminal font size                                        | `14`    |
+| `termbeam-theme`         | Light/dark theme preference                               | `dark`  |
+
+These settings are per-browser and persist across sessions. They can be cleared by the user via the browser's developer tools or the Refresh button in the toolbar.
+
 ## Subcommands
 
 ### `termbeam service`

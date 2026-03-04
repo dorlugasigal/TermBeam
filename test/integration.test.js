@@ -185,6 +185,9 @@ describe('Integration', () => {
       assert.strictEqual(attachedMsg.type, 'attached');
       assert.strictEqual(attachedMsg.sessionId, defaultSessionId);
 
+      // Send resize first — first client is deferred until resize
+      ws.send(JSON.stringify({ type: 'resize', cols: 100, rows: 40 }));
+
       // Send input and wait for output containing the echo marker
       const marker = `helloTB${Date.now()}`;
       const outputPromise = waitForMessage(
@@ -195,9 +198,6 @@ describe('Integration', () => {
       ws.send(JSON.stringify({ type: 'input', data: `echo ${marker}\r` }));
       const outputMsg = await outputPromise;
       assert.ok(outputMsg.data.includes(marker), 'Output should contain the echoed marker');
-
-      // Send resize
-      ws.send(JSON.stringify({ type: 'resize', cols: 100, rows: 40 }));
 
       // Close WebSocket
       ws.close();
