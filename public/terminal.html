@@ -685,6 +685,75 @@
         transform: scale(0.9);
       }
 
+      /* ===== Notification Toggle ===== */
+      .notify-btn.active {
+        color: var(--accent) !important;
+      }
+
+      /* ===== Search Bar ===== */
+      .search-bar {
+        display: none;
+        position: absolute;
+        top: 4px;
+        right: 12px;
+        z-index: 100;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 4px 6px;
+        gap: 4px;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        font-size: 13px;
+        color: var(--text);
+      }
+      .search-bar.visible {
+        display: flex;
+      }
+      .search-bar input {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        padding: 3px 6px;
+        font-size: 13px;
+        font-family: inherit;
+        width: 160px;
+        outline: none;
+      }
+      .search-bar input:focus {
+        border-color: var(--accent);
+      }
+      .search-bar .search-count {
+        color: var(--text-secondary);
+        font-size: 11px;
+        min-width: 40px;
+        text-align: center;
+        white-space: nowrap;
+      }
+      .search-bar button {
+        background: none;
+        border: 1px solid transparent;
+        color: var(--text-dim);
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        padding: 0;
+      }
+      .search-bar button:hover {
+        background: var(--border);
+        color: var(--text);
+      }
+      .search-bar button.active {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+
       /* ===== Terminals Wrapper ===== */
       #terminals-wrapper {
         position: absolute;
@@ -1868,6 +1937,9 @@
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
           </svg>
         </button>
+        <button class="bar-btn notify-btn" id="notify-toggle" title="Toggle command notifications">
+          🔔
+        </button>
         <div class="theme-wrap" id="theme-wrap">
           <button class="bar-btn" id="theme-toggle" title="Switch theme">
             <svg
@@ -1946,7 +2018,16 @@
     </div>
 
     <!-- Terminals Wrapper (panes created dynamically) -->
-    <div id="terminals-wrapper"></div>
+    <div id="terminals-wrapper">
+      <div class="search-bar" id="search-bar">
+        <input type="text" id="search-input" placeholder="Search…" autocomplete="off" />
+        <span class="search-count" id="search-count"></span>
+        <button id="search-regex" title="Regex">.*</button>
+        <button id="search-prev" title="Previous">▲</button>
+        <button id="search-next" title="Next">▼</button>
+        <button id="search-close" title="Close">✕</button>
+      </div>
+    </div>
 
     <div id="copy-toast">Copied!</div>
 
@@ -2215,6 +2296,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-search@0.15.0/lib/addon-search.min.js"></script>
     <script>
       // ===== Constants =====
       const SESSION_COLORS = [
@@ -2234,6 +2316,34 @@
       let splitMode = false;
 
       let splitSecondId = null;
+
+      // ===== Notification State =====
+      let notificationsEnabled = localStorage.getItem('termbeam-notifications') === 'true';
+
+      function updateNotifyToggle() {
+        const btn = document.getElementById('notify-toggle');
+        if (btn) btn.classList.toggle('active', notificationsEnabled);
+      }
+
+      function sendCommandNotification(sessionName) {
+        if (Notification.permission !== 'granted') return;
+        try {
+          new Notification('Command finished in ' + sessionName, {
+            icon: '/icons/icon-192.png',
+            tag: 'termbeam-cmd',
+          });
+        } catch {}
+      }
+
+      function resetSilenceTimer(ms) {
+        if (ms.silenceTimer) clearTimeout(ms.silenceTimer);
+        ms.silenceTimer = setTimeout(() => {
+          ms.silenceTimer = null;
+          if (document.hidden && notificationsEnabled) {
+            sendCommandNotification(ms.name || ms.id);
+          }
+        }, 3000);
+      }
 
       // Clipboard copy fallback for non-secure contexts (HTTP over LAN)
       function copyFallback(text) {
@@ -2596,6 +2706,110 @@
         });
       });
 
+      // ===== Notification Toggle =====
+      updateNotifyToggle();
+      document.getElementById('notify-toggle').addEventListener('click', () => {
+        notificationsEnabled = !notificationsEnabled;
+        localStorage.setItem('termbeam-notifications', notificationsEnabled);
+        updateNotifyToggle();
+        if (
+          notificationsEnabled &&
+          'Notification' in window &&
+          Notification.permission === 'default'
+        ) {
+          Notification.requestPermission();
+        }
+      });
+
+      // ===== Terminal Search =====
+      const searchBar = document.getElementById('search-bar');
+      const searchInput = document.getElementById('search-input');
+      const searchCount = document.getElementById('search-count');
+      const searchRegexBtn = document.getElementById('search-regex');
+      let searchRegex = false;
+      let searchResultIndex = 0;
+      let searchResultTotal = 0;
+
+      function getActiveSearchAddon() {
+        if (!activeId) return null;
+        const ms = managed.get(activeId);
+        return ms ? ms.searchAddon : null;
+      }
+
+      function updateSearchCount(idx, total) {
+        searchResultIndex = idx;
+        searchResultTotal = total;
+        searchCount.textContent = total > 0 ? idx + 1 + ' of ' + total : 'No results';
+      }
+
+      function doSearch(direction) {
+        const addon = getActiveSearchAddon();
+        if (!addon) return;
+        const query = searchInput.value;
+        if (!query) {
+          searchCount.textContent = '';
+          return;
+        }
+        const opts = {
+          regex: searchRegex,
+          caseSensitive: false,
+          incremental: direction === 'next',
+        };
+        let result;
+        if (direction === 'prev') {
+          result = addon.findPrevious(query, opts);
+        } else {
+          result = addon.findNext(query, opts);
+        }
+        // SearchAddon returns boolean; no match count API in v0.15
+        searchCount.textContent = result ? 'Found' : 'No results';
+      }
+
+      function openSearchBar() {
+        searchBar.classList.add('visible');
+        searchInput.focus();
+        searchInput.select();
+      }
+
+      function closeSearchBar() {
+        searchBar.classList.remove('visible');
+        searchCount.textContent = '';
+        searchInput.value = '';
+        const addon = getActiveSearchAddon();
+        if (addon) addon.clearDecorations();
+        // Re-focus terminal
+        if (activeId) {
+          const ms = managed.get(activeId);
+          if (ms) ms.term.focus();
+        }
+      }
+
+      searchInput.addEventListener('input', () => doSearch('next'));
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeSearchBar();
+          e.preventDefault();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          doSearch(e.shiftKey ? 'prev' : 'next');
+        }
+      });
+      document.getElementById('search-next').addEventListener('click', () => doSearch('next'));
+      document.getElementById('search-prev').addEventListener('click', () => doSearch('prev'));
+      document.getElementById('search-close').addEventListener('click', closeSearchBar);
+      document.getElementById('search-regex').addEventListener('click', () => {
+        searchRegex = !searchRegex;
+        searchRegexBtn.classList.toggle('active', searchRegex);
+        if (searchInput.value) doSearch('next');
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+          e.preventDefault();
+          openSearchBar();
+        }
+      });
+
       // ===== Font Loading (non-blocking) =====
       const nerdFont = new FontFace(
         'NerdFont',
@@ -2941,8 +3155,10 @@
 
         const fitAddon = new window.FitAddon.FitAddon();
         const webLinksAddon = new window.WebLinksAddon.WebLinksAddon();
+        const searchAddon = new window.SearchAddon.SearchAddon();
         term.loadAddon(fitAddon);
         term.loadAddon(webLinksAddon);
+        term.loadAddon(searchAddon);
 
         const container = document.createElement('div');
         container.className = 'terminal-pane';
@@ -3092,6 +3308,7 @@
           pid: data.pid,
           term,
           fitAddon,
+          searchAddon,
           container,
           coalescedWrite,
           scrollBtn,
@@ -3100,6 +3317,7 @@
           reconnectTimer: null,
           reconnectDelay: 3000,
           lastActivity: data.lastActivity || Date.now(),
+          silenceTimer: null,
         };
 
         managed.set(data.id, ms);
@@ -3211,6 +3429,7 @@
             if (msg.type === 'output') {
               ms.coalescedWrite(msg.data);
               ms.lastActivity = Date.now();
+              resetSilenceTimer(ms);
               markUnreadOutput();
               if (ms.id !== activeId && !ms.hasUnread) {
                 ms.hasUnread = true;
