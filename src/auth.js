@@ -110,18 +110,18 @@ const LOGIN_HTML = `<!DOCTYPE html>
       </svg>
     </button>
     <div class="theme-picker" id="themePicker">
-      <div class="theme-option" data-t="dark"><span class="theme-swatch" style="background:#1e1e1e"></span>Dark</div>
-      <div class="theme-option" data-t="light"><span class="theme-swatch" style="background:#ffffff"></span>Light</div>
-      <div class="theme-option" data-t="monokai"><span class="theme-swatch" style="background:#272822"></span>Monokai</div>
-      <div class="theme-option" data-t="solarized-dark"><span class="theme-swatch" style="background:#002b36"></span>Solarized Dark</div>
-      <div class="theme-option" data-t="solarized-light"><span class="theme-swatch" style="background:#fdf6e3"></span>Solarized Light</div>
-      <div class="theme-option" data-t="nord"><span class="theme-swatch" style="background:#2e3440"></span>Nord</div>
-      <div class="theme-option" data-t="dracula"><span class="theme-swatch" style="background:#282a36"></span>Dracula</div>
-      <div class="theme-option" data-t="github-dark"><span class="theme-swatch" style="background:#0d1117"></span>GitHub Dark</div>
-      <div class="theme-option" data-t="one-dark"><span class="theme-swatch" style="background:#282c34"></span>One Dark</div>
-      <div class="theme-option" data-t="catppuccin"><span class="theme-swatch" style="background:#1e1e2e"></span>Catppuccin</div>
-      <div class="theme-option" data-t="gruvbox"><span class="theme-swatch" style="background:#282828"></span>Gruvbox</div>
-      <div class="theme-option" data-t="night-owl"><span class="theme-swatch" style="background:#011627"></span>Night Owl</div>
+      <div class="theme-option" data-theme-option="dark"><span class="theme-swatch" style="background:#1e1e1e"></span>Dark</div>
+      <div class="theme-option" data-theme-option="light"><span class="theme-swatch" style="background:#ffffff"></span>Light</div>
+      <div class="theme-option" data-theme-option="monokai"><span class="theme-swatch" style="background:#272822"></span>Monokai</div>
+      <div class="theme-option" data-theme-option="solarized-dark"><span class="theme-swatch" style="background:#002b36"></span>Solarized Dark</div>
+      <div class="theme-option" data-theme-option="solarized-light"><span class="theme-swatch" style="background:#fdf6e3"></span>Solarized Light</div>
+      <div class="theme-option" data-theme-option="nord"><span class="theme-swatch" style="background:#2e3440"></span>Nord</div>
+      <div class="theme-option" data-theme-option="dracula"><span class="theme-swatch" style="background:#282a36"></span>Dracula</div>
+      <div class="theme-option" data-theme-option="github-dark"><span class="theme-swatch" style="background:#0d1117"></span>GitHub Dark</div>
+      <div class="theme-option" data-theme-option="one-dark"><span class="theme-swatch" style="background:#282c34"></span>One Dark</div>
+      <div class="theme-option" data-theme-option="catppuccin"><span class="theme-swatch" style="background:#1e1e2e"></span>Catppuccin</div>
+      <div class="theme-option" data-theme-option="gruvbox"><span class="theme-swatch" style="background:#282828"></span>Gruvbox</div>
+      <div class="theme-option" data-theme-option="night-owl"><span class="theme-swatch" style="background:#011627"></span>Night Owl</div>
     </div>
   </div>
   <div class="card">
@@ -145,13 +145,13 @@ const LOGIN_HTML = `<!DOCTYPE html>
       const t=THEMES.find(x=>x.id===theme)||THEMES[0];
       document.querySelector('meta[name=theme-color]').content=t.bg;
       localStorage.setItem('termbeam-theme',theme);
-      document.querySelectorAll('.theme-option').forEach(el=>el.classList.toggle('active',el.dataset.t===theme));
+      document.querySelectorAll('.theme-option').forEach(el=>el.classList.toggle('active',el.dataset.themeOption===theme));
     }
     applyTheme(localStorage.getItem('termbeam-theme')||'dark');
     document.getElementById('themeBtn').addEventListener('click',e=>{e.stopPropagation();picker.classList.toggle('open');});
     document.addEventListener('click',()=>picker.classList.remove('open'));
     document.querySelectorAll('.theme-option').forEach(el=>{
-      el.addEventListener('click',e=>{e.stopPropagation();applyTheme(el.dataset.t);picker.classList.remove('open');});
+      el.addEventListener('click',e=>{e.stopPropagation();applyTheme(el.dataset.themeOption);picker.classList.remove('open');});
     });
     document.getElementById('form').addEventListener('submit', async (e) => {
       e.preventDefault();
