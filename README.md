@@ -15,7 +15,7 @@
 
 TermBeam lets you access your terminal from a phone, tablet, or any browser — no SSH, no port forwarding, no config files. Run one command and scan the QR code.
 
-I built this because I kept needing to run quick commands on my dev machine while away from my desk, and SSH on a phone is painful. TermBeam gives you a real terminal with a touch-friendly UI that actually works on small screens.
+I built this because I kept needing to run quick commands on my dev machine while away from my desk, and SSH on a phone is painful. TermBeam gives you a real terminal with a touch-optimized UI — key bar, swipe scroll, pinch zoom — that actually works on small screens. You get multi-session tabs with split view, terminal search, a command palette, 12 themes, and secure remote access out of the box.
 
 [Full documentation](https://dorlugasigal.github.io/TermBeam/) · [Website](https://termbeam.pages.dev)
 
@@ -56,38 +56,6 @@ termbeam --password mysecret    # use a specific password
 termbeam --no-tunnel            # LAN-only (no tunnel)
 termbeam --no-password          # disable password protection
 ```
-
-## Features
-
-### 📱 Mobile-First
-
-- Touch-optimized key bar — arrows, Tab, Enter, Ctrl, Esc, and more
-- Copy & paste — finger-selectable text overlay + clipboard API with fallback
-- Swipe scrolling, pinch zoom, and iPhone PWA safe-area support
-- Image paste from clipboard, uploaded to server
-
-### 📑 Multi-Session
-
-- Tabbed sessions with drag-to-reorder, color labels, and activity indicators
-- Split view — two sessions side-by-side (horizontal desktop / vertical mobile)
-- Tab previews on hover (desktop) or long-press (mobile); side panel on mobile
-- Folder browser and optional initial command per session
-
-### 🔍 Productivity
-
-- Terminal search (<kbd>Ctrl+F</kbd>) with regex support
-- Command palette (<kbd>Ctrl+K</kbd>) — categorized actions in one panel
-- Command completion notifications — browser alerts when background commands finish (opt-in)
-- 12 color themes with adjustable font size, saved across sessions
-- Port preview — reverse-proxy a local web server through TermBeam
-
-### 🔒 Secure by Default
-
-- Auto-generated password + private DevTunnel out of the box
-- QR code auto-login with single-use share tokens (5-min expiry)
-- Rate-limited login, httpOnly cookies, security headers (CSP, X-Frame-Options, etc.)
-- Cross-platform shell detection and validation (PowerShell, cmd, bash, zsh, Git Bash, WSL)
-- Shareable links via Web Share API or clipboard copy
 
 ## Remote Access
 
