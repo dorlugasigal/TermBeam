@@ -536,4 +536,144 @@ describe('Integration', () => {
       assert.match(ip, /^\d+\.\d+\.\d+\.\d+$/);
     });
   });
+
+  describe('Git info in session list', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should return git info for sessions in a git repo', async () => {
+      inst = await startServer({ cwd: process.cwd() });
+
+      // Wait for async git cache to populate (lsof + git commands)
+      let sessions;
+      for (let i = 0; i < 10; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'GET',
+        });
+        sessions = JSON.parse(res.data);
+        if (sessions[0]?.git) break;
+      }
+
+      assert.ok(sessions.length >= 1, 'Should have at least one session');
+      const session = sessions[0];
+      assert.ok(session.git, 'Session in git repo should have git info');
+      assert.ok(session.git.branch, 'Should have a branch name');
+      assert.ok(session.git.status, 'Should have status info');
+      assert.strictEqual(typeof session.git.status.clean, 'boolean');
+      assert.strictEqual(typeof session.git.status.summary, 'string');
+      assert.strictEqual(typeof session.git.status.modified, 'number');
+      assert.strictEqual(typeof session.git.status.staged, 'number');
+      assert.strictEqual(typeof session.git.status.untracked, 'number');
+      assert.strictEqual(typeof session.git.status.ahead, 'number');
+      assert.strictEqual(typeof session.git.status.behind, 'number');
+    });
+
+    it('should return git provider and repo name for repos with remotes', async () => {
+      // Previous test already waited for cache — just fetch
+      let session;
+      for (let i = 0; i < 5; i++) {
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'GET',
+        });
+        const sessions = JSON.parse(res.data);
+        session = sessions[0];
+        if (session?.git?.repoName) break;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      assert.ok(session.git, 'Should have git info');
+      assert.ok(session.git.repoName, 'Should have repo name');
+      assert.ok(session.git.provider, 'Should have provider');
+    });
+
+    it('should return null git info for sessions outside a git repo', async () => {
+      const os = require('os');
+      // Create a session in a non-git directory
+      const createBody = JSON.stringify({ name: 'Non-git Session', cwd: os.tmpdir() });
+      await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(createBody),
+          },
+        },
+        createBody,
+      );
+
+      // Wait for async git cache
+      await new Promise((r) => setTimeout(r, 2000));
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions',
+        method: 'GET',
+      });
+      const sessions = JSON.parse(res.data);
+      const nonGitSession = sessions.find((s) => s.name === 'Non-git Session');
+      assert.ok(nonGitSession, 'Should find the non-git session');
+      assert.strictEqual(nonGitSession.git, null, 'Non-git directory should have null git info');
+    });
+
+    it('should detect live cwd changes via cd', async () => {
+      // Create a session and send a cd command
+      const createBody = JSON.stringify({ name: 'CD Test Session' });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(createBody),
+          },
+        },
+        createBody,
+      );
+      const { id } = JSON.parse(createRes.data);
+
+      // Connect via WebSocket and send 'cd /tmp'
+      const ws = new WebSocket(`ws://127.0.0.1:${inst.port}/ws`, {
+        headers: { Origin: `http://127.0.0.1:${inst.port}` },
+      });
+      await waitForOpen(ws);
+
+      const attachedPromise = waitForMessage(ws, (m) => m.type === 'attached');
+      ws.send(JSON.stringify({ type: 'attach', sessionId: id }));
+      await attachedPromise;
+      ws.send(JSON.stringify({ type: 'resize', cols: 80, rows: 24 }));
+
+      const tmpDir = require('os').tmpdir();
+      const cdCmd = process.platform === 'win32' ? `cd /d ${tmpDir}` : `cd ${tmpDir}`;
+      ws.send(JSON.stringify({ type: 'input', data: cdCmd + '\r' }));
+
+      // Wait for cd to execute and cache to refresh
+      await new Promise((r) => setTimeout(r, 7000));
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions',
+        method: 'GET',
+      });
+      const sessions = JSON.parse(res.data);
+      const cdSession = sessions.find((s) => s.id === id);
+      assert.ok(cdSession, 'Should find the cd session');
+      // After cd to tmpdir, cwd should have changed and git should be null
+      assert.strictEqual(cdSession.git, null, 'After cd to non-git dir, git should be null');
+
+      ws.close();
+    });
+  });
 });

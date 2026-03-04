@@ -14,6 +14,7 @@ termbeam/
 │   ├── sessions.js          # PTY session management
 │   ├── routes.js            # Express HTTP routes
 │   ├── websocket.js         # WebSocket connection handling
+│   ├── git.js               # Git repo detection & status
 │   ├── tunnel.js            # DevTunnel integration
 │   ├── preview.js           # Port preview reverse proxy
 │   ├── service.js           # PM2 service management
@@ -60,7 +61,11 @@ Factory function `createAuth(password)` returns an object with middleware, token
 
 ### `sessions.js` — Session Manager
 
-`SessionManager` class wraps the PTY lifecycle. Handles spawning, tracking, listing, updating, and cleaning up terminal sessions. Each session has an auto-assigned color, tracks `lastActivity` timestamps, a `createdAt` timestamp, and supports live updates via the `update()` method. Sessions maintain a scrollback buffer (capped at 200 KB) that is sent to newly connecting clients, and track a `clients` Set of active WebSocket connections. Supports an optional `initialCommand` that is written to the PTY shortly after spawn.
+`SessionManager` class wraps the PTY lifecycle. Handles spawning, tracking, listing, updating, and cleaning up terminal sessions. Each session has an auto-assigned color, tracks `lastActivity` timestamps, a `createdAt` timestamp, and supports live updates via the `update()` method. Sessions maintain a scrollback buffer (capped at 200 KB) that is sent to newly connecting clients, and track a `clients` Set of active WebSocket connections. Supports an optional `initialCommand` that is written to the PTY shortly after spawn. The `list()` method detects the live working directory of the shell process (via `lsof` on macOS, `/proc` on Linux) and enriches each session with git repository information, using an async cache to avoid blocking the event loop.
+
+### `git.js` — Git Repository Detection
+
+Detects git repository information for a given directory. Provides `getGitInfo(cwd)` which returns branch name, remote provider (GitHub, GitLab, Bitbucket, Azure DevOps), repository name, and working tree status (staged, modified, untracked counts plus ahead/behind tracking). Also exports `parseRemoteUrl()` and `parseStatus()` for URL parsing and status summarization. All git commands use a 3-second timeout to avoid hanging.
 
 ### `routes.js` — HTTP Routes
 
