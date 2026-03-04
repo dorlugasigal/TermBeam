@@ -3078,14 +3078,14 @@
       const originalTitle = document.title;
       let hasUnread = false;
 
-      function playNotificationSound(freq) {
+      function playNotificationSound() {
         try {
           const ctx = new (window.AudioContext || window.webkitAudioContext)();
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.connect(gain);
           gain.connect(ctx.destination);
-          osc.frequency.value = freq || 440;
+          osc.frequency.value = 440;
           osc.type = 'sine';
           gain.gain.setValueAtTime(0.15, ctx.currentTime);
           gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
@@ -3100,7 +3100,7 @@
       function markUnreadOutput() {
         if (!document.hidden || hasUnread) return;
         hasUnread = true;
-        playNotificationSound(880);
+        playNotificationSound();
         document.title = '(\u25CF) ' + originalTitle;
       }
 
@@ -3147,7 +3147,7 @@
               markUnreadOutput();
               if (ms.id !== activeId && !ms.hasUnread) {
                 ms.hasUnread = true;
-                playNotificationSound(440);
+                playNotificationSound();
                 renderTabs();
               }
             } else if (msg.type === 'attached') {
