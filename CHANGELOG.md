@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.0] - 2026-03-04
+
+- feat(ui): show unread indicator in side panel session cards
+- fix(ui): reuse AudioContext for mobile notification sound
+- feat(ui): add tab title activity indicator for unread output (#66)
+- feat(ui): add pinch-to-zoom font size adjustment (#67)
+- feat: Replace dark/light toggle with 12-theme picker (#60)
+- Create issue: Feature Request: Support Multiple Themes
+- fix(test): replace setTimeout with setImmediate in actionLogs error handler test (#58)
+- docs: add landing page URL to README and package.json homepage
+- fix: add GitHub deployment environment to landing workflow
+- feat: add standalone landing page with Cloudflare Pages deployment
+- docs: center README header and badges
+- docs: add npm downloads and node version badges
+- chore: add smoke test step to publish skill, fix CI double-trigger
+
 ## [1.3.0] - 2026-03-03
 
 - feat(service): add interactive PM2 service wizard (#57)
