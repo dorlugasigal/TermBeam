@@ -1737,12 +1737,7 @@
         #tab-list {
           display: none;
         }
-        #split-toggle {
-          display: none;
-        }
-        #version-text {
-          display: none;
-        }
+
         #back-btn {
           display: none;
         }
@@ -1762,9 +1757,6 @@
           font-size: 13px;
           padding: 0 8px;
           width: auto;
-        }
-        #notify-toggle {
-          display: none;
         }
       }
 
@@ -1866,43 +1858,17 @@
         background: rgba(0, 0, 0, 0.1);
       }
       .palette-action-icon {
-        font-size: 16px;
-        width: 24px;
-        text-align: center;
-        flex-shrink: 0;
-      }
-      .palette-fab {
-        position: fixed;
-        bottom: calc(90px + env(safe-area-inset-bottom, 0px));
-        right: 12px;
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        background: var(--accent);
-        color: #fff;
-        border: none;
-        font-size: 20px;
-        cursor: pointer;
-        z-index: 60;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        width: 20px;
+        height: 20px;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition:
-          background 0.2s,
-          transform 0.2s;
+        flex-shrink: 0;
+        color: var(--text-secondary);
       }
-      .palette-fab:hover {
-        transform: scale(1.1);
-      }
-      .palette-fab:active {
-        transform: scale(0.95);
-      }
-      @media (min-width: 640px) {
-        .palette-fab {
-          bottom: 16px;
-          right: 16px;
-        }
+      .palette-action-icon svg {
+        width: 16px;
+        height: 16px;
       }
     </style>
   </head>
@@ -2001,7 +1967,6 @@
       </div>
       <div id="tab-list"></div>
       <div class="right">
-        <span id="version-text" style="font-size: 11px; color: var(--text-muted)"></span>
         <button class="tab-bar-btn" id="tab-new-btn" title="New session">
           <svg
             width="14"
@@ -2015,70 +1980,6 @@
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" /></svg
           ><span class="new-btn-label">New</span>
-        </button>
-        <button class="tab-bar-btn" id="split-toggle" title="Split view">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <line x1="12" y1="3" x2="12" y2="21" />
-          </svg>
-        </button>
-        <div class="bar-group">
-          <button class="bar-btn" id="zoom-out" title="Decrease font size">−</button>
-          <button class="bar-btn" id="zoom-in" title="Increase font size">+</button>
-        </div>
-        <button
-          class="bar-btn"
-          id="preview-btn"
-          title="Preview local port"
-          onclick="openPreviewModal()"
-        >
-          🌐
-        </button>
-        <button class="bar-btn" id="share-btn" title="Share link">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="18" cy="5" r="3" />
-            <circle cx="6" cy="12" r="3" />
-            <circle cx="18" cy="19" r="3" />
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-          </svg>
-        </button>
-        <button class="bar-btn" id="refresh-btn" title="Refresh app">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline points="23 4 23 10 17 10" />
-            <polyline points="1 20 1 14 7 14" />
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-          </svg>
-        </button>
-        <button class="bar-btn notify-btn" id="notify-toggle" title="Toggle command notifications">
-          🔔
         </button>
         <div class="theme-wrap" id="theme-wrap">
           <button class="bar-btn" id="theme-toggle" title="Switch theme">
@@ -2140,6 +2041,23 @@
             </div>
           </div>
         </div>
+        <button class="bar-btn" id="palette-trigger" title="Tools (Ctrl+K)">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+          </svg>
+        </button>
         <button id="stop-btn" title="Stop session">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
             <rect x="6" y="6" width="12" height="12" rx="2" /></svg
@@ -2442,7 +2360,6 @@
       </div>
       <div class="palette-body" id="palette-body"></div>
     </div>
-    <button id="palette-fab" class="palette-fab" title="Tools (Ctrl+K)">⚙️</button>
 
     <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
@@ -2472,8 +2389,7 @@
       let notificationsEnabled = localStorage.getItem('termbeam-notifications') === 'true';
 
       function updateNotifyToggle() {
-        const btn = document.getElementById('notify-toggle');
-        if (btn) btn.classList.toggle('active', notificationsEnabled);
+        // notify-toggle button removed from top bar; function kept for palette use
       }
 
       function sendCommandNotification(sessionName) {
@@ -2857,21 +2773,6 @@
         });
       });
 
-      // ===== Notification Toggle =====
-      updateNotifyToggle();
-      document.getElementById('notify-toggle').addEventListener('click', () => {
-        notificationsEnabled = !notificationsEnabled;
-        localStorage.setItem('termbeam-notifications', notificationsEnabled);
-        updateNotifyToggle();
-        if (
-          notificationsEnabled &&
-          'Notification' in window &&
-          Notification.permission === 'default'
-        ) {
-          Notification.requestPermission();
-        }
-      });
-
       // ===== Terminal Search =====
       const searchBar = document.getElementById('search-bar');
       const searchInput = document.getElementById('search-input');
@@ -3096,12 +2997,6 @@
         loadShellsForModal();
         startPolling();
 
-        // Zoom
-        document.getElementById('zoom-in').addEventListener('click', () => applyZoom(fontSize + 2));
-        document
-          .getElementById('zoom-out')
-          .addEventListener('click', () => applyZoom(fontSize - 2));
-
         // Pinch-to-zoom
         (function setupPinchZoom() {
           const wrapper = document.getElementById('terminals-wrapper');
@@ -3229,9 +3124,6 @@
           );
         }
 
-        // Split toggle
-        document.getElementById('split-toggle').addEventListener('click', toggleSplit);
-
         // Scroll to bottom when returning from idle / tab switch
         document.addEventListener('visibilitychange', () => {
           if (!document.hidden && activeId) {
@@ -3279,7 +3171,7 @@
         fetch('/api/version')
           .then((r) => r.json())
           .then((d) => {
-            document.getElementById('version-text').textContent = 'v' + d.version;
+            window._termbeamVersion = 'v' + d.version;
             document.getElementById('side-panel-version').textContent = 'v' + d.version;
           })
           .catch(() => {});
@@ -4091,7 +3983,6 @@
       // ===== Split View =====
       function toggleSplit() {
         splitMode = !splitMode;
-        document.getElementById('split-toggle').classList.toggle('active', splitMode);
 
         if (splitMode) {
           // Find a second session to show
@@ -4902,12 +4793,11 @@
         });
       }
 
-      document.getElementById('share-btn').addEventListener('click', async () => {
+      async function shareLink() {
         const urlPromise = fetch('/api/share-token')
           .then((r) => (r.ok ? r.json() : null))
           .then((data) => (data && data.url) || location.href)
           .catch(() => location.href);
-        // ClipboardItem with a promise preserves user activation across the fetch
         if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
           try {
             const blobPromise = urlPromise.then((u) => new Blob([u], { type: 'text/plain' }));
@@ -4916,7 +4806,6 @@
             return;
           } catch {}
         }
-        // Fallback: resolve URL first, then try legacy methods
         const url = await urlPromise;
         if (navigator.clipboard && navigator.clipboard.writeText) {
           try {
@@ -4930,10 +4819,9 @@
         } else {
           showShareUrlPrompt(url);
         }
-      });
+      }
 
-      // ===== Refresh Button =====
-      document.getElementById('refresh-btn').addEventListener('click', async () => {
+      async function refreshApp() {
         if ('caches' in window) {
           const keys = await caches.keys();
           await Promise.all(keys.map((k) => caches.delete(k)));
@@ -4943,19 +4831,19 @@
           if (reg) await reg.update();
         }
         location.reload();
-      });
+      }
 
       // ===== Command Palette =====
       (function setupPalette() {
         const paletteActions = [
           {
-            icon: '➕',
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
             label: 'New tab',
             category: 'Session',
             action: () => openNewSessionModal(),
           },
           {
-            icon: '✕',
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
             label: 'Close tab',
             category: 'Session',
             action: () => {
@@ -4963,7 +4851,7 @@
             },
           },
           {
-            icon: '✏️',
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
             label: 'Rename session',
             category: 'Session',
             action: () => {
@@ -4979,37 +4867,37 @@
             },
           },
           {
-            icon: '◫',
-            label: 'Toggle split view',
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>',
+            label: 'Split view',
             category: 'Session',
             action: () => toggleSplit(),
           },
           {
-            icon: '🔍',
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
             label: 'Find in terminal',
             category: 'Search',
             action: () => openSearchBar(),
           },
           {
-            icon: 'A+',
-            label: 'Font size +',
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+            label: 'Increase font size',
             category: 'View',
             action: () => applyZoom(fontSize + 1),
           },
           {
-            icon: 'A−',
-            label: 'Font size −',
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+            label: 'Decrease font size',
             category: 'View',
             action: () => applyZoom(fontSize - 1),
           },
           {
-            icon: '🎨',
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>',
             label: 'Theme',
             category: 'View',
             action: () => document.getElementById('theme-picker').classList.toggle('open'),
           },
           {
-            icon: '⛶',
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>',
             label: 'Fullscreen',
             category: 'View',
             action: () => {
@@ -5018,13 +4906,19 @@
             },
           },
           {
-            icon: '🔗',
-            label: 'Share link',
-            category: 'Share',
-            action: () => document.getElementById('share-btn').click(),
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+            label: 'Preview port',
+            category: 'View',
+            action: () => openPreviewModal(),
           },
           {
-            icon: '📋',
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
+            label: 'Share link',
+            category: 'Share',
+            action: () => shareLink(),
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
             label: 'Copy URL',
             category: 'Share',
             action: () => {
@@ -5045,13 +4939,12 @@
             },
           },
           {
-            icon: '🔔',
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
             label: 'Toggle notifications',
             category: 'Notifications',
             action: () => {
               notificationsEnabled = !notificationsEnabled;
               localStorage.setItem('termbeam-notifications', notificationsEnabled);
-              updateNotifyToggle();
               if (
                 notificationsEnabled &&
                 'Notification' in window &&
@@ -5063,7 +4956,13 @@
             },
           },
           {
-            icon: '🧹',
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
+            label: 'Refresh',
+            category: 'System',
+            action: () => refreshApp(),
+          },
+          {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>',
             label: 'Clear terminal',
             category: 'System',
             action: () => {
@@ -5073,11 +4972,11 @@
             },
           },
           {
-            icon: 'ℹ️',
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
             label: 'About',
             category: 'System',
             action: () => {
-              const ver = document.getElementById('version-text').textContent || 'TermBeam';
+              const ver = window._termbeamVersion || 'TermBeam';
               const overlay = document.createElement('div');
               overlay.style.cssText =
                 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:flex;align-items:center;justify-content:center;';
@@ -5126,7 +5025,7 @@
               const btn = document.createElement('button');
               btn.className = 'palette-action';
               btn.innerHTML =
-                '<span class="palette-action-icon">' + esc(a.icon) + '</span>' + esc(a.label);
+                '<span class="palette-action-icon">' + a.icon + '</span>' + esc(a.label);
               btn.addEventListener('click', () => {
                 closePalette();
                 a.action();
@@ -5153,7 +5052,7 @@
 
         backdrop.addEventListener('click', closePalette);
         document.getElementById('palette-close').addEventListener('click', closePalette);
-        document.getElementById('palette-fab').addEventListener('click', togglePalette);
+        document.getElementById('palette-trigger').addEventListener('click', togglePalette);
 
         document.addEventListener('keydown', (e) => {
           if ((e.ctrlKey || e.metaKey) && e.key === 'k') {

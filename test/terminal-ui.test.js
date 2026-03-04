@@ -74,16 +74,19 @@ describe('Terminal UI features', () => {
   // === Command completion notification (#62) ===
 
   describe('Command completion notification', () => {
-    it('should include the notification toggle button', async () => {
-      const page = await getTerminalHTML();
-      assert.ok(page.includes('id="notify-toggle"'), 'Should have notify-toggle button');
-    });
-
-    it('notification toggle button should have correct title', async () => {
+    it('should include the notification toggle in command palette', async () => {
       const page = await getTerminalHTML();
       assert.ok(
-        page.includes('title="Toggle command notifications"'),
-        'Should have notification toggle title',
+        page.includes("'Toggle notifications'"),
+        'Should have toggle notifications action in palette',
+      );
+    });
+
+    it('notification toggle palette action should have notification category', async () => {
+      const page = await getTerminalHTML();
+      assert.ok(
+        page.includes("category: 'Notifications'"),
+        'Should have Notifications category in palette',
       );
     });
 
@@ -179,13 +182,9 @@ describe('Terminal UI features', () => {
   // === Command palette (#65) ===
 
   describe('Command palette', () => {
-    it('should include the FAB button', async () => {
+    it('should include the palette trigger button', async () => {
       const page = await getTerminalHTML();
-      assert.ok(page.includes('id="palette-fab"'), 'Should have palette-fab button');
-      assert.ok(
-        page.includes('class="palette-fab"'),
-        'Should have palette-fab CSS class on button',
-      );
+      assert.ok(page.includes('id="palette-trigger"'), 'Should have palette-trigger button');
     });
 
     it('FAB button should have correct title with keyboard shortcut', async () => {
@@ -213,7 +212,7 @@ describe('Terminal UI features', () => {
       const page = await getTerminalHTML();
       assert.ok(page.includes('.palette-panel {'), 'Should have .palette-panel CSS');
       assert.ok(page.includes('.palette-backdrop {'), 'Should have .palette-backdrop CSS');
-      assert.ok(page.includes('.palette-fab {'), 'Should have .palette-fab CSS');
+      assert.ok(page.includes('.palette-action-icon {'), 'Should have .palette-action-icon CSS');
       assert.ok(page.includes('.palette-panel.open'), 'Should have .palette-panel.open CSS');
       assert.ok(page.includes('.palette-backdrop.open'), 'Should have .palette-backdrop.open CSS');
     });
