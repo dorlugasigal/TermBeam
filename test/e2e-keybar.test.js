@@ -502,14 +502,26 @@ test.describe('Key Bar — Copy & Paste', () => {
 // ─── Top Bar: Theme Toggle ──────────────────────────────────────────────────
 
 test.describe('Top Bar — Theme Toggle', () => {
-  test('toggles between dark and light theme with visible color change', async ({ page }) => {
+  test('opens theme picker and applies selected theme with visible color change', async ({
+    page,
+  }) => {
     await openTerminal(page);
 
     // Capture dark theme background color
     const darkBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
-    // Switch to light
+    // Open the theme picker
     await page.click('#theme-toggle');
+    await page.waitForTimeout(100);
+
+    // Picker should be open
+    const pickerOpen = await page.evaluate(() =>
+      document.getElementById('theme-picker').classList.contains('open'),
+    );
+    expect(pickerOpen).toBe(true);
+
+    // Select the light theme
+    await page.click('[data-theme-option="light"]');
     await page.waitForTimeout(300);
     const lightTheme = await page.evaluate(() =>
       document.documentElement.getAttribute('data-theme'),
@@ -520,8 +532,10 @@ test.describe('Top Bar — Theme Toggle', () => {
     const lightBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     expect(lightBg).not.toBe(darkBg);
 
-    // Switch back to dark
+    // Open picker again and switch back to dark
     await page.click('#theme-toggle');
+    await page.waitForTimeout(100);
+    await page.click('[data-theme-option="dark"]');
     await page.waitForTimeout(300);
     const darkTheme = await page.evaluate(() =>
       document.documentElement.getAttribute('data-theme'),

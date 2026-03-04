@@ -19,18 +19,69 @@ const LOGIN_HTML = `<!DOCTYPE html>
       --border-subtle:#d0d0d0; --text:#1e1e1e; --text-secondary:#616161;
       --text-dim:#767676; --accent:#0078d4; --accent-hover:#106ebe;
       --accent-active:#005a9e; --danger:#e51400; --shadow:rgba(0,0,0,0.06); }
+    [data-theme='monokai'] { --bg:#272822; --surface:#1e1f1c; --border:#49483e;
+      --border-subtle:#5c5c4f; --text:#f8f8f2; --text-secondary:#a59f85; --text-dim:#75715e;
+      --accent:#a6e22e; --accent-hover:#b8f53c; --accent-active:#8acc16;
+      --danger:#f92672; --shadow:rgba(0,0,0,0.3); }
+    [data-theme='solarized-dark'] { --bg:#002b36; --surface:#073642; --border:#586e75;
+      --border-subtle:#657b83; --text:#839496; --text-secondary:#657b83; --text-dim:#586e75;
+      --accent:#268bd2; --accent-hover:#379ce3; --accent-active:#1a7abf;
+      --danger:#dc322f; --shadow:rgba(0,0,0,0.25); }
+    [data-theme='solarized-light'] { --bg:#fdf6e3; --surface:#eee8d5; --border:#93a1a1;
+      --border-subtle:#839496; --text:#657b83; --text-secondary:#93a1a1; --text-dim:#a0a0a0;
+      --accent:#268bd2; --accent-hover:#379ce3; --accent-active:#1a7abf;
+      --danger:#dc322f; --shadow:rgba(0,0,0,0.08); }
+    [data-theme='nord'] { --bg:#2e3440; --surface:#3b4252; --border:#434c5e;
+      --border-subtle:#4c566a; --text:#d8dee9; --text-secondary:#b0bac9; --text-dim:#7b88a1;
+      --accent:#88c0d0; --accent-hover:#9fd4e4; --accent-active:#6aafbf;
+      --danger:#bf616a; --shadow:rgba(0,0,0,0.2); }
+    [data-theme='dracula'] { --bg:#282a36; --surface:#343746; --border:#44475a;
+      --border-subtle:#525568; --text:#f8f8f2; --text-secondary:#c1c4d2; --text-dim:#8e92a4;
+      --accent:#bd93f9; --accent-hover:#d0b0ff; --accent-active:#a77de7;
+      --danger:#ff5555; --shadow:rgba(0,0,0,0.25); }
+    [data-theme='github-dark'] { --bg:#0d1117; --surface:#161b22; --border:#30363d;
+      --border-subtle:#3d444d; --text:#c9d1d9; --text-secondary:#8b949e; --text-dim:#6e7681;
+      --accent:#58a6ff; --accent-hover:#79b8ff; --accent-active:#388bfd;
+      --danger:#f85149; --shadow:rgba(0,0,0,0.3); }
+    [data-theme='one-dark'] { --bg:#282c34; --surface:#21252b; --border:#3e4452;
+      --border-subtle:#4b5263; --text:#abb2bf; --text-secondary:#7f848e; --text-dim:#5c6370;
+      --accent:#61afef; --accent-hover:#7dc0ff; --accent-active:#4d9ede;
+      --danger:#e06c75; --shadow:rgba(0,0,0,0.25); }
+    [data-theme='catppuccin'] { --bg:#1e1e2e; --surface:#313244; --border:#45475a;
+      --border-subtle:#585b70; --text:#cdd6f4; --text-secondary:#a6adc8; --text-dim:#7f849c;
+      --accent:#89b4fa; --accent-hover:#b4d0ff; --accent-active:#5c9de3;
+      --danger:#f38ba8; --shadow:rgba(0,0,0,0.2); }
+    [data-theme='gruvbox'] { --bg:#282828; --surface:#3c3836; --border:#504945;
+      --border-subtle:#665c54; --text:#ebdbb2; --text-secondary:#d5c4a1; --text-dim:#a89984;
+      --accent:#83a598; --accent-hover:#9dbfb4; --accent-active:#6a8f8a;
+      --danger:#fb4934; --shadow:rgba(0,0,0,0.25); }
+    [data-theme='night-owl'] { --bg:#011627; --surface:#0d2a45; --border:#1d3b53;
+      --border-subtle:#264863; --text:#d6deeb; --text-secondary:#8badc1; --text-dim:#5f7e97;
+      --accent:#7fdbca; --accent-hover:#9ff0e0; --accent-active:#62c5b5;
+      --danger:#ef5350; --shadow:rgba(0,0,0,0.3); }
     * { margin:0; padding:0; box-sizing:border-box; }
     html, body { height:100%; background:var(--bg); color:var(--text);
       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
       display:flex; flex-direction:column; align-items:center; justify-content:center;
       transition:background 0.3s,color 0.3s;
       padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-    .theme-toggle { position:fixed; top:16px; right:16px; background:none;
-      border:1px solid var(--border); color:var(--text-dim); width:32px; height:32px;
-      border-radius:8px; cursor:pointer; display:flex; align-items:center;
-      justify-content:center; font-size:16px; transition:color 0.15s,border-color 0.15s,background 0.15s;
-      -webkit-tap-highlight-color:transparent; z-index:10; }
+    .theme-wrap { position:fixed; top:16px; right:16px; z-index:10; }
+    .theme-toggle { background:none; border:1px solid var(--border); color:var(--text-dim);
+      width:32px; height:32px; border-radius:8px; cursor:pointer; display:flex;
+      align-items:center; justify-content:center; font-size:16px;
+      transition:color 0.15s,border-color 0.15s,background 0.15s;
+      -webkit-tap-highlight-color:transparent; }
     .theme-toggle:hover { color:var(--text); border-color:var(--border-subtle); background:var(--border); }
+    .theme-picker { display:none; position:absolute; top:calc(100% + 4px); right:0;
+      background:var(--surface); border:1px solid var(--border); border-radius:8px;
+      min-width:160px; padding:4px 0; box-shadow:0 4px 12px var(--shadow); }
+    .theme-picker.open { display:block; }
+    .theme-option { display:flex; align-items:center; gap:8px; padding:7px 12px;
+      cursor:pointer; font-size:13px; color:var(--text); transition:background 0.1s; white-space:nowrap; }
+    .theme-option:hover { background:var(--border); }
+    .theme-option.active { color:var(--accent); }
+    .theme-swatch { width:14px; height:14px; border-radius:50%; display:inline-block;
+      flex-shrink:0; border:1px solid rgba(128,128,128,0.3); }
     .card { background:var(--surface); border:1px solid var(--border); border-radius:12px;
       padding:32px 24px; width:320px; max-width:calc(100vw - 32px); text-align:center;
       box-shadow:0 2px 8px var(--shadow); transition:background 0.3s,border-color 0.3s,box-shadow 0.3s; }
@@ -51,7 +102,28 @@ const LOGIN_HTML = `<!DOCTYPE html>
   </style>
 </head>
 <body>
-  <button class="theme-toggle" id="themeBtn" aria-label="Toggle theme">🌙</button>
+  <div class="theme-wrap" id="themeWrap">
+    <button class="theme-toggle" id="themeBtn" aria-label="Switch theme">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
+        <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+      </svg>
+    </button>
+    <div class="theme-picker" id="themePicker">
+      <div class="theme-option" data-t="dark"><span class="theme-swatch" style="background:#1e1e1e"></span>Dark</div>
+      <div class="theme-option" data-t="light"><span class="theme-swatch" style="background:#ffffff"></span>Light</div>
+      <div class="theme-option" data-t="monokai"><span class="theme-swatch" style="background:#272822"></span>Monokai</div>
+      <div class="theme-option" data-t="solarized-dark"><span class="theme-swatch" style="background:#002b36"></span>Solarized Dark</div>
+      <div class="theme-option" data-t="solarized-light"><span class="theme-swatch" style="background:#fdf6e3"></span>Solarized Light</div>
+      <div class="theme-option" data-t="nord"><span class="theme-swatch" style="background:#2e3440"></span>Nord</div>
+      <div class="theme-option" data-t="dracula"><span class="theme-swatch" style="background:#282a36"></span>Dracula</div>
+      <div class="theme-option" data-t="github-dark"><span class="theme-swatch" style="background:#0d1117"></span>GitHub Dark</div>
+      <div class="theme-option" data-t="one-dark"><span class="theme-swatch" style="background:#282c34"></span>One Dark</div>
+      <div class="theme-option" data-t="catppuccin"><span class="theme-swatch" style="background:#1e1e2e"></span>Catppuccin</div>
+      <div class="theme-option" data-t="gruvbox"><span class="theme-swatch" style="background:#282828"></span>Gruvbox</div>
+      <div class="theme-option" data-t="night-owl"><span class="theme-swatch" style="background:#011627"></span>Night Owl</div>
+    </div>
+  </div>
   <div class="card">
     <h1>📡 Term<span>Beam</span></h1>
     <p class="subtitle">Enter the access password</p>
@@ -63,12 +135,24 @@ const LOGIN_HTML = `<!DOCTYPE html>
   </div>
   <p class="tagline">Beam your terminal to any device</p>
   <script>
-    const t=document.getElementById('themeBtn'), h=document.documentElement;
-    function applyTheme(light){h.setAttribute('data-theme',light?'light':'');t.textContent=light?'☀️':'🌙';
-      document.querySelector('meta[name=theme-color]').content=light?'#ffffff':'#1e1e1e';}
-    applyTheme(localStorage.getItem('theme')==='light');
-    t.addEventListener('click',()=>{const light=h.getAttribute('data-theme')!=='light';
-      localStorage.setItem('theme',light?'light':'dark');applyTheme(light);});
+    const THEMES=[{id:'dark',bg:'#1e1e1e'},{id:'light',bg:'#f3f3f3'},{id:'monokai',bg:'#272822'},
+      {id:'solarized-dark',bg:'#002b36'},{id:'solarized-light',bg:'#fdf6e3'},{id:'nord',bg:'#2e3440'},
+      {id:'dracula',bg:'#282a36'},{id:'github-dark',bg:'#0d1117'},{id:'one-dark',bg:'#282c34'},
+      {id:'catppuccin',bg:'#1e1e2e'},{id:'gruvbox',bg:'#282828'},{id:'night-owl',bg:'#011627'}];
+    const h=document.documentElement, picker=document.getElementById('themePicker');
+    function applyTheme(theme){
+      h.setAttribute('data-theme',theme);
+      const t=THEMES.find(x=>x.id===theme)||THEMES[0];
+      document.querySelector('meta[name=theme-color]').content=t.bg;
+      localStorage.setItem('termbeam-theme',theme);
+      document.querySelectorAll('.theme-option').forEach(el=>el.classList.toggle('active',el.dataset.t===theme));
+    }
+    applyTheme(localStorage.getItem('termbeam-theme')||'dark');
+    document.getElementById('themeBtn').addEventListener('click',e=>{e.stopPropagation();picker.classList.toggle('open');});
+    document.addEventListener('click',()=>picker.classList.remove('open'));
+    document.querySelectorAll('.theme-option').forEach(el=>{
+      el.addEventListener('click',e=>{e.stopPropagation();applyTheme(el.dataset.t);picker.classList.remove('open');});
+    });
     document.getElementById('form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const pw = document.getElementById('pw').value;
