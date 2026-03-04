@@ -611,7 +611,7 @@
       }
       .theme-wrap {
         position: relative;
-        display: flex;
+        display: none;
         align-items: center;
       }
       .theme-picker {
@@ -662,7 +662,7 @@
         height: 30px;
         border-radius: 8px;
         cursor: pointer;
-        display: flex;
+        display: none;
         align-items: center;
         justify-content: center;
         gap: 4px;
@@ -1742,7 +1742,7 @@
           display: none;
         }
         #theme-wrap {
-          display: flex;
+          display: none;
         }
         #stop-btn {
           padding: 0 8px;
@@ -1868,6 +1868,84 @@
       }
       .palette-action-icon svg {
         width: 16px;
+      }
+      /* ===== Theme Sub-Panel ===== */
+      .theme-subpanel {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 240px;
+        max-height: 70vh;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        z-index: 270;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+      .theme-subpanel.open {
+        display: block;
+      }
+      .theme-subpanel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--text);
+      }
+      .theme-subpanel-close {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 16px;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+      .theme-subpanel-close:hover {
+        background: var(--hover-bg, rgba(255, 255, 255, 0.08));
+        color: var(--text);
+      }
+      .theme-subpanel-list {
+        padding: 6px 0;
+      }
+      .theme-subpanel-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 9px 14px;
+        background: none;
+        border: none;
+        color: var(--text);
+        font-size: 13px;
+        cursor: pointer;
+        text-align: left;
+        transition: background 0.15s;
+      }
+      .theme-subpanel-item:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+      [data-theme='light'] .theme-subpanel-item:hover,
+      [data-theme='solarized-light'] .theme-subpanel-item:hover {
+        background: rgba(0, 0, 0, 0.06);
+      }
+      .theme-subpanel-item.active {
+        color: var(--accent);
+      }
+      .theme-subpanel-swatch {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 1px solid rgba(128, 128, 128, 0.3);
+      }
         height: 16px;
       }
     </style>
@@ -2104,7 +2182,7 @@
       <div class="key-row">
         <button class="key-btn modifier" id="ctrl-btn" title="Toggle Ctrl modifier">Ctrl</button>
         <button class="key-btn modifier" id="shift-btn" title="Toggle Shift modifier">Shift</button>
-        <button class="key-btn special" data-key="&#x09;" title="Autocomplete">Tab</button>
+        <button class="key-btn special" data-key="tab" title="Autocomplete">Tab</button>
         <button class="key-btn special key-danger" data-key="&#x03;" title="Interrupt process">
           ^C
         </button>
@@ -2361,6 +2439,15 @@
       <div class="palette-body" id="palette-body"></div>
     </div>
 
+    <!-- Theme Sub-Panel -->
+    <div class="theme-subpanel" id="theme-subpanel">
+      <div class="theme-subpanel-header">
+        <span>Theme</span>
+        <button class="theme-subpanel-close" id="theme-subpanel-close">✕</button>
+      </div>
+      <div class="theme-subpanel-list" id="theme-subpanel-list"></div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
@@ -2386,7 +2473,7 @@
       let splitSecondId = null;
 
       // ===== Notification State =====
-      let notificationsEnabled = localStorage.getItem('termbeam-notifications') === 'true';
+      let notificationsEnabled = localStorage.getItem('termbeam-notifications') !== 'false';
 
       function updateNotifyToggle() {
         // notify-toggle button removed from top bar; function kept for palette use
@@ -4069,7 +4156,12 @@
         function sendKey(btn) {
           if (!btn || !btn.dataset.key) return;
           flashBtn(btn);
-          let data = btn.dataset.key === 'enter' ? '\r' : btn.dataset.key;
+          let data =
+            btn.dataset.key === 'enter'
+              ? '\r'
+              : btn.dataset.key === 'tab'
+                ? '\x09'
+                : btn.dataset.key;
           data = applyModifiers(data);
           const ms = managed.get(activeId);
           if (ms && ms.ws && ms.ws.readyState === 1) {
@@ -4602,6 +4694,18 @@
         if (cmd) body.initialCommand = cmd;
         if (color) body.color = color;
 
+        // Include current terminal dimensions so the PTY spawns at the right
+        // size — prevents oh-my-posh and other slow prompts from rendering
+        // at the default 120×30 size and triggering a duplicate on SIGWINCH.
+        const activeMs = managed.get(activeId);
+        if (activeMs && activeMs.fitAddon) {
+          const dims = activeMs.fitAddon.proposeDimensions();
+          if (dims) {
+            body.cols = dims.cols;
+            body.rows = dims.rows;
+          }
+        }
+
         try {
           const res = await fetch('/api/sessions', {
             method: 'POST',
@@ -4878,6 +4982,16 @@
             action: () => toggleSplit(),
           },
           {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+            label: 'Stop session',
+            category: 'Session',
+            action: () => {
+              if (!activeId) return;
+              if (!confirm('Stop this session? The process will be killed.')) return;
+              removeSession(activeId);
+            },
+          },
+          {
             icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
             label: 'Find in terminal',
             category: 'Search',
@@ -4897,12 +5011,13 @@
           },
           {
             icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>',
-            label: 'Theme',
+            get label() {
+              const current = THEMES.find((x) => x.id === getTheme()) || THEMES[0];
+              return 'Theme (' + current.name + ')';
+            },
             category: 'View',
-            keepOpen: true,
             action: () => {
-              const picker = document.getElementById('theme-picker');
-              picker.classList.add('open');
+              openThemeSubpanel();
             },
           },
           {
@@ -4987,7 +5102,12 @@
                 '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">' +
                 esc(ver) +
                 '</div>' +
-                '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;">Terminal in your browser, optimized for mobile.</div>';
+                '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;">Terminal in your browser, optimized for mobile.</div>' +
+                '<div style="display:flex;gap:16px;justify-content:center;margin-bottom:16px;">' +
+                '<a href="https://github.com/dorlugasigal/TermBeam" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;text-decoration:none;">GitHub</a>' +
+                '<a href="https://dorlugasigal.github.io/TermBeam/" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;text-decoration:none;">Docs</a>' +
+                '<a href="https://termbeam.pages.dev" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;text-decoration:none;">Website</a>' +
+                '</div>';
               const btn = document.createElement('button');
               btn.textContent = 'Close';
               btn.style.cssText =
@@ -5063,6 +5183,45 @@
         });
 
         renderPalette();
+      })();
+
+      // ===== Theme Sub-Panel =====
+      (function setupThemeSubpanel() {
+        const subpanel = document.getElementById('theme-subpanel');
+        const list = document.getElementById('theme-subpanel-list');
+        document.getElementById('theme-subpanel-close').addEventListener('click', () => {
+          subpanel.classList.remove('open');
+        });
+        function renderThemeList() {
+          const cur = getTheme();
+          list.innerHTML = THEMES.map(
+            (t) =>
+              '<button class="theme-subpanel-item' +
+              (t.id === cur ? ' active' : '') +
+              '" data-tid="' +
+              t.id +
+              '"><span class="theme-subpanel-swatch" style="background:' +
+              t.bg +
+              '"></span>' +
+              esc(t.name) +
+              '</button>',
+          ).join('');
+          list.querySelectorAll('.theme-subpanel-item').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              applyTheme(btn.dataset.tid);
+              renderThemeList();
+            });
+          });
+        }
+        window.openThemeSubpanel = function () {
+          renderThemeList();
+          subpanel.classList.add('open');
+        };
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && subpanel.classList.contains('open')) {
+            subpanel.classList.remove('open');
+          }
+        });
       })();
 
       // ===== Service Worker =====

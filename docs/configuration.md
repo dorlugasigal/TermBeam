@@ -52,7 +52,7 @@ The browser UI stores the following preferences in `localStorage`:
 
 | Key                      | Description                                               | Default |
 | ------------------------ | --------------------------------------------------------- | ------- |
-| `termbeam-notifications` | Command completion notifications enabled (`true`/`false`) | `false` |
+| `termbeam-notifications` | Command completion notifications enabled (`true`/`false`) | `true`  |
 | `termbeam-fontsize`      | Terminal font size                                        | `14`    |
 | `termbeam-theme`         | Light/dark theme preference                               | `dark`  |
 
