@@ -458,6 +458,23 @@
       .tab-close:hover {
         color: var(--danger);
       }
+      .tab-unread {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--accent);
+        flex-shrink: 0;
+        animation: tab-pulse 1.5s ease-in-out infinite;
+      }
+      @keyframes tab-pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
       /* ===== Tab Preview ===== */
       #tab-preview {
         display: none;
@@ -3128,6 +3145,10 @@
               ms.coalescedWrite(msg.data);
               ms.lastActivity = Date.now();
               markUnreadOutput();
+              if (ms.id !== activeId && !ms.hasUnread) {
+                ms.hasUnread = true;
+                renderTabs();
+              }
             } else if (msg.type === 'attached') {
               if (ms.container.classList.contains('visible')) {
                 sendResize(ms);
@@ -3189,6 +3210,8 @@
       function activateSession(id) {
         if (!managed.has(id)) return;
         activeId = id;
+        const ms = managed.get(id);
+        if (ms) ms.hasUnread = false;
         reconnectOverlay.classList.remove('visible');
 
         // Show/hide panes
@@ -3303,6 +3326,7 @@
               esc(ms.name) +
               '</span>' +
               (activity ? '<span class="tab-activity">' + activity + '</span>' : '') +
+              (ms.hasUnread && !isActive ? '<span class="tab-unread"></span>' : '') +
               '<span class="tab-status" style="background:' +
               safeColor(statusColor) +
               '"></span>' +
