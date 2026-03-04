@@ -15,15 +15,15 @@ function getGitInfo(cwd) {
   const result = { branch: null, repoName: null, provider: null, status: null };
 
   try {
-    result.branch = git('branch --show-current', cwd) || null;
-  } catch {
-    // detached HEAD — try rev-parse
-    try {
-      const sha = git('rev-parse --short HEAD', cwd);
-      result.branch = `(${sha})`;
-    } catch {
-      /* empty repo */
+    const branch = git('branch --show-current', cwd);
+    if (branch) {
+      result.branch = branch;
+    } else {
+      // Detached HEAD — use short SHA
+      result.branch = `(${git('rev-parse --short HEAD', cwd)})`;
     }
+  } catch {
+    /* empty repo */
   }
 
   try {
