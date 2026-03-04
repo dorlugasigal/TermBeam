@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.8.0] - 2026-03-04
+
+- feat(cli): add interactive setup wizard (#72)
+
 ## [1.7.0] - 2026-03-04
 
 - chore: bump version to 1.6.0
