@@ -115,6 +115,13 @@ async function runCommand(page, cmd) {
   await page.click('button[data-key="enter"]');
 }
 
+async function openPaletteAndClick(page, actionLabel) {
+  await page.click('#palette-trigger');
+  await expect(page.locator('.palette-panel')).toHaveClass(/open/);
+  await page.click(`.palette-action:has-text("${actionLabel}")`);
+  await page.waitForTimeout(300);
+}
+
 // ─── Key Bar: Input Keys ────────────────────────────────────────────────────
 
 test.describe('Key Bar — Input Keys', () => {
@@ -548,18 +555,17 @@ test.describe('Top Bar — Theme Toggle', () => {
   });
 });
 
-// ─── Top Bar: Zoom Controls ────────────────────────────────────────────────
+// ─── Command Palette: Zoom Controls ────────────────────────────────────────
 
-test.describe('Top Bar — Zoom Controls', () => {
-  test('Zoom In increases terminal font size', async ({ page }) => {
+test.describe('Command Palette — Zoom Controls', () => {
+  test('Increase font size via palette', async ({ page }) => {
     await openTerminal(page);
     const initialSize = await page.evaluate(() => {
       const el = document.querySelector('.xterm-rows');
       return el ? parseFloat(getComputedStyle(el).fontSize) : 0;
     });
 
-    await page.click('#zoom-in');
-    await page.waitForTimeout(300);
+    await openPaletteAndClick(page, 'Increase font size');
 
     const newSize = await page.evaluate(() => {
       const el = document.querySelector('.xterm-rows');
@@ -568,20 +574,18 @@ test.describe('Top Bar — Zoom Controls', () => {
     expect(newSize).toBeGreaterThan(initialSize);
   });
 
-  test('Zoom Out decreases terminal font size', async ({ page }) => {
+  test('Decrease font size via palette', async ({ page }) => {
     await openTerminal(page);
     // First zoom in to have room to zoom out
-    await page.click('#zoom-in');
-    await page.click('#zoom-in');
-    await page.waitForTimeout(300);
+    await openPaletteAndClick(page, 'Increase font size');
+    await openPaletteAndClick(page, 'Increase font size');
 
     const beforeSize = await page.evaluate(() => {
       const el = document.querySelector('.xterm-rows');
       return el ? parseFloat(getComputedStyle(el).fontSize) : 0;
     });
 
-    await page.click('#zoom-out');
-    await page.waitForTimeout(300);
+    await openPaletteAndClick(page, 'Decrease font size');
 
     const afterSize = await page.evaluate(() => {
       const el = document.querySelector('.xterm-rows');
@@ -591,10 +595,10 @@ test.describe('Top Bar — Zoom Controls', () => {
   });
 });
 
-// ─── Top Bar: Split View ────────────────────────────────────────────────────
+// ─── Command Palette: Split View ────────────────────────────────────────────
 
-test.describe('Top Bar — Split View', () => {
-  test('Split toggle creates two working terminal panes', async ({ page }) => {
+test.describe('Command Palette — Split View', () => {
+  test('Split view creates two terminal panes', async ({ page }) => {
     await openTerminal(page);
 
     // Create a second session
@@ -608,24 +612,20 @@ test.describe('Top Bar — Split View', () => {
     const initialPanes = await page.locator('.terminal-pane.visible').count();
     expect(initialPanes).toBe(1);
 
-    // Enable split
-    await page.click('#split-toggle');
-    await page.waitForTimeout(500);
+    // Toggle split via palette
+    await openPaletteAndClick(page, 'Split view');
     const afterPanes = await page.locator('.terminal-pane.visible').count();
     expect(afterPanes).toBe(2);
-    await expect(page.locator('#split-toggle')).toHaveClass(/active/);
 
-    // Verify the active pane has a working terminal — run a command
+    // Verify working terminal
     const marker = `SPLIT_${Date.now()}`;
     await runCommand(page, `echo ${marker}`);
     await waitForTerminalOutput(page, marker);
 
-    // Disable split
-    await page.click('#split-toggle');
-    await page.waitForTimeout(500);
+    // Toggle split off via palette
+    await openPaletteAndClick(page, 'Split view');
     const finalPanes = await page.locator('.terminal-pane.visible').count();
     expect(finalPanes).toBe(1);
-    await expect(page.locator('#split-toggle')).not.toHaveClass(/active/);
   });
 });
 
@@ -793,12 +793,12 @@ test.describe('Top Bar — Navigation & Session Control', () => {
   });
 });
 
-// ─── Top Bar: Preview Port ──────────────────────────────────────────────────
+// ─── Command Palette: Preview Port ──────────────────────────────────────────
 
-test.describe('Top Bar — Preview Port', () => {
-  test('Preview button opens the preview modal', async ({ page }) => {
+test.describe('Command Palette — Preview Port', () => {
+  test('Preview port opens the preview modal', async ({ page }) => {
     await openTerminal(page);
-    await page.click('#preview-btn');
+    await openPaletteAndClick(page, 'Preview port');
     await expect(page.locator('#preview-modal')).toHaveClass(/visible/);
     await expect(page.locator('#preview-port-input')).toBeVisible();
     await expect(page.locator('#preview-open')).toBeVisible();
@@ -806,7 +806,7 @@ test.describe('Top Bar — Preview Port', () => {
 
   test('Preview cancel closes the modal', async ({ page }) => {
     await openTerminal(page);
-    await page.click('#preview-btn');
+    await openPaletteAndClick(page, 'Preview port');
     await expect(page.locator('#preview-modal')).toHaveClass(/visible/);
     await page.click('#preview-cancel');
     await expect(page.locator('#preview-modal')).not.toHaveClass(/visible/);
@@ -828,12 +828,9 @@ test.describe('Top Bar — Status', () => {
     expect(name).not.toBe('…');
   });
 
-  test('Version text is displayed', async ({ page }) => {
+  test('Palette trigger is visible', async ({ page }) => {
     await openTerminal(page);
-    await expect(async () => {
-      const version = await page.locator('#version-text').innerText();
-      expect(version).toMatch(/v\d+/);
-    }).toPass({ timeout: 5_000 });
+    await expect(page.locator('#palette-trigger')).toBeVisible();
   });
 });
 
