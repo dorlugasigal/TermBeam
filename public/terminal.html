@@ -1497,6 +1497,30 @@
         white-space: normal;
       }
 
+      .side-panel-card-git {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px 6px;
+        padding: 0 12px 4px;
+        font-size: 10px;
+        color: var(--text-secondary);
+        align-items: center;
+      }
+      .side-panel-card-git .git-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        background: var(--surface);
+        padding: 1px 6px;
+        border-radius: 3px;
+      }
+      .side-panel-card-git .git-status-clean {
+        color: var(--success);
+      }
+      .side-panel-card-git .git-status-dirty {
+        color: var(--warning, #fbbf24);
+      }
+
       @media (max-width: 640px) {
         #panel-toggle {
           display: flex;
@@ -2784,6 +2808,7 @@
           shell: data.shell,
           cwd: data.cwd,
           pid: data.pid,
+          git: data.git || null,
           term,
           fitAddon,
           searchAddon,
@@ -3264,6 +3289,26 @@
               '" title="Close session">×</button>' +
               '</div>' +
               (activity ? '<div class="side-panel-card-meta">' + activity + ' ago</div>' : '') +
+              (ms.git
+                ? '<div class="side-panel-card-git">' +
+                  '<span class="git-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg> ' +
+                  esc(ms.git.branch || 'detached') +
+                  '</span>' +
+                  (ms.git.provider
+                    ? '<span class="git-badge">' + esc(ms.git.provider) + '</span>'
+                    : '') +
+                  (ms.git.repoName
+                    ? '<span class="git-badge">' + esc(ms.git.repoName) + '</span>'
+                    : '') +
+                  (ms.git.status
+                    ? '<span class="git-badge ' +
+                      (ms.git.status.clean ? 'git-status-clean' : 'git-status-dirty') +
+                      '">' +
+                      (ms.git.status.clean ? '✓ clean' : esc(ms.git.status.summary)) +
+                      '</span>'
+                    : '') +
+                  '</div>'
+                : '') +
               previewContent +
               '</div>'
             );
@@ -3918,7 +3963,9 @@
                 const ms = managed.get(s.id);
                 ms.name = s.name;
                 ms.color = s.color;
+                ms.cwd = s.cwd;
                 ms.lastActivity = s.lastActivity;
+                ms.git = s.git || null;
               }
             }
 

@@ -1,6 +1,86 @@
 const crypto = require('crypto');
+const { execSync, exec } = require('child_process');
+const fs = require('fs');
 const pty = require('node-pty');
 const log = require('./logger');
+const { getGitInfo } = require('./git');
+
+function getProcessCwd(pid) {
+  try {
+    if (process.platform === 'linux') {
+      return fs.readlinkSync(`/proc/${pid}/cwd`);
+    }
+    if (process.platform === 'darwin') {
+      const out = execSync(`lsof -a -p ${pid} -d cwd -Fn`, {
+        stdio: 'pipe',
+        timeout: 2000,
+      }).toString();
+      const match = out.match(/\nn(.+)/);
+      if (match) return match[1];
+    }
+  } catch {
+    /* process may have exited */
+  }
+  return null;
+}
+
+// Cache git info per session to avoid blocking the event loop on every list() call.
+// lsof + git commands take ~200-500ms and block WebSocket traffic, causing
+// xterm.js cursor position report responses to leak as visible text.
+const _gitCache = new Map(); // sessionId -> { cwd, git, ts }
+const GIT_CACHE_TTL = 5000;
+
+function getCachedGitInfo(sessionId, pid, originalCwd) {
+  const now = Date.now();
+  const cached = _gitCache.get(sessionId);
+  if (cached && now - cached.ts < GIT_CACHE_TTL) {
+    return { cwd: cached.cwd, git: cached.git };
+  }
+
+  // Always refresh asynchronously to avoid blocking the event loop.
+  // Return stale data if available, or null on first call.
+  scheduleGitRefresh(sessionId, pid, originalCwd);
+  if (cached) return { cwd: cached.cwd, git: cached.git };
+  return { cwd: originalCwd, git: null };
+}
+
+function scheduleGitRefresh(sessionId, pid, originalCwd) {
+  // Mark as refreshing to prevent duplicate refreshes
+  const cached = _gitCache.get(sessionId);
+  if (cached && cached._refreshing) return;
+  if (cached) cached._refreshing = true;
+
+  // Use exec (async) for the lsof call to avoid blocking the event loop
+  const cmd =
+    process.platform === 'darwin'
+      ? `lsof -a -p ${pid} -d cwd -Fn`
+      : process.platform === 'linux'
+        ? `readlink /proc/${pid}/cwd`
+        : null;
+
+  if (!cmd) {
+    // Windows or unsupported — just refresh sync quickly
+    setImmediate(() => {
+      const git = getGitInfo(originalCwd);
+      _gitCache.set(sessionId, { cwd: originalCwd, git, ts: Date.now() });
+    });
+    return;
+  }
+
+  exec(cmd, { timeout: 2000 }, (err, stdout) => {
+    let liveCwd = originalCwd;
+    if (!err && stdout) {
+      if (process.platform === 'darwin') {
+        const match = stdout.match(/\nn(.+)/);
+        if (match) liveCwd = match[1].trim();
+      } else {
+        liveCwd = stdout.trim();
+      }
+    }
+    const git = getGitInfo(liveCwd);
+    _gitCache.set(sessionId, { cwd: liveCwd, git, ts: Date.now() });
+  });
+}
 
 const SESSION_COLORS = [
   '#4a9eff',
@@ -79,6 +159,7 @@ class SessionManager {
         if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'exit', code: exitCode }));
       }
       this.sessions.delete(id);
+      _gitCache.delete(id);
     });
 
     this.sessions.set(id, session);
@@ -102,6 +183,7 @@ class SessionManager {
     const s = this.sessions.get(id);
     if (!s) return false;
     log.info(`Session "${s.name}" deleted (id=${id})`);
+    _gitCache.delete(id);
     s.pty.kill();
     return true;
   }
@@ -109,16 +191,18 @@ class SessionManager {
   list() {
     const list = [];
     for (const [id, s] of this.sessions) {
+      const { cwd, git } = getCachedGitInfo(id, s.pty.pid, s.cwd);
       list.push({
         id,
         name: s.name,
-        cwd: s.cwd,
+        cwd,
         shell: s.shell,
         pid: s.pty.pid,
         clients: s.clients.size,
         createdAt: s.createdAt,
         color: s.color,
         lastActivity: s.lastActivity,
+        git,
       });
     }
     return list;
@@ -133,6 +217,7 @@ class SessionManager {
       }
     }
     this.sessions.clear();
+    _gitCache.clear();
   }
 }
 

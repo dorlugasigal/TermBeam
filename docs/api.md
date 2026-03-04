@@ -63,15 +63,35 @@ List all active sessions.
     "clients": 1,
     "createdAt": "2025-01-01T00:00:00.000Z",
     "color": "#4a9eff",
-    "lastActivity": 1719849600000
+    "lastActivity": 1719849600000,
+    "git": {
+      "branch": "main",
+      "repoName": "owner/repo",
+      "provider": "GitHub",
+      "status": {
+        "clean": false,
+        "modified": 1,
+        "staged": 0,
+        "untracked": 2,
+        "ahead": 3,
+        "behind": 0,
+        "summary": "1 modified, 2 untracked, 3↑"
+      }
+    }
   }
 ]
 ```
 
-| Field          | Type   | Description                                |
-| -------------- | ------ | ------------------------------------------ |
-| `color`        | string | Hex color assigned to the session          |
-| `lastActivity` | number | Unix timestamp (ms) of the last PTY output |
+| Field          | Type        | Description                                                                                                  |
+| -------------- | ----------- | ------------------------------------------------------------------------------------------------------------ |
+| `color`        | string      | Hex color assigned to the session                                                                            |
+| `lastActivity` | number      | Unix timestamp (ms) of the last PTY output                                                                   |
+| `cwd`          | string      | Live working directory of the shell process (updates when the user `cd`s)                                    |
+| `git`          | object/null | Git repository info for the session's cwd, or `null` if not in a git repo                                    |
+| `git.branch`   | string      | Current branch name (or short SHA in detached HEAD)                                                          |
+| `git.repoName` | string/null | Remote repository name (e.g. `owner/repo`)                                                                   |
+| `git.provider` | string/null | Hosting provider: `GitHub`, `GitLab`, `Bitbucket`, `Azure DevOps`, or host                                   |
+| `git.status`   | object      | Working tree status with `clean`, `modified`, `staged`, `untracked`, `ahead`, `behind`, and `summary` fields |
 
 #### `POST /api/sessions`
 

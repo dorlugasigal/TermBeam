@@ -328,6 +328,32 @@
         transform: scale(0.95);
       }
 
+      .session-card .git-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 10px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        align-items: center;
+      }
+      .session-card .git-info .git-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: var(--bg);
+        padding: 2px 8px;
+        border-radius: 4px;
+        transition:
+          background 0.3s,
+          color 0.3s;
+      }
+      .session-card .git-info .git-status-clean {
+        color: var(--success);
+      }
+      .session-card .git-info .git-status-dirty {
+        color: var(--warning, #fbbf24);
+      }
+
       .new-session {
         position: fixed;
         bottom: calc(16px + env(safe-area-inset-bottom, 0px));
@@ -991,6 +1017,16 @@
               <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> ${s.clients} connected</span>
               <span title="Last activity">${getActivityLabel(s.lastActivity)}</span>
             </div>
+            ${
+              s.git
+                ? `<div class="git-info">
+              <span class="git-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg> ${esc(s.git.branch || 'detached')}</span>
+              ${s.git.provider ? `<span class="git-badge">${esc(s.git.provider)}</span>` : ''}
+              ${s.git.repoName ? `<span class="git-badge">${esc(s.git.repoName)}</span>` : ''}
+              ${s.git.status ? `<span class="git-badge ${s.git.status.clean ? 'git-status-clean' : 'git-status-dirty'}">${s.git.status.clean ? '✓ clean' : esc(s.git.status.summary)}</span>` : ''}
+            </div>`
+                : ''
+            }
             <button class="connect-btn">Connect →</button>
           </div>
         </div>
