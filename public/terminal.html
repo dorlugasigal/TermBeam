@@ -3421,7 +3421,7 @@
           tab.addEventListener('auxclick', (e) => {
             if (e.button === 1) {
               e.preventDefault();
-              removeSession(tab.dataset.id);
+              if (confirm('Close this session?')) removeSession(tab.dataset.id);
             }
           });
 
