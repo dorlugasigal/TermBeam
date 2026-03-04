@@ -1764,6 +1764,143 @@
           width: auto;
         }
       }
+
+      /* ===== Command Palette / Tool Panel ===== */
+      .palette-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 250;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+      .palette-backdrop.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .palette-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 280px;
+        max-width: 85vw;
+        height: 100%;
+        background: var(--surface);
+        border-left: 1px solid var(--border);
+        z-index: 260;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .palette-panel.open {
+        transform: translateX(0);
+      }
+      .palette-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 600;
+        font-size: 15px;
+        color: var(--text);
+      }
+      .palette-close {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 18px;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+      .palette-close:hover {
+        background: var(--hover-bg, rgba(255, 255, 255, 0.08));
+        color: var(--text);
+      }
+      .palette-body {
+        padding: 8px 0;
+        flex: 1;
+      }
+      .palette-category {
+        padding: 8px 16px 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted, var(--text-secondary));
+      }
+      .palette-action {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 16px;
+        background: none;
+        border: none;
+        color: var(--text);
+        font-size: 13px;
+        cursor: pointer;
+        text-align: left;
+        transition: background 0.15s;
+      }
+      .palette-action:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .palette-action:active {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      [data-theme='light'] .palette-action:hover,
+      [data-theme='solarized-light'] .palette-action:hover {
+        background: rgba(0, 0, 0, 0.06);
+      }
+      [data-theme='light'] .palette-action:active,
+      [data-theme='solarized-light'] .palette-action:active {
+        background: rgba(0, 0, 0, 0.1);
+      }
+      .palette-action-icon {
+        font-size: 16px;
+        width: 24px;
+        text-align: center;
+        flex-shrink: 0;
+      }
+      .palette-fab {
+        position: fixed;
+        bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+        right: 12px;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        z-index: 60;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          background 0.2s,
+          transform 0.2s;
+      }
+      .palette-fab:hover {
+        transform: scale(1.1);
+      }
+      .palette-fab:active {
+        transform: scale(0.95);
+      }
+      @media (min-width: 640px) {
+        .palette-fab {
+          bottom: 16px;
+          right: 16px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -2292,6 +2429,17 @@
         </div>
       </div>
     </div>
+
+    <!-- Command Palette / Tool Panel -->
+    <div id="palette-backdrop" class="palette-backdrop"></div>
+    <div id="palette-panel" class="palette-panel">
+      <div class="palette-header">
+        <span>Tools</span>
+        <button class="palette-close" id="palette-close">✕</button>
+      </div>
+      <div class="palette-body" id="palette-body"></div>
+    </div>
+    <button id="palette-fab" class="palette-fab" title="Tools (Ctrl+K)">⚙️</button>
 
     <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
@@ -4785,6 +4933,229 @@
         }
         location.reload();
       });
+
+      // ===== Command Palette =====
+      (function setupPalette() {
+        const paletteActions = [
+          {
+            icon: '➕',
+            label: 'New tab',
+            category: 'Session',
+            action: () => openNewSessionModal(),
+          },
+          {
+            icon: '✕',
+            label: 'Close tab',
+            category: 'Session',
+            action: () => {
+              if (activeId) removeSession(activeId);
+            },
+          },
+          {
+            icon: '✏️',
+            label: 'Rename session',
+            category: 'Session',
+            action: () => {
+              if (!activeId) return;
+              const ms = managed.get(activeId);
+              if (!ms) return;
+              const name = prompt('Rename session:', ms.name || '');
+              if (name !== null && name.trim()) {
+                ms.name = name.trim();
+                renderTabs();
+                updateStatusBar();
+              }
+            },
+          },
+          {
+            icon: '◫',
+            label: 'Toggle split view',
+            category: 'Session',
+            action: () => toggleSplit(),
+          },
+          {
+            icon: '🔍',
+            label: 'Find in terminal',
+            category: 'Search',
+            action: () => openSearchBar(),
+          },
+          {
+            icon: 'A+',
+            label: 'Font size +',
+            category: 'View',
+            action: () => applyZoom(fontSize + 1),
+          },
+          {
+            icon: 'A−',
+            label: 'Font size −',
+            category: 'View',
+            action: () => applyZoom(fontSize - 1),
+          },
+          {
+            icon: '🎨',
+            label: 'Theme',
+            category: 'View',
+            action: () => document.getElementById('theme-picker').classList.toggle('open'),
+          },
+          {
+            icon: '⛶',
+            label: 'Fullscreen',
+            category: 'View',
+            action: () => {
+              if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+              else document.documentElement.requestFullscreen().catch(() => {});
+            },
+          },
+          {
+            icon: '🔗',
+            label: 'Share link',
+            category: 'Share',
+            action: () => document.getElementById('share-btn').click(),
+          },
+          {
+            icon: '📋',
+            label: 'Copy URL',
+            category: 'Share',
+            action: () => {
+              const url = location.href;
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(
+                  () => showToast('URL copied!'),
+                  () => {
+                    if (copyToClipboardFallback(url)) showToast('URL copied!');
+                    else showShareUrlPrompt(url);
+                  },
+                );
+              } else if (copyToClipboardFallback(url)) {
+                showToast('URL copied!');
+              } else {
+                showShareUrlPrompt(url);
+              }
+            },
+          },
+          {
+            icon: '🔔',
+            label: 'Toggle notifications',
+            category: 'Notifications',
+            action: () => {
+              notificationsEnabled = !notificationsEnabled;
+              localStorage.setItem('termbeam-notifications', notificationsEnabled);
+              updateNotifyToggle();
+              if (
+                notificationsEnabled &&
+                'Notification' in window &&
+                Notification.permission === 'default'
+              ) {
+                Notification.requestPermission();
+              }
+              showToast(notificationsEnabled ? 'Notifications on' : 'Notifications off');
+            },
+          },
+          {
+            icon: '🧹',
+            label: 'Clear terminal',
+            category: 'System',
+            action: () => {
+              if (!activeId) return;
+              const ms = managed.get(activeId);
+              if (ms) ms.term.clear();
+            },
+          },
+          {
+            icon: 'ℹ️',
+            label: 'About',
+            category: 'System',
+            action: () => {
+              const ver = document.getElementById('version-text').textContent || 'TermBeam';
+              const overlay = document.createElement('div');
+              overlay.style.cssText =
+                'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:flex;align-items:center;justify-content:center;';
+              const box = document.createElement('div');
+              box.style.cssText =
+                'background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:90vw;width:320px;text-align:center;';
+              box.innerHTML =
+                '<div style="font-size:24px;margin-bottom:8px;">⚡</div>' +
+                '<div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">TermBeam</div>' +
+                '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">' +
+                esc(ver) +
+                '</div>' +
+                '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;">Terminal in your browser, optimized for mobile.</div>';
+              const btn = document.createElement('button');
+              btn.textContent = 'Close';
+              btn.style.cssText =
+                'padding:6px 20px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;';
+              btn.onclick = () => overlay.remove();
+              box.appendChild(btn);
+              overlay.appendChild(box);
+              overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) overlay.remove();
+              });
+              document.body.appendChild(overlay);
+            },
+          },
+        ];
+
+        const backdrop = document.getElementById('palette-backdrop');
+        const panel = document.getElementById('palette-panel');
+        const body = document.getElementById('palette-body');
+
+        function renderPalette() {
+          const grouped = {};
+          paletteActions.forEach((a) => {
+            if (!grouped[a.category]) grouped[a.category] = [];
+            grouped[a.category].push(a);
+          });
+          body.innerHTML = '';
+          Object.keys(grouped).forEach((cat) => {
+            const header = document.createElement('div');
+            header.className = 'palette-category';
+            header.textContent = cat;
+            body.appendChild(header);
+            grouped[cat].forEach((a) => {
+              const btn = document.createElement('button');
+              btn.className = 'palette-action';
+              btn.innerHTML =
+                '<span class="palette-action-icon">' + esc(a.icon) + '</span>' + esc(a.label);
+              btn.addEventListener('click', () => {
+                closePalette();
+                a.action();
+              });
+              body.appendChild(btn);
+            });
+          });
+        }
+
+        function openPalette() {
+          backdrop.classList.add('open');
+          panel.classList.add('open');
+        }
+
+        function closePalette() {
+          backdrop.classList.remove('open');
+          panel.classList.remove('open');
+        }
+
+        function togglePalette() {
+          if (panel.classList.contains('open')) closePalette();
+          else openPalette();
+        }
+
+        backdrop.addEventListener('click', closePalette);
+        document.getElementById('palette-close').addEventListener('click', closePalette);
+        document.getElementById('palette-fab').addEventListener('click', togglePalette);
+
+        document.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            togglePalette();
+          }
+          if (e.key === 'Escape' && panel.classList.contains('open')) {
+            closePalette();
+          }
+        });
+
+        renderPalette();
+      })();
 
       // ===== Service Worker =====
       if ('serviceWorker' in navigator) {
