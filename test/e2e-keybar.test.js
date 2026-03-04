@@ -517,18 +517,18 @@ test.describe('Top Bar — Theme Toggle', () => {
     // Capture dark theme background color
     const darkBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
-    // Open the theme picker
-    await page.click('#theme-toggle');
+    // Open the theme subpanel via the tools panel
+    await openPaletteAndClick(page, 'Theme');
     await page.waitForTimeout(100);
 
-    // Picker should be open
-    const pickerOpen = await page.evaluate(() =>
-      document.getElementById('theme-picker').classList.contains('open'),
+    // Subpanel should be open
+    const subpanelOpen = await page.evaluate(() =>
+      document.getElementById('theme-subpanel').classList.contains('open'),
     );
-    expect(pickerOpen).toBe(true);
+    expect(subpanelOpen).toBe(true);
 
     // Select the light theme
-    await page.click('[data-theme-option="light"]');
+    await page.click('.theme-subpanel-item[data-tid="light"]');
     await page.waitForTimeout(300);
     const lightTheme = await page.evaluate(() =>
       document.documentElement.getAttribute('data-theme'),
@@ -539,8 +539,8 @@ test.describe('Top Bar — Theme Toggle', () => {
     const lightBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     expect(lightBg).not.toBe(darkBg);
 
-    // Picker should still be open after selecting, click dark theme directly
-    await page.click('[data-theme-option="dark"]');
+    // Click dark theme directly
+    await page.click('.theme-subpanel-item[data-tid="dark"]');
     await page.waitForTimeout(300);
     const darkTheme = await page.evaluate(() =>
       document.documentElement.getAttribute('data-theme'),
@@ -776,9 +776,9 @@ test.describe('Top Bar — Navigation & Session Control', () => {
     });
     expect(beforeCount).toBeGreaterThanOrEqual(1);
 
-    // Accept the confirm dialog and stop
+    // Accept the confirm dialog and stop via tools panel
     page.on('dialog', (dialog) => dialog.accept());
-    await page.click('#stop-btn');
+    await openPaletteAndClick(page, 'Stop session');
     await page.waitForTimeout(1000);
 
     // Session should be removed from the server
