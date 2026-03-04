@@ -3134,9 +3134,21 @@
       const originalTitle = document.title;
       let hasUnread = false;
 
+      // Shared AudioContext — must be created/resumed on user gesture for mobile
+      let notifAudioCtx = null;
+      function ensureAudioContext() {
+        if (!notifAudioCtx) {
+          notifAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (notifAudioCtx.state === 'suspended') notifAudioCtx.resume();
+        return notifAudioCtx;
+      }
+      document.addEventListener('click', ensureAudioContext, { once: true });
+      document.addEventListener('touchstart', ensureAudioContext, { once: true });
+
       function playNotificationSound() {
         try {
-          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const ctx = ensureAudioContext();
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.connect(gain);
@@ -3147,7 +3159,6 @@
           gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
           osc.start(ctx.currentTime);
           osc.stop(ctx.currentTime + 0.15);
-          osc.onended = () => ctx.close();
         } catch {
           // Audio not available
         }
