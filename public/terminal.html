@@ -2769,7 +2769,6 @@
         el.addEventListener('click', (e) => {
           e.stopPropagation();
           applyTheme(el.dataset.themeOption);
-          document.getElementById('theme-picker').classList.remove('open');
         });
       });
 
@@ -3180,6 +3179,7 @@
       // ===== Session Management =====
       function addSession(data) {
         if (managed.has(data.id)) return;
+        managed.set(data.id, null); // reserve slot to prevent race condition
 
         const term = new window.Terminal({
           cursorBlink: true,
@@ -4847,7 +4847,12 @@
             label: 'Close tab',
             category: 'Session',
             action: () => {
-              if (activeId) removeSession(activeId);
+              if (!activeId) return;
+              const ms = managed.get(activeId);
+              const name = (ms && ms.name) || activeId.slice(0, 8);
+              if (confirm('Close session "' + name + '"?')) {
+                removeSession(activeId);
+              }
             },
           },
           {
@@ -4894,15 +4899,10 @@
             icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>',
             label: 'Theme',
             category: 'View',
-            action: () => document.getElementById('theme-picker').classList.toggle('open'),
-          },
-          {
-            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>',
-            label: 'Fullscreen',
-            category: 'View',
+            keepOpen: true,
             action: () => {
-              if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-              else document.documentElement.requestFullscreen().catch(() => {});
+              const picker = document.getElementById('theme-picker');
+              picker.classList.add('open');
             },
           },
           {
@@ -4912,27 +4912,21 @@
             action: () => openPreviewModal(),
           },
           {
-            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
-            label: 'Share link',
-            category: 'Share',
-            action: () => shareLink(),
-          },
-          {
             icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
-            label: 'Copy URL',
+            label: 'Copy link',
             category: 'Share',
             action: () => {
               const url = location.href;
               if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(url).then(
-                  () => showToast('URL copied!'),
+                  () => showToast('Link copied!'),
                   () => {
-                    if (copyToClipboardFallback(url)) showToast('URL copied!');
+                    if (copyToClipboardFallback(url)) showToast('Link copied!');
                     else showShareUrlPrompt(url);
                   },
                 );
               } else if (copyToClipboardFallback(url)) {
-                showToast('URL copied!');
+                showToast('Link copied!');
               } else {
                 showShareUrlPrompt(url);
               }
@@ -4940,8 +4934,11 @@
           },
           {
             icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
-            label: 'Toggle notifications',
+            get label() {
+              return notificationsEnabled ? 'Notifications (on)' : 'Notifications (off)';
+            },
             category: 'Notifications',
+            keepOpen: true,
             action: () => {
               notificationsEnabled = !notificationsEnabled;
               localStorage.setItem('termbeam-notifications', notificationsEnabled);
@@ -4953,6 +4950,7 @@
                 Notification.requestPermission();
               }
               showToast(notificationsEnabled ? 'Notifications on' : 'Notifications off');
+              renderPalette();
             },
           },
           {
@@ -5027,7 +5025,7 @@
               btn.innerHTML =
                 '<span class="palette-action-icon">' + a.icon + '</span>' + esc(a.label);
               btn.addEventListener('click', () => {
-                closePalette();
+                if (!a.keepOpen) closePalette();
                 a.action();
               });
               body.appendChild(btn);

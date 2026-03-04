@@ -539,9 +539,7 @@ test.describe('Top Bar — Theme Toggle', () => {
     const lightBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     expect(lightBg).not.toBe(darkBg);
 
-    // Open picker again and switch back to dark
-    await page.click('#theme-toggle');
-    await page.waitForTimeout(100);
+    // Picker should still be open after selecting, click dark theme directly
     await page.click('[data-theme-option="dark"]');
     await page.waitForTimeout(300);
     const darkTheme = await page.evaluate(() =>

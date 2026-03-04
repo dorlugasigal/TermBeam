@@ -77,8 +77,8 @@ describe('Terminal UI features', () => {
     it('should include the notification toggle in command palette', async () => {
       const page = await getTerminalHTML();
       assert.ok(
-        page.includes("'Toggle notifications'"),
-        'Should have toggle notifications action in palette',
+        page.includes("'Notifications (on)'") || page.includes("'Notifications (off)'"),
+        'Should have notifications action with state indicator in palette',
       );
     });
 
