@@ -94,6 +94,25 @@ termbeam
 - **Swipe up/down** to scroll through terminal history on touch devices
 - Scrollbar is hidden to save space but scrolling works normally
 
+### Search
+
+- Press <kbd>Ctrl+F</kbd> / <kbd>Cmd+F</kbd> to open the **search bar** overlay
+- Supports **regex** matching with next/previous navigation
+- Press <kbd>Escape</kbd> to close the search bar
+
+### Command Palette
+
+- Press <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd> (or tap the **⚙️** button) to open the **command palette**
+- Browse categorized actions: **Session**, **Search**, **View**, **Share**, **Notifications**, **System**
+- A quick way to discover all available features and shortcuts
+
+### Notifications
+
+- Tap the **🔔 bell icon** in the toolbar to enable **command completion notifications**
+- When enabled, you'll receive a browser notification whenever a command finishes in a background tab
+- Preference is saved in `localStorage` and persists across sessions
+- Requires browser notification permission (requested on first enable)
+
 ### Share & Refresh
 
 - Tap the **share button** (↗) to copy a shareable auto-login link to your clipboard; falls back to a manual-copy dialog when clipboard access is unavailable

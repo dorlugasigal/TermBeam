@@ -79,6 +79,9 @@ termbeam --no-password          # disable password protection
 - **Initial command** — optionally launch a session straight into `htop`, `vim`, or any command
 - **Shell detection** — auto-detects your shell on all platforms (PowerShell, cmd, bash, zsh, Git Bash, WSL)
 - **QR code on startup** for instant phone connection
+- **Command completion notifications** — get browser notifications when a command finishes in a background tab; toggle with the bell icon in the toolbar (opt-in, requires browser permission)
+- **Terminal search** — press <kbd>Ctrl+F</kbd> / <kbd>Cmd+F</kbd> to open a search overlay with regex support, powered by xterm.js SearchAddon
+- **Command palette** — press <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd> (or tap the ⚙️ button) to open a slide-out tool panel with categorized actions: Session, Search, View, Share, Notifications, and System
 - **Light/dark theme** with persistent preference
 - **Adjustable font size** via status bar controls, saved across sessions
 - **Port preview** — reverse-proxy a single local web server port and preview it in the browser (HTTP only; no WebSocket/HMR; best with server-rendered apps)

@@ -20,6 +20,9 @@ Built for developers who need quick remote terminal access without the hassle of
 - **Built for mobile** — touch bar, swipe gestures, zoom, touch scrolling
 - **Tabbed sessions** — switch, split, reorder, and preview multiple terminals
 - **Session colors & activity indicators** for at-a-glance status
+- **Terminal search** — <kbd>Ctrl+F</kbd> / <kbd>Cmd+F</kbd> with regex support
+- **Command palette** — <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd> for quick access to all actions
+- **Command notifications** — browser alerts when commands finish in background tabs
 - **Share & refresh buttons** for easy link sharing and PWA cache updates
 - **One command to start** — `npx termbeam`
 - **Secure by default** — password auth, rate limiting, tunnel encryption
