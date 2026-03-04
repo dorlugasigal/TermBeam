@@ -16,6 +16,7 @@ termbeam/
 │   ├── websocket.js         # WebSocket connection handling
 │   ├── tunnel.js            # DevTunnel integration
 │   ├── preview.js           # Port preview reverse proxy
+│   ├── service.js           # PM2 service management
 │   ├── shells.js            # Shell detection (cross-platform)
 │   ├── logger.js            # Structured logger with levels
 │   └── version.js           # Smart version detection
@@ -63,7 +64,7 @@ Factory function `createAuth(password)` returns an object with middleware, token
 
 ### `routes.js` — HTTP Routes
 
-Registers all Express routes: login page (`GET /login`), auth API, session CRUD (including `PATCH` for updating session color/name), shell detection, directory browser, image upload, version endpoint. The `POST /api/sessions` endpoint validates `shell` against detected shells and `cwd` against the filesystem, and accepts optional `args`, `initialCommand`, and `color` parameters.
+Registers all Express routes: login page (`GET /login`), auth API, session CRUD (including `PATCH` for updating session color/name), shell detection, directory browser, image upload, version endpoint. The `POST /api/sessions` endpoint validates `shell` against detected shells and `cwd` against the filesystem, and accepts optional `args`, `initialCommand`, `color`, `cols`, and `rows` parameters.
 
 ### `websocket.js` — WebSocket Handler
 
@@ -88,6 +89,10 @@ Manages Azure DevTunnel lifecycle: login, create, host, cleanup.
 ### `devtunnel-install.js` — DevTunnel Installer
 
 Handles automatic installation of the DevTunnel CLI when it's not found on the system. Prompts the user interactively and installs via the appropriate package manager (brew on macOS, curl on Linux, winget on Windows). Used by `server.js` during startup when tunnel mode is enabled.
+
+### `service.js` — PM2 Service Manager
+
+Manages TermBeam as a background service via PM2. Provides an interactive wizard for `termbeam service install` that walks through configuration (name, password, port, access mode, working directory, log level, boot auto-start). Also handles `service status`, `logs`, `restart`, and `uninstall` subcommands. Generates an ecosystem config file at `~/.termbeam/ecosystem.config.js`.
 
 ### `version.js` — Version Detection
 

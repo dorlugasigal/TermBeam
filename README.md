@@ -59,33 +59,35 @@ termbeam --no-password          # disable password protection
 
 ## Features
 
-- **Mobile-first UI** with on-screen touch bar (arrow keys, Tab, Enter, Ctrl shortcuts, Esc) and touch-optimized controls
-- **Copy/paste support** — Copy button opens text overlay for finger-selectable terminal content; Paste button with clipboard API + fallback modal
-- **Image paste** — paste images from clipboard, uploaded to server
-- **Tabbed multi-session terminal** — open, switch, and manage multiple sessions from a single tab bar with drag-to-reorder
-- **Split view** — view two sessions side-by-side (horizontal on desktop, vertical on mobile)
-- **Session colors** — assign a color to each session for quick identification
-- **Activity indicators** — see how recently each session had output (e.g. "3s ago", "5m ago")
-- **Tab previews** — hover (desktop) or long-press (mobile) a tab to preview the last few lines of output
-- **Side panel** (mobile) — slide-out session list with output previews for quick switching
-- **Create sessions anywhere** — new session modal available from both the hub page and the terminal page
-- **Touch scrolling** — swipe to scroll through terminal history
-- **Share button** — share the TermBeam URL via Web Share API, clipboard, or legacy copy fallback (works over HTTP); each share gets a fresh auto-login link with a 5-minute share token
-- **QR code auto-login** — scan the QR code to log in automatically without typing the password (share token, 5-minute expiry)
-- **Refresh button** — clear PWA/service worker cache and reload to get the latest version
-- **iPhone PWA safe area** — full support for `viewport-fit=cover` and safe area insets on notched devices
-- **Password auth** with token-based cookies and rate-limited login
-- **Folder browser** to pick working directories without typing paths
-- **Initial command** — optionally launch a session straight into `htop`, `vim`, or any command
-- **Shell detection** — auto-detects your shell on all platforms (PowerShell, cmd, bash, zsh, Git Bash, WSL)
-- **QR code on startup** for instant phone connection
-- **Command completion notifications** — get browser notifications when a command finishes in a background tab; toggle with the bell icon in the toolbar (opt-in, requires browser permission)
-- **Terminal search** — press <kbd>Ctrl+F</kbd> / <kbd>Cmd+F</kbd> to open a search overlay with regex support, powered by xterm.js SearchAddon
-- **Command palette** — press <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd> (or tap the ⚙️ button) to open a slide-out tool panel with categorized actions: Session, Search, View, Share, Notifications, and System
-- **Light/dark theme** with persistent preference
-- **Adjustable font size** via status bar controls, saved across sessions
-- **Port preview** — reverse-proxy a single local web server port and preview it in the browser (HTTP only; no WebSocket/HMR; best with server-rendered apps)
-- **Remote access via [DevTunnel](#remote-access)** — ephemeral or persisted public URLs
+### 📱 Mobile-First
+
+- Touch-optimized key bar — arrows, Tab, Enter, Ctrl, Esc, and more
+- Copy & paste — finger-selectable text overlay + clipboard API with fallback
+- Swipe scrolling, pinch zoom, and iPhone PWA safe-area support
+- Image paste from clipboard, uploaded to server
+
+### 📑 Multi-Session
+
+- Tabbed sessions with drag-to-reorder, color labels, and activity indicators
+- Split view — two sessions side-by-side (horizontal desktop / vertical mobile)
+- Tab previews on hover (desktop) or long-press (mobile); side panel on mobile
+- Folder browser and optional initial command per session
+
+### 🔍 Productivity
+
+- Terminal search (<kbd>Ctrl+F</kbd>) with regex support
+- Command palette (<kbd>Ctrl+K</kbd>) — categorized actions in one panel
+- Command completion notifications — browser alerts when background commands finish (opt-in)
+- 12 color themes with adjustable font size, saved across sessions
+- Port preview — reverse-proxy a local web server through TermBeam
+
+### 🔒 Secure by Default
+
+- Auto-generated password + private DevTunnel out of the box
+- QR code auto-login with single-use share tokens (5-min expiry)
+- Rate-limited login, httpOnly cookies, security headers (CSP, X-Frame-Options, etc.)
+- Cross-platform shell detection and validation (PowerShell, cmd, bash, zsh, Git Bash, WSL)
+- Shareable links via Web Share API or clipboard copy
 
 ## Remote Access
 

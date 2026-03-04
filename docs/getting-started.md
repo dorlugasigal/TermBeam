@@ -43,7 +43,7 @@ termbeam
         ██║   ███████╗██║  ██║██║ ╚═╝ ██║██████╔╝███████╗██║  ██║██║ ╚═╝ ██║
         ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝
 
-     Beam your terminal to any device 📡  v1.2.10
+     Beam your terminal to any device 📡  v1.5.0
 
      Shell:    /bin/zsh
      Session:  a1b2c3d4
@@ -63,7 +63,7 @@ termbeam
    ```
 
 3. **On your phone:** Scan the QR code or type the LAN URL
-4. **Enter the password** when prompted
+4. **Enter the password** shown in the terminal output
 5. You're connected! 🎉
 
 ## Creating Sessions

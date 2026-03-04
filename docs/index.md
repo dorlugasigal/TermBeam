@@ -16,16 +16,37 @@ Built for developers who need quick remote terminal access without the hassle of
 
 ## Why TermBeam?
 
+### 📱 Mobile-First
+
 - **No SSH client needed** — just open a web browser on any device
-- **Built for mobile** — touch bar, swipe gestures, zoom, touch scrolling
-- **Tabbed sessions** — switch, split, reorder, and preview multiple terminals
+- **Touch-optimized key bar** — arrows, Tab, Enter, Ctrl, Esc, and more
+- **Copy & paste** — text overlay for finger selection + clipboard API with fallback
+- **Swipe scrolling**, pinch zoom, and iPhone PWA safe-area support
+- **Image paste** from clipboard, uploaded to server
+
+### 📑 Multi-Session
+
+- **Tabbed sessions** — switch, reorder, and manage multiple terminals
+- **Split view** — two sessions side-by-side (horizontal desktop / vertical mobile)
 - **Session colors & activity indicators** for at-a-glance status
+- **Tab previews** on hover or long-press; **side panel** on mobile
+- **Folder browser** and optional **initial command** per session
+
+### 🔍 Productivity
+
 - **Terminal search** — <kbd>Ctrl+F</kbd> / <kbd>Cmd+F</kbd> with regex support
 - **Command palette** — <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd> for quick access to all actions
-- **Command notifications** — browser alerts when commands finish in background tabs
+- **Command completion notifications** — browser alerts when commands finish in background tabs
+- **12 color themes** (dark, light, monokai, nord, dracula…) with adjustable font size
+- **Port preview** — reverse-proxy a local web server through TermBeam
 - **Share & refresh buttons** for easy link sharing and PWA cache updates
+
+### 🔒 Secure by Default
+
 - **One command to start** — `npx termbeam`
-- **Secure by default** — password auth, rate limiting, tunnel encryption
+- **Password auth** with auto-generation, rate limiting, and httpOnly cookies
+- **QR code auto-login** with single-use share tokens (5-min expiry)
+- **Shell validation** — only detected shells are allowed
 
 ## Quick Start
 
@@ -49,3 +70,11 @@ flowchart LR
   A["📱 Phone<br>(Browser)"] <-->|WebSocket| B["📡 TermBeam<br>(Server)"]
   B <-->|PTY| C["🖥️ Shell<br>(zsh/bash)"]
 ```
+
+## Learn More
+
+- **[Getting Started](getting-started.md)** — install and run TermBeam in under a minute
+- **[Configuration](configuration.md)** — CLI flags, environment variables, and defaults
+- **[Security](security.md)** — threat model, safe usage, and security features
+- **[API Reference](api.md)** — REST and WebSocket API documentation
+- **[Architecture](architecture.md)** — how TermBeam works under the hood

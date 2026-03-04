@@ -2,6 +2,10 @@
 
 TermBeam is designed as a lightweight, on-demand tool — start it when you need terminal access, stop it when you're done. But if you want it **always available** (e.g., on a home server or dev machine), here's how to keep it running reliably using standard process managers.
 
+<!-- prettier-ignore -->
+!!! warning "Avoid passwords in command arguments"
+    Command-line arguments are visible to all local users via `ps aux`. Prefer the `TERMBEAM_PASSWORD` environment variable over `--password` for background services. The systemd and launchd examples below use the environment variable for this reason.
+
 ## Quick & Simple
 
 ### Using `nohup` (Linux/macOS) 🐧🍎
@@ -204,9 +208,9 @@ Create a plist at `~/Library/LaunchAgents/com.termbeam.plist`:
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/tmp/termbeam.log</string>
+    <string>/Users/you/Library/Logs/termbeam.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/termbeam.err</string>
+    <string>/Users/you/Library/Logs/termbeam.err</string>
 </dict>
 </plist>
 ```
@@ -248,6 +252,10 @@ launchctl unload ~/Library/LaunchAgents/com.termbeam.plist
 <!-- prettier-ignore -->
 !!! info "Pairing with DevTunnel"
     If you use `--tunnel` with a background service, consider the persistent tunnel feature (when available) so your tunnel URL stays the same across restarts.
+
+<!-- prettier-ignore -->
+!!! info "Node.js Requirement"
+    TermBeam requires Node.js 18 or higher. Verify with `node --version` before setting up a background service.
 
 <!-- prettier-ignore -->
 !!! tip "Which method should I use?"

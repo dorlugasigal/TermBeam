@@ -124,6 +124,20 @@ Before running TermBeam, verify:
 - Arbitrary shell paths are rejected — only shells returned by `GET /api/shells` are allowed
 - The `cwd` parameter is validated to be an existing, absolute directory path
 
+### Image Upload Validation
+
+- The `POST /api/upload` endpoint validates uploaded images using multiple checks:
+  - **Content-Type** must be an `image/*` MIME type
+  - **Magic bytes** are verified against the declared content type to prevent spoofing
+  - **File size** is capped at 10 MB (returns HTTP 413 if exceeded)
+- Uploaded files are stored with UUID-generated filenames to prevent path traversal
+- Requires authentication to upload or access uploaded files
+
+### Terminal Resize Bounds
+
+- WebSocket `resize` messages validate dimensions: columns must be 1–500, rows must be 1–200
+- Values outside these bounds are silently ignored, preventing DoS via extreme terminal sizes
+
 ### WebSocket Origin Validation
 
 - WebSocket connections include Origin header checks

@@ -86,11 +86,13 @@ Create a new session.
   "args": ["-l"],
   "cwd": "/home/user",
   "initialCommand": "htop",
-  "color": "#4ade80"
+  "color": "#4ade80",
+  "cols": 120,
+  "rows": 30
 }
 ```
 
-All fields are optional. If `initialCommand` is provided, it will be sent to the shell after startup. If `color` is omitted, a color is assigned automatically from a built-in palette.
+All fields are optional. If `initialCommand` is provided, it will be sent to the shell after startup. If `color` is omitted, a color is assigned automatically from a built-in palette. The optional `cols` and `rows` fields set the initial terminal size (defaults to 80×24 if omitted).
 
 The `shell` field is validated against the list of detected shells (see `GET /api/shells`). The `cwd` field must be an absolute path to an existing directory.
 
@@ -193,6 +195,8 @@ Kill and remove a session.
 #### `GET /api/shells`
 
 List available shells on the host system.
+
+Requires authentication (cookie or Bearer token).
 
 **Response:**
 
@@ -371,7 +375,7 @@ Connect to `ws://host:port/ws`.
 
 #### Authenticate
 
-If the server has a password set and the WebSocket connection wasn't authenticated via cookie, send an auth message first.
+If the server has a password set and the WebSocket connection wasn't authenticated via cookie, send an auth message first. When the server is started with `--no-password`, authentication is skipped automatically.
 
 ```json
 { "type": "auth", "password": "your-password" }
@@ -403,6 +407,8 @@ The connection is closed after sending this message. Sending any non-auth messag
 { "type": "attach", "sessionId": "a1b2c3d4" }
 ```
 
+After a successful `attached` response, the server immediately sends an `output` message containing the session's scrollback buffer (up to 200 KB), allowing the client to display previous terminal output.
+
 #### Send Input
 
 ```json
@@ -414,6 +420,8 @@ The connection is closed after sending this message. Sending any non-auth messag
 ```json
 { "type": "resize", "cols": 120, "rows": 30 }
 ```
+
+The server validates resize dimensions: `cols` must be between 1–500 and `rows` between 1–200. Values outside these bounds are ignored.
 
 ### Message Types (Server → Client)
 
