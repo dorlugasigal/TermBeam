@@ -3698,6 +3698,10 @@
             clearTimeout(ms.reconnectTimer);
             ms.reconnectTimer = null;
           }
+          if (ms.silenceTimer) {
+            clearTimeout(ms.silenceTimer);
+            ms.silenceTimer = null;
+          }
           if (ms.ws)
             try {
               ms.ws.close();
@@ -4757,6 +4761,10 @@
                 if (ms.reconnectTimer) {
                   clearTimeout(ms.reconnectTimer);
                   ms.reconnectTimer = null;
+                }
+                if (ms.silenceTimer) {
+                  clearTimeout(ms.silenceTimer);
+                  ms.silenceTimer = null;
                 }
                 if (ms.ws)
                   try {
