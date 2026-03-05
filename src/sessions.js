@@ -136,7 +136,7 @@ class SessionManager {
       cols,
       rows,
       cwd,
-      env: { ...process.env, TERM: 'xterm-256color' },
+      env: { ...process.env, TERM: 'xterm-256color', TERMBEAM_SESSION: '1' },
     });
 
     // Send initial command once the shell is ready

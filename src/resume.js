@@ -180,6 +180,11 @@ async function resolveConnection(args) {
 }
 
 async function resume(args) {
+  if (process.env.TERMBEAM_SESSION) {
+    console.error(red('  Already inside a TermBeam session. Detach first (Ctrl+B).'));
+    process.exit(1);
+  }
+
   const conn = await resolveConnection(args);
   if (conn.help) {
     printResumeHelp();
