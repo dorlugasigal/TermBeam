@@ -5,9 +5,24 @@ const crypto = require('crypto');
 const express = require('express');
 const { detectShells } = require('./shells');
 const log = require('./logger');
+const rateLimit = require('express-rate-limit');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const uploadedFiles = new Map(); // id -> filepath
+
+const pageRateLimit = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const apiRateLimit = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const IMAGE_SIGNATURES = [
   { type: 'image/png', bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
@@ -93,10 +108,10 @@ function setupRoutes(app, { auth, sessions, config, state }) {
   }
 
   // Pages
-  app.get('/', autoLogin, auth.middleware, (_req, res) =>
+  app.get('/', pageRateLimit, autoLogin, auth.middleware, (_req, res) =>
     res.sendFile('index.html', { root: PUBLIC_DIR }),
   );
-  app.get('/terminal', autoLogin, auth.middleware, (_req, res) =>
+  app.get('/terminal', pageRateLimit, autoLogin, auth.middleware, (_req, res) =>
     res.sendFile('terminal.html', { root: PUBLIC_DIR }),
   );
 
@@ -113,7 +128,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     res.json(sessions.list());
   });
 
-  app.post('/api/sessions', auth.middleware, (req, res) => {
+  app.post('/api/sessions', apiRateLimit, auth.middleware, (req, res) => {
     const { name, shell, args: shellArgs, cwd, initialCommand, color, cols, rows } = req.body || {};
 
     // Validate shell field
@@ -260,7 +275,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
   });
 
   // Serve uploaded files by opaque ID
-  app.get('/uploads/:id', auth.middleware, (req, res) => {
+  app.get('/uploads/:id', pageRateLimit, auth.middleware, (req, res) => {
     const filepath = uploadedFiles.get(req.params.id);
     if (!filepath) return res.status(404).json({ error: 'not found' });
     if (!fs.existsSync(filepath)) {
@@ -271,7 +286,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
   });
 
   // Directory listing for folder browser
-  app.get('/api/dirs', auth.middleware, (req, res) => {
+  app.get('/api/dirs', apiRateLimit, auth.middleware, (req, res) => {
     const query = req.query.q || config.cwd + path.sep;
     const endsWithSep = query.endsWith('/') || query.endsWith('\\');
     const dir = endsWithSep ? query : path.dirname(query);
