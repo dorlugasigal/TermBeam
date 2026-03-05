@@ -74,15 +74,6 @@ function createTerminalClient({
 
         enterRawMode(ws, detachKey, cleanup);
         sendResize(ws);
-
-        // Show a brief status line after scrollback replay settles
-        setTimeout(() => {
-          if (!cleaned) {
-            process.stdout.write(
-              `\r\n\x1b[33m ╭─ attached: ${sessionName} ─── ${detachLabel} to detach ─╮\x1b[0m\r\n`,
-            );
-          }
-        }, 300);
         return;
       }
 
