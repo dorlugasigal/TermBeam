@@ -237,21 +237,17 @@ async function resume(args) {
   const wsHost = host === 'localhost' ? '127.0.0.1' : host;
   const wsUrl = `ws://${wsHost}:${port}/ws`;
 
-  const detachLabel = 'Ctrl+B';
-  console.log('');
-  console.log(yellow(`  ╭─ Attached to ${bold(session.name)} ─── detach: ${bold(detachLabel)} ─╮`));
-  console.log('');
-
   try {
     const { reason } = await createTerminalClient({
       url: wsUrl,
       password,
       sessionId: session.id,
+      sessionName: session.name,
       detachKey: opts.detachKey || '\x02',
     });
 
     console.log('');
-    console.log(yellow(`  ╰─ Detached from ${bold(session.name)} ─╯`));
+    console.log(yellow(`  Detached from ${bold(session.name)}.`));
   } catch (err) {
     console.error(red(`  Connection failed: ${err.message}`));
     process.exit(1);

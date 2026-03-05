@@ -10,17 +10,28 @@ const DETACH_KEY = '\x02'; // Ctrl+B
  * @param {string} opts.url        WebSocket URL (ws://host:port/ws)
  * @param {string} [opts.password] Server password (null for no-auth mode)
  * @param {string} opts.sessionId  Session ID to connect to
+ * @param {string} [opts.sessionName] Session name (for display)
  * @param {string} [opts.detachKey] Key to detach (default: Ctrl+B)
  * @returns {Promise<{reason: string}>}
  */
-function createTerminalClient({ url, password, sessionId, detachKey = DETACH_KEY }) {
+function createTerminalClient({
+  url,
+  password,
+  sessionId,
+  sessionName = 'session',
+  detachKey = DETACH_KEY,
+}) {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
     let cleaned = false;
+    const detachLabel = 'Ctrl+B';
 
     function cleanup(reason) {
       if (cleaned) return;
       cleaned = true;
+
+      // Restore terminal title
+      process.stdout.write('\x1b]0;\x07');
 
       if (process.stdin.isTTY && process.stdin.isRaw) {
         process.stdin.setRawMode(false);
@@ -58,8 +69,20 @@ function createTerminalClient({ url, password, sessionId, detachKey = DETACH_KEY
       }
 
       if (msg.type === 'attached') {
+        // Set terminal title to show we're attached
+        process.stdout.write(`\x1b]0;[termbeam] ${sessionName} — ${detachLabel} to detach\x07`);
+
         enterRawMode(ws, detachKey, cleanup);
         sendResize(ws);
+
+        // Show a brief status line after scrollback replay settles
+        setTimeout(() => {
+          if (!cleaned) {
+            process.stdout.write(
+              `\r\n\x1b[33m ╭─ attached: ${sessionName} ─── ${detachLabel} to detach ─╮\x1b[0m\r\n`,
+            );
+          }
+        }, 300);
         return;
       }
 
