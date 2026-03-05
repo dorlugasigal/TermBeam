@@ -505,6 +505,69 @@ describe('Routes', () => {
       assert.strictEqual(data.error, 'cwd does not exist');
     });
 
+    it('should reject non-array args with 400', async () => {
+      if (!inst) inst = await startServer();
+      const body = JSON.stringify({ args: 'not-an-array' });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'args must be an array of strings');
+    });
+
+    it('should reject args with non-string elements with 400', async () => {
+      if (!inst) inst = await startServer();
+      const body = JSON.stringify({ args: ['valid', 123] });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'args must be an array of strings');
+    });
+
+    it('should reject non-string initialCommand with 400', async () => {
+      if (!inst) inst = await startServer();
+      const body = JSON.stringify({ initialCommand: 12345 });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'initialCommand must be a string');
+    });
+
     it('should create session with valid data', async () => {
       if (!inst) inst = await startServer();
       const body = JSON.stringify({ name: 'Valid Session' });

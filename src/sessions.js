@@ -6,7 +6,6 @@ const pty = require('node-pty');
 const log = require('./logger');
 const { getGitInfo } = require('./git');
 
-
 function _getProcessCwd(pid) {
   try {
     if (process.platform === 'linux') {
@@ -111,10 +110,21 @@ class SessionManager {
     rows = 30,
   }) {
     // Defense-in-depth: reject shells with dangerous characters or relative paths
-    if (typeof shell !== 'string' || !shell ||
-        /[;&|`$(){}\[\]!#~]/.test(shell) ||
-        (!path.isAbsolute(shell) && !shell.match(/^[a-zA-Z0-9._-]+(\.exe)?$/))) {
+    if (
+      typeof shell !== 'string' ||
+      !shell ||
+      /[;&|`$(){}\[\]!#~]/.test(shell) ||
+      (!path.isAbsolute(shell) && !shell.match(/^[a-zA-Z0-9._-]+(\.exe)?$/))
+    ) {
       throw new Error('Invalid shell');
+    }
+
+    // Defense-in-depth: validate args and initialCommand types
+    if (!Array.isArray(args) || !args.every((a) => typeof a === 'string')) {
+      throw new Error('args must be an array of strings');
+    }
+    if (initialCommand !== null && typeof initialCommand !== 'string') {
+      throw new Error('initialCommand must be a string');
     }
 
     const id = crypto.randomBytes(16).toString('hex');

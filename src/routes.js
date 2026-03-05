@@ -15,7 +15,8 @@ const pageRateLimit = rateLimit({
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (_req, res) => res.status(429).json({ error: 'Too many requests, please try again later.' }),
+  handler: (_req, res) =>
+    res.status(429).json({ error: 'Too many requests, please try again later.' }),
 });
 
 const apiRateLimit = rateLimit({
@@ -23,7 +24,8 @@ const apiRateLimit = rateLimit({
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (_req, res) => res.status(429).json({ error: 'Too many requests, please try again later.' }),
+  handler: (_req, res) =>
+    res.status(429).json({ error: 'Too many requests, please try again later.' }),
 });
 
 const IMAGE_SIGNATURES = [
@@ -51,7 +53,6 @@ function validateMagicBytes(buffer, contentType) {
 }
 
 function setupRoutes(app, { auth, sessions, config, state }) {
-
   // Serve static files (manifest.json, sw.js, icons, etc.)
   app.use(express.static(PUBLIC_DIR, { index: false }));
 
@@ -140,6 +141,20 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       const isValid = availableShells.some((s) => s.path === shell || s.cmd === shell);
       if (!isValid) {
         return res.status(400).json({ error: 'Invalid shell' });
+      }
+    }
+
+    // Validate args field — must be an array of strings
+    if (shellArgs !== undefined) {
+      if (!Array.isArray(shellArgs) || !shellArgs.every((a) => typeof a === 'string')) {
+        return res.status(400).json({ error: 'args must be an array of strings' });
+      }
+    }
+
+    // Validate initialCommand field — must be a string
+    if (initialCommand !== undefined && initialCommand !== null) {
+      if (typeof initialCommand !== 'string') {
+        return res.status(400).json({ error: 'initialCommand must be a string' });
       }
     }
 
