@@ -268,8 +268,14 @@ describe('writeEcosystem', () => {
 
 describe('pm2Exec', () => {
   let loaded;
+  let origError;
+
+  beforeEach(() => {
+    origError = console.error;
+  });
 
   afterEach(() => {
+    console.error = origError;
     if (loaded) loaded.restore();
   });
 
@@ -297,7 +303,6 @@ describe('pm2Exec', () => {
 
   it('logs error on failure without silent', () => {
     const errors = [];
-    const origError = console.error;
     console.error = (...args) => errors.push(args.join(' '));
 
     loaded = loadServiceWithMocks({
@@ -311,7 +316,6 @@ describe('pm2Exec', () => {
     });
 
     const result = loaded.service.pm2Exec(['describe', 'termbeam']);
-    console.error = origError;
 
     assert.strictEqual(result, null);
     assert.ok(errors.some((e) => e.includes('PM2 command failed')));
@@ -915,6 +919,7 @@ describe('actionInstall wizard (via run)', () => {
     process.exit = origExit;
     console.log = origLog;
     console.error = origError;
+    process.stdin.removeAllListeners('data');
     if (loaded) loaded.restore();
   });
 

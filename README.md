@@ -111,6 +111,7 @@ termbeam service restart          # restart PM2 service
 | `--lan`               | Bind to all interfaces (LAN access)                  | Off            |
 | `--log-level <level>` | Log verbosity (error/warn/info/debug)                | `info`         |
 | `-i, --interactive`   | Interactive setup wizard (guided configuration)      | Off            |
+| `--force`             | Stop existing server before starting a new one       | Off            |
 | `-h, --help`          | Show help                                            | —              |
 | `-v, --version`       | Show version                                         | —              |
 

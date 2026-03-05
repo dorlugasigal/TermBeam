@@ -1,10 +1,18 @@
-const { describe, it, after } = require('node:test');
+const { describe, it, after, before } = require('node:test');
 const assert = require('node:assert');
 const http = require('http');
 const { spawn } = require('child_process');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const WebSocket = require('ws');
+
+// Isolate connection.json to a temp dir so tests don't collide
+const testConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'termbeam-test-'));
+process.env.TERMBEAM_CONFIG_DIR = testConfigDir;
+
 const { createTermBeamServer, getLocalIP } = require('../src/server');
+const { removeConnectionConfig } = require('../src/resume');
 
 // --- Helpers ---
 
@@ -82,6 +90,11 @@ async function startServer(configOverrides = {}) {
 // --- Tests ---
 
 describe('Integration', () => {
+  after(() => {
+    fs.rmSync(testConfigDir, { recursive: true, force: true });
+    delete process.env.TERMBEAM_CONFIG_DIR;
+  });
+
   describe('Server starts and serves the hub page', () => {
     let inst;
     after(() => inst?.shutdown());
@@ -384,7 +397,11 @@ describe('Integration', () => {
   });
 
   describe('npx simulation: parent process is node, not a shell', () => {
+    after(() => removeConnectionConfig());
+
     it('should start and print the banner when spawned by a node process (like npx)', async () => {
+      // Clean up any stale connection config from other tests
+      removeConnectionConfig();
       // This exactly reproduces the npx scenario: node (npx) → node (termbeam)
       // The parent process is "node", which is NOT a shell, so shell detection
       // must fall back to $SHELL or /bin/sh instead of trying to spawn "node" as a shell.
@@ -393,7 +410,7 @@ describe('Integration', () => {
         let buf = '';
         const child = spawn(
           process.execPath,
-          [entryPoint, '--no-tunnel', '--no-password', '--log-level', 'debug'],
+          [entryPoint, '--no-tunnel', '--no-password', '--log-level', 'debug', '--force'],
           {
             env: { ...process.env, PORT: '0' },
             stdio: ['ignore', 'pipe', 'pipe'],
@@ -674,6 +691,172 @@ describe('Integration', () => {
       assert.strictEqual(cdSession.git, null, 'After cd to non-git dir, git should be null');
 
       ws.close();
+    });
+  });
+
+  describe('Resume: sessions listing via HTTP with Bearer auth', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should list sessions with Bearer password header', async () => {
+      inst = await startServer({ password: 'resumetest' });
+
+      // Without auth → 401
+      const res1 = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions',
+        method: 'GET',
+      });
+      assert.strictEqual(res1.statusCode, 401);
+
+      // With Bearer password → 200
+      const res2 = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions',
+        method: 'GET',
+        headers: { Authorization: 'Bearer resumetest' },
+      });
+      assert.strictEqual(res2.statusCode, 200);
+      const sessions = JSON.parse(res2.data);
+      assert.ok(sessions.length >= 1, 'Should have at least one session');
+      assert.ok(sessions[0].id, 'Session should have an id');
+      assert.ok(sessions[0].name, 'Session should have a name');
+    });
+  });
+
+  describe('Resume: WebSocket client flow with password auth', () => {
+    let inst;
+    let ws;
+    after(async () => {
+      if (ws && ws.readyState !== WebSocket.CLOSED) ws.close();
+      inst?.shutdown();
+    });
+
+    it('should authenticate via password, list sessions, connect, and exchange data', async () => {
+      inst = await startServer({ password: 'wstest' });
+
+      // List sessions via Bearer auth
+      const sessRes = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions',
+        method: 'GET',
+        headers: { Authorization: 'Bearer wstest' },
+      });
+      const sessions = JSON.parse(sessRes.data);
+      const sessionId = sessions[0].id;
+
+      // Connect WebSocket — same flow as client.js
+      ws = new WebSocket(`ws://127.0.0.1:${inst.port}/ws`, {
+        headers: { Origin: `http://127.0.0.1:${inst.port}` },
+      });
+      await waitForOpen(ws);
+
+      // Step 1: Send password auth
+      const authPromise = waitForMessage(ws, (m) => m.type === 'auth_ok');
+      ws.send(JSON.stringify({ type: 'auth', password: 'wstest' }));
+      await authPromise;
+
+      // Step 2: Send session ID (same as client.js after auth_ok)
+      const attachedPromise = waitForMessage(ws, (m) => m.type === 'attached');
+      ws.send(JSON.stringify({ type: 'attach', sessionId }));
+      const attached = await attachedPromise;
+      assert.strictEqual(attached.sessionId, sessionId);
+
+      // Step 3: Send resize (like terminal client does)
+      ws.send(JSON.stringify({ type: 'resize', cols: 80, rows: 24 }));
+
+      // Step 4: Send input and verify output
+      const marker = `resume_test_${Date.now()}`;
+      const outputPromise = waitForMessage(
+        ws,
+        (m) => m.type === 'output' && m.data.includes(marker),
+        15000,
+      );
+      ws.send(JSON.stringify({ type: 'input', data: `echo ${marker}\r` }));
+      const output = await outputPromise;
+      assert.ok(output.data.includes(marker));
+    });
+  });
+
+  describe('Resume: connection config lifecycle', () => {
+    let inst;
+    after(() => {
+      inst?.shutdown();
+      // Clean up connection config
+      const { removeConnectionConfig } = require('../src/resume');
+      removeConnectionConfig();
+    });
+
+    it('should write connection.json on server start and clean up on shutdown', async () => {
+      const { readConnectionConfig, removeConnectionConfig } = require('../src/resume');
+
+      // Ensure clean state
+      removeConnectionConfig();
+      assert.strictEqual(readConnectionConfig(), null);
+
+      inst = await startServer({ password: 'configtest' });
+      const port = inst.port;
+
+      // Server should have written connection.json
+      const config = readConnectionConfig();
+      assert.ok(config, 'connection.json should exist after start');
+      assert.strictEqual(config.port, port);
+      assert.strictEqual(config.password, 'configtest');
+      assert.strictEqual(config.host, 'localhost');
+
+      // Shutdown should remove it
+      inst.shutdown();
+      inst = null;
+
+      // Give it a moment for cleanup
+      await new Promise((r) => setTimeout(r, 100));
+      const afterShutdown = readConnectionConfig();
+      assert.strictEqual(afterShutdown, null, 'connection.json should be removed after shutdown');
+    });
+  });
+
+  describe('Resume: session matching by name', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should find sessions by name via API', async () => {
+      inst = await startServer();
+
+      // Create a named session
+      const body = JSON.stringify({ name: 'my-project' });
+      await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+
+      // List sessions and find by name
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions',
+        method: 'GET',
+      });
+      const sessions = JSON.parse(res.data);
+      const match = sessions.find((s) => s.name === 'my-project');
+      assert.ok(match, 'Should find session by name "my-project"');
+
+      // Also test ID prefix matching
+      const prefix = match.id.slice(0, 8);
+      const prefixMatch = sessions.find((s) => s.id.startsWith(prefix));
+      assert.ok(prefixMatch, 'Should find session by ID prefix');
+      assert.strictEqual(prefixMatch.id, match.id);
     });
   });
 });

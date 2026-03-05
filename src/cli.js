@@ -10,6 +10,8 @@ termbeam — Beam your terminal to any device
 
 Usage:
   termbeam [options] [shell] [args...]
+  termbeam resume [name] [options]     Reconnect to a running session
+  termbeam list                        List running sessions
   termbeam service <action>            Manage as a background service (PM2)
 
 Actions (service):
@@ -31,6 +33,7 @@ Options:
   --host <addr>         Bind address (default: 127.0.0.1)
   --lan                 Bind to 0.0.0.0 (allow LAN access, default: localhost only)
   --log-level <level>   Set log verbosity: error, warn, info, debug (default: info)
+  --force               Stop any existing server before starting a new one
   -i, --interactive     Interactive setup wizard (guided configuration)
   -h, --help            Show this help
   -v, --version         Show version
@@ -50,6 +53,8 @@ Examples:
   termbeam /bin/bash                Use bash instead of default shell
   termbeam --interactive               Guided setup wizard
   termbeam service install          Set up as background service (PM2)
+  termbeam resume                   Reconnect to an active session
+  termbeam list                     List all active sessions
 
 Environment:
   PORT                  Server port (default: 3456)
@@ -244,6 +249,7 @@ function parseArgs() {
   let persistedTunnel = false;
   let publicTunnel = false;
   let interactive = false;
+  let force = false;
   let explicitPassword = !!password;
 
   const args = process.argv.slice(2);
@@ -288,6 +294,14 @@ function parseArgs() {
       interactive = true;
     } else if (args[i] === '--log-level' && args[i + 1]) {
       logLevel = args[++i];
+    } else if (args[i].startsWith('--log-level=')) {
+      logLevel = args[i].split('=')[1];
+    } else if (args[i] === '--force') {
+      force = true;
+    } else if (args[i].startsWith('--')) {
+      console.error(`Unknown flag: ${args[i]}\n`);
+      printHelp();
+      process.exit(1);
     } else {
       filteredArgs.push(args[i]);
     }
@@ -341,6 +355,7 @@ function parseArgs() {
     version,
     logLevel,
     interactive,
+    force,
   };
 }
 

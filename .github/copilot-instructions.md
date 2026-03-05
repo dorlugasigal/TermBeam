@@ -12,6 +12,26 @@ npm run format                        # format with Prettier
 
 Pre-commit hooks (Husky + lint-staged) auto-format and syntax-check staged files.
 
+### Testing Best Practices
+
+**Suite overview:** 464 tests, ~17s total. Tests run in parallel child processes via Node's built-in test runner. Most files run in <1s; `integration.test.js` (~17s) and `service.test.js` (~9s) are the slow outliers.
+
+**Slow tests and why:**
+
+- `integration.test.js` — uses real PTY servers, has polling loops and a 7s sleep for git cache invalidation
+- `service.test.js` — heavy `require.cache` manipulation and `process.exit` mocking
+
+**Test isolation rules (critical for reliability):**
+
+- **`process.exit` mocks** — always restore in `afterEach`, never inline. Failing to restore breaks subsequent tests.
+- **`console.log`/`console.error` mocks** — same rule: restore in `afterEach`.
+- **`service.test.js`** — uses `loadServiceWithMocks()` pattern; always call `.restore()` in `afterEach`.
+- **`sessions.test.js`** — manipulates `require.cache` for node-pty mocking; clear cache between tests.
+- **`resume.test.js`** — uses `TERMBEAM_CONFIG_DIR` env var pointing to a temp directory for isolation.
+- **WebSocket connections** — close in `finally` blocks or `after()` hooks to prevent connection leaks.
+
+**Port isolation:** Integration tests use port `0` (OS-assigned random port) to avoid conflicts. Never hardcode ports in tests.
+
 ## Architecture
 
 TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over HTTP + WebSocket, with a mobile-optimized browser UI.
@@ -27,6 +47,12 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 - `logger.js` — structured logger with levels (error/warn/info/debug)
 - `shells.js` — cross-platform shell detection
 - `version.js` — detects version from package.json
+
+**CLI subcommands** dispatched in `bin/termbeam.js` before loading the server:
+
+- `resume.js` — `termbeam resume [name]`: connects to a running server via WebSocket, lists sessions, auto-selects or interactive chooser, delegates to `client.js`. Also handles `termbeam list` (read-only list).
+- `client.js` — WebSocket terminal client: raw mode stdin/stdout piping, Ctrl+B detach, resize (SIGWINCH), scrollback replay. Used by `resume.js`.
+- `service.js` — `termbeam service <action>`: PM2-based background service management
 
 **Frontend:** Two vanilla HTML/JS files in `public/` using xterm.js via CDN:
 
@@ -50,6 +76,7 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 - **Cross-platform support** — must work on Windows, macOS, and Linux; CI tests on Ubuntu + Windows with Node 18, 20, 22
 - **PTY session cleanup** — `pty.kill()` is async; the `onExit` callback removes the session from the Map
 - **Coverage exclusion** — `src/tunnel.js` is excluded from coverage (requires external DevTunnel CLI)
+- **Connection config** — server writes `~/.termbeam/connection.json` on start (port, host, password) for `termbeam resume` auto-discovery; removed on shutdown
 
 ## Documentation
 
@@ -58,6 +85,7 @@ TermBeam has two layers of documentation that must stay in sync with code change
 - **`README.md`** — user-facing quick reference (features, CLI flags, security summary). Update when adding/removing CLI flags, features, or changing defaults.
 - **`docs/`** — full MkDocs Material site deployed to GitHub Pages. Navigation defined in `mkdocs.yml`. Update the relevant page when changing behavior:
   - `docs/configuration.md` — CLI flags and env vars
+  - `docs/resume.md` — `termbeam resume` and `termbeam list` commands
   - `docs/security.md` — auth, headers, threat model
   - `docs/api.md` — HTTP and WebSocket API
   - `docs/architecture.md` — system design
