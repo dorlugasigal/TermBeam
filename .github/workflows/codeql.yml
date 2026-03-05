@@ -9,13 +9,15 @@ on:
     - cron: '0 6 * * 1' # Weekly on Monday at 6 AM UTC
 
 permissions:
-  security-events: write
   contents: read
 
 jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
