@@ -139,16 +139,21 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       }
     }
 
-    const id = sessions.create({
-      name: name || `Session ${sessions.sessions.size + 1}`,
-      shell: shell || config.defaultShell,
-      args: shellArgs || [],
-      cwd: cwd || config.cwd,
-      initialCommand: initialCommand || null,
-      color: color || null,
-      cols: typeof cols === 'number' && cols > 0 && cols <= 500 ? Math.floor(cols) : undefined,
-      rows: typeof rows === 'number' && rows > 0 && rows <= 200 ? Math.floor(rows) : undefined,
-    });
+    let id;
+    try {
+      id = sessions.create({
+        name: name || `Session ${sessions.sessions.size + 1}`,
+        shell: shell || config.defaultShell,
+        args: shellArgs || [],
+        cwd: cwd || config.cwd,
+        initialCommand: initialCommand || null,
+        color: color || null,
+        cols: typeof cols === 'number' && cols > 0 && cols <= 500 ? Math.floor(cols) : undefined,
+        rows: typeof rows === 'number' && rows > 0 && rows <= 200 ? Math.floor(rows) : undefined,
+      });
+    } catch (err) {
+      return res.status(400).json({ error: err.message || 'Failed to create session' });
+    }
     res.json({ id, url: `/terminal?id=${id}` });
   });
 
