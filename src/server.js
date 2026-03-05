@@ -94,6 +94,7 @@ function createTermBeamServer(overrides = {}) {
   // Shutdown endpoint for --force
   app.post('/api/shutdown', auth.middleware, (_req, res) => {
     res.json({ ok: true });
+    console.log('\n[termbeam] Shutdown requested by another instance. Goodbye!');
     setTimeout(() => {
       shutdown();
       process.exit(0);
