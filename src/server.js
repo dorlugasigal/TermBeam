@@ -15,6 +15,7 @@ const { setupRoutes, cleanupUploadedFiles } = require('./routes');
 const { setupWebSocket } = require('./websocket');
 const { startTunnel, cleanupTunnel, findDevtunnel } = require('./tunnel');
 const { createPreviewProxy } = require('./preview');
+const { writeConnectionConfig, removeConnectionConfig } = require('./resume');
 
 // --- Helpers ---
 function getLocalIP() {
@@ -85,6 +86,7 @@ function createTermBeamServer(overrides = {}) {
     sessions.shutdown();
     cleanupUploadedFiles();
     cleanupTunnel();
+    removeConnectionConfig();
     server.close();
     wss.close();
   }
@@ -136,6 +138,17 @@ function createTermBeamServer(overrides = {}) {
       server.listen(config.port, config.host, async () => {
         const ip = getLocalIP();
         const localUrl = `http://${ip}:${config.port}`;
+
+        // Save connection info for `termbeam resume` auto-discovery
+        try {
+          writeConnectionConfig({
+            port: config.port,
+            host: config.host === '0.0.0.0' ? 'localhost' : config.host,
+            password: config.password || null,
+          });
+        } catch {
+          /* non-critical — resume will fall back to defaults */
+        }
 
         const defaultId = sessions.create({
           name: path.basename(config.cwd),

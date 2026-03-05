@@ -8,6 +8,18 @@ if (subcommand === 'service') {
     console.error(err.message);
     process.exit(1);
   });
+} else if (subcommand === 'resume') {
+  const { resume } = require('../src/resume');
+  resume(process.argv.slice(3)).catch((err) => {
+    console.error(err.message);
+    process.exit(1);
+  });
+} else if (subcommand === 'sessions') {
+  const { listSessions } = require('../src/resume');
+  listSessions(process.argv.slice(3)).catch((err) => {
+    console.error(err.message);
+    process.exit(1);
+  });
 } else {
   const { createTermBeamServer } = require('../src/server.js');
   const { parseArgs } = require('../src/cli');
