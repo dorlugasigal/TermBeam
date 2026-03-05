@@ -26,12 +26,12 @@ jobs:
     name: Bump, Tag & Publish
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_TOKEN }}
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
@@ -106,7 +106,7 @@ jobs:
 
       - name: Create GitHub Release
         if: inputs.dry-run == false
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
         with:
           tag_name: v${{ steps.bump.outputs.new_version }}
           name: v${{ steps.bump.outputs.new_version }}

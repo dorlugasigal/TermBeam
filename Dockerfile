@@ -1,4 +1,4 @@
-FROM node:20-slim
+FROM node:22-slim
 
 RUN apt-get update && apt-get install -y \
     python3 make g++ \
@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm pkg delete scripts.prepare && npm ci --omit=dev
 COPY bin/ bin/
 COPY src/ src/
 COPY public/ public/
