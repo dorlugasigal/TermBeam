@@ -14,9 +14,7 @@
 
 </div>
 
-TermBeam lets you access your terminal from a phone, tablet, or any browser — no SSH, no port forwarding, no config files. Run one command and scan the QR code.
-
-I built this because I kept needing to run quick commands on my dev machine while away from my desk, and SSH on a phone is painful. TermBeam gives you a real terminal with a touch-optimized UI — key bar, swipe scroll, pinch zoom — that actually works on small screens. You get multi-session tabs with split view, terminal search, a command palette, 12 themes, and secure remote access out of the box.
+TermBeam lets you access your terminal from a phone, tablet, or any browser — no SSH, no port forwarding, no configuration needed. Run one command and scan the QR code.
 
 [Full documentation](https://dorlugasigal.github.io/TermBeam/) · [Website](https://termbeam.pages.dev)
 
@@ -47,95 +45,79 @@ termbeam
 
 Scan the QR code printed in your terminal, or open the URL on any device.
 
-> **First time?** Run `termbeam -i` for a guided setup wizard that walks you through password, port, and access mode.
-
-### Secure by default
-
-TermBeam starts with a tunnel and auto-generated password out of the box — just run `termbeam` and scan the QR code.
-
 ```bash
 termbeam                        # tunnel + auto-password (default)
-termbeam --password mysecret    # use a specific password
-termbeam --no-tunnel            # LAN-only (no tunnel)
-termbeam --no-password          # disable password protection
+termbeam --password mysecret    # custom password
+termbeam --no-tunnel            # LAN only
 termbeam -i                     # interactive setup wizard
 ```
 
-## Remote Access
+## Features
 
-```bash
-# Tunnel is on by default
-termbeam
+### Mobile-First
 
-# Persisted tunnel (stable URL you can bookmark, reused across restarts, 30-day expiry)
-termbeam --persisted-tunnel
+- **No SSH client needed** — just open a browser on any device
+- **Touch-optimized key bar** with arrows, Tab, Ctrl, Esc, copy, paste, and more
+- **Swipe scrolling**, pinch zoom, and text selection overlay for copy-paste
+- **iPhone PWA safe-area support** for a native-app feel
 
-# LAN-only (no tunnel)
-termbeam --no-tunnel
+### Multi-Session
+
+- **Tabbed terminals** with drag-to-reorder and live tab previews on hover/long-press
+- **Split view** — two sessions side-by-side (auto-rotates horizontal/vertical)
+- **Session colors and activity indicators** for at-a-glance status
+- **Folder browser** for picking working directory, optional initial command per session
+
+### Productivity
+
+- **Terminal search** with regex, match count, and prev/next navigation
+- **Command palette** (Ctrl+K / Cmd+K) for quick access to all actions
+- **Completion notifications** — browser alerts when background commands finish
+- **12 color themes** with adjustable font size
+- **Port preview** — reverse-proxy a local web server through TermBeam
+- **Image paste** from clipboard
+
+### Secure by Default
+
+- **Auto-generated password** with rate limiting and httpOnly cookies
+- **QR code auto-login** with single-use share tokens (5-min expiry)
+- **DevTunnel integration** for secure remote access — ephemeral or persisted URLs
+- **Security headers** (X-Frame-Options, CSP, nosniff) on all responses; only detected shells allowed
+
+## How It Works
+
+TermBeam starts a lightweight web server that spawns a PTY (pseudo-terminal) with your shell, serves a mobile-optimized [xterm.js](https://xtermjs.org/) UI via Express, and bridges the two over WebSocket. Multiple clients can view the same session simultaneously, and sessions persist when all clients disconnect.
+
+```mermaid
+flowchart LR
+  A["Phone / Browser"] <-->|WebSocket| B["TermBeam Server"]
+  B <-->|PTY| C["Shell (zsh/bash)"]
+  B -->|Express| D["Web UI (xterm.js)"]
+  B -.->|Optional| E["DevTunnel"]
 ```
 
-If the [Dev Tunnels CLI](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started) is not installed, TermBeam will offer to install it for you automatically. You can also install it manually:
+## CLI Highlights
 
-- **Windows:** `winget install Microsoft.devtunnel`
-- **macOS:** `brew install --cask devtunnel`
-- **Linux:** `curl -sL https://aka.ms/DevTunnelCliInstall | bash`
+| Flag                  | Description                                     | Default        |
+| --------------------- | ----------------------------------------------- | -------------- |
+| `--password <pw>`     | Set access password                             | Auto-generated |
+| `--no-password`       | Disable password protection                     | —              |
+| `--tunnel`            | Create an ephemeral devtunnel URL               | On             |
+| `--no-tunnel`         | Disable tunnel (LAN-only)                       | —              |
+| `--persisted-tunnel`  | Reusable devtunnel URL (stable across restarts) | Off            |
+| `--port <port>`       | Server port                                     | `3456`         |
+| `--host <addr>`       | Bind address                                    | `127.0.0.1`    |
+| `--lan`               | Bind to all interfaces (LAN access)             | Off            |
+| `-i, --interactive`   | Interactive setup wizard                        | Off            |
+| `--log-level <level>` | Log verbosity (error/warn/info/debug)           | `info`         |
 
-Persisted tunnels save a tunnel ID to `~/.termbeam/tunnel.json` so the URL stays the same between sessions.
-
-## CLI Reference
-
-```bash
-termbeam [shell] [args...]        # start with a specific shell (default: auto-detect)
-termbeam --port 8080              # custom port (default: 3456)
-termbeam --host 0.0.0.0           # allow LAN access (default: 127.0.0.1)
-termbeam --lan                    # shortcut for --host 0.0.0.0
-termbeam -i                       # interactive setup wizard
-termbeam resume [name]            # reconnect to a running session from another terminal
-termbeam list                     # list active sessions on the running server
-termbeam service install          # interactive PM2 service setup wizard
-termbeam service uninstall        # stop & remove PM2 service
-termbeam service status           # show PM2 service status
-termbeam service logs             # tail PM2 service logs
-termbeam service restart          # restart PM2 service
-```
-
-| Flag                  | Description                                          | Default        |
-| --------------------- | ---------------------------------------------------- | -------------- |
-| `--password <pw>`     | Set access password (also accepts `--password=<pw>`) | Auto-generated |
-| `--no-password`       | Disable password (cannot combine with `--public`)    | —              |
-| `--generate-password` | Auto-generate a secure password                      | On             |
-| `--tunnel`            | Create an ephemeral devtunnel URL (private)          | On             |
-| `--no-tunnel`         | Disable tunnel (LAN-only)                            | —              |
-| `--persisted-tunnel`  | Create a reusable devtunnel URL                      | Off            |
-| `--public`            | Allow public tunnel access                           | Off            |
-| `--port <port>`       | Server port                                          | `3456`         |
-| `--host <addr>`       | Bind address                                         | `127.0.0.1`    |
-| `--lan`               | Bind to all interfaces (LAN access)                  | Off            |
-| `--log-level <level>` | Log verbosity (error/warn/info/debug)                | `info`         |
-| `-i, --interactive`   | Interactive setup wizard (guided configuration)      | Off            |
-| `--force`             | Stop existing server before starting a new one       | Off            |
-| `-h, --help`          | Show help                                            | —              |
-| `-v, --version`       | Show version                                         | —              |
-
-| Subcommand          | Description                                       |
-| ------------------- | ------------------------------------------------- |
-| `resume [name]`     | Attach to a running session from another terminal |
-| `list`              | List active sessions on the running server        |
-| `service install`   | Interactive PM2 service setup                     |
-| `service uninstall` | Stop & remove from PM2                            |
-| `service status`    | Show PM2 service status                           |
-| `service logs`      | Tail PM2 service logs                             |
-| `service restart`   | Restart PM2 service                               |
-
-Environment variables: `PORT`, `TERMBEAM_PASSWORD`, `TERMBEAM_CWD`, `TERMBEAM_LOG_LEVEL`, `SHELL` (Unix fallback), `COMSPEC` (Windows fallback). See [Configuration docs](https://dorlugasigal.github.io/TermBeam/configuration/).
+For all flags, subcommands, and environment variables, see the [Configuration docs](https://dorlugasigal.github.io/TermBeam/configuration/).
 
 ## Security
 
-TermBeam auto-generates a password and creates a tunnel by default, so your terminal is protected out of the box. By default, the server binds to `127.0.0.1` (localhost only). Use `--lan` or `--host 0.0.0.0` to allow LAN access, or `--no-tunnel` to disable the tunnel.
+TermBeam auto-generates a password and creates a secure tunnel by default, binding to `127.0.0.1` (localhost only). Auth uses httpOnly cookies with 24-hour expiry, login is rate-limited to 5 attempts per minute, QR codes contain single-use share tokens (5-min expiry), and security headers (X-Frame-Options, CSP, nosniff) are set on all responses.
 
-Auth uses secure httpOnly cookies with 24-hour expiry, login is rate-limited to 5 attempts per minute, and security headers (X-Frame-Options, X-Content-Type-Options, etc.) are set on all responses. Each QR code contains a single-use share token (5-minute expiry) for password-free login. API clients that can't use cookies can authenticate with an `Authorization: Bearer <password>` header.
-
-For the full threat model, safe usage guidance, and a quick safety checklist, see [SECURITY.md](SECURITY.md). For detailed security feature documentation, see the [Security Guide](https://dorlugasigal.github.io/TermBeam/security/).
+For the full threat model and safety checklist, see [SECURITY.md](SECURITY.md). For detailed security documentation, see the [Security Guide](https://dorlugasigal.github.io/TermBeam/security/).
 
 ## Contributing
 

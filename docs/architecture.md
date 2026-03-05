@@ -11,12 +11,14 @@ termbeam/
 │   ├── cli.js               # Argument parsing & help
 │   ├── devtunnel-install.js # DevTunnel CLI auto-installer
 │   ├── auth.js              # Authentication & rate limiting
+│   ├── client.js            # WebSocket terminal client (resume)
 │   ├── sessions.js          # PTY session management
 │   ├── routes.js            # Express HTTP routes
 │   ├── websocket.js         # WebSocket connection handling
 │   ├── git.js               # Git repo detection & status
 │   ├── tunnel.js            # DevTunnel integration
 │   ├── preview.js           # Port preview reverse proxy
+│   ├── resume.js            # Resume/list subcommands
 │   ├── service.js           # PM2 service management
 │   ├── interactive.js      # Interactive setup wizard
 │   ├── prompts.js          # Terminal prompt primitives (color, ask, choose, confirm)
@@ -26,22 +28,32 @@ termbeam/
 ├── public/
 │   ├── index.html           # Session manager (mobile UI)
 │   ├── terminal.html        # Terminal view (xterm.js, search, notifications, command palette)
+│   ├── css/                 # Stylesheets
+│   ├── js/                  # Client-side JavaScript modules
 │   ├── sw.js                # Service worker (PWA caching)
 │   ├── manifest.json        # Web app manifest
 │   └── icons/               # PWA icons
 ├── test/
 │   ├── auth.test.js
 │   ├── cli.test.js
+│   ├── client.test.js
 │   ├── interactive.test.js
 │   ├── prompts.test.js
 │   ├── devtunnel-install.test.js
 │   ├── e2e-keybar.test.js
+│   ├── git.test.js
 │   ├── integration.test.js
 │   ├── logger.test.js
 │   ├── preview.test.js
+│   ├── resume.test.js
 │   ├── routes.test.js
+│   ├── server.test.js
+│   ├── service-interactive.test.js
+│   ├── service.test.js
 │   ├── sessions.test.js
 │   ├── shells.test.js
+│   ├── snapshot.test.js
+│   ├── terminal-ui.test.js
 │   ├── version.test.js
 │   └── websocket.test.js
 ├── docs/                    # MkDocs documentation
@@ -142,3 +154,18 @@ Client (Phone Browser)
                     ├─ resize         ├─ resize terminal
                     └─ output ◄────── └─ read stdout
 ```
+
+### `client.js` — WebSocket Terminal Client
+
+WebSocket terminal client used by the `resume` command. Handles raw-mode stdin/stdout piping, Ctrl+B detach, terminal resize synchronization via SIGWINCH, and scrollback replay on attach.
+
+### `resume.js` — Resume & List Subcommands
+
+Implements the `termbeam resume [name]` and `termbeam list` CLI subcommands. Auto-discovers running servers via `~/.termbeam/connection.json`, lists sessions, provides an interactive arrow-key chooser when multiple sessions exist, and delegates terminal attachment to `client.js`.
+
+---
+
+## See Also
+
+- **[API Reference](api.md)** — REST and WebSocket endpoint documentation
+- **[Contributing](contributing.md)** — development setup, testing, and pull request guidelines
