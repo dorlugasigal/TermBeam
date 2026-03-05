@@ -167,11 +167,9 @@ async function resolveConnection(args) {
     sessions = await fetchSessions(baseUrl, password);
   } catch (err) {
     if (err.message === 'unauthorized') {
-      if (!password) {
-        const rl = createRL();
-        password = await ask(rl, `${cyan('Password')} for ${displayUrl}:`);
-        rl.close();
-      }
+      const rl = createRL();
+      password = await ask(rl, `${cyan('Password')} for ${displayUrl}:`);
+      rl.close();
       try {
         sessions = await fetchSessions(baseUrl, password);
       } catch {
@@ -275,11 +273,9 @@ async function list() {
     sessions = await fetchSessions(baseUrl, password);
   } catch (err) {
     if (err.message === 'unauthorized') {
-      if (!password) {
-        const rl = createRL();
-        password = await ask(rl, `${cyan('Password')} for ${displayUrl}:`);
-        rl.close();
-      }
+      const rl = createRL();
+      password = await ask(rl, `${cyan('Password')} for ${displayUrl}:`);
+      rl.close();
       try {
         sessions = await fetchSessions(baseUrl, password);
       } catch {
