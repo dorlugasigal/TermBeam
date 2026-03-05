@@ -774,4 +774,69 @@ describe('CLI', () => {
       }
     });
   });
+
+  describe('unknown flag rejection', () => {
+    it('should reject unknown --flags', () => {
+      process.argv = ['node', 'termbeam', '--foobar'];
+      const exitCalls = [];
+      const errorMessages = [];
+      const origExit = process.exit;
+      const origError = console.error;
+      process.exit = (code) => exitCalls.push(code);
+      console.error = (msg) => errorMessages.push(msg);
+      try {
+        delete require.cache[require.resolve('../src/cli')];
+        const { parseArgs } = require('../src/cli');
+        parseArgs();
+        assert.ok(exitCalls.includes(1), 'Should call process.exit(1)');
+        assert.ok(
+          errorMessages.some((m) => typeof m === 'string' && m.includes('Unknown flag')),
+          'Should mention unknown flag',
+        );
+      } finally {
+        process.exit = origExit;
+        console.error = origError;
+      }
+    });
+
+    it('should reject unknown flags mixed with valid ones', () => {
+      process.argv = ['node', 'termbeam', '--port', '8080', '--bogus'];
+      const exitCalls = [];
+      const errorMessages = [];
+      const origExit = process.exit;
+      const origError = console.error;
+      process.exit = (code) => exitCalls.push(code);
+      console.error = (msg) => errorMessages.push(msg);
+      try {
+        delete require.cache[require.resolve('../src/cli')];
+        const { parseArgs } = require('../src/cli');
+        parseArgs();
+        assert.ok(exitCalls.includes(1), 'Should call process.exit(1)');
+        assert.ok(
+          errorMessages.some((m) => typeof m === 'string' && m.includes('--bogus')),
+          'Should mention the specific unknown flag',
+        );
+      } finally {
+        process.exit = origExit;
+        console.error = origError;
+      }
+    });
+
+    it('should still accept valid flags', () => {
+      process.argv = ['node', 'termbeam', '--port', '9999', '--no-tunnel', '--lan'];
+      const exitCalls = [];
+      const origExit = process.exit;
+      process.exit = (code) => exitCalls.push(code);
+      try {
+        delete require.cache[require.resolve('../src/cli')];
+        const { parseArgs } = require('../src/cli');
+        const config = parseArgs();
+        assert.strictEqual(config.port, 9999);
+        assert.strictEqual(config.host, '0.0.0.0');
+        assert.ok(!exitCalls.includes(1), 'Should not exit for valid flags');
+      } finally {
+        process.exit = origExit;
+      }
+    });
+  });
 });
