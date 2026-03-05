@@ -237,6 +237,8 @@ async function resume(args) {
   const wsHost = host === 'localhost' ? '127.0.0.1' : host;
   const wsUrl = `ws://${wsHost}:${port}/ws`;
 
+  console.log(yellow(`  attached: ${bold(session.name)} ─── Ctrl+B to detach`));
+
   try {
     const { reason } = await createTerminalClient({
       url: wsUrl,
