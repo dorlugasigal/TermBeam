@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.8.1] - 2026-03-05
+
+- fix(security): pin mkdocs-material version in pages workflow (#106)
+- fix(security): harden session creation input validation (#104)
+- fix(security): update demo-video deps to fix GHSA-5c6j-r48x-rmvq (#105)
+- fix: use commit SHA instead of tag object SHA for codeql-action v3
+- fix: prevent path injection and open redirect vulnerabilities (#93)
+- fix: use correct commit SHA for ossf/scorecard-action v2.4.3
+- fix: add rate limiting to file-serving routes (#94)
+- fix: add defense-in-depth shell validation in SessionManager (#91)
+- fix: prevent clear-text logging of passwords (#92)
+- fix: make HTML tag filtering regexp case-insensitive (#95)
+- fix: harden CI/CD workflow permissions and pin dependencies (#96)
+- chore(ci): bump gitleaks/gitleaks-action from dcedce43c6f43de0b836d1fe38946645c9c638dc to ff98106e4c7b2bc287b24eaf42907196329070c7 (#83)
+- chore(ci): bump actions/setup-node from 4.4.0 to 6.3.0 (#82)
+- chore(deps): bump eslint from 9.39.3 to 10.0.2 (#81)
+- chore(ci): bump ossf/scorecard-action from ea651e62978af7915d09fe2e282747c798bf2dab to f49aabe0b5af0936a0987cfb85d86b75731b0186 (#80)
+- chore(deps): bump lint-staged from 16.3.1 to 16.3.2 (#77)
+- fix: unpin all actions in scorecard workflow (webapp verification requires tags)
+- fix: use tag ref for scorecard action (SHA pinning not supported)
+- feat: add SecOps hardening — security scanning, Dependabot, action pinning (#76)
+- feat: add static code analysis with ESLint and CodeQL (#75)
+
 ## [1.8.0] - 2026-03-04
 
 - feat(cli): add interactive setup wizard (#72)
