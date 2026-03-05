@@ -190,3 +190,10 @@ The following UI features are entirely client-side and introduce **no new server
 ## Reporting Vulnerabilities
 
 **Please do NOT open a public GitHub issue for security vulnerabilities.** Instead, report vulnerabilities privately via the [Security Advisories](https://github.com/dorlugasigal/TermBeam/security/advisories) page — click "Report a vulnerability" and provide a detailed description.
+
+---
+
+## See Also
+
+- **[Configuration](configuration.md)** — CLI flags, environment variables, and defaults
+- **[Getting Started](getting-started.md)** — install and run TermBeam in under a minute

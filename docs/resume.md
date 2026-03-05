@@ -141,3 +141,11 @@ termbeam resume --port 4000 --password mysecret
 ```bash
 termbeam list
 ```
+
+---
+
+## See Also
+
+- **[Getting Started](getting-started.md)** — install and run TermBeam in under a minute
+- **[Configuration](configuration.md)** — CLI flags, environment variables, and defaults
+- **[Running in Background](running-in-background.md)** — keep TermBeam always available with PM2, systemd, or launchd

@@ -72,10 +72,12 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Usage Guide: usage-guide.md
   - Configuration: configuration.md
   - Resume & List: resume.md
   - Running in Background: running-in-background.md
   - Security: security.md
   - API Reference: api.md
   - Architecture: architecture.md
+  - Troubleshooting: troubleshooting.md
   - Contributing: contributing.md

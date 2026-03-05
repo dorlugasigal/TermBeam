@@ -39,7 +39,7 @@ TermBeam includes a built-in interactive installer that configures PM2 for you:
 termbeam service install
 ```
 
-The wizard checks if PM2 is installed (and offers to install it globally if not), then walks you through 7 configuration steps:
+The wizard checks if PM2 is installed (and offers to install it globally if not), then walks you through 8 configuration steps:
 
 | Step                     | Question                   | Options / Default                                                 |
 | ------------------------ | -------------------------- | ----------------------------------------------------------------- |
@@ -263,3 +263,10 @@ launchctl unload ~/Library/LaunchAgents/com.termbeam.plist
     - **Dev machine?** → PM2 (easiest setup, great logs)
     - **Server/always-on?** → systemd or launchd (OS-native, starts on boot)
     - **Windows?** → Task Scheduler or NSSM
+
+---
+
+## See Also
+
+- **[Configuration](configuration.md)** — CLI flags, environment variables, and defaults
+- **[Resume & List](resume.md)** — reconnect to running sessions from your terminal

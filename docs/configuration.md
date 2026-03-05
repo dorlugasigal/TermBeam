@@ -52,11 +52,11 @@ description: All TermBeam CLI flags and options — ports, passwords, tunnels, s
 
 The browser UI stores the following preferences in `localStorage`:
 
-| Key                      | Description                                               | Default |
-| ------------------------ | --------------------------------------------------------- | ------- |
-| `termbeam-notifications` | Command completion notifications enabled (`true`/`false`) | `true`  |
-| `termbeam-fontsize`      | Terminal font size                                        | `14`    |
-| `termbeam-theme`         | Light/dark theme preference                               | `dark`  |
+| Key                      | Description                                               | Default              |
+| ------------------------ | --------------------------------------------------------- | -------------------- |
+| `termbeam-notifications` | Command completion notifications enabled (`true`/`false`) | `true`               |
+| `termbeam-fontsize`      | Terminal font size                                        | `responsive (12–15)` |
+| `termbeam-theme`         | Light/dark theme preference                               | `dark`               |
 
 These settings are per-browser and persist across sessions. They can be cleared by the user via the browser's developer tools or the Refresh button in the toolbar.
 
@@ -171,3 +171,12 @@ Requirements:
 
 - `devtunnel` CLI — TermBeam will offer to install it automatically if not found
 - Login is handled automatically — if not already logged in, TermBeam will launch `devtunnel user login` for you
+
+---
+
+## See Also
+
+- **[Usage Guide](usage-guide.md)** — tabs, split view, search, touch controls, and more
+- **[Getting Started](getting-started.md)** — install and run TermBeam in under a minute
+- **[Security](security.md)** — threat model, safe usage, and security features
+- **[Running in Background](running-in-background.md)** — keep TermBeam always available with PM2, systemd, or launchd
