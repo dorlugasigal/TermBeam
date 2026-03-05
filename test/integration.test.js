@@ -385,10 +385,11 @@ describe('Integration', () => {
   });
 
   describe('npx simulation: parent process is node, not a shell', () => {
-    before(() => removeConnectionConfig());
     after(() => removeConnectionConfig());
 
     it('should start and print the banner when spawned by a node process (like npx)', async () => {
+      // Clean up any stale connection config from other tests
+      removeConnectionConfig();
       // This exactly reproduces the npx scenario: node (npx) → node (termbeam)
       // The parent process is "node", which is NOT a shell, so shell detection
       // must fall back to $SHELL or /bin/sh instead of trying to spawn "node" as a shell.
@@ -397,7 +398,7 @@ describe('Integration', () => {
         let buf = '';
         const child = spawn(
           process.execPath,
-          [entryPoint, '--no-tunnel', '--no-password', '--log-level', 'debug'],
+          [entryPoint, '--no-tunnel', '--no-password', '--log-level', 'debug', '--force'],
           {
             env: { ...process.env, PORT: '0' },
             stdio: ['ignore', 'pipe', 'pipe'],

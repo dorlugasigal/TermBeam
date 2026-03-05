@@ -93,8 +93,19 @@ if (subcommand === 'service') {
         const host = existing.host === 'localhost' ? '127.0.0.1' : existing.host;
         const headers = existing.password ? { Authorization: `Bearer ${existing.password}` } : {};
         console.log(`Stopping existing server on port ${existing.port}...`);
-        await httpPost(`http://${host}:${existing.port}/api/shutdown`, headers);
-        await new Promise((r) => setTimeout(r, 500));
+        const status = await httpPost(`http://${host}:${existing.port}/api/shutdown`, headers);
+        if (status === 401) {
+          console.error(
+            'Cannot stop the existing server — password mismatch.\n' +
+              'Stop it manually (Ctrl+C in its terminal) and try again.',
+          );
+          process.exit(1);
+        }
+        // Wait for the old server to fully release the port
+        for (let i = 0; i < 20; i++) {
+          await new Promise((r) => setTimeout(r, 250));
+          if (!(await checkExistingServer(existing))) break;
+        }
       } else {
         console.error(
           `TermBeam is already running on http://${existing.host}:${existing.port}\n` +
