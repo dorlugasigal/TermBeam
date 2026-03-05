@@ -179,7 +179,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
         shell: shell || config.defaultShell,
         args: shellArgs || [],
         cwd: cwd ? path.resolve(cwd) : config.cwd,
-        initialCommand: initialCommand || null,
+        initialCommand: initialCommand ?? null,
         color: color || null,
         cols: typeof cols === 'number' && cols > 0 && cols <= 500 ? Math.floor(cols) : undefined,
         rows: typeof rows === 'number' && rows > 0 && rows <= 200 ? Math.floor(rows) : undefined,
