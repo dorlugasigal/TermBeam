@@ -20,6 +20,7 @@ description: All TermBeam CLI flags and options — ports, passwords, tunnels, s
 | `--host <addr>`       | Bind address                                                                                                  | `127.0.0.1`    |
 | `--lan`               | Bind to all interfaces (LAN access)                                                                           | Off            |
 | `-i, --interactive`   | Interactive setup wizard — walks through password, port, access mode (tunnel type, visibility), and log level | Off            |
+| `--force`             | Stop any existing TermBeam server before starting a new one                                                   | Off            |
 | `-h, --help`          | Show help                                                                                                     | —              |
 | `-v, --version`       | Show version                                                                                                  | —              |
 | `--log-level <level>` | Set log verbosity: `error`, `warn`, `info`, `debug`                                                           | `info`         |

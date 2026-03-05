@@ -169,10 +169,11 @@ async function resolveConnection(args) {
   if (opts.help) return { help: true };
 
   const saved = readConnectionConfig();
-  const host = opts.host || (saved && saved.host) || 'localhost';
+  const host = opts.host || (saved && saved.host) || '127.0.0.1';
   const port = opts.port || (saved && saved.port) || 3456;
   let password = opts.password || (saved && saved.password) || null;
-  const baseUrl = `http://${host}:${port}`;
+  const connHost = host === 'localhost' ? '127.0.0.1' : host;
+  const baseUrl = `http://${connHost}:${port}`;
 
   // Try to fetch sessions, handle auth errors
   let sessions;
@@ -249,7 +250,8 @@ async function resume(args) {
     session = sessions[index];
   }
 
-  const wsUrl = `ws://${host}:${port}/ws`;
+  const wsHost = host === 'localhost' ? '127.0.0.1' : host;
+  const wsUrl = `ws://${wsHost}:${port}/ws`;
   console.log('');
   console.log(dim(`  Connecting to ${bold(session.name)} (${shortId(session.id)})...`));
   console.log(dim(`  Press ${bold('Ctrl+B')} to detach.`));

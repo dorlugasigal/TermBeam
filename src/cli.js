@@ -33,6 +33,7 @@ Options:
   --host <addr>         Bind address (default: 127.0.0.1)
   --lan                 Bind to 0.0.0.0 (allow LAN access, default: localhost only)
   --log-level <level>   Set log verbosity: error, warn, info, debug (default: info)
+  --force               Stop any existing server before starting a new one
   -i, --interactive     Interactive setup wizard (guided configuration)
   -h, --help            Show this help
   -v, --version         Show version
@@ -248,6 +249,7 @@ function parseArgs() {
   let persistedTunnel = false;
   let publicTunnel = false;
   let interactive = false;
+  let force = false;
   let explicitPassword = !!password;
 
   const args = process.argv.slice(2);
@@ -294,6 +296,8 @@ function parseArgs() {
       logLevel = args[++i];
     } else if (args[i].startsWith('--log-level=')) {
       logLevel = args[i].split('=')[1];
+    } else if (args[i] === '--force') {
+      force = true;
     } else if (args[i].startsWith('--')) {
       console.error(`Unknown flag: ${args[i]}\n`);
       printHelp();
@@ -351,6 +355,7 @@ function parseArgs() {
     version,
     logLevel,
     interactive,
+    force,
   };
 }
 

@@ -35,8 +35,33 @@ if (subcommand === 'service') {
   const { readConnectionConfig } = require('../src/resume');
   const http = require('http');
 
-  function checkExistingServer() {
-    const config = readConnectionConfig();
+  function httpPost(url, headers) {
+    return new Promise((resolve) => {
+      const parsed = new URL(url);
+      const req = http.request(
+        {
+          hostname: parsed.hostname,
+          port: parsed.port,
+          path: parsed.pathname,
+          method: 'POST',
+          headers,
+          timeout: 2000,
+        },
+        (res) => {
+          res.resume();
+          resolve(res.statusCode);
+        },
+      );
+      req.on('error', () => resolve(null));
+      req.on('timeout', () => {
+        req.destroy();
+        resolve(null);
+      });
+      req.end();
+    });
+  }
+
+  function checkExistingServer(config) {
     if (!config) return Promise.resolve(false);
     const host = config.host === 'localhost' ? '127.0.0.1' : config.host;
     return new Promise((resolve) => {
@@ -60,16 +85,26 @@ if (subcommand === 'service') {
   }
 
   async function main() {
+    const baseConfig = parseArgs();
+
     const existing = readConnectionConfig();
-    if (existing && (await checkExistingServer())) {
-      console.error(
-        `TermBeam is already running on http://${existing.host}:${existing.port}\n` +
-          'Use "termbeam resume" to reconnect or "termbeam sessions" to list sessions.',
-      );
-      process.exit(1);
+    if (existing && (await checkExistingServer(existing))) {
+      if (baseConfig.force) {
+        const host = existing.host === 'localhost' ? '127.0.0.1' : existing.host;
+        const headers = existing.password ? { Authorization: `Bearer ${existing.password}` } : {};
+        console.log(`Stopping existing server on port ${existing.port}...`);
+        await httpPost(`http://${host}:${existing.port}/api/shutdown`, headers);
+        await new Promise((r) => setTimeout(r, 500));
+      } else {
+        console.error(
+          `TermBeam is already running on http://${existing.host}:${existing.port}\n` +
+            'Use "termbeam resume" to reconnect, "termbeam sessions" to list sessions,\n' +
+            'or "termbeam --force" to stop the existing server and start a new one.',
+        );
+        process.exit(1);
+      }
     }
 
-    const baseConfig = parseArgs();
     let config;
     if (baseConfig.interactive) {
       config = await runInteractiveSetup(baseConfig);

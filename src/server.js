@@ -91,6 +91,15 @@ function createTermBeamServer(overrides = {}) {
     wss.close();
   }
 
+  // Shutdown endpoint for --force
+  app.post('/api/shutdown', auth.middleware, (_req, res) => {
+    res.json({ ok: true });
+    setTimeout(() => {
+      shutdown();
+      process.exit(0);
+    }, 100);
+  });
+
   async function start() {
     // If tunnel mode is on but devtunnel is missing, offer to install it
     if (config.useTunnel && !findDevtunnel()) {
@@ -143,7 +152,7 @@ function createTermBeamServer(overrides = {}) {
         // Save connection info for `termbeam resume` auto-discovery
         try {
           const connHost =
-            config.host === '0.0.0.0' || config.host === '127.0.0.1' ? 'localhost' : config.host;
+            config.host === '0.0.0.0' || config.host === '127.0.0.1' ? '127.0.0.1' : config.host;
           writeConnectionConfig({
             port: actualPort,
             host: connHost,

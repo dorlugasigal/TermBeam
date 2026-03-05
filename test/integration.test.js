@@ -1,10 +1,11 @@
-const { describe, it, after } = require('node:test');
+const { describe, it, after, before } = require('node:test');
 const assert = require('node:assert');
 const http = require('http');
 const { spawn } = require('child_process');
 const path = require('path');
 const WebSocket = require('ws');
 const { createTermBeamServer, getLocalIP } = require('../src/server');
+const { removeConnectionConfig } = require('../src/resume');
 
 // --- Helpers ---
 
@@ -384,6 +385,9 @@ describe('Integration', () => {
   });
 
   describe('npx simulation: parent process is node, not a shell', () => {
+    before(() => removeConnectionConfig());
+    after(() => removeConnectionConfig());
+
     it('should start and print the banner when spawned by a node process (like npx)', async () => {
       // This exactly reproduces the npx scenario: node (npx) → node (termbeam)
       // The parent process is "node", which is NOT a shell, so shell detection
@@ -788,7 +792,7 @@ describe('Integration', () => {
       assert.ok(config, 'connection.json should exist after start');
       assert.strictEqual(config.port, port);
       assert.strictEqual(config.password, 'configtest');
-      assert.strictEqual(config.host, 'localhost');
+      assert.strictEqual(config.host, '127.0.0.1');
 
       // Shutdown should remove it
       inst.shutdown();
