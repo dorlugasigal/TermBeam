@@ -196,7 +196,6 @@ async function resume(args) {
   }
   if (conn.refused) {
     console.error(red('  No TermBeam server is running.'));
-    console.error(dim('  Start one with: termbeam'));
     process.exit(1);
   }
 

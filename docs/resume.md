@@ -6,7 +6,7 @@ TermBeam includes CLI commands for reconnecting to running sessions directly fro
 
 ```bash
 # List all active sessions
-termbeam sessions
+termbeam list
 
 # Reconnect to a running session (interactive chooser if multiple)
 termbeam resume
@@ -62,17 +62,17 @@ Press **Ctrl+B** to detach from a session. This disconnects your terminal client
 
 When you attach to a session, the existing scrollback buffer (up to 200 KB) is replayed automatically. You'll see the terminal output as if you'd been connected the whole time.
 
-## `termbeam sessions`
+## `termbeam list`
 
 Lists all active sessions on a running TermBeam server in a formatted table.
 
 ### Usage
 
 ```
-termbeam sessions [options]
+termbeam list
 ```
 
-Accepts the same `--port`, `--host`, and `--password` flags as `resume`.
+Connection details are read automatically from `~/.termbeam/connection.json`.
 
 ### Output
 
@@ -139,5 +139,5 @@ termbeam resume --port 4000 --password mysecret
 ### Quick glance at running sessions
 
 ```bash
-termbeam sessions
+termbeam list
 ```

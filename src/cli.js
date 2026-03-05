@@ -11,7 +11,7 @@ termbeam — Beam your terminal to any device
 Usage:
   termbeam [options] [shell] [args...]
   termbeam resume [name] [options]     Reconnect to a running session
-  termbeam sessions [options]          List running sessions
+  termbeam list                        List running sessions
   termbeam service <action>            Manage as a background service (PM2)
 
 Actions (service):
@@ -54,7 +54,7 @@ Examples:
   termbeam --interactive               Guided setup wizard
   termbeam service install          Set up as background service (PM2)
   termbeam resume                   Reconnect to an active session
-  termbeam sessions                 List all active sessions
+  termbeam list                     List all active sessions
 
 Environment:
   PORT                  Server port (default: 3456)
