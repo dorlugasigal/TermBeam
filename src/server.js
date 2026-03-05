@@ -136,14 +136,17 @@ function createTermBeamServer(overrides = {}) {
 
     return new Promise((resolve) => {
       server.listen(config.port, config.host, async () => {
+        const actualPort = server.address().port;
         const ip = getLocalIP();
-        const localUrl = `http://${ip}:${config.port}`;
+        const localUrl = `http://${ip}:${actualPort}`;
 
         // Save connection info for `termbeam resume` auto-discovery
         try {
+          const connHost =
+            config.host === '0.0.0.0' || config.host === '127.0.0.1' ? 'localhost' : config.host;
           writeConnectionConfig({
-            port: config.port,
-            host: config.host === '0.0.0.0' ? 'localhost' : config.host,
+            port: actualPort,
+            host: connHost,
             password: config.password || null,
           });
         } catch {
@@ -183,7 +186,7 @@ function createTermBeamServer(overrides = {}) {
         console.log('');
         const isLanReachable =
           config.host === '0.0.0.0' || config.host === '::' || config.host === ip;
-        state.shareBaseUrl = isLanReachable ? localUrl : `http://localhost:${config.port}`;
+        state.shareBaseUrl = isLanReachable ? localUrl : `http://localhost:${actualPort}`;
         const gn = '\x1b[38;5;114m'; // green
         const _dm = '\x1b[2m'; // dim
 
@@ -191,7 +194,7 @@ function createTermBeamServer(overrides = {}) {
 
         let publicUrl = null;
         if (config.useTunnel) {
-          const tunnel = await startTunnel(config.port, {
+          const tunnel = await startTunnel(actualPort, {
             persisted: config.persistedTunnel,
             anonymous: config.publicTunnel,
           });
@@ -216,12 +219,12 @@ function createTermBeamServer(overrides = {}) {
         if (publicUrl) {
           console.log(`  Public:   ${bl}${publicUrl}${rs}`);
         }
-        console.log(`  Local:    http://localhost:${config.port}`);
+        console.log(`  Local:    http://localhost:${actualPort}`);
         if (isLanReachable) {
           console.log(`  LAN:      ${localUrl}`);
         }
 
-        const qrUrl = publicUrl || (isLanReachable ? localUrl : `http://localhost:${config.port}`);
+        const qrUrl = publicUrl || (isLanReachable ? localUrl : `http://localhost:${actualPort}`);
         const qrDisplayUrl = qrUrl; // clean URL shown in console text
         const qrCodeUrl = config.password ? `${qrUrl}?ott=${auth.generateShareToken()}` : qrUrl;
         console.log('');
@@ -236,7 +239,7 @@ function createTermBeamServer(overrides = {}) {
         if (config.password) process.stdout.write(`  Password: ${gn}${config.password}${rs}\n`);
         console.log('');
 
-        resolve({ url: `http://localhost:${config.port}`, defaultId });
+        resolve({ url: `http://localhost:${actualPort}`, defaultId });
       });
     });
   }

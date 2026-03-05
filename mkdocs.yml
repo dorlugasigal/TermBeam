@@ -73,6 +73,7 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Configuration: configuration.md
+  - Resume & Sessions: resume.md
   - Running in Background: running-in-background.md
   - Security: security.md
   - API Reference: api.md

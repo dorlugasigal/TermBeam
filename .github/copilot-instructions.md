@@ -28,6 +28,12 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 - `shells.js` — cross-platform shell detection
 - `version.js` — detects version from package.json
 
+**CLI subcommands** dispatched in `bin/termbeam.js` before loading the server:
+
+- `resume.js` — `termbeam resume [name]`: connects to a running server via WebSocket, lists sessions, auto-selects or interactive chooser, delegates to `client.js`. Also handles `termbeam sessions` (read-only list).
+- `client.js` — WebSocket terminal client: raw mode stdin/stdout piping, Ctrl+B detach, resize (SIGWINCH), scrollback replay. Used by `resume.js`.
+- `service.js` — `termbeam service <action>`: PM2-based background service management
+
 **Frontend:** Two vanilla HTML/JS files in `public/` using xterm.js via CDN:
 
 - `index.html` — session manager (list, create, connect)
@@ -50,6 +56,7 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 - **Cross-platform support** — must work on Windows, macOS, and Linux; CI tests on Ubuntu + Windows with Node 18, 20, 22
 - **PTY session cleanup** — `pty.kill()` is async; the `onExit` callback removes the session from the Map
 - **Coverage exclusion** — `src/tunnel.js` is excluded from coverage (requires external DevTunnel CLI)
+- **Connection config** — server writes `~/.termbeam/connection.json` on start (port, host, password) for `termbeam resume` auto-discovery; removed on shutdown
 
 ## Documentation
 
@@ -58,6 +65,7 @@ TermBeam has two layers of documentation that must stay in sync with code change
 - **`README.md`** — user-facing quick reference (features, CLI flags, security summary). Update when adding/removing CLI flags, features, or changing defaults.
 - **`docs/`** — full MkDocs Material site deployed to GitHub Pages. Navigation defined in `mkdocs.yml`. Update the relevant page when changing behavior:
   - `docs/configuration.md` — CLI flags and env vars
+  - `docs/resume.md` — `termbeam resume` and `termbeam sessions` commands
   - `docs/security.md` — auth, headers, threat model
   - `docs/api.md` — HTTP and WebSocket API
   - `docs/architecture.md` — system design
