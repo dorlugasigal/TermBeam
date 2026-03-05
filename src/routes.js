@@ -292,7 +292,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
 }
 
 function cleanupUploadedFiles() {
-  for (const [id, filepath] of uploadedFiles) {
+  for (const [_id, filepath] of uploadedFiles) {
     try {
       if (fs.existsSync(filepath)) {
         fs.unlinkSync(filepath);

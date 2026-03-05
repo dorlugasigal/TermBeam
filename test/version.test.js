@@ -1,4 +1,4 @@
-const { describe, it, beforeEach, afterEach, mock } = require('node:test');
+const { describe, it, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 
 describe('Version', () => {

@@ -1,11 +1,11 @@
-const { describe, it, after } = require('node:test');
+const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('fs');
-const path = require('path');
+const _fs = require('fs');
+const _path = require('path');
 const os = require('os');
-const { execSync, execFileSync } = require('child_process');
+const { execSync } = require('child_process');
 
-const { installDevtunnel, promptInstall, getInstallDir } = require('../src/devtunnel-install');
+const { installDevtunnel, getInstallDir } = require('../src/devtunnel-install');
 
 describe('devtunnel-install unit', () => {
   it('should be requirable without errors', () => {

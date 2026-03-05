@@ -172,7 +172,7 @@ function createTermBeamServer(overrides = {}) {
           config.host === '0.0.0.0' || config.host === '::' || config.host === ip;
         state.shareBaseUrl = isLanReachable ? localUrl : `http://localhost:${config.port}`;
         const gn = '\x1b[38;5;114m'; // green
-        const dm = '\x1b[2m'; // dim
+        const _dm = '\x1b[2m'; // dim
 
         const bl = '\x1b[38;5;75m'; // light blue
 

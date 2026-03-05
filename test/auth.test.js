@@ -479,7 +479,7 @@ describe('Auth', () => {
     it('should clean up expired tokens and stale rate-limit entries', () => {
       const realSetInterval = global.setInterval;
       let cleanupFn = null;
-      global.setInterval = (fn, delay) => {
+      global.setInterval = (fn, _delay) => {
         cleanupFn = fn;
         return { unref: () => {} };
       };

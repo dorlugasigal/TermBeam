@@ -1,7 +1,7 @@
 const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert');
-const fs = require('fs');
-const path = require('path');
+const _fs = require('fs');
+const _path = require('path');
 const os = require('os');
 
 // We test the pure/exported functions — not the interactive prompts

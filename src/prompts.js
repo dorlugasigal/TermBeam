@@ -19,11 +19,11 @@ const dim = (t) => color('2', t);
  * If `defaultValue` is provided, it's shown in brackets and used when the user presses Enter.
  */
 function ask(rl, question, defaultValue) {
-  const suffix = defaultValue != null ? ` ${dim(`[${defaultValue}]`)} ` : ' ';
+  const suffix = defaultValue != null ? ` ${dim(`[${defaultValue}]`)} ` : ' '; // eslint-disable-line eqeqeq
   return new Promise((resolve) => {
     rl.question(`${question}${suffix}`, (answer) => {
       const trimmed = answer.trim();
-      resolve(trimmed || (defaultValue != null ? String(defaultValue) : ''));
+      resolve(trimmed || (defaultValue != null ? String(defaultValue) : '')); // eslint-disable-line eqeqeq
     });
   });
 }
