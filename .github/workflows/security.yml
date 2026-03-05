@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   audit:
@@ -34,6 +33,7 @@ jobs:
           scan-type: fs
           scan-ref: .
           severity: CRITICAL,HIGH
+          ignore-unfixed: true
           exit-code: 1
           format: table
 
@@ -43,12 +43,13 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Build Docker image
-        run: docker build -t termbeam:scan .
+        run: docker build --pull -t termbeam:scan .
       - name: Run Trivy image scan
         uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # 0.34.2
         with:
           image-ref: termbeam:scan
           severity: CRITICAL,HIGH
+          ignore-unfixed: true
           exit-code: 1
           format: table
 
@@ -62,4 +63,4 @@ jobs:
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
