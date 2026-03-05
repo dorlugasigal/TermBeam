@@ -12,7 +12,7 @@ const uploadedFiles = new Map(); // id -> filepath
 
 const pageRateLimit = rateLimit({
   windowMs: 1 * 60 * 1000,
-  max: 60,
+  max: 120,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (_req, res) => res.status(429).json({ error: 'Too many requests, please try again later.' }),
@@ -20,7 +20,7 @@ const pageRateLimit = rateLimit({
 
 const apiRateLimit = rateLimit({
   windowMs: 1 * 60 * 1000,
-  max: 30,
+  max: 120,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (_req, res) => res.status(429).json({ error: 'Too many requests, please try again later.' }),
