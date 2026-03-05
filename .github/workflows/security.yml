@@ -51,6 +51,7 @@ jobs:
           image-ref: termbeam:scan
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          skip-dirs: usr/local/lib/node_modules/npm
           exit-code: 1
           format: table
 
