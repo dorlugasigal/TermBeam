@@ -26,6 +26,7 @@ function createTerminalClient({ url, password, sessionId, detachKey = DETACH_KEY
         process.stdin.setRawMode(false);
       }
       process.stdin.removeAllListeners('data');
+      process.stdin.pause();
       process.removeAllListeners('SIGWINCH');
 
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {

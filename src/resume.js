@@ -167,15 +167,8 @@ async function resolveConnection(args) {
     sessions = await fetchSessions(baseUrl, password);
   } catch (err) {
     if (err.message === 'unauthorized') {
-      const rl = createRL();
-      password = await ask(rl, `${cyan('Password')} for ${displayUrl}:`);
-      rl.close();
-      try {
-        sessions = await fetchSessions(baseUrl, password);
-      } catch {
-        console.error(red('  Authentication failed.'));
-        process.exit(1);
-      }
+      console.error(red('  Authentication failed.'));
+      process.exit(1);
     } else if (err.code === 'ECONNREFUSED') {
       return { refused: true, displayUrl };
     } else {
@@ -238,9 +231,10 @@ async function resume(args) {
 
   const wsHost = host === 'localhost' ? '127.0.0.1' : host;
   const wsUrl = `ws://${wsHost}:${port}/ws`;
+
+  const detachLabel = 'Ctrl+B';
   console.log('');
-  console.log(dim(`  Connecting to ${bold(session.name)} (${shortId(session.id)})...`));
-  console.log(dim(`  Press ${bold('Ctrl+B')} to detach.`));
+  console.log(yellow(`  ╭─ Attached to ${bold(session.name)} ─── detach: ${bold(detachLabel)} ─╮`));
   console.log('');
 
   try {
@@ -252,7 +246,7 @@ async function resume(args) {
     });
 
     console.log('');
-    console.log(dim(`  [${reason}]`));
+    console.log(yellow(`  ╰─ Detached from ${bold(session.name)} ─╯`));
   } catch (err) {
     console.error(red(`  Connection failed: ${err.message}`));
     process.exit(1);
@@ -273,15 +267,8 @@ async function list() {
     sessions = await fetchSessions(baseUrl, password);
   } catch (err) {
     if (err.message === 'unauthorized') {
-      const rl = createRL();
-      password = await ask(rl, `${cyan('Password')} for ${displayUrl}:`);
-      rl.close();
-      try {
-        sessions = await fetchSessions(baseUrl, password);
-      } catch {
-        console.error(red('  Authentication failed.'));
-        process.exit(1);
-      }
+      console.error(red('  Authentication failed.'));
+      process.exit(1);
     } else if (err.code === 'ECONNREFUSED') {
       console.log(dim('  No TermBeam server is running.'));
       return;
