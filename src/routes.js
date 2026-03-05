@@ -34,6 +34,9 @@ function validateMagicBytes(buffer, contentType) {
 }
 
 function setupRoutes(app, { auth, sessions, config, state }) {
+  // Only redirect to known application paths to prevent open redirects
+
+
   // Serve static files (manifest.json, sw.js, icons, etc.)
   app.use(express.static(PUBLIC_DIR, { index: false }));
 
@@ -74,7 +77,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     if (!ott || !auth.password) return next();
     // Already authenticated (e.g. DevTunnel anti-phishing re-sent the request) — just redirect
     if (req.cookies.pty_token && auth.validateToken(req.cookies.pty_token)) {
-      return res.redirect(req.path);
+      return res.redirect(req.path === '/terminal' ? '/terminal' : '/');
     }
     if (auth.validateShareToken(ott)) {
       const token = auth.generateToken();
@@ -86,7 +89,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       });
       log.info(`Auth: share-token auto-login from ${req.ip}`);
       // Redirect to the same path without ?ott= to keep the URL clean
-      return res.redirect(req.path);
+      return res.redirect(req.path === '/terminal' ? '/terminal' : '/');
     }
     log.warn(`Auth: invalid or expired share token from ${req.ip}`);
     next();
@@ -130,8 +133,10 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       if (!path.isAbsolute(cwd)) {
         return res.status(400).json({ error: 'cwd must be an absolute path' });
       }
+      // Normalize path to resolve any traversal sequences (after confirming absolute)
+      const resolvedCwd = path.resolve(cwd);
       try {
-        if (!fs.statSync(cwd).isDirectory()) {
+        if (!fs.statSync(resolvedCwd).isDirectory()) {
           return res.status(400).json({ error: 'cwd is not a directory' });
         }
       } catch {
@@ -143,7 +148,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       name: name || `Session ${sessions.sessions.size + 1}`,
       shell: shell || config.defaultShell,
       args: shellArgs || [],
-      cwd: cwd || config.cwd,
+      cwd: (cwd ? path.resolve(cwd) : config.cwd),
       initialCommand: initialCommand || null,
       color: color || null,
       cols: typeof cols === 'number' && cols > 0 && cols <= 500 ? Math.floor(cols) : undefined,
@@ -274,7 +279,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
   app.get('/api/dirs', auth.middleware, (req, res) => {
     const query = req.query.q || config.cwd + path.sep;
     const endsWithSep = query.endsWith('/') || query.endsWith('\\');
-    const dir = endsWithSep ? query : path.dirname(query);
+    const dir = path.resolve(endsWithSep ? query : path.dirname(query));
     const prefix = endsWithSep ? '' : path.basename(query);
 
     try {
