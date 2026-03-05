@@ -3,7 +3,14 @@ const assert = require('node:assert');
 const http = require('http');
 const { spawn } = require('child_process');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const WebSocket = require('ws');
+
+// Isolate connection.json to a temp dir so tests don't collide
+const testConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'termbeam-test-'));
+process.env.TERMBEAM_CONFIG_DIR = testConfigDir;
+
 const { createTermBeamServer, getLocalIP } = require('../src/server');
 const { removeConnectionConfig } = require('../src/resume');
 
@@ -83,6 +90,11 @@ async function startServer(configOverrides = {}) {
 // --- Tests ---
 
 describe('Integration', () => {
+  after(() => {
+    fs.rmSync(testConfigDir, { recursive: true, force: true });
+    delete process.env.TERMBEAM_CONFIG_DIR;
+  });
+
   describe('Server starts and serves the hub page', () => {
     let inst;
     after(() => inst?.shutdown());
