@@ -18,8 +18,12 @@ describe('bin/termbeam.js subcommand dispatch', () => {
   let origExit;
   let exitCode;
   let exitCalled;
+  let originalSigintListeners;
+  let originalSigtermListeners;
 
   beforeEach(() => {
+    originalSigintListeners = process.listeners('SIGINT').slice();
+    originalSigtermListeners = process.listeners('SIGTERM').slice();
     origArgv = process.argv;
     origExit = process.exit;
     exitCode = null;
@@ -34,13 +38,19 @@ describe('bin/termbeam.js subcommand dispatch', () => {
     process.argv = origArgv;
     process.exit = origExit;
     clearCaches();
-    // Clean up signal handlers that main() may register when falling through
+    // Restore only pre-test signal listeners
     process.removeAllListeners('SIGINT');
+    originalSigintListeners.forEach((l) => process.on('SIGINT', l));
     process.removeAllListeners('SIGTERM');
+    originalSigtermListeners.forEach((l) => process.on('SIGTERM', l));
   });
 
   it('should dispatch "resume" subcommand', async () => {
     let calledWith = null;
+    let resolveCalled;
+    const calledPromise = new Promise((r) => {
+      resolveCalled = r;
+    });
     require.cache[resumePath] = {
       id: resumePath,
       filename: resumePath,
@@ -48,6 +58,7 @@ describe('bin/termbeam.js subcommand dispatch', () => {
       exports: {
         resume: async (args) => {
           calledWith = args;
+          resolveCalled();
         },
         list: async () => {},
         readConnectionConfig: () => null,
@@ -58,13 +69,17 @@ describe('bin/termbeam.js subcommand dispatch', () => {
 
     process.argv = ['node', 'termbeam.js', 'resume', '--port', '4000'];
     require('../bin/termbeam');
-    await new Promise((r) => setTimeout(r, 50));
+    await calledPromise;
 
     assert.deepStrictEqual(calledWith, ['--port', '4000']);
   });
 
   it('should dispatch "list" subcommand', async () => {
     let listCalled = false;
+    let resolveCalled;
+    const calledPromise = new Promise((r) => {
+      resolveCalled = r;
+    });
     require.cache[resumePath] = {
       id: resumePath,
       filename: resumePath,
@@ -73,6 +88,7 @@ describe('bin/termbeam.js subcommand dispatch', () => {
         resume: async () => {},
         list: async () => {
           listCalled = true;
+          resolveCalled();
         },
         readConnectionConfig: () => null,
         writeConnectionConfig: () => {},
@@ -82,13 +98,17 @@ describe('bin/termbeam.js subcommand dispatch', () => {
 
     process.argv = ['node', 'termbeam.js', 'list'];
     require('../bin/termbeam');
-    await new Promise((r) => setTimeout(r, 50));
+    await calledPromise;
 
     assert.ok(listCalled);
   });
 
   it('should dispatch "service" subcommand', async () => {
     let calledWith = null;
+    let resolveCalled;
+    const calledPromise = new Promise((r) => {
+      resolveCalled = r;
+    });
     require.cache[servicePath] = {
       id: servicePath,
       filename: servicePath,
@@ -96,13 +116,14 @@ describe('bin/termbeam.js subcommand dispatch', () => {
       exports: {
         run: async (args) => {
           calledWith = args;
+          resolveCalled();
         },
       },
     };
 
     process.argv = ['node', 'termbeam.js', 'service', 'status'];
     require('../bin/termbeam');
-    await new Promise((r) => setTimeout(r, 50));
+    await calledPromise;
 
     assert.deepStrictEqual(calledWith, ['status']);
   });
@@ -170,6 +191,16 @@ describe('bin/termbeam.js subcommand dispatch', () => {
   });
 
   it('should handle resume error by exiting with code 1', async () => {
+    let resolveExit;
+    const exitPromise = new Promise((r) => {
+      resolveExit = r;
+    });
+    process.exit = (code) => {
+      exitCalled = true;
+      if (exitCode === null) exitCode = code;
+      resolveExit();
+    };
+
     require.cache[resumePath] = {
       id: resumePath,
       filename: resumePath,
@@ -187,13 +218,23 @@ describe('bin/termbeam.js subcommand dispatch', () => {
 
     process.argv = ['node', 'termbeam.js', 'resume'];
     require('../bin/termbeam');
-    await new Promise((r) => setTimeout(r, 100));
+    await exitPromise;
 
     assert.ok(exitCalled);
     assert.equal(exitCode, 1);
   });
 
   it('should handle list error by exiting with code 1', async () => {
+    let resolveExit;
+    const exitPromise = new Promise((r) => {
+      resolveExit = r;
+    });
+    process.exit = (code) => {
+      exitCalled = true;
+      if (exitCode === null) exitCode = code;
+      resolveExit();
+    };
+
     require.cache[resumePath] = {
       id: resumePath,
       filename: resumePath,
@@ -211,13 +252,23 @@ describe('bin/termbeam.js subcommand dispatch', () => {
 
     process.argv = ['node', 'termbeam.js', 'list'];
     require('../bin/termbeam');
-    await new Promise((r) => setTimeout(r, 100));
+    await exitPromise;
 
     assert.ok(exitCalled);
     assert.equal(exitCode, 1);
   });
 
   it('should handle service error by exiting with code 1', async () => {
+    let resolveExit;
+    const exitPromise = new Promise((r) => {
+      resolveExit = r;
+    });
+    process.exit = (code) => {
+      exitCalled = true;
+      if (exitCode === null) exitCode = code;
+      resolveExit();
+    };
+
     require.cache[servicePath] = {
       id: servicePath,
       filename: servicePath,
@@ -231,7 +282,7 @@ describe('bin/termbeam.js subcommand dispatch', () => {
 
     process.argv = ['node', 'termbeam.js', 'service', 'install'];
     require('../bin/termbeam');
-    await new Promise((r) => setTimeout(r, 100));
+    await exitPromise;
 
     assert.ok(exitCalled);
     assert.equal(exitCode, 1);
@@ -239,6 +290,10 @@ describe('bin/termbeam.js subcommand dispatch', () => {
 
   it('should be case-insensitive for subcommands', async () => {
     let calledWith = null;
+    let resolveCalled;
+    const calledPromise = new Promise((r) => {
+      resolveCalled = r;
+    });
     require.cache[resumePath] = {
       id: resumePath,
       filename: resumePath,
@@ -246,6 +301,7 @@ describe('bin/termbeam.js subcommand dispatch', () => {
       exports: {
         resume: async (args) => {
           calledWith = args;
+          resolveCalled();
         },
         list: async () => {},
         readConnectionConfig: () => null,
@@ -256,7 +312,7 @@ describe('bin/termbeam.js subcommand dispatch', () => {
 
     process.argv = ['node', 'termbeam.js', 'RESUME'];
     require('../bin/termbeam');
-    await new Promise((r) => setTimeout(r, 50));
+    await calledPromise;
 
     assert.deepStrictEqual(calledWith, []);
   });

@@ -37,10 +37,9 @@ function setupIOMocks(opts = {}) {
     sigwinchCount: process.listenerCount('SIGWINCH'),
   };
 
-  const boundWrite = orig.write.bind(process.stdout);
-  process.stdout.write = (d, ...args) => {
+  process.stdout.write = (d) => {
     state.writes.push(d);
-    return boundWrite(d, ...args);
+    return true;
   };
   process.stdout.columns = 'columns' in opts ? opts.columns : 80;
   process.stdout.rows = 'rows' in opts ? opts.rows : 24;

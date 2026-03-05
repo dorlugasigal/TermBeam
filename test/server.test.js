@@ -68,10 +68,15 @@ require.cache[installPath] = {
 };
 
 // ── Clear cached modules so they pick up mocks ───────────────────────────────
-for (const key of Object.keys(require.cache)) {
-  if (key.includes('/src/server.js') || key.includes('/src/sessions.js')) {
-    delete require.cache[key];
-  }
+const serverModulePath = require.resolve('../src/server');
+const sessionsModulePath = require.resolve('../src/sessions');
+
+if (require.cache[serverModulePath]) {
+  delete require.cache[serverModulePath];
+}
+
+if (require.cache[sessionsModulePath]) {
+  delete require.cache[sessionsModulePath];
 }
 
 const { createTermBeamServer, getLocalIP } = require('../src/server');
@@ -124,6 +129,8 @@ async function startServer(configOverrides = {}) {
 
 describe('server.js', () => {
   after(() => {
+    Module._resolveFilename = originalResolveFilename;
+    delete require.cache['node-pty'];
     fs.rmSync(testConfigDir, { recursive: true, force: true });
     delete process.env.TERMBEAM_CONFIG_DIR;
   });

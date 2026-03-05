@@ -1041,7 +1041,22 @@ describe('resume', () => {
       delete require.cache[resumePath];
       resume = require('../src/resume');
 
-      await resume.list();
+      const logs = [];
+      const origLog = console.log;
+      console.log = (...args) => logs.push(args.join(' '));
+      try {
+        await resume.list();
+        assert.ok(
+          logs.some((l) => l.includes('recent')),
+          'should output session name',
+        );
+        assert.ok(
+          logs.some((l) => /\d+s/.test(l)),
+          'should format uptime in seconds',
+        );
+      } finally {
+        console.log = origLog;
+      }
       await new Promise((resolve) => srv.close(resolve));
     });
 
@@ -1069,7 +1084,22 @@ describe('resume', () => {
       delete require.cache[resumePath];
       resume = require('../src/resume');
 
-      await resume.list();
+      const logs = [];
+      const origLog = console.log;
+      console.log = (...args) => logs.push(args.join(' '));
+      try {
+        await resume.list();
+        assert.ok(
+          logs.some((l) => l.includes('mins')),
+          'should output session name',
+        );
+        assert.ok(
+          logs.some((l) => /\d+m/.test(l)),
+          'should format uptime in minutes',
+        );
+      } finally {
+        console.log = origLog;
+      }
       await new Promise((resolve) => srv.close(resolve));
     });
 
@@ -1097,7 +1127,22 @@ describe('resume', () => {
       delete require.cache[resumePath];
       resume = require('../src/resume');
 
-      await resume.list();
+      const logs = [];
+      const origLog = console.log;
+      console.log = (...args) => logs.push(args.join(' '));
+      try {
+        await resume.list();
+        assert.ok(
+          logs.some((l) => l.includes('hours')),
+          'should output session name',
+        );
+        assert.ok(
+          logs.some((l) => /\d+h \d+m/.test(l)),
+          'should format uptime in hours and minutes',
+        );
+      } finally {
+        console.log = origLog;
+      }
       await new Promise((resolve) => srv.close(resolve));
     });
 
@@ -1125,7 +1170,22 @@ describe('resume', () => {
       delete require.cache[resumePath];
       resume = require('../src/resume');
 
-      await resume.list();
+      const logs = [];
+      const origLog = console.log;
+      console.log = (...args) => logs.push(args.join(' '));
+      try {
+        await resume.list();
+        assert.ok(
+          logs.some((l) => l.includes('days')),
+          'should output session name',
+        );
+        assert.ok(
+          logs.some((l) => /\d+d \d+h/.test(l)),
+          'should format uptime in days and hours',
+        );
+      } finally {
+        console.log = origLog;
+      }
       await new Promise((resolve) => srv.close(resolve));
     });
 
