@@ -295,9 +295,8 @@ function parseArgs() {
     } else if (args[i].startsWith('--log-level=')) {
       logLevel = args[i].split('=')[1];
     } else if (args[i].startsWith('--')) {
-      console.error(
-        `\x1b[31mError: Unknown flag "${args[i]}". Run termbeam --help for usage.\x1b[0m`,
-      );
+      console.error(`Unknown flag: ${args[i]}\n`);
+      printHelp();
       process.exit(1);
     } else {
       filteredArgs.push(args[i]);

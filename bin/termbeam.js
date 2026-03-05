@@ -21,28 +21,54 @@ if (subcommand === 'service') {
     process.exit(1);
   });
 } else {
-  // Catch typos of known subcommands before falling through to server start
-  const KNOWN_SUBCOMMANDS = ['service', 'resume', 'sessions'];
+  // Reject any non-flag positional arg — it's not a known subcommand
   if (subcommand && !subcommand.startsWith('-')) {
-    const match = KNOWN_SUBCOMMANDS.find(
-      (cmd) =>
-        cmd.startsWith(subcommand) ||
-        subcommand.startsWith(cmd) ||
-        levenshtein(cmd, subcommand) <= 2,
-    );
-    if (match) {
-      console.error(
-        `\x1b[31mError: Unknown command "${subcommand}". Did you mean "${match}"?\x1b[0m`,
-      );
-      process.exit(1);
-    }
+    const { printHelp } = require('../src/cli');
+    console.error(`Unknown command: ${subcommand}\n`);
+    printHelp();
+    process.exit(1);
   }
 
   const { createTermBeamServer } = require('../src/server.js');
   const { parseArgs } = require('../src/cli');
   const { runInteractiveSetup } = require('../src/interactive');
+  const { readConnectionConfig } = require('../src/resume');
+  const http = require('http');
+
+  function checkExistingServer() {
+    const config = readConnectionConfig();
+    if (!config) return Promise.resolve(false);
+    const host = config.host === 'localhost' ? '127.0.0.1' : config.host;
+    return new Promise((resolve) => {
+      const req = http.get(
+        `http://${host}:${config.port}/api/sessions`,
+        {
+          timeout: 2000,
+          headers: config.password ? { Authorization: `Bearer ${config.password}` } : {},
+        },
+        (res) => {
+          res.resume();
+          resolve(res.statusCode < 500);
+        },
+      );
+      req.on('error', () => resolve(false));
+      req.on('timeout', () => {
+        req.destroy();
+        resolve(false);
+      });
+    });
+  }
 
   async function main() {
+    const existing = readConnectionConfig();
+    if (existing && (await checkExistingServer())) {
+      console.error(
+        `TermBeam is already running on http://${existing.host}:${existing.port}\n` +
+          'Use "termbeam resume" to reconnect or "termbeam sessions" to list sessions.',
+      );
+      process.exit(1);
+    }
+
     const baseConfig = parseArgs();
     let config;
     if (baseConfig.interactive) {
@@ -68,20 +94,4 @@ if (subcommand === 'service') {
     console.error(err.message);
     process.exit(1);
   });
-}
-
-function levenshtein(a, b) {
-  const m = a.length;
-  const n = b.length;
-  const dp = Array.from({ length: m + 1 }, (_, i) => [i]);
-  for (let j = 1; j <= n; j++) dp[0][j] = j;
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      dp[i][j] =
-        a[i - 1] === b[j - 1]
-          ? dp[i - 1][j - 1]
-          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-    }
-  }
-  return dp[m][n];
 }
