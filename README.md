@@ -8,6 +8,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/termbeam.svg)](https://www.npmjs.com/package/termbeam)
 [![CI](https://github.com/dorlugasigal/TermBeam/actions/workflows/ci.yml/badge.svg)](https://github.com/dorlugasigal/TermBeam/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/dorlugasigal/TermBeam/coverage-data/endpoint.json)](https://github.com/dorlugasigal/TermBeam/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/dorlugasigal/TermBeam/badge)](https://securityscorecards.dev/viewer/?uri=github.com/dorlugasigal/TermBeam)
 [![Node.js](https://img.shields.io/node/v/termbeam.svg)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
