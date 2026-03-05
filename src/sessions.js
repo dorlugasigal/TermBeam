@@ -114,7 +114,7 @@ class SessionManager {
     if (typeof shell !== 'string' || !shell ||
         /[;&|`$(){}\[\]!#~]/.test(shell) ||
         (!path.isAbsolute(shell) && !shell.match(/^[a-zA-Z0-9._-]+(\.exe)?$/))) {
-      throw new Error(`Invalid shell: ${shell}`);
+      throw new Error('Invalid shell');
     }
 
     const id = crypto.randomBytes(16).toString('hex');
