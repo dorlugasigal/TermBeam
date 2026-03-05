@@ -9,6 +9,8 @@ termbeam/
 ├── src/
 │   ├── server.js            # Main orchestrator
 │   ├── cli.js               # Argument parsing & help
+│   ├── client.js            # WebSocket terminal client (for resume)
+│   ├── resume.js            # Resume & sessions CLI commands
 │   ├── devtunnel-install.js # DevTunnel CLI auto-installer
 │   ├── auth.js              # Authentication & rate limiting
 │   ├── sessions.js          # PTY session management
@@ -32,6 +34,8 @@ termbeam/
 ├── test/
 │   ├── auth.test.js
 │   ├── cli.test.js
+│   ├── client.test.js
+│   ├── resume.test.js
 │   ├── interactive.test.js
 │   ├── prompts.test.js
 │   ├── devtunnel-install.test.js
@@ -102,6 +106,14 @@ Handles automatic installation of the DevTunnel CLI when it's not found on the s
 ### `service.js` — PM2 Service Manager
 
 Manages TermBeam as a background service via PM2. Provides an interactive wizard for `termbeam service install` that walks through configuration (name, password, port, access mode, working directory, log level, boot auto-start). Also handles `service status`, `logs`, `restart`, and `uninstall` subcommands. Generates an ecosystem config file at `~/.termbeam/ecosystem.config.js`.
+
+### `resume.js` — Resume & Sessions Commands
+
+Orchestrates the `termbeam resume [name]` and `termbeam sessions` CLI commands. Handles server discovery (reads `~/.termbeam/connection.json` saved by the server on startup), HTTP authentication via `Authorization: Bearer <password>`, session listing, and interactive session selection using `prompts.js`. Also manages connection config read/write lifecycle.
+
+### `client.js` — WebSocket Terminal Client
+
+Low-level terminal client for `termbeam resume`. Connects to a running TermBeam server via WebSocket, authenticates, attaches to a session, and enters raw mode on stdin. Pipes keystrokes as `input` messages and writes `output` messages to stdout. Handles terminal resize events (SIGWINCH), Ctrl+B detach, session exit, and clean terminal restoration.
 
 ### `interactive.js` — Setup Wizard
 

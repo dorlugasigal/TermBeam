@@ -61,6 +61,24 @@ These settings are per-browser and persist across sessions. They can be cleared 
 
 ## Subcommands
 
+### `termbeam resume`
+
+Reconnect to a running TermBeam session directly from the terminal, similar to `tmux attach` or `screen -r`. Pipes stdin/stdout over WebSocket for a native terminal experience.
+
+| Argument / Flag      | Description                             | Default                                      |
+| -------------------- | --------------------------------------- | -------------------------------------------- |
+| `[name]`             | Session name or ID prefix to connect to | Interactive chooser                          |
+| `--port <port>`      | Server port                             | From `~/.termbeam/connection.json` or `3456` |
+| `--host <host>`      | Server host                             | From config or `localhost`                   |
+| `--password <pw>`    | Server password                         | From config or prompt                        |
+| `--detach-key <key>` | Key to detach from the session          | Ctrl+B                                       |
+
+If only one session is running, it auto-attaches. If multiple sessions exist and no name is given, an arrow-key chooser is displayed.
+
+### `termbeam sessions`
+
+Lists all active sessions on a running TermBeam server in a formatted table showing name, ID, working directory, uptime, and connected clients. Accepts the same `--port`, `--host`, and `--password` flags as `resume`.
+
 ### `termbeam service`
 
 TermBeam includes a `service` subcommand for managing a PM2-based background service. Run `termbeam service install` to launch an interactive wizard that configures and starts the service.
