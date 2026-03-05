@@ -24,11 +24,28 @@ function createTerminalClient({
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
     let cleaned = false;
+    let bannerTimer = null;
     const detachLabel = 'Ctrl+B';
+
+    function showBanner() {
+      if (!cleaned) {
+        process.stdout.write(
+          `\r\n\x1b[33m  attached: ${sessionName} ─── ${detachLabel} to detach\x1b[0m\r\n\r\n`,
+        );
+      }
+      bannerTimer = null;
+    }
+
+    function debounceBanner() {
+      if (bannerTimer) clearTimeout(bannerTimer);
+      bannerTimer = setTimeout(showBanner, 500);
+    }
 
     function cleanup(reason) {
       if (cleaned) return;
       cleaned = true;
+
+      if (bannerTimer) clearTimeout(bannerTimer);
 
       // Restore terminal title
       process.stdout.write('\x1b]0;\x07');
@@ -74,10 +91,12 @@ function createTerminalClient({
 
         enterRawMode(ws, detachKey, cleanup);
         sendResize(ws);
+        debounceBanner();
         return;
       }
 
       if (msg.type === 'output') {
+        debounceBanner();
         process.stdout.write(msg.data);
         return;
       }
