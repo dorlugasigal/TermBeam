@@ -147,21 +147,6 @@ ${dim('Press Ctrl+B to detach from a session without closing it.')}
 `);
 }
 
-function printSessionsHelp() {
-  console.log(`
-${bold('termbeam sessions')} — List running sessions
-
-${bold('Usage:')}
-  termbeam sessions [options]
-
-${bold('Options:')}
-  --port <port>         Server port (default: from ~/.termbeam/connection.json or 3456)
-  --host <host>         Server host (default: from config or localhost)
-  --password <pw>       Server password (default: from config or prompt)
-  -h, --help            Show this help
-`);
-}
-
 // ── Commands ─────────────────────────────────────────────────────────────────
 
 async function resolveConnection(args) {
@@ -279,10 +264,7 @@ async function resume(args) {
 
 async function listSessions(args) {
   const conn = await resolveConnection(args);
-  if (conn.help) {
-    printSessionsHelp();
-    return;
-  }
+  if (conn.help) return;
   if (conn.refused) {
     console.log(dim('  No TermBeam server is running.'));
     return;
@@ -327,7 +309,6 @@ module.exports = {
   removeConnectionConfig,
   readConnectionConfig,
   printResumeHelp,
-  printSessionsHelp,
   CONFIG_DIR,
   CONNECTION_FILE,
 };

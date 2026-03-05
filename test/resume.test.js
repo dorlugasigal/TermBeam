@@ -101,12 +101,6 @@ describe('resume', () => {
     });
   });
 
-  describe('printSessionsHelp', () => {
-    it('should not throw', () => {
-      assert.doesNotThrow(() => resume.printSessionsHelp());
-    });
-  });
-
   describe('resume with --help', () => {
     it('should print help and return', async () => {
       // Should not throw or exit
