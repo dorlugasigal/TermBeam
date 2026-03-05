@@ -126,8 +126,9 @@ if (subcommand === 'service') {
       if (baseConfig.force) {
         await stopExistingServer(existing, baseConfig.password);
       } else {
+        const displayHost = existing.host === '127.0.0.1' ? 'localhost' : existing.host;
         console.error(
-          `TermBeam is already running on http://${existing.host}:${existing.port}\n` +
+          `TermBeam is already running on http://${displayHost}:${existing.port}\n` +
             'Use "termbeam resume" to reconnect, "termbeam sessions" to list sessions,\n' +
             'or "termbeam --force" to stop the existing server and start a new one.',
         );

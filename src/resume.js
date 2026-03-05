@@ -174,6 +174,7 @@ async function resolveConnection(args) {
   let password = opts.password || (saved && saved.password) || null;
   const connHost = host === 'localhost' ? '127.0.0.1' : host;
   const baseUrl = `http://${connHost}:${port}`;
+  const displayUrl = `http://${connHost === '127.0.0.1' ? 'localhost' : connHost}:${port}`;
 
   // Try to fetch sessions, handle auth errors
   let sessions;
@@ -183,7 +184,7 @@ async function resolveConnection(args) {
     if (err.message === 'unauthorized') {
       if (!password) {
         const rl = createRL();
-        password = await ask(rl, `${cyan('Password')} for ${baseUrl}:`);
+        password = await ask(rl, `${cyan('Password')} for ${displayUrl}:`);
         rl.close();
       }
       try {
@@ -193,7 +194,7 @@ async function resolveConnection(args) {
         process.exit(1);
       }
     } else if (err.code === 'ECONNREFUSED') {
-      console.error(red(`  Cannot connect to TermBeam at ${baseUrl}`));
+      console.error(red(`  Cannot connect to TermBeam at ${displayUrl}`));
       console.error(dim('  Make sure a TermBeam server is running.'));
       process.exit(1);
     } else {
@@ -201,7 +202,7 @@ async function resolveConnection(args) {
     }
   }
 
-  return { host, port, password, baseUrl, sessions, opts };
+  return { host, port, password, baseUrl, displayUrl, sessions, opts };
 }
 
 async function resume(args) {
@@ -280,7 +281,7 @@ async function listSessions(args) {
     return;
   }
 
-  const { sessions, baseUrl } = conn;
+  const { sessions, displayUrl } = conn;
 
   if (sessions.length === 0) {
     console.log(dim('  No active sessions.'));
@@ -289,7 +290,7 @@ async function listSessions(args) {
 
   console.log('');
   console.log(
-    bold(`  ${sessions.length} session${sessions.length !== 1 ? 's' : ''} on ${baseUrl}`),
+    bold(`  ${sessions.length} session${sessions.length !== 1 ? 's' : ''} on ${displayUrl}`),
   );
   console.log('');
 
