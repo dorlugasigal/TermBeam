@@ -56,7 +56,7 @@ Press **Ctrl+B** to detach from a session. This disconnects your terminal client
 
 <!-- prettier-ignore -->
 !!! tip "Custom detach key"
-    Use `--detach-key` to change the detach key. For example, `--detach-key '\x01'` uses Ctrl+A instead.
+    Use `--detach-key` to change the detach key. Supports `\xNN` hex, `^X` caret, and `ctrl+X` notation. For example, `--detach-key '^A'` uses Ctrl+A, `--detach-key '\x01'` does the same, or `--detach-key 'q'` uses lowercase q.
 
 ### Scrollback
 

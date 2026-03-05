@@ -85,8 +85,8 @@ if (subcommand === 'service') {
   }
 
   async function stopExistingServer(config, fallbackPassword) {
-    const host = config.host === 'localhost' ? '127.0.0.1' : config.host;
-    const url = `http://${host}:${config.port}/api/shutdown`;
+    // Always target loopback — the shutdown endpoint only accepts loopback requests
+    const url = `http://127.0.0.1:${config.port}/api/shutdown`;
     console.log(`Stopping existing server on port ${config.port}...`);
 
     // Try with config password, then fallback password, then no password

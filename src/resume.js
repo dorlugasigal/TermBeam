@@ -23,6 +23,14 @@ function writeConnectionConfig({ port, host, password }) {
   fs.writeFileSync(CONNECTION_FILE, JSON.stringify({ port, host, password }, null, 2) + '\n', {
     mode: 0o600,
   });
+  // Ensure restrictive permissions even if the file already existed
+  if (process.platform !== 'win32') {
+    try {
+      fs.chmodSync(CONNECTION_FILE, 0o600);
+    } catch {
+      /* best-effort */
+    }
+  }
 }
 
 function removeConnectionConfig() {
@@ -34,6 +42,18 @@ function removeConnectionConfig() {
 }
 
 // ── Arg parsing ──────────────────────────────────────────────────────────────
+
+function parseDetachKey(value) {
+  // \xNN hex escape → control character
+  const hexMatch = value.match(/^\\x([0-9a-fA-F]{2})$/);
+  if (hexMatch) return String.fromCharCode(parseInt(hexMatch[1], 16));
+  // ^X or ctrl+X → control character
+  const caretMatch = value.match(/^\^([A-Za-z])$/);
+  if (caretMatch) return String.fromCharCode(caretMatch[1].toUpperCase().charCodeAt(0) - 64);
+  const ctrlMatch = value.match(/^ctrl\+([A-Za-z])$/i);
+  if (ctrlMatch) return String.fromCharCode(ctrlMatch[1].toUpperCase().charCodeAt(0) - 64);
+  return value;
+}
 
 function parseResumeArgs(args) {
   let name = null;
@@ -52,7 +72,7 @@ function parseResumeArgs(args) {
     } else if (args[i].startsWith('--password=')) {
       password = args[i].split('=')[1];
     } else if (args[i] === '--detach-key' && args[i + 1]) {
-      detachKey = args[++i];
+      detachKey = parseDetachKey(args[++i]);
     } else if (args[i] === '--help' || args[i] === '-h') {
       return { help: true };
     } else if (args[i].startsWith('--')) {
@@ -361,6 +381,7 @@ module.exports = {
   removeConnectionConfig,
   readConnectionConfig,
   printResumeHelp,
+  parseDetachKey,
   CONFIG_DIR,
   CONNECTION_FILE,
 };

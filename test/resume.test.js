@@ -94,6 +94,31 @@ describe('resume', () => {
     });
   });
 
+  describe('parseDetachKey', () => {
+    it('should parse \\xNN hex escape', () => {
+      assert.equal(resume.parseDetachKey('\\x01'), '\x01');
+      assert.equal(resume.parseDetachKey('\\x02'), '\x02');
+      assert.equal(resume.parseDetachKey('\\x1a'), '\x1a');
+    });
+
+    it('should parse ^X caret notation', () => {
+      assert.equal(resume.parseDetachKey('^A'), '\x01');
+      assert.equal(resume.parseDetachKey('^B'), '\x02');
+      assert.equal(resume.parseDetachKey('^Z'), '\x1a');
+    });
+
+    it('should parse ctrl+X notation (case-insensitive)', () => {
+      assert.equal(resume.parseDetachKey('ctrl+A'), '\x01');
+      assert.equal(resume.parseDetachKey('Ctrl+B'), '\x02');
+      assert.equal(resume.parseDetachKey('CTRL+Z'), '\x1a');
+    });
+
+    it('should pass through literal characters', () => {
+      assert.equal(resume.parseDetachKey('q'), 'q');
+      assert.equal(resume.parseDetachKey('\x02'), '\x02');
+    });
+  });
+
   describe('resume with --help', () => {
     it('should print help and return', async () => {
       // Should not throw or exit
