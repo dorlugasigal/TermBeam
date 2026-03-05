@@ -34,8 +34,6 @@ function validateMagicBytes(buffer, contentType) {
 }
 
 function setupRoutes(app, { auth, sessions, config, state }) {
-  // Only redirect to known application paths to prevent open redirects
-
 
   // Serve static files (manifest.json, sw.js, icons, etc.)
   app.use(express.static(PUBLIC_DIR, { index: false }));
