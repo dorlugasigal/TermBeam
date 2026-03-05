@@ -15,6 +15,7 @@ const pageRateLimit = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (_req, res) => res.status(429).json({ error: 'Too many requests, please try again later.' }),
 });
 
 const apiRateLimit = rateLimit({
@@ -22,6 +23,7 @@ const apiRateLimit = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (_req, res) => res.status(429).json({ error: 'Too many requests, please try again later.' }),
 });
 
 const IMAGE_SIGNATURES = [
@@ -124,7 +126,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
   });
 
   // Session API
-  app.get('/api/sessions', auth.middleware, (_req, res) => {
+  app.get('/api/sessions', apiRateLimit, auth.middleware, (_req, res) => {
     res.json(sessions.list());
   });
 
