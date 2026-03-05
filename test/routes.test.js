@@ -502,7 +502,7 @@ describe('Routes', () => {
       );
       assert.strictEqual(res.statusCode, 400);
       const data = JSON.parse(res.data);
-      assert.ok(data.error, 'should have an error message');
+      assert.strictEqual(data.error, 'cwd does not exist');
     });
 
     it('should create session with valid data', async () => {
