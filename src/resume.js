@@ -3,9 +3,9 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const { createTerminalClient } = require('./client');
-const { green, cyan, bold, dim, red, yellow, choose, createRL, ask } = require('./prompts');
+const { bold, dim, red, yellow, choose, createRL, ask } = require('./prompts');
 
-const CONFIG_DIR = path.join(os.homedir(), '.termbeam');
+const CONFIG_DIR = process.env.TERMBEAM_CONFIG_DIR || path.join(os.homedir(), '.termbeam');
 const CONNECTION_FILE = path.join(CONFIG_DIR, 'connection.json');
 
 // ── Connection config ────────────────────────────────────────────────────────
@@ -54,6 +54,9 @@ function parseResumeArgs(args) {
     } else if (args[i] === '--detach-key' && args[i + 1]) {
       detachKey = args[++i];
     } else if (args[i] === '--help' || args[i] === '-h') {
+      return { help: true };
+    } else if (args[i].startsWith('--')) {
+      console.error(`Unknown flag: ${args[i]}`);
       return { help: true };
     } else if (!args[i].startsWith('-')) {
       name = args[i];
@@ -121,6 +124,14 @@ function shortId(id) {
 
 // ── Help text ────────────────────────────────────────────────────────────────
 
+function detachKeyLabel(key) {
+  if (!key || key === '\x02') return 'Ctrl+B';
+  if (key.length === 1 && key.charCodeAt(0) < 27) {
+    return `Ctrl+${String.fromCharCode(key.charCodeAt(0) + 64)}`;
+  }
+  return key;
+}
+
 function printResumeHelp() {
   console.log(`
 ${bold('termbeam resume')} — Reconnect to a running session
@@ -167,8 +178,21 @@ async function resolveConnection(args) {
     sessions = await fetchSessions(baseUrl, password);
   } catch (err) {
     if (err.message === 'unauthorized') {
-      console.error(red('  Authentication failed.'));
-      process.exit(1);
+      // Prompt for password if none was explicitly provided
+      if (!opts.password) {
+        const rl = createRL();
+        password = await ask(rl, `  Password for ${displayUrl}:`);
+        rl.close();
+        try {
+          sessions = await fetchSessions(baseUrl, password);
+        } catch {
+          console.error(red('  Authentication failed.'));
+          process.exit(1);
+        }
+      } else {
+        console.error(red('  Authentication failed.'));
+        process.exit(1);
+      }
     } else if (err.code === 'ECONNREFUSED') {
       return { refused: true, displayUrl };
     } else {
@@ -236,6 +260,7 @@ async function resume(args) {
 
   const wsHost = host === 'localhost' ? '127.0.0.1' : host;
   const wsUrl = `ws://${wsHost}:${port}/ws`;
+  const detachKey = opts.detachKey || '\x02';
 
   try {
     const { reason } = await createTerminalClient({
@@ -243,7 +268,8 @@ async function resume(args) {
       password,
       sessionId: session.id,
       sessionName: session.name,
-      detachKey: opts.detachKey || '\x02',
+      detachKey,
+      detachLabel: detachKeyLabel(detachKey),
     });
 
     console.log('');
@@ -268,8 +294,20 @@ async function list() {
     sessions = await fetchSessions(baseUrl, password);
   } catch (err) {
     if (err.message === 'unauthorized') {
-      console.error(red('  Authentication failed.'));
-      process.exit(1);
+      if (!password) {
+        const rl = createRL();
+        password = await ask(rl, `  Password for ${displayUrl}:`);
+        rl.close();
+        try {
+          sessions = await fetchSessions(baseUrl, password);
+        } catch {
+          console.error(red('  Authentication failed.'));
+          process.exit(1);
+        }
+      } else {
+        console.error(red('  Authentication failed.'));
+        process.exit(1);
+      }
     } else if (err.code === 'ECONNREFUSED') {
       console.log(dim('  No TermBeam server is running.'));
       return;

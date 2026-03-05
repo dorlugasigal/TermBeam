@@ -6,33 +6,26 @@ const fs = require('fs');
 
 describe('resume', () => {
   let resume;
-  const CONNECTION_FILE = path.join(os.homedir(), '.termbeam', 'connection.json');
-  let savedConfig = null;
+  let tempDir;
+  let CONNECTION_FILE;
 
   beforeEach(() => {
-    // Save existing connection config if present
-    try {
-      savedConfig = fs.readFileSync(CONNECTION_FILE, 'utf8');
-    } catch {
-      savedConfig = null;
-    }
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'termbeam-test-'));
+    process.env.TERMBEAM_CONFIG_DIR = tempDir;
+    CONNECTION_FILE = path.join(tempDir, 'connection.json');
 
-    // Clear module cache
+    // Clear module cache so resume picks up the new env var
     const resumePath = require.resolve('../src/resume');
     delete require.cache[resumePath];
     resume = require('../src/resume');
   });
 
   afterEach(() => {
-    // Restore connection config
-    if (savedConfig) {
-      fs.writeFileSync(CONNECTION_FILE, savedConfig);
-    } else {
-      try {
-        fs.unlinkSync(CONNECTION_FILE);
-      } catch {
-        /* ignore */
-      }
+    delete process.env.TERMBEAM_CONFIG_DIR;
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
     }
   });
 

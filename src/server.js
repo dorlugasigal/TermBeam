@@ -91,8 +91,13 @@ function createTermBeamServer(overrides = {}) {
     wss.close();
   }
 
-  // Shutdown endpoint for --force
-  app.post('/api/shutdown', auth.middleware, (_req, res) => {
+  // Shutdown endpoint for --force (loopback only)
+  app.post('/api/shutdown', auth.middleware, (req, res) => {
+    const ip = req.ip;
+    if (ip !== '127.0.0.1' && ip !== '::1' && ip !== '::ffff:127.0.0.1') {
+      res.status(403).json({ error: 'Shutdown is only available from localhost' });
+      return;
+    }
     res.json({ ok: true });
     console.log('\n[termbeam] Shutdown requested by another instance. Goodbye!');
     setTimeout(() => {
@@ -153,7 +158,12 @@ function createTermBeamServer(overrides = {}) {
         // Save connection info for `termbeam resume` auto-discovery
         try {
           const connHost =
-            config.host === '0.0.0.0' || config.host === '127.0.0.1' ? '127.0.0.1' : config.host;
+            config.host === '0.0.0.0' ||
+            config.host === '127.0.0.1' ||
+            config.host === '::' ||
+            config.host === '::1'
+              ? '127.0.0.1'
+              : config.host;
           writeConnectionConfig({
             port: actualPort,
             host: connHost,

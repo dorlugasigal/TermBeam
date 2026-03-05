@@ -1,4 +1,4 @@
-# Resume & Sessions
+# Resume & List
 
 TermBeam includes CLI commands for reconnecting to running sessions directly from your terminal — no browser needed. Think `tmux attach` or `screen -r`, but for TermBeam.
 
@@ -92,12 +92,12 @@ When a TermBeam server starts, it saves connection details to `~/.termbeam/conne
 ```json
 {
   "port": 3456,
-  "host": "localhost",
+  "host": "127.0.0.1",
   "password": "auto-generated-password"
 }
 ```
 
-The `resume` and `sessions` commands read this file automatically, so you don't need to remember or type the port and password. The file is removed when the server shuts down.
+The `resume` and `list` commands read this file automatically, so you don't need to remember or type the port and password. The file is removed when the server shuts down.
 
 <!-- prettier-ignore -->
 !!! note "Multiple servers"

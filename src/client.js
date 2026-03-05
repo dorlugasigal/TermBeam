@@ -20,13 +20,15 @@ function createTerminalClient({
   sessionId,
   sessionName = 'session',
   detachKey = DETACH_KEY,
+  detachLabel = 'Ctrl+B',
 }) {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
     let cleaned = false;
     let bannerTimer = null;
     let bannerShown = false;
-    const detachLabel = 'Ctrl+B';
+    let onData = null;
+    let onSigwinch = null;
 
     function showBanner() {
       if (!cleaned && !bannerShown) {
@@ -56,9 +58,9 @@ function createTerminalClient({
       if (process.stdin.isTTY && process.stdin.isRaw) {
         process.stdin.setRawMode(false);
       }
-      process.stdin.removeAllListeners('data');
+      if (onData) process.stdin.removeListener('data', onData);
       process.stdin.pause();
-      process.removeAllListeners('SIGWINCH');
+      if (onSigwinch) process.removeListener('SIGWINCH', onSigwinch);
 
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         ws.close();
@@ -92,7 +94,10 @@ function createTerminalClient({
         // Set terminal title to show we're attached
         process.stdout.write(`\x1b]0;[termbeam] ${sessionName} — ${detachLabel} to detach\x07`);
 
-        enterRawMode(ws, detachKey, cleanup);
+        const refs = {};
+        enterRawMode(ws, detachKey, cleanup, refs);
+        onData = refs.onData;
+        onSigwinch = refs.onSigwinch;
         sendResize(ws);
         debounceBanner();
         return;
@@ -117,6 +122,14 @@ function createTerminalClient({
 
     ws.on('error', (err) => {
       if (!cleaned) {
+        cleaned = true;
+        if (bannerTimer) clearTimeout(bannerTimer);
+        if (process.stdin.isTTY && process.stdin.isRaw) {
+          process.stdin.setRawMode(false);
+        }
+        if (onData) process.stdin.removeListener('data', onData);
+        process.stdin.pause();
+        if (onSigwinch) process.removeListener('SIGWINCH', onSigwinch);
         reject(err);
       }
     });
@@ -127,13 +140,13 @@ function createTerminalClient({
   });
 }
 
-function enterRawMode(ws, detachKey, cleanup) {
+function enterRawMode(ws, detachKey, cleanup, refs) {
   if (process.stdin.isTTY) {
     process.stdin.setRawMode(true);
   }
   process.stdin.resume();
 
-  process.stdin.on('data', (data) => {
+  refs.onData = (data) => {
     const str = data.toString();
     if (str === detachKey) {
       cleanup('detached');
@@ -142,9 +155,11 @@ function enterRawMode(ws, detachKey, cleanup) {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'input', data: str }));
     }
-  });
+  };
+  process.stdin.on('data', refs.onData);
 
-  process.on('SIGWINCH', () => sendResize(ws));
+  refs.onSigwinch = () => sendResize(ws);
+  process.on('SIGWINCH', refs.onSigwinch);
 }
 
 function sendResize(ws) {
