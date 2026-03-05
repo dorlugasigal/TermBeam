@@ -194,9 +194,7 @@ async function resolveConnection(args) {
         process.exit(1);
       }
     } else if (err.code === 'ECONNREFUSED') {
-      console.error(red(`  Cannot connect to TermBeam at ${displayUrl}`));
-      console.error(dim('  Make sure a TermBeam server is running.'));
-      process.exit(1);
+      return { refused: true, displayUrl };
     } else {
       throw err;
     }
@@ -210,6 +208,11 @@ async function resume(args) {
   if (conn.help) {
     printResumeHelp();
     return;
+  }
+  if (conn.refused) {
+    console.error(red('  No TermBeam server is running.'));
+    console.error(dim('  Start one with: termbeam'));
+    process.exit(1);
   }
 
   const { host, port, password, sessions, opts } = conn;
@@ -278,6 +281,10 @@ async function listSessions(args) {
   const conn = await resolveConnection(args);
   if (conn.help) {
     printSessionsHelp();
+    return;
+  }
+  if (conn.refused) {
+    console.log(dim('  No TermBeam server is running.'));
     return;
   }
 
