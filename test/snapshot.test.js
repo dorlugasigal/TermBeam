@@ -56,13 +56,13 @@ const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 function collectAllJS(html) {
   let allJS = '';
   // Inline scripts
-  const inlineRegex = /<script>([\s\S]*?)<\/script>/g;
+  const inlineRegex = /<script>([\s\S]*?)<\/script>/gi;
   let m;
   while ((m = inlineRegex.exec(html))) {
     allJS += m[1] + '\n';
   }
   // Local script src files (skip CDN)
-  const srcRegex = /<script\s+src="([^"]+)"/g;
+  const srcRegex = /<script\s+src="([^"]+)"/gi;
   while ((m = srcRegex.exec(html))) {
     const src = m[1];
     if (src.startsWith('/') && !src.startsWith('//')) {

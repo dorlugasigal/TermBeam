@@ -85,7 +85,7 @@ async function runInteractiveSetup(baseConfig) {
   let passwordMode = 'auto';
   if (pwChoice.index === 0) {
     config.password = crypto.randomBytes(16).toString('base64url');
-    console.log(dim(`  Generated password: ${config.password}`));
+    process.stdout.write(dim(`  Generated password: ${config.password}`) + '\n');
   } else if (pwChoice.index === 1) {
     passwordMode = 'custom';
     config.password = await ask(rl, 'Enter password:');
@@ -164,7 +164,7 @@ async function runInteractiveSetup(baseConfig) {
     if (config.publicTunnel && !config.password) {
       console.log(yellow('  ⚠ Public tunnels require password authentication.'));
       config.password = crypto.randomBytes(16).toString('base64url');
-      console.log(dim(`  Auto-generated password: ${config.password}`));
+      process.stdout.write(dim(`  Auto-generated password: ${config.password}`) + '\n');
       passwordMode = 'auto';
       // Update the password decision
       decisions[0] = { label: 'Password', value: '••••••••' };

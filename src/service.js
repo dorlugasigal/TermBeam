@@ -237,7 +237,7 @@ async function actionInstall() {
   ]);
   if (pwChoice.index === 0) {
     config.password = crypto.randomBytes(16).toString('base64url');
-    console.log(dim(`  Generated password: ${config.password}`));
+    process.stdout.write(dim(`  Generated password: ${config.password}`) + '\n');
   } else if (pwChoice.index === 1) {
     config.password = await ask(rl, 'Enter password:');
     while (!config.password) {
@@ -297,7 +297,7 @@ async function actionInstall() {
     if (config.publicTunnel && config.password === false) {
       console.log(yellow('  ⚠ Public tunnels require password authentication.'));
       config.password = crypto.randomBytes(16).toString('base64url');
-      console.log(dim(`  Auto-generated password: ${config.password}`));
+      process.stdout.write(dim(`  Auto-generated password: ${config.password}`) + '\n');
     }
   } else if (accessChoice.index === 1) {
     // LAN mode: bind to all interfaces, no tunnel
@@ -352,7 +352,7 @@ async function actionInstall() {
   console.log(bold('\n── Configuration Summary ──────────────────'));
   console.log(`  Service name:  ${cyan(config.name)}`);
   console.log(
-    `  Password:      ${config.password === false ? yellow('disabled') : cyan(config.password)}`,
+    `  Password:      ${config.password === false ? yellow('disabled') : cyan('••••••••')}`,
   );
   console.log(`  Port:          ${cyan(String(config.port))}`);
   console.log(

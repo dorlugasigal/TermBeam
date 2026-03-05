@@ -220,7 +220,7 @@ function createTermBeamServer(overrides = {}) {
         }
 
         console.log(`  Scan the QR code or open: ${bl}${qrDisplayUrl}${rs}`);
-        if (config.password) console.log(`  Password: ${gn}${config.password}${rs}`);
+        if (config.password) process.stdout.write(`  Password: ${gn}${config.password}${rs}\n`);
         console.log('');
 
         resolve({ url: `http://localhost:${config.port}`, defaultId });
