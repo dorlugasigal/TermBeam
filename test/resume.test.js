@@ -108,9 +108,9 @@ describe('resume', () => {
     });
   });
 
-  describe('listSessions with --help', () => {
-    it('should print help and return', async () => {
-      await resume.listSessions(['--help']);
+  describe('list', () => {
+    it('should be a function', () => {
+      assert.strictEqual(typeof resume.list, 'function');
     });
   });
 

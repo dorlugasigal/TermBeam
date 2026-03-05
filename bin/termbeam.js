@@ -15,8 +15,8 @@ if (subcommand === 'service') {
     process.exit(1);
   });
 } else if (subcommand === 'sessions') {
-  const { listSessions } = require('../src/resume');
-  listSessions(process.argv.slice(3)).catch((err) => {
+  const { list } = require('../src/resume');
+  list().catch((err) => {
     console.error(err.message);
     process.exit(1);
   });
