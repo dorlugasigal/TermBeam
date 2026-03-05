@@ -12,6 +12,26 @@ npm run format                        # format with Prettier
 
 Pre-commit hooks (Husky + lint-staged) auto-format and syntax-check staged files.
 
+### Testing Best Practices
+
+**Suite overview:** 464 tests, ~17s total. Tests run in parallel child processes via Node's built-in test runner. Most files run in <1s; `integration.test.js` (~17s) and `service.test.js` (~9s) are the slow outliers.
+
+**Slow tests and why:**
+
+- `integration.test.js` — uses real PTY servers, has polling loops and a 7s sleep for git cache invalidation
+- `service.test.js` — heavy `require.cache` manipulation and `process.exit` mocking
+
+**Test isolation rules (critical for reliability):**
+
+- **`process.exit` mocks** — always restore in `afterEach`, never inline. Failing to restore breaks subsequent tests.
+- **`console.log`/`console.error` mocks** — same rule: restore in `afterEach`.
+- **`service.test.js`** — uses `loadServiceWithMocks()` pattern; always call `.restore()` in `afterEach`.
+- **`sessions.test.js`** — manipulates `require.cache` for node-pty mocking; clear cache between tests.
+- **`resume.test.js`** — uses `TERMBEAM_CONFIG_DIR` env var pointing to a temp directory for isolation.
+- **WebSocket connections** — close in `finally` blocks or `after()` hooks to prevent connection leaks.
+
+**Port isolation:** Integration tests use port `0` (OS-assigned random port) to avoid conflicts. Never hardcode ports in tests.
+
 ## Architecture
 
 TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over HTTP + WebSocket, with a mobile-optimized browser UI.
