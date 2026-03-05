@@ -127,33 +127,28 @@ function setupRoutes(app, { auth, sessions, config, state }) {
         return res.status(400).json({ error: 'Invalid shell' });
       }
     }
-
-    // Validate cwd field
-    if (cwd) {
-      if (!path.isAbsolute(cwd)) {
-        return res.status(400).json({ error: 'cwd must be an absolute path' });
-      }
-      // Normalize path to resolve any traversal sequences (after confirming absolute)
-      const resolvedCwd = path.resolve(cwd);
-      try {
-        if (!fs.statSync(resolvedCwd).isDirectory()) {
-          return res.status(400).json({ error: 'cwd is not a directory' });
-        }
-      } catch {
-        return res.status(400).json({ error: 'cwd does not exist' });
-      }
+    // Validate cwd field: require absolute path; traversal normalization
+    // happens via path.resolve below. Existence verified by node-pty at spawn.
+    if (cwd && !path.isAbsolute(cwd)) {
+      return res.status(400).json({ error: 'cwd must be an absolute path' });
     }
 
-    const id = sessions.create({
-      name: name || `Session ${sessions.sessions.size + 1}`,
-      shell: shell || config.defaultShell,
-      args: shellArgs || [],
-      cwd: (cwd ? path.resolve(cwd) : config.cwd),
-      initialCommand: initialCommand || null,
-      color: color || null,
-      cols: typeof cols === 'number' && cols > 0 && cols <= 500 ? Math.floor(cols) : undefined,
-      rows: typeof rows === 'number' && rows > 0 && rows <= 200 ? Math.floor(rows) : undefined,
-    });
+
+    let id;
+    try {
+      id = sessions.create({
+        name: name || `Session ${sessions.sessions.size + 1}`,
+        shell: shell || config.defaultShell,
+        args: shellArgs || [],
+        cwd: cwd ? path.resolve(cwd) : config.cwd,
+        initialCommand: initialCommand || null,
+        color: color || null,
+        cols: typeof cols === 'number' && cols > 0 && cols <= 500 ? Math.floor(cols) : undefined,
+        rows: typeof rows === 'number' && rows > 0 && rows <= 200 ? Math.floor(rows) : undefined,
+      });
+    } catch (err) {
+      return res.status(400).json({ error: 'Failed to create session: ' + (err.message || 'unknown error') });
+    }
     res.json({ id, url: `/terminal?id=${id}` });
   });
 
