@@ -1,9 +1,11 @@
 const crypto = require('crypto');
+const path = require('path');
 const { execSync, exec } = require('child_process');
 const fs = require('fs');
 const pty = require('node-pty');
 const log = require('./logger');
 const { getGitInfo } = require('./git');
+
 
 function _getProcessCwd(pid) {
   try {
@@ -108,6 +110,13 @@ class SessionManager {
     cols = 120,
     rows = 30,
   }) {
+    // Defense-in-depth: reject shells with dangerous characters or relative paths
+    if (typeof shell !== 'string' || !shell ||
+        /[;&|`$(){}\[\]!#~]/.test(shell) ||
+        (!path.isAbsolute(shell) && !shell.match(/^[a-zA-Z0-9._-]+(\.exe)?$/))) {
+      throw new Error('Invalid shell');
+    }
+
     const id = crypto.randomBytes(16).toString('hex');
     if (!color) {
       color = SESSION_COLORS[this.sessions.size % SESSION_COLORS.length];
