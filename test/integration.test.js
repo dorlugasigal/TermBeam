@@ -793,7 +793,7 @@ describe('Integration', () => {
       assert.ok(config, 'connection.json should exist after start');
       assert.strictEqual(config.port, port);
       assert.strictEqual(config.password, 'configtest');
-      assert.strictEqual(config.host, '127.0.0.1');
+      assert.strictEqual(config.host, 'localhost');
 
       // Shutdown should remove it
       inst.shutdown();

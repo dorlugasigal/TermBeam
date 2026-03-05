@@ -46,26 +46,24 @@ function createTerminalClient({
       bannerTimer = setTimeout(showBanner, 500);
     }
 
-    function cleanup(reason) {
-      if (cleaned) return;
-      cleaned = true;
-
+    function resetTerminal() {
       if (bannerTimer) clearTimeout(bannerTimer);
-
-      // Restore terminal title
       process.stdout.write('\x1b]0;\x07');
-
       if (process.stdin.isTTY && process.stdin.isRaw) {
         process.stdin.setRawMode(false);
       }
       if (onData) process.stdin.removeListener('data', onData);
       process.stdin.pause();
       if (onSigwinch) process.removeListener('SIGWINCH', onSigwinch);
-
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         ws.close();
       }
+    }
 
+    function cleanup(reason) {
+      if (cleaned) return;
+      cleaned = true;
+      resetTerminal();
       resolve({ reason });
     }
 
@@ -123,13 +121,7 @@ function createTerminalClient({
     ws.on('error', (err) => {
       if (!cleaned) {
         cleaned = true;
-        if (bannerTimer) clearTimeout(bannerTimer);
-        if (process.stdin.isTTY && process.stdin.isRaw) {
-          process.stdin.setRawMode(false);
-        }
-        if (onData) process.stdin.removeListener('data', onData);
-        process.stdin.pause();
-        if (onSigwinch) process.removeListener('SIGWINCH', onSigwinch);
+        resetTerminal();
         reject(err);
       }
     });

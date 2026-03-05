@@ -92,7 +92,7 @@ When a TermBeam server starts, it saves connection details to `~/.termbeam/conne
 ```json
 {
   "port": 3456,
-  "host": "127.0.0.1",
+  "host": "localhost",
   "password": "auto-generated-password"
 }
 ```

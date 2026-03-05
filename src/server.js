@@ -93,8 +93,12 @@ function createTermBeamServer(overrides = {}) {
 
   // Shutdown endpoint for --force (loopback only)
   app.post('/api/shutdown', auth.middleware, (req, res) => {
-    const ip = req.ip;
-    if (ip !== '127.0.0.1' && ip !== '::1' && ip !== '::ffff:127.0.0.1') {
+    const remoteAddress = req.socket && req.socket.remoteAddress;
+    if (
+      remoteAddress !== '127.0.0.1' &&
+      remoteAddress !== '::1' &&
+      remoteAddress !== '::ffff:127.0.0.1'
+    ) {
       res.status(403).json({ error: 'Shutdown is only available from localhost' });
       return;
     }
@@ -162,7 +166,7 @@ function createTermBeamServer(overrides = {}) {
             config.host === '127.0.0.1' ||
             config.host === '::' ||
             config.host === '::1'
-              ? '127.0.0.1'
+              ? 'localhost'
               : config.host;
           writeConnectionConfig({
             port: actualPort,

@@ -57,6 +57,7 @@ function parseResumeArgs(args) {
       return { help: true };
     } else if (args[i].startsWith('--')) {
       console.error(`Unknown flag: ${args[i]}`);
+      process.exitCode = 1;
       return { help: true };
     } else if (!args[i].startsWith('-')) {
       name = args[i];
@@ -165,7 +166,7 @@ async function resolveConnection(args) {
   if (opts.help) return { help: true };
 
   const saved = readConnectionConfig();
-  const host = opts.host || (saved && saved.host) || '127.0.0.1';
+  const host = opts.host || (saved && saved.host) || 'localhost';
   const port = opts.port || (saved && saved.port) || 3456;
   let password = opts.password || (saved && saved.password) || null;
   const connHost = host === 'localhost' ? '127.0.0.1' : host;
@@ -273,7 +274,13 @@ async function resume(args) {
     });
 
     console.log('');
-    console.log(yellow(`  Detached from ${bold(session.name)}.`));
+    if (reason === 'detached') {
+      console.log(yellow(`  Detached from ${bold(session.name)}.`));
+    } else if (reason && reason.startsWith('session exited')) {
+      console.log(dim(`  Session ${bold(session.name)} ended.`));
+    } else {
+      console.log(dim(`  Disconnected from ${bold(session.name)}.`));
+    }
   } catch (err) {
     console.error(red(`  Connection failed: ${err.message}`));
     process.exit(1);
@@ -282,7 +289,7 @@ async function resume(args) {
 
 async function list() {
   const saved = readConnectionConfig();
-  const host = (saved && saved.host) || '127.0.0.1';
+  const host = (saved && saved.host) || 'localhost';
   const port = (saved && saved.port) || 3456;
   let password = (saved && saved.password) || null;
   const connHost = host === 'localhost' ? '127.0.0.1' : host;
