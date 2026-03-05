@@ -69,7 +69,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       const token = auth.generateToken();
       res.cookie('pty_token', token, {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'strict',
         maxAge: 24 * 60 * 60 * 1000,
         secure: req.secure,
       });
@@ -99,7 +99,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       const token = auth.generateToken();
       res.cookie('pty_token', token, {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'strict',
         maxAge: 24 * 60 * 60 * 1000,
         secure: req.secure,
       });
