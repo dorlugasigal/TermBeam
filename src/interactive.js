@@ -99,7 +99,7 @@ async function runInteractiveSetup(baseConfig) {
   }
   decisions.push({
     label: 'Password',
-    value: config.password == null ? yellow('disabled') : '••••••••',
+    value: config.password === null ? yellow('disabled') : '••••••••',
   });
 
   // Step 2: Port
@@ -212,7 +212,7 @@ async function runInteractiveSetup(baseConfig) {
   showProgress(4);
   console.log(bold('\n── Configuration Summary ──────────────────'));
   console.log(
-    `  Password:      ${config.password == null ? yellow('disabled') : cyan('••••••••')}`,
+    `  Password:      ${config.password === null ? yellow('disabled') : cyan('••••••••')}`,
   );
   console.log(`  Port:          ${cyan(String(config.port))}`);
   console.log(

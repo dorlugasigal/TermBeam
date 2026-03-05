@@ -5,7 +5,7 @@ const pty = require('node-pty');
 const log = require('./logger');
 const { getGitInfo } = require('./git');
 
-function getProcessCwd(pid) {
+function _getProcessCwd(pid) {
   try {
     if (process.platform === 'linux') {
       return fs.readlinkSync(`/proc/${pid}/cwd`);
@@ -209,7 +209,7 @@ class SessionManager {
   }
 
   shutdown() {
-    for (const [id, s] of this.sessions) {
+    for (const [_id, s] of this.sessions) {
       try {
         s.pty.kill();
       } catch {

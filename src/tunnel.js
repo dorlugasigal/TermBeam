@@ -67,7 +67,7 @@ function savePersistedTunnel(id) {
   );
 }
 
-function deletePersisted() {
+function _deletePersisted() {
   const persisted = loadPersistedTunnel();
   if (persisted) {
     try {
@@ -139,7 +139,7 @@ async function startTunnel(port, options = {}) {
         log.info('A code will be displayed — open the URL on any device to authenticate.');
         try {
           execFileSync(devtunnelCmd, ['user', 'login', '-d'], { stdio: 'inherit' });
-        } catch (loginErr) {
+        } catch (_loginErr) {
           log.error('');
           log.error('  DevTunnel login failed. To use tunnels, run:');
           log.error('    devtunnel user login');

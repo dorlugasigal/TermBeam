@@ -115,7 +115,7 @@ describe('SessionManager', () => {
 
   it('should track session metadata', () => {
     const mgr = new SessionManager();
-    const id = mgr.create({ name: 'myterm', shell: '/bin/zsh', args: ['-l'], cwd: '/Users/test' });
+    const _id = mgr.create({ name: 'myterm', shell: '/bin/zsh', args: ['-l'], cwd: '/Users/test' });
     const list = mgr.list();
     assert.strictEqual(list[0].name, 'myterm');
     assert.strictEqual(list[0].shell, '/bin/zsh');
@@ -126,8 +126,8 @@ describe('SessionManager', () => {
 
   it('should assign colors from SESSION_COLORS in order', () => {
     const mgr = new SessionManager();
-    const id1 = mgr.create({ name: 's1', shell: '/bin/sh', cwd: '/tmp' });
-    const id2 = mgr.create({ name: 's2', shell: '/bin/sh', cwd: '/tmp' });
+    const _id1 = mgr.create({ name: 's1', shell: '/bin/sh', cwd: '/tmp' });
+    const _id2 = mgr.create({ name: 's2', shell: '/bin/sh', cwd: '/tmp' });
     const list = mgr.list();
     assert.ok(list[0].color, 'First session should have a color');
     assert.ok(list[1].color, 'Second session should have a color');
@@ -140,7 +140,7 @@ describe('SessionManager', () => {
 
   it('should accept a custom color', () => {
     const mgr = new SessionManager();
-    const id = mgr.create({ name: 'custom', shell: '/bin/sh', cwd: '/tmp', color: '#ff0000' });
+    const _id = mgr.create({ name: 'custom', shell: '/bin/sh', cwd: '/tmp', color: '#ff0000' });
     const list = mgr.list();
     assert.strictEqual(list[0].color, '#ff0000');
   });
@@ -181,7 +181,7 @@ describe('SessionManager', () => {
   });
 
   it('should send initialCommand to PTY after delay', async () => {
-    const mgr = new SessionManager();
+    const _mgr = new SessionManager();
     const writeCalls = [];
     const origSpawn = require.cache['node-pty'].exports.spawn;
     require.cache['node-pty'].exports.spawn = (shell, args, opts) => {

@@ -413,7 +413,7 @@ describe('Integration', () => {
           clearTimeout(timer);
           reject(err);
         });
-        child.on('exit', (code) => {
+        child.on('exit', (_code) => {
           clearTimeout(timer);
           // If the process crashed (non-signal exit), the test should fail
           // with the captured output for easier debugging
