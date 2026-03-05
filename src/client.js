@@ -25,10 +25,12 @@ function createTerminalClient({
     const ws = new WebSocket(url);
     let cleaned = false;
     let bannerTimer = null;
+    let bannerShown = false;
     const detachLabel = 'Ctrl+B';
 
     function showBanner() {
-      if (!cleaned) {
+      if (!cleaned && !bannerShown) {
+        bannerShown = true;
         process.stdout.write(
           `\r\n\x1b[33m  attached: ${sessionName} ─── ${detachLabel} to detach\x1b[0m\r\n\r\n`,
         );
@@ -37,6 +39,7 @@ function createTerminalClient({
     }
 
     function debounceBanner() {
+      if (bannerShown) return;
       if (bannerTimer) clearTimeout(bannerTimer);
       bannerTimer = setTimeout(showBanner, 500);
     }
