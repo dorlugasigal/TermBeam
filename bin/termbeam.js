@@ -84,28 +84,47 @@ if (subcommand === 'service') {
     });
   }
 
+  async function stopExistingServer(config, fallbackPassword) {
+    const host = config.host === 'localhost' ? '127.0.0.1' : config.host;
+    const url = `http://${host}:${config.port}/api/shutdown`;
+    console.log(`Stopping existing server on port ${config.port}...`);
+
+    // Try with config password, then fallback password, then no password
+    const passwords = [config.password, fallbackPassword, null].filter(
+      (v, i, a) => a.indexOf(v) === i,
+    );
+    let stopped = false;
+    for (const pw of passwords) {
+      const headers = pw ? { Authorization: `Bearer ${pw}` } : {};
+      const status = await httpPost(url, headers);
+      if (status && status !== 401) {
+        stopped = true;
+        break;
+      }
+    }
+    if (!stopped) {
+      console.error(
+        'Cannot stop the existing server — password mismatch.\n' +
+          'Stop it manually (Ctrl+C in its terminal) and try again.',
+      );
+      process.exit(1);
+    }
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 250));
+      if (!(await checkExistingServer(config))) break;
+    }
+  }
+
   async function main() {
     const baseConfig = parseArgs();
+    const targetPort = baseConfig.port;
+    const targetHost = baseConfig.host === '0.0.0.0' ? '127.0.0.1' : baseConfig.host;
 
+    // Check connection.json for an existing server
     const existing = readConnectionConfig();
     if (existing && (await checkExistingServer(existing))) {
       if (baseConfig.force) {
-        const host = existing.host === 'localhost' ? '127.0.0.1' : existing.host;
-        const headers = existing.password ? { Authorization: `Bearer ${existing.password}` } : {};
-        console.log(`Stopping existing server on port ${existing.port}...`);
-        const status = await httpPost(`http://${host}:${existing.port}/api/shutdown`, headers);
-        if (status === 401) {
-          console.error(
-            'Cannot stop the existing server — password mismatch.\n' +
-              'Stop it manually (Ctrl+C in its terminal) and try again.',
-          );
-          process.exit(1);
-        }
-        // Wait for the old server to fully release the port
-        for (let i = 0; i < 20; i++) {
-          await new Promise((r) => setTimeout(r, 250));
-          if (!(await checkExistingServer(existing))) break;
-        }
+        await stopExistingServer(existing, baseConfig.password);
       } else {
         console.error(
           `TermBeam is already running on http://${existing.host}:${existing.port}\n` +
@@ -113,6 +132,14 @@ if (subcommand === 'service') {
             'or "termbeam --force" to stop the existing server and start a new one.',
         );
         process.exit(1);
+      }
+    }
+
+    // Also check the target port directly (handles stale/missing connection.json)
+    if (baseConfig.force && targetPort !== 0) {
+      const targetConfig = { host: targetHost, port: targetPort, password: baseConfig.password };
+      if (await checkExistingServer(targetConfig)) {
+        await stopExistingServer(targetConfig);
       }
     }
 
