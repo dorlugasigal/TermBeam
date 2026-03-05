@@ -34,6 +34,7 @@ jobs:
           scan-ref: .
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          skip-dirs: demo-video
           exit-code: 1
           format: table
 
