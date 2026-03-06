@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.10.0] - 2026-03-06
+
+- feat: add file upload to session working directory (#113)
+- chore: add .gitleaks.toml to allowlist doc placeholders
+
 ## [1.9.0] - 2026-03-05
 
 - docs: restructure README, split getting-started, add troubleshooting and usage guide, fix 15 inaccuracies (#112)
