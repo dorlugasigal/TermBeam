@@ -14,9 +14,13 @@ extra:
       link: https://github.com/dorlugasigal/TermBeam
     - icon: fontawesome/brands/npm
       link: https://www.npmjs.com/package/termbeam
+  # analytics:
+  #   provider: google
+  #   property: G-XXXXXXXXXX  # TODO: Replace with your GA4 measurement ID
 
 plugins:
   - search
+  # - social  # Auto-generates og:image for each page (requires pillow and cairosvg: pip install pillow cairosvg)
 
 theme:
   name: material
@@ -72,6 +76,8 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Comparison: comparison.md
+  - Use Cases: use-cases.md
   - Usage Guide: usage-guide.md
   - Configuration: configuration.md
   - Resume & List: resume.md

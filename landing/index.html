@@ -14,8 +14,14 @@
       content="Access your terminal from your phone, tablet, or any browser. No SSH, no config — one command."
     />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://termbeam.pages.dev" />
+    <meta property="og:image" content="https://termbeam.pages.dev/mobile-terminal.jpeg" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://termbeam.pages.dev/mobile-terminal.jpeg" />
+    <meta name="theme-color" content="#0f0f23" />
+    <link rel="canonical" href="https://termbeam.pages.dev" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -23,6 +29,26 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/src/style.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "TermBeam",
+        "description": "Beam your terminal to any device — mobile-optimized web terminal with multi-session support",
+        "url": "https://termbeam.pages.dev",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Windows, macOS, Linux",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "license": "https://opensource.org/licenses/MIT",
+        "codeRepository": "https://github.com/dorlugasigal/termbeam"
+      }
+    </script>
+    <!-- Analytics: Uncomment and update data-domain to enable Plausible Analytics -->
+    <!-- <script defer data-domain="termbeam.pages.dev" src="https://plausible.io/js/script.js"></script> -->
   </head>
   <body>
     <!-- Nav -->
@@ -121,6 +147,11 @@
         </div>
 
         <div class="hero-badges" data-reveal data-reveal-delay="5">
+          <a href="https://github.com/dorlugasigal/TermBeam"
+            ><img
+              src="https://img.shields.io/github/stars/dorlugasigal/termbeam?style=flat-square&color=c084fc&label=stars"
+              alt="GitHub stars"
+          /></a>
           <a href="https://www.npmjs.com/package/termbeam"
             ><img
               src="https://img.shields.io/npm/v/termbeam.svg?style=flat-square&color=0078d4"
@@ -370,6 +401,92 @@
             <div class="arch-label">Your Shell</div>
             <div class="arch-sublabel">zsh / bash / pwsh</div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Comparison -->
+    <section class="comparison">
+      <div class="section-container">
+        <div class="section-header" data-reveal>
+          <span class="section-label">How it compares</span>
+          <h2>Mobile terminal access,<br />without the pain</h2>
+          <p class="section-sub">
+            TermBeam is purpose-built for accessing your dev machine from a phone. Here's how it
+            stacks up.
+          </p>
+        </div>
+
+        <div class="comparison-table-wrap" data-reveal>
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th class="comparison-highlight">TermBeam</th>
+                <th>SSH</th>
+                <th>mosh</th>
+                <th>Termux</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="comparison-feature">Mobile-optimized UI</td>
+                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-partial">~</span></td>
+              </tr>
+              <tr>
+                <td class="comparison-feature">Touch-friendly keyboard</td>
+                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-partial">~</span></td>
+              </tr>
+              <tr>
+                <td class="comparison-feature">No client install needed</td>
+                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-no">✗</span></td>
+              </tr>
+              <tr>
+                <td class="comparison-feature">Multi-session tabs</td>
+                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-yes">✓</span></td>
+              </tr>
+              <tr>
+                <td class="comparison-feature">Split view</td>
+                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-partial">~</span></td>
+              </tr>
+              <tr>
+                <td class="comparison-feature">One-command setup</td>
+                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-yes">✓</span></td>
+              </tr>
+              <tr>
+                <td class="comparison-feature">File upload</td>
+                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
+                <td><span class="check-partial">~</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-yes">✓</span></td>
+              </tr>
+              <tr>
+                <td class="comparison-feature">QR code connection</td>
+                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-no">✗</span></td>
+                <td><span class="check-no">✗</span></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
