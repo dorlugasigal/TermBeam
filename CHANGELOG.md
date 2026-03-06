@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.10.1] - 2026-03-06
+
+- fix(security): harden error handling, add WS rate limiting, validate CLI args (#117)
+- feat: SEO, discoverability, and content improvements (#115)
+
 ## [1.10.0] - 2026-03-06
 
 - feat: add file upload to session working directory (#113)
