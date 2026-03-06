@@ -161,7 +161,7 @@ WebSocket terminal client used by the `resume` command. Handles raw-mode stdin/s
 
 ### `resume.js` — Resume & List Subcommands
 
-Implements the `termbeam resume [name]` and `termbeam list` CLI subcommands. Auto-discovers running servers via `~/.termbeam/connection.json`, lists sessions, provides an interactive arrow-key chooser when multiple sessions exist, and delegates terminal attachment to `client.js`.
+Implements the `termbeam resume [name]` (alias: `termbeam attach`) and `termbeam list` CLI subcommands. Auto-discovers running servers via `~/.termbeam/connection.json`, lists sessions, provides an interactive arrow-key chooser when multiple sessions exist, and delegates terminal attachment to `client.js`.
 
 ---
 

@@ -873,7 +873,7 @@ describe('resume', () => {
         reloadResume();
 
         await resume.list();
-        // Should print "No active sessions." and return
+        // Should print "Connected to server on ... — no active sessions." and return
       });
 
       it('should display singular "session" when count is 1', async () => {

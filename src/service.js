@@ -460,9 +460,13 @@ async function actionInstall() {
   }
 
   console.log(dim('\nUseful commands:'));
-  console.log(`  ${cyan('termbeam service status')}   — Check service status`);
-  console.log(`  ${cyan('termbeam service logs')}     — View logs`);
-  console.log(`  ${cyan('termbeam service restart')}  — Restart service`);
+  console.log(`  ${cyan('termbeam list')}              — List active sessions`);
+  console.log(
+    `  ${cyan('termbeam resume')}            — Attach to a session (or: termbeam attach)`,
+  );
+  console.log(`  ${cyan('termbeam service status')}    — Check service status`);
+  console.log(`  ${cyan('termbeam service logs')}      — View logs`);
+  console.log(`  ${cyan('termbeam service restart')}   — Restart service`);
   console.log(`  ${cyan('termbeam service uninstall')} — Remove service\n`);
 }
 

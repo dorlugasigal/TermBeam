@@ -266,6 +266,11 @@ function createTermBeamServer(overrides = {}) {
         console.log(`  Scan the QR code or open: ${bl}${qrDisplayUrl}${rs}`);
         if (config.password) process.stdout.write(`  Password: ${gn}${config.password}${rs}\n`);
         console.log('');
+        const dm = '\x1b[2m';
+        console.log(`${dm}  From another terminal:${rs}`);
+        console.log(`${dm}    termbeam list        List active sessions${rs}`);
+        console.log(`${dm}    termbeam resume      Attach to a session (or: termbeam attach)${rs}`);
+        console.log('');
 
         resolve({ url: `http://localhost:${actualPort}`, defaultId });
       });

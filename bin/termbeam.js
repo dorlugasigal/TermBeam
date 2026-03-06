@@ -8,7 +8,7 @@ if (subcommand === 'service') {
     console.error(err.message);
     process.exit(1);
   });
-} else if (subcommand === 'resume') {
+} else if (subcommand === 'resume' || subcommand === 'attach') {
   const { resume } = require('../src/resume');
   resume(process.argv.slice(3)).catch((err) => {
     console.error(err.message);
@@ -129,7 +129,7 @@ if (subcommand === 'service') {
         const displayHost = existing.host === '127.0.0.1' ? 'localhost' : existing.host;
         console.error(
           `TermBeam is already running on http://${displayHost}:${existing.port}\n` +
-            'Use "termbeam resume" to reconnect, "termbeam list" to list sessions,\n' +
+            'Use "termbeam resume" (or "termbeam attach") to reconnect, "termbeam list" to list sessions,\n' +
             'or "termbeam --force" to stop the existing server and start a new one.',
         );
         process.exit(1);
