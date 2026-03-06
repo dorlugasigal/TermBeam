@@ -22,7 +22,7 @@ termbeam --port 3000
 ```
 
 !!! tip
-Use `termbeam service start` to run TermBeam as a background service so it's always available when you need it. See [Running in Background](running-in-background.md) for details.
+Use `termbeam service install` to run TermBeam as a background service so it's always available when you need it. See [Running in Background](running-in-background.md) for details.
 
 ---
 
@@ -71,7 +71,7 @@ Respond to incidents from your mobile device — check logs, restart services, a
 TermBeam's tunnel support means you can reach your terminal from anywhere, even on cellular data. Combined with `termbeam service`, you can have a persistent TermBeam instance ready on your jump host or bastion server, waiting for when you need it.
 
 ```bash
-termbeam service start --password "$ONCALL_PASSWORD" --port 4000
+termbeam service install --password "$ONCALL_PASSWORD" --port 4000
 ```
 
 !!! tip

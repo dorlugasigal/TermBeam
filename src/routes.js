@@ -329,14 +329,6 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     if (!sanitized || sanitized === '.' || sanitized === '..') {
       return res.status(400).json({ error: 'Invalid filename' });
     }
-    // Reject Windows-reserved characters and device names
-    if (/[<>:"|?*\\]/.test(sanitized)) {
-      return res.status(400).json({ error: 'Invalid filename' });
-    }
-    const WINDOWS_RESERVED = /^(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])(\.|$)/i;
-    if (WINDOWS_RESERVED.test(sanitized)) {
-      return res.status(400).json({ error: 'Invalid filename' });
-    }
 
     // Resolve target directory: optional X-Target-Dir header, falls back to session cwd
     const rawTargetDir = req.headers['x-target-dir'];
@@ -418,9 +410,6 @@ function setupRoutes(app, { auth, sessions, config, state }) {
 
     req.on('error', (err) => {
       log.error(`File upload error: ${err.message}`);
-      if (aborted || res.headersSent) {
-        return;
-      }
       res.status(500).json({ error: 'Upload failed' });
     });
   });

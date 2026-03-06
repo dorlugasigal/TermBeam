@@ -5,7 +5,7 @@
 ```bash
 npm test                              # run all tests
 node --test test/auth.test.js         # run a single test file
-npm run test:coverage                 # tests + coverage (c8, 92% threshold)
+npm run test:coverage                 # tests + coverage (c8, 80% threshold)
 npm run lint                          # syntax-check with node --check
 npm run format                        # format with Prettier
 npm run dev                           # start with auto-generated password
