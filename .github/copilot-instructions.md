@@ -5,9 +5,11 @@
 ```bash
 npm test                              # run all tests
 node --test test/auth.test.js         # run a single test file
-npm run test:coverage                 # tests + coverage (c8, 80% threshold)
+npm run test:coverage                 # tests + coverage (c8, 92% threshold)
 npm run lint                          # syntax-check with node --check
 npm run format                        # format with Prettier
+npm run dev                           # start with auto-generated password
+npm start                             # start with defaults
 ```
 
 Pre-commit hooks (Husky + lint-staged) auto-format and syntax-check staged files.
@@ -32,6 +34,14 @@ Pre-commit hooks (Husky + lint-staged) auto-format and syntax-check staged files
 
 **Port isolation:** Integration tests use port `0` (OS-assigned random port) to avoid conflicts. Never hardcode ports in tests.
 
+### Playwright E2E
+
+```bash
+npx playwright test                   # run e2e tests (chromium, sequential)
+```
+
+E2E tests live in `test/e2e-*.test.js` and are excluded from `npm test`. See `playwright.config.js` for retries, reporters, and timeouts.
+
 ## Architecture
 
 TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over HTTP + WebSocket, with a mobile-optimized browser UI.
@@ -44,9 +54,14 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 - `routes.js` — Express routes for API (`/api/sessions`, `/api/auth`) and pages (`/terminal`, `/login`)
 - `websocket.js` — handles WebSocket messages (`attach`, `input`, `resize`, `output`, `exit`)
 - `tunnel.js` — optional DevTunnel integration for public URLs
+- `devtunnel-install.js` — DevTunnel CLI installer (cross-platform helper)
+- `preview.js` — local preview proxy for forwarding requests to a port
 - `logger.js` — structured logger with levels (error/warn/info/debug)
 - `shells.js` — cross-platform shell detection
 - `version.js` — detects version from package.json
+- `git.js` — git metadata and status parsing
+- `interactive.js` — interactive CLI setup wizard
+- `prompts.js` — reusable CLI prompt utilities
 
 **CLI subcommands** dispatched in `bin/termbeam.js` before loading the server:
 
@@ -75,8 +90,16 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 - **Prettier formatting** — single quotes, trailing commas, 100 char width, semicolons (`.prettierrc`)
 - **Cross-platform support** — must work on Windows, macOS, and Linux; CI tests on Ubuntu + Windows with Node 18, 20, 22
 - **PTY session cleanup** — `pty.kill()` is async; the `onExit` callback removes the session from the Map
-- **Coverage exclusion** — `src/tunnel.js` is excluded from coverage (requires external DevTunnel CLI)
+- **Coverage exclusion** — `src/tunnel.js` and `src/devtunnel-install.js` are excluded from coverage (requires external DevTunnel CLI)
 - **Connection config** — server writes `~/.termbeam/connection.json` on start (port, host, password) for `termbeam resume` auto-discovery; removed on shutdown
+
+## Environment Variables
+
+- `PORT` — server port (default: 3456)
+- `TERMBEAM_PASSWORD` / `PTY_PASSWORD` — access password
+- `TERMBEAM_CWD` / `PTY_CWD` — working directory
+- `TERMBEAM_LOG_LEVEL` — log level (default: info)
+- `TERMBEAM_CONFIG_DIR` — location for `connection.json` (default: `~/.termbeam/`)
 
 ## Documentation
 
@@ -94,6 +117,16 @@ TermBeam has two layers of documentation that must stay in sync with code change
 Preview docs locally: `pip install mkdocs-material && mkdocs serve`
 
 Changes to `docs/` or `mkdocs.yml` pushed to `main` auto-deploy to GitHub Pages.
+
+## CI and Publishing
+
+- Release workflow: `.github/workflows/release.yml` bumps version, updates `CHANGELOG.md`, tags, and publishes to npm.
+- `prepublishOnly` runs `npm test` before publish.
+- `postinstall` fixes `node-pty` prebuild permissions (spawn-helper).
+- Landing site (`landing/`) deploys via `.github/workflows/landing.yml`.
+- Docs deploy via `.github/workflows/pages.yml`.
+
+**IMPORTANT:** When asked to create a PR, open a PR, push to main, publish, release, or submit changes, **always use the `publish` skill**. It orchestrates the full workflow: local tests, lint, coverage, docs check, commit, push (or PR flow with proper branch naming), CI verification, and release. Do not manually run `gh pr create` or `git push origin main` — the skill handles all of this with the correct conventions.
 
 ## Demo Video
 
