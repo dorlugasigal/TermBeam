@@ -36,8 +36,7 @@ Must exit cleanly. If it fails, stop and report.
 npm run test:coverage
 ```
 
-Coverage must meet the CI-enforced threshold (currently 80% line coverage). If coverage is
-below this threshold, stop and report
+Coverage must meet the 92% threshold. If it drops below 80%, stop and report
 which files/areas lost coverage. The coverage summary is written to
 `coverage/coverage-summary.json` — you can inspect it for details.
 
