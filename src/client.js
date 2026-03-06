@@ -80,7 +80,7 @@ function createTerminalClient({
       try {
         msg = JSON.parse(raw);
       } catch {
-        return;
+        return; // Silently drop unparseable messages from server
       }
 
       if (msg.type === 'auth_ok') {

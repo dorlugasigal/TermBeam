@@ -17,6 +17,10 @@ function recalcPtySize(session) {
 }
 
 function setupWebSocket(wss, { auth, sessions }) {
+  const wsAuthAttempts = new Map(); // ip -> [timestamps]
+  const WS_AUTH_WINDOW = 60 * 1000; // 1 minute
+  const WS_MAX_AUTH_ATTEMPTS = 5;
+
   wss.on('connection', (ws, req) => {
     const origin = req.headers.origin;
     if (origin) {
@@ -51,11 +55,26 @@ function setupWebSocket(wss, { auth, sessions }) {
         const msg = JSON.parse(raw);
 
         if (msg.type === 'auth') {
+          const ip = req.socket.remoteAddress;
+          const now = Date.now();
+          const attempts = (wsAuthAttempts.get(ip) || []).filter((t) => now - t < WS_AUTH_WINDOW);
+
+          if (attempts.length >= WS_MAX_AUTH_ATTEMPTS) {
+            log.warn(`WS: rate limit exceeded for ${ip}`);
+            ws.send(
+              JSON.stringify({ type: 'error', message: 'Too many attempts. Try again later.' }),
+            );
+            ws.close();
+            return;
+          }
+
           if (msg.password === auth.password || auth.validateToken(msg.token)) {
             authenticated = true;
             ws.send(JSON.stringify({ type: 'auth_ok' }));
             log.info('WS: auth success');
           } else {
+            attempts.push(now);
+            wsAuthAttempts.set(ip, attempts);
             log.warn('WS: auth failed');
             ws.send(JSON.stringify({ type: 'error', message: 'Unauthorized' }));
             ws.close();

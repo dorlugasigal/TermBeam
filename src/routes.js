@@ -185,9 +185,10 @@ function setupRoutes(app, { auth, sessions, config, state }) {
         rows: typeof rows === 'number' && rows > 0 && rows <= 200 ? Math.floor(rows) : undefined,
       });
     } catch (err) {
-      return res.status(400).json({ error: err.message || 'Failed to create session' });
+      log.warn(`Session creation failed: ${err.message}`);
+      return res.status(400).json({ error: 'Failed to create session' });
     }
-    res.json({ id, url: `/terminal?id=${id}` });
+    res.status(201).json({ id, url: `/terminal?id=${id}` });
   });
 
   // Available shells
@@ -220,7 +221,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
 
   app.delete('/api/sessions/:id', auth.middleware, (req, res) => {
     if (sessions.delete(req.params.id)) {
-      res.json({ ok: true });
+      res.status(204).end();
     } else {
       res.status(404).json({ error: 'not found' });
     }
@@ -288,7 +289,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       fs.writeFileSync(filepath, buffer);
       uploadedFiles.set(id, filepath);
       log.info(`Upload: ${filename} (${buffer.length} bytes)`);
-      res.json({ id, url: `/uploads/${id}`, path: filepath });
+      res.status(201).json({ id, url: `/uploads/${id}`, path: filepath });
     });
 
     req.on('error', (err) => {
@@ -405,7 +406,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       }
       const finalName = path.basename(destPath);
       log.info(`File upload: ${finalName} → ${targetDir} (${buffer.length} bytes)`);
-      res.json({ name: finalName, path: destPath, size: buffer.length });
+      res.status(201).json({ name: finalName, path: destPath, size: buffer.length });
     });
 
     req.on('error', (err) => {

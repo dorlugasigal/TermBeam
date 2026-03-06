@@ -991,17 +991,22 @@
       }
 
       async function loadSessions() {
-        const res = await fetch('/api/sessions');
-        const sessions = await res.json();
+        try {
+          const res = await fetch('/api/sessions');
+          if (!res.ok) {
+            console.error(`Failed to load sessions: ${res.status}`);
+            return;
+          }
+          const sessions = await res.json();
 
-        if (sessions.length === 0) {
-          listEl.innerHTML = '<div class="empty-state">No active sessions</div>';
-          return;
-        }
+          if (sessions.length === 0) {
+            listEl.innerHTML = '<div class="empty-state">No active sessions</div>';
+            return;
+          }
 
-        listEl.innerHTML = sessions
-          .map(
-            (s) => `
+          listEl.innerHTML = sessions
+            .map(
+              (s) => `
         <div class="swipe-wrap" data-session-id="${esc(s.id)}">
           <div class="swipe-delete">
             <button data-delete-id="${esc(s.id)}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg><span>Delete</span></button>
@@ -1031,22 +1036,25 @@
           </div>
         </div>
       `,
-          )
-          .join('');
+            )
+            .join('');
 
-        // Attach swipe handlers and click handlers after rendering
-        listEl.querySelectorAll('.swipe-wrap').forEach(initSwipe);
-        listEl.querySelectorAll('[data-delete-id]').forEach((btn) => {
-          btn.addEventListener('click', (e) => deleteSession(btn.dataset.deleteId, e));
-        });
-        listEl.querySelectorAll('[data-nav-id]').forEach((card) => {
-          card.addEventListener('click', () => {
-            location.href = '/terminal?id=' + encodeURIComponent(card.dataset.navId);
+          // Attach swipe handlers and click handlers after rendering
+          listEl.querySelectorAll('.swipe-wrap').forEach(initSwipe);
+          listEl.querySelectorAll('[data-delete-id]').forEach((btn) => {
+            btn.addEventListener('click', (e) => deleteSession(btn.dataset.deleteId, e));
           });
-        });
-        listEl.querySelectorAll('.dot[data-color]').forEach((dot) => {
-          dot.style.background = dot.dataset.color || 'var(--success)';
-        });
+          listEl.querySelectorAll('[data-nav-id]').forEach((card) => {
+            card.addEventListener('click', () => {
+              location.href = '/terminal?id=' + encodeURIComponent(card.dataset.navId);
+            });
+          });
+          listEl.querySelectorAll('.dot[data-color]').forEach((dot) => {
+            dot.style.background = dot.dataset.color || 'var(--success)';
+          });
+        } catch (err) {
+          console.error('Failed to load sessions:', err);
+        }
       }
 
       document.getElementById('new-session-btn').addEventListener('click', () => {
@@ -1085,13 +1093,21 @@
         if (initialCommand) body.initialCommand = initialCommand;
         if (color) body.color = color;
 
-        const res = await fetch('/api/sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        const data = await res.json();
-        location.href = data.url;
+        try {
+          const res = await fetch('/api/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) {
+            console.error(`Failed to create session: ${res.status}`);
+            return;
+          }
+          const data = await res.json();
+          location.href = data.url;
+        } catch (err) {
+          console.error('Failed to create session:', err);
+        }
       });
 
       // --- Shell detection ---
@@ -1101,6 +1117,7 @@
         const shellSelect = document.getElementById('sess-shell');
         try {
           const res = await fetch('/api/shells');
+          if (!res.ok) throw new Error(`Failed to load shells: ${res.status}`);
           const data = await res.json();
           if (data.cwd) {
             document.getElementById('sess-cwd').placeholder = data.cwd;
@@ -1225,7 +1242,10 @@
       document.getElementById('browse-btn').addEventListener('click', async () => {
         if (hubServerCwd === '/') {
           try {
-            const data = await fetch('/api/shells').then((r) => r.json());
+            const data = await fetch('/api/shells').then((r) => {
+              if (!r.ok) throw new Error(`${r.status}`);
+              return r.json();
+            });
             if (data.cwd) hubServerCwd = data.cwd;
           } catch {}
         }
@@ -1254,6 +1274,7 @@
 
         try {
           const res = await fetch(`/api/dirs?q=${encodeURIComponent(dir + '/')}`);
+          if (!res.ok) throw new Error(`Failed to load directories: ${res.status}`);
           const data = await res.json();
           let items = '';
           // Add parent (..) entry unless at root
@@ -1310,7 +1331,10 @@
 
       // Fetch version
       fetch('/api/version')
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) throw new Error(`${r.status}`);
+          return r.json();
+        })
         .then((d) => {
           document.getElementById('version').textContent = 'v' + d.version;
         })

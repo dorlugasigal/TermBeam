@@ -96,7 +96,7 @@ function createPreviewProxy() {
     proxyReq.on('error', (err) => {
       log.warn(`Preview proxy error (port ${port}): ${err.message}`);
       if (!res.headersSent) {
-        res.status(502).json({ error: `Bad gateway: ${err.message}` });
+        res.status(502).json({ error: 'Bad gateway: upstream server is not responding' });
       }
     });
 

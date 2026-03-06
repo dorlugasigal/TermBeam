@@ -98,7 +98,8 @@ function createMockWss() {
       if (event === 'connection') this._onConnection = cb;
     },
     _simulateConnection(ws, req) {
-      this._onConnection(ws, req || { headers: {} });
+      const defaultReq = { headers: {}, socket: { remoteAddress: '127.0.0.1' } };
+      this._onConnection(ws, req ? { ...defaultReq, ...req } : defaultReq);
     },
   };
 }

@@ -147,7 +147,8 @@ Before running TermBeam, verify:
 ### Rate Limiting
 
 - Login endpoint limited to **5 attempts per minute** per IP
-- Returns HTTP 429 when exceeded
+- WebSocket auth limited to **5 attempts per minute** per IP
+- Returns HTTP 429 (or WebSocket close) when exceeded
 
 ### HTTP Security Headers
 

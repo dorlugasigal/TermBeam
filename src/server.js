@@ -83,10 +83,14 @@ function createTermBeamServer(overrides = {}) {
   function shutdown() {
     if (shuttingDown) return;
     shuttingDown = true;
+    auth.cleanup();
     sessions.shutdown();
     cleanupUploadedFiles();
     cleanupTunnel();
     removeConnectionConfig();
+    for (const client of wss.clients) {
+      client.close(1001, 'Server shutting down');
+    }
     server.close();
     wss.close();
   }

@@ -49,6 +49,7 @@ function scheduleGitRefresh(sessionId, pid, originalCwd) {
   }
 
   exec(cmd, { timeout: 2000 }, (err, stdout) => {
+    if (err) log.debug(`Git cwd detection failed: ${err.message}`);
     let liveCwd = originalCwd;
     if (!err && stdout) {
       if (process.platform === 'darwin') {

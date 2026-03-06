@@ -177,7 +177,7 @@ function createAuth(password) {
   const shareTokens = new Map(); // share tokens: token -> expiry
 
   // Periodically clean up expired tokens and stale rate-limit entries
-  setInterval(
+  const cleanupInterval = setInterval(
     () => {
       const now = Date.now();
       for (const [token, expiry] of tokens) {
@@ -296,6 +296,7 @@ function createAuth(password) {
     rateLimit,
     parseCookies,
     loginHTML: LOGIN_HTML,
+    cleanup: () => clearInterval(cleanupInterval),
   };
 }
 

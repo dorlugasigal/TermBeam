@@ -2476,7 +2476,14 @@
 
       // ===== Init =====
       async function init() {
-        const sessionList = await fetch('/api/sessions').then((r) => r.json());
+        let sessionList = [];
+        try {
+          const res = await fetch('/api/sessions');
+          if (!res.ok) throw new Error(`${res.status}`);
+          sessionList = await res.json();
+        } catch (err) {
+          console.error('Failed to load sessions:', err);
+        }
         const initialId = new URLSearchParams(location.search).get('id');
 
         for (const s of sessionList) addSession(s);
@@ -2678,7 +2685,10 @@
 
         // Version
         fetch('/api/version')
-          .then((r) => r.json())
+          .then((r) => {
+            if (!r.ok) throw new Error(`${r.status}`);
+            return r.json();
+          })
           .then((d) => {
             window._termbeamVersion = 'v' + d.version;
             document.getElementById('side-panel-version').textContent = 'v' + d.version;
@@ -3884,6 +3894,7 @@
             const res = await fetch('/api/dirs?q=' + encodeURIComponent(q ? q + '/' : ''), {
               credentials: 'same-origin',
             });
+            if (!res.ok) throw new Error(`Failed to browse directories: ${res.status}`);
             const data = await res.json();
             if (!data.dirs || !data.dirs.length) return;
             browseDropdown = document.createElement('div');
@@ -3997,7 +4008,10 @@
         document.getElementById('ns-browse-btn').addEventListener('click', async () => {
           if (serverCwd === '/') {
             try {
-              const data = await fetch('/api/shells').then((r) => r.json());
+              const data = await fetch('/api/shells').then((r) => {
+                if (!r.ok) throw new Error(`${r.status}`);
+                return r.json();
+              });
               if (data.cwd) serverCwd = data.cwd;
             } catch {}
           }
@@ -4025,6 +4039,7 @@
           nsBrowserList.innerHTML = '<div class="browser-empty">Loading…</div>';
           try {
             const res = await fetch(`/api/dirs?q=${encodeURIComponent(dir + '/')}`);
+            if (!res.ok) throw new Error(`Failed to load directories: ${res.status}`);
             const data = await res.json();
             let items = '';
             // Add parent (..) entry unless at root
@@ -4082,7 +4097,10 @@
         if (shellsLoaded) return;
         const sel = document.getElementById('ns-shell');
         try {
-          const data = await fetch('/api/shells').then((r) => r.json());
+          const data = await fetch('/api/shells').then((r) => {
+            if (!r.ok) throw new Error(`${r.status}`);
+            return r.json();
+          });
           if (data.cwd) {
             serverCwd = data.cwd;
             document.getElementById('ns-cwd').placeholder = data.cwd;
@@ -4140,10 +4158,16 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
           });
+          if (!res.ok) {
+            console.error(`Failed to create session: ${res.status}`);
+            return;
+          }
           const data = await res.json();
 
           // Fetch full session list to get the new session data
-          const list = await fetch('/api/sessions').then((r) => r.json());
+          const listRes = await fetch('/api/sessions');
+          if (!listRes.ok) throw new Error(`Failed to list sessions: ${listRes.status}`);
+          const list = await listRes.json();
           const newSession = list.find((s) => s.id === data.id);
           if (newSession) {
             addSession(newSession);
@@ -4163,7 +4187,9 @@
       function startPolling() {
         setInterval(async () => {
           try {
-            const list = await fetch('/api/sessions').then((r) => r.json());
+            const pollRes = await fetch('/api/sessions');
+            if (!pollRes.ok) throw new Error(`${pollRes.status}`);
+            const list = await pollRes.json();
             const serverIds = new Set(list.map((s) => s.id));
 
             // Add new sessions created elsewhere

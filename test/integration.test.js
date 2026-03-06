@@ -270,7 +270,7 @@ describe('Integration', () => {
         },
         createBody,
       );
-      assert.strictEqual(createRes.statusCode, 200);
+      assert.strictEqual(createRes.statusCode, 201);
       const created = JSON.parse(createRes.data);
       assert.ok(created.id, 'Created session should have an id');
 
@@ -291,7 +291,7 @@ describe('Integration', () => {
         path: `/api/sessions/${created.id}`,
         method: 'DELETE',
       });
-      assert.strictEqual(deleteRes.statusCode, 200);
+      assert.strictEqual(deleteRes.statusCode, 204);
 
       // Wait for the PTY onExit handler to remove the session from the map
       await new Promise((resolve) => {

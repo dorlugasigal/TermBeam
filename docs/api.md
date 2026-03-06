@@ -116,7 +116,7 @@ All fields are optional. If `initialCommand` is provided, it will be sent to the
 
 The `shell` field is validated against the list of detected shells (see `GET /api/shells`). The `cwd` field must be an absolute path to an existing directory.
 
-**Response (200):**
+**Response (201):**
 
 ```json
 {
@@ -200,11 +200,7 @@ Scan a session's scrollback buffer for the last `localhost` or `127.0.0.1` URL a
 
 Kill and remove a session.
 
-**Response (200):**
-
-```json
-{ "ok": true }
-```
+**Response (204):** No content.
 
 **Response (404):**
 
@@ -298,7 +294,7 @@ Upload an image file. The request body is the raw image data with the appropriat
 
 - `Content-Type`: Must be an `image/*` type
 
-**Response (200):**
+**Response (201):**
 
 ```json
 { "id": "uuid", "url": "/uploads/uuid", "path": "/tmp/termbeam-uuid.png" }
@@ -338,7 +334,7 @@ Upload a file to a session's working directory. The request body is the raw file
 - `X-Filename`: Original filename (required)
 - `X-Target-Dir`: Override destination directory (optional, defaults to session cwd)
 
-**Response (200):**
+**Response (201):**
 
 ```json
 { "name": "script.sh", "path": "/home/user/project/script.sh", "size": 1024 }

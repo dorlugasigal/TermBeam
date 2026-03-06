@@ -72,7 +72,7 @@ describe('Routes', () => {
         },
         imageData,
       );
-      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.statusCode, 201);
       const body = JSON.parse(res.data);
       assert.ok(body.id, 'Response should contain an id');
       assert.ok(body.url, 'Response should contain a url');
@@ -162,7 +162,7 @@ describe('Routes', () => {
         },
         imageData,
       );
-      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.statusCode, 201);
       const body = JSON.parse(res.data);
       assert.ok(body.path, 'Response should contain a path');
     });
@@ -181,7 +181,7 @@ describe('Routes', () => {
         },
         imageData,
       );
-      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.statusCode, 201);
     });
 
     it('should accept valid WebP magic bytes', async () => {
@@ -215,7 +215,7 @@ describe('Routes', () => {
         },
         imageData,
       );
-      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.statusCode, 201);
     });
 
     it('should accept valid BMP magic bytes', async () => {
@@ -232,7 +232,7 @@ describe('Routes', () => {
         },
         imageData,
       );
-      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.statusCode, 201);
     });
 
     it('should reject WebP data missing RIFF header', async () => {
@@ -362,7 +362,7 @@ describe('Routes', () => {
         imageData,
       );
       const uploadBody = JSON.parse(uploadRes.data);
-      assert.strictEqual(uploadRes.statusCode, 200);
+      assert.strictEqual(uploadRes.statusCode, 201);
       // Delete the file from disk
       fs.unlinkSync(uploadBody.path);
       const getRes = await httpRequest({
@@ -584,7 +584,7 @@ describe('Routes', () => {
         },
         body,
       );
-      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.statusCode, 201);
       const data = JSON.parse(res.data);
       assert.ok(data.id, 'Response should contain session id');
     });
@@ -991,7 +991,7 @@ describe('Routes', () => {
         },
         body,
       );
-      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.statusCode, 201);
       const data = JSON.parse(res.data);
       assert.strictEqual(data.name, 'hello.txt');
       assert.strictEqual(data.size, body.length);
@@ -1016,7 +1016,7 @@ describe('Routes', () => {
         },
         body,
       );
-      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.statusCode, 201);
       const data = JSON.parse(res.data);
       assert.strictEqual(data.name, 'hello (1).txt');
     });
@@ -1092,7 +1092,7 @@ describe('Routes', () => {
         },
         body,
       );
-      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.statusCode, 201);
       const data = JSON.parse(res.data);
       assert.strictEqual(data.name, 'traversal-test.txt');
       const session = inst.sessions.get(inst.defaultId);
@@ -1138,7 +1138,7 @@ describe('Routes', () => {
         },
         body,
       );
-      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.statusCode, 201);
       const data = JSON.parse(res.data);
       assert.strictEqual(data.name, 'clean.txt');
     });
@@ -1160,7 +1160,7 @@ describe('Routes', () => {
         },
         body,
       );
-      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.statusCode, 201);
       const data = JSON.parse(res.data);
       assert.strictEqual(data.name, 'up.dat');
       assert.deepStrictEqual(fs.readFileSync(data.path), body);
@@ -1185,7 +1185,7 @@ describe('Routes', () => {
         },
         body,
       );
-      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.statusCode, 201);
       const data = JSON.parse(res.data);
       assert.strictEqual(data.name, 'custom.txt');
       assert.ok(data.path.startsWith(tmpDir), 'File should be in the custom directory');

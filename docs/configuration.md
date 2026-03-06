@@ -16,7 +16,7 @@ description: All TermBeam CLI flags and options — ports, passwords, tunnels, s
 | `--no-tunnel`         | Disable tunnel                                                                                                | —              |
 | `--persisted-tunnel`  | Create a reusable devtunnel URL (stable across restarts)                                                      | Off            |
 | `--public`            | Allow public tunnel access (no Microsoft login required)                                                      | Off            |
-| `--port <port>`       | Server port                                                                                                   | `3456`         |
+| `--port <port>`       | Server port (must be 1-65535)                                                                                 | `3456`         |
 | `--host <addr>`       | Bind address                                                                                                  | `127.0.0.1`    |
 | `--lan`               | Bind to all interfaces (LAN access)                                                                           | Off            |
 | `-i, --interactive`   | Interactive setup wizard — walks through password, port, access mode (tunnel type, visibility), and log level | Off            |

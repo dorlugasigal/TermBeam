@@ -270,6 +270,10 @@ function parseArgs() {
       publicTunnel = true;
     } else if (args[i].startsWith('--password=')) {
       password = args[i].split('=')[1];
+      if (!password) {
+        console.error('Error: --password= requires a non-empty value\n');
+        process.exit(1);
+      }
       explicitPassword = true;
     } else if (args[i] === '--help' || args[i] === '-h') {
       printHelp();
@@ -286,6 +290,10 @@ function parseArgs() {
       explicitPassword = true;
     } else if (args[i] === '--port' && args[i + 1]) {
       port = parseInt(args[++i], 10);
+      if (!Number.isFinite(port) || port < 1 || port > 65535) {
+        console.error('Error: --port must be a number between 1 and 65535\n');
+        process.exit(1);
+      }
     } else if (args[i] === '--lan') {
       host = '0.0.0.0';
     } else if (args[i] === '--host' && args[i + 1]) {
@@ -305,6 +313,12 @@ function parseArgs() {
     } else {
       filteredArgs.push(args[i]);
     }
+  }
+
+  const validLogLevels = ['error', 'warn', 'info', 'debug'];
+  if (!validLogLevels.includes(logLevel)) {
+    console.error(`Error: --log-level must be one of: ${validLogLevels.join(', ')}\n`);
+    process.exit(1);
   }
 
   // Default: auto-generate password if none specified
