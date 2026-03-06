@@ -141,10 +141,30 @@ If there are multiple types of changes, use the most significant one.
        > CI failed due to X. Do you want me to attempt an automatic fix,
        > or would you like to review the issues and provide instructions?
 
-  5. Once CI passes, **ask the user for approval** before merging.
+  5. **Wait for GitHub Copilot code review.** Copilot automatically reviews
+     PRs. Poll until the review appears and check for actionable feedback:
+
+     ```bash
+     # Poll for Copilot's review (may take 5 minutes after PR creation)
+     gh pr reviews <pr-number> --json author,state,body \
+       --jq '.[] | select(.author.login == "copilot-pull-request-reviewer" or .author.login == "github-actions[bot]" or (.author.login | startswith("copilot")))'
+     ```
+
+     - If no Copilot review appears after 5 minutes, proceed — it may be
+       disabled for this repo.
+     - If Copilot leaves comments or requests changes, review each one:
+       - If the suggestion is valid and straightforward, apply the fix, push,
+         and wait for Copilot to re-review.
+       - If the suggestion is a false positive or stylistic disagreement,
+         note it and move on.
+       - If a suggestion requires significant changes, **stop and ask the user**.
+     - Once Copilot approves or has no blocking comments, continue.
+
+  6. Once CI passes and Copilot review is resolved, **ask the user for
+     approval** before merging.
      Do NOT continue to the release steps until the user approves.
 
-  6. After approval, merge the PR:
+  7. After approval, merge the PR:
 
      ```bash
      gh pr merge <pr-number> --squash --delete-branch
