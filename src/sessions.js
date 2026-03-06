@@ -1,29 +1,9 @@
 const crypto = require('crypto');
 const path = require('path');
-const { execSync, exec } = require('child_process');
-const fs = require('fs');
+const { exec } = require('child_process');
 const pty = require('node-pty');
 const log = require('./logger');
 const { getGitInfo } = require('./git');
-
-function _getProcessCwd(pid) {
-  try {
-    if (process.platform === 'linux') {
-      return fs.readlinkSync(`/proc/${pid}/cwd`);
-    }
-    if (process.platform === 'darwin') {
-      const out = execSync(`lsof -a -p ${pid} -d cwd -Fn`, {
-        stdio: 'pipe',
-        timeout: 2000,
-      }).toString();
-      const match = out.match(/\nn(.+)/);
-      if (match) return match[1];
-    }
-  } catch {
-    /* process may have exited */
-  }
-  return null;
-}
 
 // Cache git info per session to avoid blocking the event loop on every list() call.
 // lsof + git commands take ~200-500ms and block WebSocket traffic, causing

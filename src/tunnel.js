@@ -67,21 +67,6 @@ function savePersistedTunnel(id) {
   );
 }
 
-function _deletePersisted() {
-  const persisted = loadPersistedTunnel();
-  if (persisted) {
-    try {
-      if (SAFE_ID_RE.test(persisted.tunnelId)) {
-        execFileSync(devtunnelCmd, ['delete', persisted.tunnelId, '-f'], { stdio: 'pipe' });
-        log.info(`Deleted persisted tunnel ${persisted.tunnelId}`);
-      }
-    } catch {}
-    try {
-      fs.unlinkSync(TUNNEL_CONFIG_PATH);
-    } catch {}
-  }
-}
-
 function isTunnelValid(id) {
   try {
     if (!SAFE_ID_RE.test(id)) return false;

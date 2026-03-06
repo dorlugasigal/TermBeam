@@ -50,6 +50,7 @@ The wizard checks if PM2 is installed (and offers to install it globally if not)
 | 5. **Working directory** | Default terminal directory | Default: current directory                                        |
 | 6. **Log level**         | Logging verbosity          | `info` (default), `debug`, `warn`, or `error`                     |
 | 7. **Boot auto-start**   | Start on system boot?      | Default: Yes — runs `pm2 startup`                                 |
+| 8. **Confirm**           | Review and proceed         | Proceed or cancel                                                 |
 
 If you choose **DevTunnel** access, a follow-up question asks whether the tunnel should be **private** (Microsoft login required) or **public** (anyone with the link). Choosing public with no password will auto-generate one for safety.
 
