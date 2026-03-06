@@ -409,105 +409,35 @@
     <section class="comparison">
       <div class="section-container">
         <div class="section-header" data-reveal>
-          <span class="section-label">How it compares</span>
-          <h2>Web terminals, reimagined<br />for mobile</h2>
-          <p class="section-sub">
-            Other tools share a terminal over HTTP. TermBeam is built from the ground up for phones
-            and tablets.
-          </p>
+          <span class="section-label">The old way vs TermBeam</span>
+          <h2>Terminal on your phone<br />shouldn't be this hard</h2>
         </div>
 
-        <div class="comparison-table-wrap" data-reveal>
-          <table class="comparison-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th class="comparison-highlight">TermBeam</th>
-                <th>ttyd</th>
-                <th>Wetty</th>
-                <th>Shellinabox</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="comparison-feature">Mobile-first UI</td>
-                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-              </tr>
-              <tr>
-                <td class="comparison-feature">Touch keyboard bar</td>
-                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-              </tr>
-              <tr>
-                <td class="comparison-feature">Multi-session tabs</td>
-                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-              </tr>
-              <tr>
-                <td class="comparison-feature">Split view</td>
-                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-              </tr>
-              <tr>
-                <td class="comparison-feature">QR code connect</td>
-                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-              </tr>
-              <tr>
-                <td class="comparison-feature">File upload</td>
-                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-              </tr>
-              <tr>
-                <td class="comparison-feature">Built-in tunnel</td>
-                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-              </tr>
-              <tr>
-                <td class="comparison-feature">Secure by default</td>
-                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-yes">✓</span></td>
-                <td><span class="check-partial">~</span></td>
-              </tr>
-              <tr>
-                <td class="comparison-feature">Theme support</td>
-                <td class="comparison-highlight"><span class="check-yes">12</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-no">✗</span></td>
-                <td><span class="check-partial">2</span></td>
-              </tr>
-              <tr>
-                <td class="comparison-feature">One-command install</td>
-                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
-                <td><span class="check-yes">✓</span></td>
-                <td><span class="check-partial">~</span></td>
-                <td><span class="check-partial">~</span></td>
-              </tr>
-              <tr>
-                <td class="comparison-feature">Active development</td>
-                <td class="comparison-highlight"><span class="check-yes">✓</span></td>
-                <td><span class="check-yes">✓</span></td>
-                <td><span class="check-partial">~</span></td>
-                <td><span class="check-no">✗</span></td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="comparison-cards" data-reveal>
+          <div class="comparison-card comparison-card--old">
+            <h3>Without TermBeam</h3>
+            <ol class="comparison-steps">
+              <li>Install an SSH client on your phone</li>
+              <li>Generate and copy SSH keys</li>
+              <li>Configure port forwarding or VPN</li>
+              <li>Type your server IP on a tiny keyboard</li>
+              <li>Fight with a UI built for desktops</li>
+              <li>No special keys — good luck with Ctrl+C</li>
+              <li>One session, no tabs, no split view</li>
+            </ol>
+          </div>
+          <div class="comparison-card comparison-card--new">
+            <h3>With TermBeam</h3>
+            <ol class="comparison-steps">
+              <li>Run <code>npx termbeam</code></li>
+              <li>Scan the QR code</li>
+              <li>Done</li>
+            </ol>
+            <p class="comparison-bonus">
+              Plus: touch keyboard bar, multi-session tabs, split view, file upload, 12 themes — all
+              built for mobile.
+            </p>
+          </div>
         </div>
       </div>
     </section>

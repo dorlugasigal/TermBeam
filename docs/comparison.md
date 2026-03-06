@@ -1,51 +1,48 @@
 ---
-title: TermBeam vs Alternatives
+title: TermBeam vs the Traditional Way
 description: >-
-  How TermBeam compares to ttyd, Wetty, Shellinabox, and other web terminal
-  tools — feature matrix and guidance on when to use each.
+  Why accessing your terminal from a phone usually requires too many steps,
+  and how TermBeam simplifies it to one command and a QR code.
 ---
 
-# TermBeam vs Alternatives
+# TermBeam vs the Traditional Way
 
-TermBeam is a web terminal built for mobile. Other tools share a terminal over HTTP too — here's how they differ and when each one makes sense.
+TermBeam exists because accessing a terminal from your phone is surprisingly painful. There's no real equivalent tool — so instead of a competitor comparison, here's what the experience looks like with and without it.
 
-## Feature Comparison
+## Without TermBeam
 
-| Feature             | TermBeam  | ttyd |  Wetty  | Shellinabox |
-| ------------------- | :-------: | :--: | :-----: | :---------: |
-| Mobile-first UI     |    ✅     |  ❌  |   ❌    |     ❌      |
-| Touch keyboard bar  |    ✅     |  ❌  |   ❌    |     ❌      |
-| Multi-session tabs  |    ✅     |  ❌  |   ❌    |     ❌      |
-| Split view          |    ✅     |  ❌  |   ❌    |     ❌      |
-| QR code connection  |    ✅     |  ❌  |   ❌    |     ❌      |
-| File upload         |    ✅     |  ❌  |   ❌    |     ❌      |
-| Built-in tunnel     |    ✅     |  ❌  |   ❌    |     ❌      |
-| Secure by default   |    ✅     |  ❌  |   ✅    |     ⚠️      |
-| Theme support       | 12 themes |  ❌  |   ❌    |  2 themes   |
-| One-command install |    ✅     |  ✅  |   ⚠️    |     ⚠️      |
-| Written in          |  Node.js  |  C   | Node.js |      C      |
-| Active development  |    ✅     |  ✅  |   ⚠️    |     ❌      |
+To get a terminal on your phone today, you'd typically:
 
-!!! note
-⚠️ = Partially supported or requires extra configuration.
+1. Install a dedicated SSH client app (Termius, Prompt, JuiceSSH…)
+2. Generate SSH keys and transfer them to your phone
+3. Configure your server's firewall or set up port forwarding
+4. Optionally set up a VPN or tunnel for internet access
+5. Manually type your server's IP address on a tiny keyboard
+6. Work in a UI designed for desktop monitors — no touch-friendly keys, no tabs, no split view
 
-## When to Use What
+That's a lot of setup for "I just want to check something on my server."
 
-### TermBeam
+## With TermBeam
 
-Use TermBeam when you want **mobile-friendly terminal access** without installing anything on the client. It's built for the use case of running one command on your laptop, scanning a QR code with your phone, and getting a full terminal with touch controls, tabs, and split view. Great for on-call, demos, workshops, and pair programming.
+```bash
+npx termbeam
+```
 
-### ttyd
+Scan the QR code with your phone. Done.
 
-[ttyd](https://github.com/tsl0922/ttyd) is a lightweight C binary that shares a single terminal over HTTP. Use it when you need a **minimal, dependency-free solution** on resource-constrained systems where Node.js isn't an option. It's fast and simple, but has no multi-session support, no mobile UI optimizations, and no built-in auth.
+You get a full terminal with a touch keyboard bar (Ctrl, Tab, arrows, Esc), multi-session tabs, split view, file upload, 12 themes — all designed for mobile from the ground up.
 
-### Wetty
+!!! tip "No install on the client"
+TermBeam runs in any browser. Your phone doesn't need an app, SSH keys, or any configuration. The built-in DevTunnel means it works over the internet automatically — no port forwarding needed.
 
-[Wetty](https://github.com/butlerx/wetty) bridges a browser-based terminal to SSH. Use it when you want a **web frontend for an existing SSH server** — it acts as a gateway rather than spawning its own PTY. Useful in environments where SSH is already the standard and you just need browser access to it.
+## When SSH is Still the Right Choice
 
-### Shellinabox
+TermBeam isn't a replacement for SSH. Use SSH when you need:
 
-[Shellinabox](https://github.com/nickmayer/shellinabox) was one of the original web terminal tools. It's a single C binary that spawns a shell and serves it over HTTPS. It works, but the project is **largely unmaintained** (last significant updates were years ago) and the UI feels dated. Consider ttyd or TermBeam instead for new setups.
+- **Automated access** — CI/CD pipelines, scripts, cron jobs
+- **File transfers** — SCP/SFTP for bulk file operations
+- **Long-running production sessions** — pair with tmux or screen
+- **Key-based authentication** — environments that require certificate-based auth
 
-!!! tip "These tools aren't mutually exclusive"
-A common setup is TermBeam for quick mobile access and SSH (with tmux or screen) for long-running production sessions. Use whatever fits the workflow.
+!!! info "They work great together"
+A common setup is SSH (with tmux) for long-running production sessions and TermBeam for quick mobile access when you're away from your desk.
