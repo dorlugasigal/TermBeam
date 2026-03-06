@@ -36,7 +36,7 @@ Must exit cleanly. If it fails, stop and report.
 npm run test:coverage
 ```
 
-Coverage must meet the 80% threshold. If it drops below 80%, stop and report
+Coverage must meet the 92% threshold. If it drops below 80%, stop and report
 which files/areas lost coverage. The coverage summary is written to
 `coverage/coverage-summary.json` — you can inspect it for details.
 
@@ -57,6 +57,12 @@ Compare the changes against the documentation files. Check:
 - **`docs/architecture.md`** — if system design or module responsibilities changed.
 - **`docs/getting-started.md`** — if installation or first-run steps changed.
   and any other docs files relevant to the changes.
+
+Use read-only subagents to verify documentation accuracy. Assign each subagent
+to a doc area (e.g., CLI/config, API/WebSocket, security, architecture).
+Each subagent should compare the code changes to the relevant docs and report
+any mismatches or missing updates. If any subagent flags an issue, update the
+docs before proceeding.
 
 If docs are outdated, update them before proceeding. Show the user what you updated.
 
@@ -88,9 +94,11 @@ If there are multiple types of changes, use the most significant one.
 
 - **PR flow:** If the user explicitly asked to create a PR:
   1. **Ensure an issue exists.** Every PR must reference an issue. If the
-     user mentioned an issue number, use it. If not, create one:
+     user mentioned an issue number, use it. Otherwise, verify that a matching
+     issue already exists or create one:
 
      ```bash
+     gh issue list --state open --search "<keywords>" --limit 5
      gh issue create --title "<short description>" --body "<brief context>"
      ```
 
