@@ -328,6 +328,48 @@ Returned when the file's magic bytes don't match the declared `Content-Type` hea
 
 Maximum file size is 10 MB.
 
+#### `POST /api/sessions/:id/upload`
+
+Upload a file to a session's working directory. The request body is the raw file content. The filename is provided via the `X-Filename` header and sanitized server-side (path traversal sequences are stripped). Duplicate filenames are auto-renamed (e.g., `file (1).txt`).
+
+**Request headers:**
+
+- `Content-Type`: The file's MIME type (e.g., `application/octet-stream`)
+- `X-Filename`: Original filename (required)
+- `X-Target-Dir`: Override destination directory (optional, defaults to session cwd)
+
+**Response (200):**
+
+```json
+{ "name": "script.sh", "path": "/home/user/project/script.sh", "size": 1024 }
+```
+
+**Response (400):**
+
+```json
+{ "error": "Missing X-Filename header" }
+```
+
+```json
+{ "error": "Invalid filename" }
+```
+
+```json
+{ "error": "Empty file" }
+```
+
+**Response (404):**
+
+```json
+{ "error": "Session not found" }
+```
+
+**Response (413):**
+
+```json
+{ "error": "File too large (max 10 MB)" }
+```
+
 #### `GET /uploads/:id`
 
 Serve a previously uploaded file by its opaque ID. Requires authentication.

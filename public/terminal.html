@@ -1165,6 +1165,9 @@
         max-height: 90vh;
         overflow-y: auto;
       }
+      #upload-modal .modal {
+        overflow: visible;
+      }
       .modal h2 {
         font-size: 18px;
         margin-bottom: 16px;
@@ -1982,6 +1985,53 @@
         <button class="key-btn icon-btn" data-key="&#x1b;[C" title="Right">→</button>
       </div>
     </div>
+    <input type="file" id="upload-input" multiple hidden />
+
+    <!-- Upload Confirm Modal -->
+    <div class="modal-overlay" id="upload-modal">
+      <div class="modal">
+        <h2>Upload Files</h2>
+        <div
+          id="upload-file-list"
+          style="
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            max-height: 120px;
+            overflow-y: auto;
+          "
+        ></div>
+        <label for="upload-dir">Destination directory</label>
+        <div class="cwd-picker">
+          <input type="text" id="upload-dir" placeholder="Session working directory" />
+          <button
+            type="button"
+            class="cwd-browse-btn"
+            id="upload-browse-btn"
+            title="Browse folders"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+              />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" id="upload-cancel">Cancel</button>
+          <button class="btn-create" id="upload-confirm">Upload</button>
+        </div>
+      </div>
+    </div>
 
     <div id="reconnect-overlay">
       <div class="msg">Session disconnected</div>
@@ -2449,6 +2499,7 @@
         setupKeyBar();
         setupPaste();
         setupImagePaste();
+        setupUpload();
         setupSelectMode();
         setupNewSessionModal();
         setupPreviewModal();
@@ -3739,6 +3790,169 @@
         );
       }
 
+      // ===== File Upload =====
+      function setupUpload() {
+        const uploadInput = document.getElementById('upload-input');
+        const uploadModal = document.getElementById('upload-modal');
+        const uploadDirInput = document.getElementById('upload-dir');
+        const uploadFileList = document.getElementById('upload-file-list');
+        const uploadConfirmBtn = document.getElementById('upload-confirm');
+        const uploadCancelBtn = document.getElementById('upload-cancel');
+        const uploadBrowseBtn = document.getElementById('upload-browse-btn');
+
+        let pendingFiles = null;
+
+        const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+        function openUploadModal(files) {
+          pendingFiles = files;
+          const ms = managed.get(activeId);
+          const cwd = (ms && ms.cwd) || '';
+          uploadDirInput.value = cwd;
+          let hasOversized = false;
+          uploadFileList.innerHTML = Array.from(files)
+            .map((f) => {
+              const oversized = f.size > MAX_FILE_SIZE;
+              if (oversized) hasOversized = true;
+              return (
+                '<div style="' +
+                (oversized ? 'color:#f87171;' : '') +
+                '">📄 ' +
+                esc(f.name) +
+                ' <span style="opacity:0.6">(' +
+                formatSize(f.size) +
+                ')</span>' +
+                (oversized ? ' <strong>exceeds 10 MB limit</strong>' : '') +
+                '</div>'
+              );
+            })
+            .join('');
+          uploadConfirmBtn.disabled = hasOversized;
+          uploadConfirmBtn.style.opacity = hasOversized ? '0.5' : '1';
+          uploadModal.classList.add('visible');
+        }
+
+        function closeUploadModal() {
+          uploadModal.classList.remove('visible');
+          closeBrowseDropdown();
+          pendingFiles = null;
+        }
+
+        function formatSize(bytes) {
+          if (bytes < 1024) return bytes + ' B';
+          if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+          return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        uploadInput.addEventListener('change', () => {
+          const files = uploadInput.files;
+          if (!files || !files.length || !activeId) return;
+          openUploadModal(files);
+        });
+
+        uploadCancelBtn.addEventListener('click', closeUploadModal);
+        uploadModal.addEventListener('click', (e) => {
+          if (e.target === uploadModal) closeUploadModal();
+        });
+
+        // Directory browsing (reuse /api/dirs)
+        let browseDropdown = null;
+
+        function closeBrowseDropdown() {
+          if (browseDropdown) {
+            browseDropdown.remove();
+            browseDropdown = null;
+          }
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+          if (
+            browseDropdown &&
+            !browseDropdown.contains(e.target) &&
+            e.target !== uploadBrowseBtn
+          ) {
+            closeBrowseDropdown();
+          }
+        });
+
+        uploadBrowseBtn.addEventListener('click', async () => {
+          if (browseDropdown) {
+            closeBrowseDropdown();
+            return;
+          }
+          const q = uploadDirInput.value || '';
+          try {
+            const res = await fetch('/api/dirs?q=' + encodeURIComponent(q ? q + '/' : ''), {
+              credentials: 'same-origin',
+            });
+            const data = await res.json();
+            if (!data.dirs || !data.dirs.length) return;
+            browseDropdown = document.createElement('div');
+            browseDropdown.style.cssText =
+              'position:absolute;left:0;right:0;bottom:100%;margin-bottom:4px;max-height:150px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:6px;z-index:10;box-shadow:0 -4px 12px rgba(0,0,0,0.2);';
+            data.dirs.forEach((d) => {
+              const opt = document.createElement('div');
+              opt.textContent = d;
+              opt.style.cssText =
+                'padding:6px 10px;cursor:pointer;font-size:13px;color:var(--text);';
+              opt.addEventListener('mouseenter', () => (opt.style.background = 'var(--hover)'));
+              opt.addEventListener('mouseleave', () => (opt.style.background = 'none'));
+              opt.addEventListener('click', () => {
+                uploadDirInput.value = d;
+                closeBrowseDropdown();
+              });
+              browseDropdown.appendChild(opt);
+            });
+            uploadBrowseBtn.parentElement.style.position = 'relative';
+            uploadBrowseBtn.parentElement.appendChild(browseDropdown);
+          } catch {}
+        });
+
+        uploadConfirmBtn.addEventListener('click', async () => {
+          if (!pendingFiles || !pendingFiles.length || !activeId) return;
+          const targetDir = uploadDirInput.value.trim();
+          const filesToUpload = Array.from(pendingFiles);
+          closeUploadModal();
+
+          let uploaded = 0;
+          let failed = 0;
+
+          for (const file of filesToUpload) {
+            try {
+              const headers = {
+                'Content-Type': file.type || 'application/octet-stream',
+                'X-Filename': file.name,
+              };
+              if (targetDir) headers['X-Target-Dir'] = targetDir;
+              const res = await fetch(`/api/sessions/${activeId}/upload`, {
+                method: 'POST',
+                headers,
+                body: file,
+                credentials: 'same-origin',
+              });
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || 'Upload failed');
+              }
+              await res.json();
+              uploaded++;
+            } catch (err) {
+              failed++;
+              console.error('Upload error:', file.name, err);
+            }
+          }
+
+          if (uploaded > 0) {
+            const dir = targetDir || 'session directory';
+            showToast(`${uploaded} file${uploaded > 1 ? 's' : ''} uploaded to ${dir}`);
+          }
+          if (failed > 0) {
+            showToast(`${failed} file${failed > 1 ? 's' : ''} failed to upload`);
+          }
+        });
+      }
+
       // ===== New Session Modal =====
       let shellsLoaded = false;
 
@@ -4165,6 +4379,19 @@
             action: () => openNewSessionModal(),
           },
           {
+            icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
+            label: 'Upload files',
+            category: 'Session',
+            action: () => {
+              if (!activeId) {
+                showToast('No active session');
+                return;
+              }
+              document.getElementById('upload-input').value = '';
+              document.getElementById('upload-input').click();
+            },
+          },
+          {
             icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
             label: 'Close tab',
             category: 'Session',
@@ -4348,8 +4575,8 @@
               btn.innerHTML =
                 '<span class="palette-action-icon">' + a.icon + '</span>' + esc(a.label);
               btn.addEventListener('click', () => {
-                if (!a.keepOpen) closePalette();
                 a.action();
+                if (!a.keepOpen) closePalette();
               });
               body.appendChild(btn);
             });

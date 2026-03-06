@@ -949,4 +949,355 @@ describe('Routes', () => {
       assert.strictEqual(res.statusCode, 401);
     });
   });
+
+  // === File upload to session cwd ===
+  describe('POST /api/sessions/:id/upload', () => {
+    let inst;
+    after(async () => {
+      // Clean up any uploaded test files
+      if (inst) {
+        const session = inst.sessions.get(inst.defaultId);
+        if (session) {
+          for (const name of [
+            'hello.txt',
+            'hello (1).txt',
+            'up.dat',
+            'clean.txt',
+            'traversal-test.txt',
+          ]) {
+            try {
+              fs.unlinkSync(path.join(session.cwd, name));
+            } catch {}
+          }
+        }
+        await inst.shutdown();
+      }
+    });
+
+    it('should upload a file to the session cwd', async () => {
+      inst = await startServer();
+      const body = Buffer.from('hello world');
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: `/api/sessions/${inst.defaultId}/upload`,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+            'X-Filename': 'hello.txt',
+            'Content-Length': body.length,
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.name, 'hello.txt');
+      assert.strictEqual(data.size, body.length);
+      assert.ok(fs.existsSync(data.path), 'File should exist on disk');
+      assert.strictEqual(fs.readFileSync(data.path, 'utf8'), 'hello world');
+    });
+
+    it('should deduplicate filenames on collision', async () => {
+      if (!inst) inst = await startServer();
+      const body = Buffer.from('second');
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: `/api/sessions/${inst.defaultId}/upload`,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+            'X-Filename': 'hello.txt',
+            'Content-Length': body.length,
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.name, 'hello (1).txt');
+    });
+
+    it('should return 404 for unknown session', async () => {
+      if (!inst) inst = await startServer();
+      const body = Buffer.from('test');
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions/nonexistent-session-id/upload',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+            'X-Filename': 'test.txt',
+            'Content-Length': body.length,
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 404);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Session not found');
+    });
+
+    it('should return 400 when X-Filename header is missing', async () => {
+      if (!inst) inst = await startServer();
+      const body = Buffer.from('test');
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: `/api/sessions/${inst.defaultId}/upload`,
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain', 'Content-Length': body.length },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Missing X-Filename header');
+    });
+
+    it('should return 400 for empty body', async () => {
+      if (!inst) inst = await startServer();
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${inst.defaultId}/upload`,
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain', 'X-Filename': 'empty.txt', 'Content-Length': 0 },
+      });
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Empty file');
+    });
+
+    it('should sanitize path traversal in filename', async () => {
+      if (!inst) inst = await startServer();
+      const body = Buffer.from('data');
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: `/api/sessions/${inst.defaultId}/upload`,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'X-Filename': '../../../etc/traversal-test.txt',
+            'Content-Length': body.length,
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.name, 'traversal-test.txt');
+      const session = inst.sessions.get(inst.defaultId);
+      assert.ok(data.path.startsWith(session.cwd), 'File must be inside session cwd');
+    });
+
+    it('should reject invalid filenames', async () => {
+      if (!inst) inst = await startServer();
+      const body = Buffer.from('data');
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: `/api/sessions/${inst.defaultId}/upload`,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'X-Filename': '..',
+            'Content-Length': body.length,
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Invalid filename');
+    });
+
+    it('should strip path separators from filename', async () => {
+      if (!inst) inst = await startServer();
+      const body = Buffer.from('clean');
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: `/api/sessions/${inst.defaultId}/upload`,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+            'X-Filename': 'some/nested/clean.txt',
+            'Content-Length': body.length,
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.name, 'clean.txt');
+    });
+
+    it('should accept binary files', async () => {
+      if (!inst) inst = await startServer();
+      const body = Buffer.from([0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd]);
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: `/api/sessions/${inst.defaultId}/upload`,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'X-Filename': 'up.dat',
+            'Content-Length': body.length,
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.name, 'up.dat');
+      assert.deepStrictEqual(fs.readFileSync(data.path), body);
+    });
+
+    it('should upload to custom directory via X-Target-Dir', async () => {
+      if (!inst) inst = await startServer();
+      const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'tb-upload-'));
+      const body = Buffer.from('custom dir');
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: `/api/sessions/${inst.defaultId}/upload`,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+            'X-Filename': 'custom.txt',
+            'X-Target-Dir': tmpDir,
+            'Content-Length': body.length,
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.name, 'custom.txt');
+      assert.ok(data.path.startsWith(tmpDir), 'File should be in the custom directory');
+      assert.strictEqual(fs.readFileSync(data.path, 'utf8'), 'custom dir');
+      fs.unlinkSync(data.path);
+      fs.rmdirSync(tmpDir);
+    });
+
+    it('should return 400 for non-existent X-Target-Dir', async () => {
+      if (!inst) inst = await startServer();
+      const body = Buffer.from('data');
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: `/api/sessions/${inst.defaultId}/upload`,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+            'X-Filename': 'test.txt',
+            'X-Target-Dir': '/nonexistent/path/abc123',
+            'Content-Length': body.length,
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Target directory does not exist');
+    });
+
+    it('should return 400 when X-Target-Dir is a file, not a directory', async () => {
+      if (!inst) inst = await startServer();
+      // Create a temp file to use as the target "directory"
+      const tmpFile = path.join(require('os').tmpdir(), 'tb-not-a-dir-' + Date.now() + '.tmp');
+      fs.writeFileSync(tmpFile, 'placeholder');
+      try {
+        const body = Buffer.from('data');
+        const res = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: inst.port,
+            path: `/api/sessions/${inst.defaultId}/upload`,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'text/plain',
+              'X-Filename': 'test.txt',
+              'X-Target-Dir': tmpFile,
+              'Content-Length': body.length,
+            },
+          },
+          body,
+        );
+        assert.strictEqual(res.statusCode, 400);
+        const data = JSON.parse(res.data);
+        assert.strictEqual(data.error, 'Target directory is not a directory');
+      } finally {
+        fs.unlinkSync(tmpFile);
+      }
+    });
+
+    it('should return 413 for file exceeding 10 MB', async () => {
+      if (!inst) inst = await startServer();
+      const body = Buffer.alloc(10 * 1024 * 1024 + 1, 0x41); // 10 MB + 1 byte
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: `/api/sessions/${inst.defaultId}/upload`,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'X-Filename': 'huge.bin',
+            'Content-Length': body.length,
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 413);
+      const data = JSON.parse(res.data);
+      assert.match(data.error, /too large/i);
+    });
+
+    it('should return 500 when target directory is not writable', async () => {
+      if (!inst) inst = await startServer();
+      // Create a read-only temp directory
+      const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'tb-readonly-'));
+      fs.chmodSync(tmpDir, 0o444);
+      try {
+        const body = Buffer.from('data');
+        const res = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: inst.port,
+            path: `/api/sessions/${inst.defaultId}/upload`,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'text/plain',
+              'X-Filename': 'nope.txt',
+              'X-Target-Dir': tmpDir,
+              'Content-Length': body.length,
+            },
+          },
+          body,
+        );
+        assert.strictEqual(res.statusCode, 500);
+        const data = JSON.parse(res.data);
+        assert.strictEqual(data.error, 'Failed to write file');
+      } finally {
+        fs.chmodSync(tmpDir, 0o755);
+        fs.rmdirSync(tmpDir);
+      }
+    });
+  });
 });

@@ -308,6 +308,96 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     res.sendFile(filepath);
   });
 
+  // General file upload to a session's working directory
+  app.post('/api/sessions/:id/upload', apiRateLimit, auth.middleware, (req, res) => {
+    const session = sessions.get(req.params.id);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const rawName = req.headers['x-filename'];
+    if (!rawName || typeof rawName !== 'string') {
+      return res.status(400).json({ error: 'Missing X-Filename header' });
+    }
+
+    // Sanitize: take only the basename, collapse whitespace, strip control chars
+    const sanitized = path
+      .basename(rawName)
+      .replace(/[\x00-\x1f]/g, '')
+      .trim();
+    if (!sanitized || sanitized === '.' || sanitized === '..') {
+      return res.status(400).json({ error: 'Invalid filename' });
+    }
+
+    // Resolve target directory: optional X-Target-Dir header, falls back to session cwd
+    const rawTargetDir = req.headers['x-target-dir'];
+    let targetDir = session.cwd;
+    if (rawTargetDir && typeof rawTargetDir === 'string') {
+      const resolved = path.resolve(rawTargetDir);
+      try {
+        if (fs.statSync(resolved).isDirectory()) {
+          targetDir = resolved;
+        } else {
+          return res.status(400).json({ error: 'Target directory is not a directory' });
+        }
+      } catch {
+        return res.status(400).json({ error: 'Target directory does not exist' });
+      }
+    }
+    let destPath = path.join(targetDir, sanitized);
+
+    // Deduplicate: file.txt → file (1).txt → file (2).txt …
+    if (fs.existsSync(destPath)) {
+      const ext = path.extname(sanitized);
+      const base = path.basename(sanitized, ext);
+      let n = 1;
+      while (fs.existsSync(destPath)) {
+        destPath = path.join(targetDir, `${base} (${n})${ext}`);
+        n++;
+      }
+    }
+
+    const chunks = [];
+    let size = 0;
+    let aborted = false;
+    const limit = 10 * 1024 * 1024;
+
+    req.on('data', (chunk) => {
+      if (aborted) return;
+      size += chunk.length;
+      if (size > limit) {
+        aborted = true;
+        log.warn(`File upload rejected: too large (${size} bytes)`);
+        res.status(413).json({ error: 'File too large (max 10 MB)' });
+        req.resume();
+        return;
+      }
+      chunks.push(chunk);
+    });
+
+    req.on('end', () => {
+      if (aborted) return;
+      const buffer = Buffer.concat(chunks);
+      if (!buffer.length) {
+        return res.status(400).json({ error: 'Empty file' });
+      }
+      try {
+        fs.writeFileSync(destPath, buffer);
+      } catch (err) {
+        log.error(`File upload write error: ${err.message}`);
+        return res.status(500).json({ error: 'Failed to write file' });
+      }
+      const finalName = path.basename(destPath);
+      log.info(`File upload: ${finalName} → ${targetDir} (${buffer.length} bytes)`);
+      res.json({ name: finalName, path: destPath, size: buffer.length });
+    });
+
+    req.on('error', (err) => {
+      log.error(`File upload error: ${err.message}`);
+      res.status(500).json({ error: 'Upload failed' });
+    });
+  });
+
   // Directory listing for folder browser
   app.get('/api/dirs', apiRateLimit, auth.middleware, (req, res) => {
     const query = req.query.q || config.cwd + path.sep;
