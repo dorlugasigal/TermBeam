@@ -334,6 +334,9 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     let targetDir = session.cwd;
     if (rawTargetDir && typeof rawTargetDir === 'string') {
       const resolved = path.resolve(rawTargetDir);
+      if (!path.isAbsolute(resolved)) {
+        return res.status(400).json({ error: 'Target directory must be an absolute path' });
+      }
       try {
         if (fs.statSync(resolved).isDirectory()) {
           targetDir = resolved;
@@ -345,6 +348,14 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       }
     }
     let destPath = path.join(targetDir, sanitized);
+
+    // Defense-in-depth: ensure destPath is still inside targetDir after join
+    if (
+      !path.resolve(destPath).startsWith(path.resolve(targetDir) + path.sep) &&
+      path.resolve(destPath) !== path.resolve(targetDir)
+    ) {
+      return res.status(400).json({ error: 'Invalid filename' });
+    }
 
     // Deduplicate: file.txt → file (1).txt → file (2).txt …
     if (fs.existsSync(destPath)) {

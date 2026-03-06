@@ -3810,23 +3810,21 @@
           const cwd = (ms && ms.cwd) || '';
           uploadDirInput.value = cwd;
           let hasOversized = false;
-          uploadFileList.innerHTML = Array.from(files)
-            .map((f) => {
-              const oversized = f.size > MAX_FILE_SIZE;
-              if (oversized) hasOversized = true;
-              return (
-                '<div style="' +
-                (oversized ? 'color:#f87171;' : '') +
-                '">📄 ' +
-                esc(f.name) +
-                ' <span style="opacity:0.6">(' +
-                formatSize(f.size) +
-                ')</span>' +
-                (oversized ? ' <strong>exceeds 10 MB limit</strong>' : '') +
-                '</div>'
-              );
-            })
-            .join('');
+          uploadFileList.innerHTML = '';
+          Array.from(files).forEach((f) => {
+            const oversized = f.size > MAX_FILE_SIZE;
+            if (oversized) hasOversized = true;
+            const row = document.createElement('div');
+            if (oversized) row.style.color = '#f87171';
+            row.textContent =
+              '📄 ' +
+              f.name +
+              ' (' +
+              formatSize(f.size) +
+              ')' +
+              (oversized ? ' exceeds 10 MB limit' : '');
+            uploadFileList.appendChild(row);
+          });
           uploadConfirmBtn.disabled = hasOversized;
           uploadConfirmBtn.style.opacity = hasOversized ? '0.5' : '1';
           uploadModal.classList.add('visible');
