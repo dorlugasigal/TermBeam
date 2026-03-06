@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.10.3] - 2026-03-06
+
+- perf(ui): pin Nerd Fonts CDN to v3.4.0 for immutable caching
+
 ## [1.10.2] - 2026-03-06
 
 - feat(cli): add attach alias, improve empty-session messages, add startup hints (#119)
