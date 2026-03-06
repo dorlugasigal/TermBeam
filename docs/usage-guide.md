@@ -39,6 +39,14 @@ Once you've [started TermBeam](getting-started.md) and connected from your devic
 - Browse categorized actions: **Session**, **Search**, **View**, **Share**, **Notifications**, **System**
 - A quick way to discover all available features and shortcuts
 
+### File Upload
+
+- Open the **command palette** and select **Upload files** to send files from your phone (or any browser) to the active session's working directory
+- Select one or more files — a confirmation modal shows the file list with sizes and the destination directory
+- Use the **folder browser** to choose a different target directory
+- Files exceeding 10 MB are flagged and cannot be uploaded
+- After upload, a toast notification confirms the count and destination
+
 ### Notifications
 
 - Open the **command palette** (<kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd>) and select **Toggle notifications** to enable **command completion notifications**
