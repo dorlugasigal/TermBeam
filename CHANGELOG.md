@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.10.2] - 2026-03-06
+
+- feat(cli): add attach alias, improve empty-session messages, add startup hints (#119)
+- fix: add test-results directory to .gitignore
+- delete: remove obsolete .last-run.json file
+- Delete issues directory
+- skill update
+
 ## [1.10.1] - 2026-03-06
 
 - fix(security): harden error handling, add WS rate limiting, validate CLI args (#117)
