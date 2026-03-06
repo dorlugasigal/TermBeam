@@ -11,7 +11,7 @@ TermBeam is built for situations where you need terminal access fast, from any d
 
 ---
 
-## 🖥️ Remote Server Management
+## Remote Server Management
 
 Access your server terminal from your phone while commuting, traveling, or away from your desk.
 
@@ -26,7 +26,7 @@ Use `termbeam service start` to run TermBeam as a background service so it's alw
 
 ---
 
-## 👥 Pair Programming
+## Pair Programming
 
 Share a terminal session with a colleague via QR code or URL — no screen-sharing software required.
 
@@ -49,7 +49,7 @@ All connected clients see the same output in real time. Input from any client is
 
 ---
 
-## 🎓 Teaching & Workshops
+## Teaching & Workshops
 
 Let students connect to an instructor's terminal from their own devices — laptops, tablets, or phones.
 
@@ -64,7 +64,7 @@ When sharing with a group, everyone who has the password can send input to the t
 
 ---
 
-## 🚨 DevOps On-Call
+## DevOps On-Call
 
 Respond to incidents from your mobile device — check logs, restart services, and run diagnostics without opening a laptop.
 
@@ -79,7 +79,7 @@ Pair TermBeam with a process manager like PM2 or systemd so the service restarts
 
 ---
 
-## 🤖 IoT & Raspberry Pi
+## IoT & Raspberry Pi
 
 Access headless devices from any browser — no monitor, keyboard, or SSH client required.
 
