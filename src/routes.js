@@ -320,10 +320,11 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       return res.status(400).json({ error: 'Missing X-Filename header' });
     }
 
-    // Sanitize: take only the basename, collapse whitespace, strip control chars
+    // Sanitize: take only the basename, strip control chars, collapse whitespace
     const sanitized = path
       .basename(rawName)
       .replace(/[\x00-\x1f]/g, '')
+      .replace(/\s+/g, ' ')
       .trim();
     if (!sanitized || sanitized === '.' || sanitized === '..') {
       return res.status(400).json({ error: 'Invalid filename' });
@@ -333,10 +334,10 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     const rawTargetDir = req.headers['x-target-dir'];
     let targetDir = session.cwd;
     if (rawTargetDir && typeof rawTargetDir === 'string') {
-      const resolved = path.resolve(rawTargetDir);
-      if (!path.isAbsolute(resolved)) {
+      if (!path.isAbsolute(rawTargetDir)) {
         return res.status(400).json({ error: 'Target directory must be an absolute path' });
       }
+      const resolved = path.resolve(rawTargetDir);
       try {
         if (fs.statSync(resolved).isDirectory()) {
           targetDir = resolved;
@@ -347,25 +348,13 @@ function setupRoutes(app, { auth, sessions, config, state }) {
         return res.status(400).json({ error: 'Target directory does not exist' });
       }
     }
-    let destPath = path.join(targetDir, sanitized);
-
     // Defense-in-depth: ensure destPath is still inside targetDir after join
+    const destPath = path.join(targetDir, sanitized);
     if (
       !path.resolve(destPath).startsWith(path.resolve(targetDir) + path.sep) &&
       path.resolve(destPath) !== path.resolve(targetDir)
     ) {
       return res.status(400).json({ error: 'Invalid filename' });
-    }
-
-    // Deduplicate: file.txt → file (1).txt → file (2).txt …
-    if (fs.existsSync(destPath)) {
-      const ext = path.extname(sanitized);
-      const base = path.basename(sanitized, ext);
-      let n = 1;
-      while (fs.existsSync(destPath)) {
-        destPath = path.join(targetDir, `${base} (${n})${ext}`);
-        n++;
-      }
     }
 
     const chunks = [];
@@ -392,11 +381,27 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       if (!buffer.length) {
         return res.status(400).json({ error: 'Empty file' });
       }
-      try {
-        fs.writeFileSync(destPath, buffer);
-      } catch (err) {
-        log.error(`File upload write error: ${err.message}`);
-        return res.status(500).json({ error: 'Failed to write file' });
+
+      // Atomic write with dedup: use wx flag to fail on existing file, retry with suffix
+      const ext = path.extname(sanitized);
+      const base = path.basename(sanitized, ext);
+      let destPath = path.join(targetDir, sanitized);
+      let written = false;
+      for (let n = 0; n < 100; n++) {
+        const candidate = n === 0 ? destPath : path.join(targetDir, `${base} (${n})${ext}`);
+        try {
+          fs.writeFileSync(candidate, buffer, { flag: 'wx' });
+          destPath = candidate;
+          written = true;
+          break;
+        } catch (err) {
+          if (err.code === 'EEXIST') continue;
+          log.error(`File upload write error: ${err.message}`);
+          return res.status(500).json({ error: 'Failed to write file' });
+        }
+      }
+      if (!written) {
+        return res.status(409).json({ error: 'Too many filename collisions' });
       }
       const finalName = path.basename(destPath);
       log.info(`File upload: ${finalName} → ${targetDir} (${buffer.length} bytes)`);

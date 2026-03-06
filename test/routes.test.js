@@ -1217,6 +1217,29 @@ describe('Routes', () => {
       assert.strictEqual(data.error, 'Target directory does not exist');
     });
 
+    it('should return 400 for relative X-Target-Dir', async () => {
+      if (!inst) inst = await startServer();
+      const body = Buffer.from('data');
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: `/api/sessions/${inst.defaultId}/upload`,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+            'X-Filename': 'test.txt',
+            'X-Target-Dir': 'relative/path',
+            'Content-Length': body.length,
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Target directory must be an absolute path');
+    });
+
     it('should return 400 when X-Target-Dir is a file, not a directory', async () => {
       if (!inst) inst = await startServer();
       // Create a temp file to use as the target "directory"
@@ -1269,35 +1292,39 @@ describe('Routes', () => {
       assert.match(data.error, /too large/i);
     });
 
-    it('should return 500 when target directory is not writable', async () => {
-      if (!inst) inst = await startServer();
-      // Create a read-only temp directory
-      const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'tb-readonly-'));
-      fs.chmodSync(tmpDir, 0o444);
-      try {
-        const body = Buffer.from('data');
-        const res = await httpRequest(
-          {
-            hostname: '127.0.0.1',
-            port: inst.port,
-            path: `/api/sessions/${inst.defaultId}/upload`,
-            method: 'POST',
-            headers: {
-              'Content-Type': 'text/plain',
-              'X-Filename': 'nope.txt',
-              'X-Target-Dir': tmpDir,
-              'Content-Length': body.length,
+    it(
+      'should return 500 when target directory is not writable',
+      { skip: process.platform === 'win32' },
+      async () => {
+        if (!inst) inst = await startServer();
+        // Create a read-only temp directory
+        const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'tb-readonly-'));
+        fs.chmodSync(tmpDir, 0o444);
+        try {
+          const body = Buffer.from('data');
+          const res = await httpRequest(
+            {
+              hostname: '127.0.0.1',
+              port: inst.port,
+              path: `/api/sessions/${inst.defaultId}/upload`,
+              method: 'POST',
+              headers: {
+                'Content-Type': 'text/plain',
+                'X-Filename': 'nope.txt',
+                'X-Target-Dir': tmpDir,
+                'Content-Length': body.length,
+              },
             },
-          },
-          body,
-        );
-        assert.strictEqual(res.statusCode, 500);
-        const data = JSON.parse(res.data);
-        assert.strictEqual(data.error, 'Failed to write file');
-      } finally {
-        fs.chmodSync(tmpDir, 0o755);
-        fs.rmdirSync(tmpDir);
-      }
-    });
+            body,
+          );
+          assert.strictEqual(res.statusCode, 500);
+          const data = JSON.parse(res.data);
+          assert.strictEqual(data.error, 'Failed to write file');
+        } finally {
+          fs.chmodSync(tmpDir, 0o755);
+          fs.rmdirSync(tmpDir);
+        }
+      },
+    );
   });
 });
