@@ -155,7 +155,7 @@ function detachKeyLabel(key) {
 
 function printResumeHelp() {
   console.log(`
-${bold('termbeam resume')} — Reconnect to a running session
+${bold('termbeam resume')} (alias: ${bold('attach')}) — Reconnect to a running session
 
 ${bold('Usage:')}
   termbeam resume [name] [options]
@@ -243,7 +243,7 @@ async function resume(args) {
   const { host, port, password, sessions, opts } = conn;
 
   if (sessions.length === 0) {
-    console.error(red('  No active sessions on the server.'));
+    console.error(red(`  Connected to server on ${conn.displayUrl} — no active sessions.`));
     process.exit(1);
   }
 
@@ -345,7 +345,7 @@ async function list() {
   }
 
   if (sessions.length === 0) {
-    console.log(dim('  No active sessions.'));
+    console.log(dim(`  Connected to server on ${displayUrl} — no active sessions.`));
     return;
   }
 

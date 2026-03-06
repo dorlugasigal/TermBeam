@@ -10,6 +10,8 @@ termbeam list
 
 # Reconnect to a running session (interactive chooser if multiple)
 termbeam resume
+# or equivalently:
+termbeam attach
 
 # Reconnect by session name
 termbeam resume my-project
@@ -18,7 +20,7 @@ termbeam resume my-project
 # Press Ctrl+B
 ```
 
-## `termbeam resume`
+## `termbeam resume` (alias: `termbeam attach`)
 
 Connects to a running TermBeam server and attaches to a session via WebSocket, piping your terminal's stdin/stdout directly. The experience is identical to working in the original terminal.
 
@@ -26,6 +28,7 @@ Connects to a running TermBeam server and attaches to a session via WebSocket, p
 
 ```
 termbeam resume [name] [options]
+termbeam attach [name] [options]   # alias
 ```
 
 ### Arguments
@@ -97,7 +100,7 @@ When a TermBeam server starts, it saves connection details to `~/.termbeam/conne
 }
 ```
 
-The `resume` and `list` commands read this file automatically, so you don't need to remember or type the port and password. The file is removed when the server shuts down.
+The `resume` (or `attach`) and `list` commands read this file automatically, so you don't need to remember or type the port and password. The file is removed when the server shuts down.
 
 <!-- prettier-ignore -->
 !!! note "Multiple servers"

@@ -10,7 +10,7 @@ termbeam — Beam your terminal to any device
 
 Usage:
   termbeam [options] [shell] [args...]
-  termbeam resume [name] [options]     Reconnect to a running session
+  termbeam resume [name] [options]     Reconnect to a running session (alias: attach)
   termbeam list                        List running sessions
   termbeam service <action>            Manage as a background service (PM2)
 
@@ -54,6 +54,7 @@ Examples:
   termbeam --interactive               Guided setup wizard
   termbeam service install          Set up as background service (PM2)
   termbeam resume                   Reconnect to an active session
+  termbeam attach my-session        Attach to a named session (alias for resume)
   termbeam list                     List all active sessions
 
 Environment:
