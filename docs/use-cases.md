@@ -32,17 +32,17 @@ Share a terminal session with a colleague via QR code or URL — no screen-shari
 
 Start TermBeam with `--lan` to make it accessible on your local network, or use the default tunnel for internet access. Your colleague opens the link, authenticates with the shared password, and you're both looking at the same terminal. Multiple people can attach to the same session simultaneously.
 
-=== "Local network"
+**Local network:**
 
-    ```bash
-    termbeam --lan
-    ```
+```bash
+termbeam --lan
+```
 
-=== "Over the internet"
+**Over the internet (via built-in tunnel):**
 
-    ```bash
-    termbeam
-    ```
+```bash
+termbeam
+```
 
 !!! info
 All connected clients see the same output in real time. Input from any client is sent to the same PTY, so coordinate who's typing — or use separate sessions via tabs.
