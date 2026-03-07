@@ -4587,12 +4587,24 @@
                     copyBtn.style.cssText =
                       'padding:4px 10px;border-radius:4px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:11px;cursor:pointer;';
                     copyBtn.onclick = () => {
-                      navigator.clipboard.writeText(cmd).then(() => {
+                      const onSuccess = () => {
                         copyBtn.textContent = 'Copied!';
                         setTimeout(() => {
                           copyBtn.textContent = 'Copy';
                         }, 2000);
-                      });
+                      };
+                      if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard
+                          .writeText(cmd)
+                          .then(onSuccess)
+                          .catch(() => {
+                            copyFallback(cmd);
+                            onSuccess();
+                          });
+                      } else {
+                        copyFallback(cmd);
+                        onSuccess();
+                      }
                     };
                     cmdRow.appendChild(cmdText);
                     cmdRow.appendChild(copyBtn);
