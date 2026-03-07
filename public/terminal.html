@@ -2497,9 +2497,8 @@
 
         if (startId) activateSession(startId);
         else {
-          sessionNameEl.textContent = 'No sessions';
-          statusText.textContent = '';
-          document.getElementById('stop-btn').style.display = 'none';
+          window.location.href = '/';
+          return;
         }
 
         renderTabs();
@@ -3139,11 +3138,8 @@
           const remaining = [...managed.keys()];
           if (remaining.length > 0) activateSession(remaining[0]);
           else {
-            activeId = null;
-            sessionNameEl.textContent = 'No sessions';
-            statusText.textContent = '';
-            statusDot.className = '';
-            document.getElementById('stop-btn').style.display = 'none';
+            window.location.href = '/';
+            return;
           }
         }
         renderTabs();
@@ -4232,12 +4228,8 @@
                   const remaining = [...managed.keys()];
                   if (remaining.length > 0) activateSession(remaining[0]);
                   else {
-                    activeId = null;
-                    sessionNameEl.textContent = 'No sessions';
-                    statusText.textContent = '';
-                    statusDot.className = '';
-                    document.getElementById('stop-btn').style.display = 'none';
-                    reconnectOverlay.classList.remove('visible');
+                    window.location.href = '/';
+                    return;
                   }
                 }
               }
