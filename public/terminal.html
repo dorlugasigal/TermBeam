@@ -4545,7 +4545,7 @@
               box.innerHTML =
                 '<div style="font-size:24px;margin-bottom:8px;">⚡</div>' +
                 '<div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">TermBeam</div>' +
-                '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">' +
+                '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">' +
                 esc(ver) +
                 '</div>' +
                 '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;">Terminal in your browser, optimized for mobile.</div>' +
@@ -4553,7 +4553,62 @@
                 '<a href="https://github.com/dorlugasigal/TermBeam" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;text-decoration:none;">GitHub</a>' +
                 '<a href="https://dorlugasigal.github.io/TermBeam/" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;text-decoration:none;">Docs</a>' +
                 '<a href="https://termbeam.pages.dev" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;text-decoration:none;">Website</a>' +
-                '</div>';
+                '</div>' +
+                '<div id="about-update-area" style="margin-bottom:12px;"></div>';
+              const updateArea = box.querySelector('#about-update-area');
+              const updateBtn = document.createElement('button');
+              updateBtn.textContent = 'Check for updates';
+              updateBtn.style.cssText =
+                'padding:6px 16px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;';
+              updateBtn.onclick = async () => {
+                updateBtn.textContent = 'Checking...';
+                updateBtn.disabled = true;
+                updateBtn.style.cursor = 'default';
+                try {
+                  const res = await fetch('/api/update-check?force=true');
+                  if (!res.ok) throw new Error();
+                  const info = await res.json();
+                  if (info.updateAvailable && info.latest) {
+                    const cmd = info.command || 'npm install -g termbeam@latest';
+                    updateArea.innerHTML = '';
+                    const status = document.createElement('div');
+                    status.style.cssText = 'font-size:12px;color:var(--accent);margin-bottom:8px;';
+                    status.textContent = 'v' + info.latest + ' available';
+                    updateArea.appendChild(status);
+                    const cmdRow = document.createElement('div');
+                    cmdRow.style.cssText =
+                      'display:flex;align-items:center;justify-content:center;gap:6px;';
+                    const cmdText = document.createElement('code');
+                    cmdText.textContent = cmd;
+                    cmdText.style.cssText =
+                      'font-size:11px;color:var(--accent);background:var(--bg);padding:4px 8px;border-radius:4px;border:1px solid var(--border);';
+                    const copyBtn = document.createElement('button');
+                    copyBtn.textContent = 'Copy';
+                    copyBtn.style.cssText =
+                      'padding:4px 10px;border-radius:4px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:11px;cursor:pointer;';
+                    copyBtn.onclick = () => {
+                      navigator.clipboard.writeText(cmd).then(() => {
+                        copyBtn.textContent = 'Copied!';
+                        setTimeout(() => {
+                          copyBtn.textContent = 'Copy';
+                        }, 2000);
+                      });
+                    };
+                    cmdRow.appendChild(cmdText);
+                    cmdRow.appendChild(copyBtn);
+                    updateArea.appendChild(cmdRow);
+                  } else {
+                    updateBtn.textContent = 'Up to date';
+                    updateBtn.style.color = '#4ec9b0';
+                    updateBtn.style.borderColor = '#4ec9b0';
+                  }
+                } catch {
+                  updateBtn.textContent = 'Check failed — try again';
+                  updateBtn.disabled = false;
+                  updateBtn.style.cursor = 'pointer';
+                }
+              };
+              updateArea.appendChild(updateBtn);
               const btn = document.createElement('button');
               btn.textContent = 'Close';
               btn.style.cssText =

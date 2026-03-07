@@ -98,7 +98,15 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       state.updateInfo = { ...info, ...installInfo };
       res.json(state.updateInfo);
     } catch {
-      res.json({ current: config.version, latest: null, updateAvailable: false });
+      const installInfo = detectInstallMethod();
+      const fallback = {
+        current: config.version,
+        latest: null,
+        updateAvailable: false,
+        ...installInfo,
+      };
+      state.updateInfo = fallback;
+      res.json(fallback);
     }
   });
 

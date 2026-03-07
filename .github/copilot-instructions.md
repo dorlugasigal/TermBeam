@@ -3,7 +3,8 @@
 ## Build, Test, and Lint
 
 ```bash
-npm test                              # run all tests
+npm test                              # run all tests (output buffered until done)
+node --test test/*.test.js            # run all tests with streaming output (preferred for dev/CI agents)
 node --test test/auth.test.js         # run a single test file
 npm run test:coverage                 # tests + coverage (c8, 92% threshold)
 npm run lint                          # syntax-check with node --check
@@ -12,11 +13,13 @@ npm run dev                           # start with auto-generated password
 npm start                             # start with defaults
 ```
 
+> **Agent note:** Prefer `node --test test/*.test.js` over `npm test` when you need streaming output. The `npm test` script wraps `node --test` in `execFileSync` which buffers all output until completion — this makes it look like tests are hanging when they're actually running fine. The direct command gives real-time feedback.
+
 Pre-commit hooks (Husky + lint-staged) auto-format and syntax-check staged files.
 
 ### Testing Best Practices
 
-**Suite overview:** 464 tests, ~17s total. Tests run in parallel child processes via Node's built-in test runner. Most files run in <1s; `integration.test.js` (~17s) and `service.test.js` (~9s) are the slow outliers.
+**Suite overview:** 530+ tests, ~17s total. Tests run in parallel child processes via Node's built-in test runner. Most files run in <1s; `integration.test.js` (~17s) and `service.test.js` (~9s) are the slow outliers.
 
 **Slow tests and why:**
 

@@ -148,11 +148,20 @@ describe('update-check', () => {
   });
 
   describe('checkForUpdate', () => {
-    it('should skip check for dev versions', async () => {
-      const { checkForUpdate } = require('../src/update-check');
-      const result = await checkForUpdate({ currentVersion: '1.10.2-dev (abc123)' });
-      assert.equal(result.updateAvailable, false);
-      assert.equal(result.latest, null);
+    it('should still check for dev versions', async () => {
+      const mod = require('../src/update-check');
+      const origFetch = mod.fetchLatestVersion;
+      mod.fetchLatestVersion = async () => '2.0.0';
+      try {
+        const result = await mod.checkForUpdate({
+          currentVersion: '1.10.2-dev',
+          force: true,
+        });
+        assert.equal(result.updateAvailable, true);
+        assert.equal(result.latest, '2.0.0');
+      } finally {
+        mod.fetchLatestVersion = origFetch;
+      }
     });
 
     it('should skip check for missing version', async () => {

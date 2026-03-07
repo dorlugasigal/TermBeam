@@ -90,7 +90,20 @@ function isNewerVersion(current, latest) {
  * Prevents terminal injection if the registry returns malicious data.
  */
 function sanitizeVersion(v) {
-  return v.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/[\x00-\x1f\x7f-\x9f]/g, '');
+  if (typeof v !== 'string') return '';
+  return (
+    v
+      // CSI sequences: ESC [ ... command
+      .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '')
+      // OSC sequences: ESC ] ... BEL or ESC ] ... ESC \
+      .replace(/\x1b\][^\x1b\x07]*(?:\x07|\x1b\\)/g, '')
+      // DCS, SOS, PM, APC: ESC P/X/^/_ ... ESC \
+      .replace(/\x1b[PX^_][\s\S]*?\x1b\\/g, '')
+      // Single-character ESC sequences
+      .replace(/\x1b[@-Z\\-_]/g, '')
+      // Remaining C0 and C1 control characters
+      .replace(/[\x00-\x1f\x7f-\x9f]/g, '')
+  );
 }
 
 /**
@@ -129,7 +142,7 @@ function fetchLatestVersion(registryUrl) {
             resolve(null);
             return;
           }
-          if (!/^\d+\.\d+\.\d+/.test(version)) {
+          if (!/^\d+\.\d+\.\d+$/.test(version)) {
             resolve(null);
             return;
           }
@@ -157,20 +170,22 @@ function fetchLatestVersion(registryUrl) {
  * @returns {Promise<{current: string, latest: string|null, updateAvailable: boolean}>}
  */
 async function checkForUpdate({ currentVersion, force = false } = {}) {
-  // Skip check for dev versions
-  if (!currentVersion || currentVersion.includes('-dev')) {
-    return { current: currentVersion || 'unknown', latest: null, updateAvailable: false };
+  if (!currentVersion) {
+    return { current: 'unknown', latest: null, updateAvailable: false };
   }
 
   // Check cache first (unless forced)
   if (!force) {
     const cache = readCache();
     if (cache && Date.now() - cache.checkedAt < CACHE_TTL_MS) {
-      return {
-        current: currentVersion,
-        latest: cache.latest,
-        updateAvailable: isNewerVersion(currentVersion, cache.latest),
-      };
+      const cachedLatest = typeof cache.latest === 'string' ? sanitizeVersion(cache.latest) : null;
+      if (cachedLatest && /^\d+\.\d+\.\d+$/.test(cachedLatest)) {
+        return {
+          current: currentVersion,
+          latest: cachedLatest,
+          updateAvailable: isNewerVersion(currentVersion, cachedLatest),
+        };
+      }
     }
   }
 
