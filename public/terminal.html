@@ -2816,17 +2816,28 @@
         });
         container.appendChild(scrollBtn);
 
-        // Write coalescer — batch rapid term.write() calls into one per frame
-        // so ANSI cursor-up/down pairs within a frame are processed atomically
+        // Write coalescer — batch rapid term.write() calls to reduce flicker.
+        // Single RAF for interactive typing (low latency). During bursts
+        // (>512 bytes buffered, e.g. Ctrl+O expand), waits one extra frame
+        // so cursor-movement sequences arrive as one atomic write.
         let writeBuf = '';
         let writeRaf = null;
+        function flushWrite() {
+          writeRaf = null;
+          if (writeBuf) {
+            term.write(writeBuf);
+            writeBuf = '';
+          }
+        }
         function coalescedWrite(data) {
           writeBuf += data;
           if (!writeRaf) {
             writeRaf = requestAnimationFrame(() => {
-              term.write(writeBuf);
-              writeBuf = '';
-              writeRaf = null;
+              if (writeBuf.length > 512) {
+                writeRaf = requestAnimationFrame(flushWrite);
+              } else {
+                flushWrite();
+              }
             });
           }
         }
