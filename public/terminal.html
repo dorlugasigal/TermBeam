@@ -2497,7 +2497,7 @@
 
         if (startId) activateSession(startId);
         else {
-          window.location.href = '/';
+          window.location.replace('/');
           return;
         }
 
@@ -3138,7 +3138,7 @@
           const remaining = [...managed.keys()];
           if (remaining.length > 0) activateSession(remaining[0]);
           else {
-            window.location.href = '/';
+            window.location.replace('/');
             return;
           }
         }
@@ -4228,7 +4228,7 @@
                   const remaining = [...managed.keys()];
                   if (remaining.length > 0) activateSession(remaining[0]);
                   else {
-                    window.location.href = '/';
+                    window.location.replace('/');
                     return;
                   }
                 }
