@@ -276,8 +276,9 @@ function createTermBeamServer(overrides = {}) {
 
         // Non-blocking update check — runs after banner, never delays startup.
         // Skip under the Node test runner to avoid network requests in tests.
-        const isRelease = /^\d+\.\d+\.\d+$/.test(config.version);
-        if (isRelease && !process.env.NODE_TEST_CONTEXT && !process.argv.includes('--test')) {
+        // Accept any version containing a semver-like pattern (including dev builds).
+        const hasSemver = /\d+\.\d+\.\d+/.test(config.version);
+        if (hasSemver && !process.env.NODE_TEST_CONTEXT && !process.argv.includes('--test')) {
           const installInfo = detectInstallMethod();
           checkForUpdate({ currentVersion: config.version })
             .then((info) => {
