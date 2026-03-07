@@ -553,26 +553,72 @@ describe('WebSocket', () => {
 
   describe('keepalive ping', () => {
     it('should set up a ping interval on connection', () => {
-      const ws = createMockWs();
-      let pingCalled = false;
-      ws.ping = () => {
-        pingCalled = true;
-      };
-      wss._simulateConnection(ws);
+      const originalSetInterval = global.setInterval;
+      let intervalCallback = null;
+      let intervalDelay = null;
 
-      // Interval is set but hasn't fired yet (30s delay).
-      // Verify ping function is wirable (not called immediately).
-      assert.strictEqual(pingCalled, false, 'ping should not fire immediately');
+      global.setInterval = function (fn, delay) {
+        intervalCallback = fn;
+        intervalDelay = delay;
+        return originalSetInterval(fn, delay);
+      };
+
+      try {
+        const ws = createMockWs();
+        let pingCalled = false;
+        ws.ping = () => {
+          pingCalled = true;
+        };
+        wss._simulateConnection(ws);
+
+        assert.ok(intervalCallback, 'setInterval should be called on connection');
+        assert.strictEqual(intervalDelay, 30000, 'ping interval should be 30 seconds');
+        assert.strictEqual(pingCalled, false, 'ping should not fire immediately');
+
+        // Manually invoke the interval callback to verify it calls ws.ping()
+        intervalCallback();
+        assert.strictEqual(pingCalled, true, 'interval callback should call ws.ping()');
+
+        // Clean up
+        ws._simulateClose();
+      } finally {
+        global.setInterval = originalSetInterval;
+      }
     });
 
     it('should clear ping interval on ws close', () => {
-      const ws = createMockWs();
-      wss._simulateConnection(ws);
+      const originalSetInterval = global.setInterval;
+      const originalClearInterval = global.clearInterval;
+      let pingIntervalId = null;
+      let clearedIntervalId = null;
 
-      // Close fires the handler which calls clearInterval.
-      // If clearInterval wasn't called, the unref'd interval would be stale.
-      ws._simulateClose();
-      assert.ok(true, 'close handler ran without error');
+      global.setInterval = function (fn, delay, ...args) {
+        const id = originalSetInterval(fn, delay, ...args);
+        pingIntervalId = id;
+        return id;
+      };
+
+      global.clearInterval = function (id) {
+        clearedIntervalId = id;
+        return originalClearInterval(id);
+      };
+
+      try {
+        const ws = createMockWs();
+        wss._simulateConnection(ws);
+
+        assert.ok(pingIntervalId !== null, 'ping interval should be set on connection');
+
+        ws._simulateClose();
+        assert.strictEqual(
+          clearedIntervalId,
+          pingIntervalId,
+          'ping interval should be cleared on ws close',
+        );
+      } finally {
+        global.setInterval = originalSetInterval;
+        global.clearInterval = originalClearInterval;
+      }
     });
   });
 
