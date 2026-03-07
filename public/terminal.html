@@ -2388,7 +2388,14 @@
         })
         .catch(() => {
           console.warn('Nerd Font failed to load, using fallback');
+        })
+        .finally(() => {
+          // Refit all terminals once font metrics are stable
+          if (onFontReady) onFontReady();
         });
+
+      // Hook for font-load refit (set inside init, called by font loader)
+      let onFontReady = null;
 
       // Start immediately — don't wait for font
       init();
@@ -2579,13 +2586,21 @@
             }
           }
         }
+        onFontReady = doResize;
         window.addEventListener('resize', doResize);
         screen.orientation?.addEventListener('change', () => setTimeout(doResize, 150));
 
         // ResizeObserver — catches container size changes that don't trigger window resize
         if (typeof ResizeObserver !== 'undefined') {
-          new ResizeObserver(() => doResize()).observe(terminalsWrapper);
+          let resizeTimer = null;
+          new ResizeObserver(() => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(doResize, 100);
+          }).observe(terminalsWrapper);
         }
+
+        // Refit after all fonts finish loading (catches bold variant, system fonts)
+        document.fonts.ready.then(() => doResize());
 
         // Mobile soft keyboard
         if (window.visualViewport) {
