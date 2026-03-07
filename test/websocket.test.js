@@ -1,6 +1,6 @@
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert');
-const { setupWebSocket } = require('../src/websocket');
+const { setupWebSocket, ACTIVE_THRESHOLD, sanitizeForReplay } = require('../src/websocket');
 
 function createMockAuth(password = null) {
   const tokens = new Set();
@@ -68,6 +68,7 @@ function createMockWs() {
   const sent = [];
   const closeCbs = [];
   return {
+    readyState: 1,
     send(data) {
       sent.push(JSON.parse(data));
     },
@@ -76,6 +77,7 @@ function createMockWs() {
       this._closeCode = code;
       this._closeReason = reason;
     },
+    ping() {},
     on(event, cb) {
       if (event === 'message') this._onMessage = cb;
       if (event === 'close') closeCbs.push(cb);
@@ -549,6 +551,177 @@ describe('WebSocket', () => {
     });
   });
 
+  describe('keepalive ping', () => {
+    it('should set up a ping interval on connection', () => {
+      const originalSetInterval = global.setInterval;
+      let intervalCallback = null;
+      let intervalDelay = null;
+
+      global.setInterval = function (fn, delay) {
+        intervalCallback = fn;
+        intervalDelay = delay;
+        return originalSetInterval(fn, delay);
+      };
+
+      try {
+        const ws = createMockWs();
+        let pingCalled = false;
+        ws.ping = () => {
+          pingCalled = true;
+        };
+        wss._simulateConnection(ws);
+
+        assert.ok(intervalCallback, 'setInterval should be called on connection');
+        assert.strictEqual(intervalDelay, 30000, 'ping interval should be 30 seconds');
+        assert.strictEqual(pingCalled, false, 'ping should not fire immediately');
+
+        // Manually invoke the interval callback to verify it calls ws.ping()
+        intervalCallback();
+        assert.strictEqual(pingCalled, true, 'interval callback should call ws.ping()');
+
+        // Clean up
+        ws._simulateClose();
+      } finally {
+        global.setInterval = originalSetInterval;
+      }
+    });
+
+    it('should clear ping interval on ws close', () => {
+      const originalSetInterval = global.setInterval;
+      const originalClearInterval = global.clearInterval;
+      let pingIntervalId = null;
+      let clearedIntervalId = null;
+
+      global.setInterval = function (fn, delay, ...args) {
+        const id = originalSetInterval(fn, delay, ...args);
+        pingIntervalId = id;
+        return id;
+      };
+
+      global.clearInterval = function (id) {
+        clearedIntervalId = id;
+        return originalClearInterval(id);
+      };
+
+      try {
+        const ws = createMockWs();
+        wss._simulateConnection(ws);
+
+        assert.ok(pingIntervalId !== null, 'ping interval should be set on connection');
+
+        ws._simulateClose();
+        assert.strictEqual(
+          clearedIntervalId,
+          pingIntervalId,
+          'ping interval should be cleared on ws close',
+        );
+      } finally {
+        global.setInterval = originalSetInterval;
+        global.clearInterval = originalClearInterval;
+      }
+    });
+  });
+
+  describe('activity-aware resize', () => {
+    it('should prefer active client dimensions over idle clients', () => {
+      const session = createMockSession('s1', { hasHadClient: true });
+      sessions._add(session);
+
+      const phoneWs = createMockWs();
+      const laptopWs = createMockWs();
+      wss._simulateConnection(phoneWs);
+      wss._simulateConnection(laptopWs);
+      phoneWs._simulateMessage({ type: 'attach', sessionId: 's1' });
+      laptopWs._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      // Phone sets small size
+      phoneWs._simulateMessage({ type: 'resize', cols: 40, rows: 20 });
+      assert.deepStrictEqual(session._resizes[session._resizes.length - 1], { cols: 40, rows: 20 });
+
+      // Make phone idle by backdating its activity
+      phoneWs._lastActivity = Date.now() - ACTIVE_THRESHOLD - 1000;
+
+      // Laptop sends resize — should use laptop's size since phone is idle
+      laptopWs._simulateMessage({ type: 'resize', cols: 120, rows: 40 });
+      const last = session._resizes[session._resizes.length - 1];
+      assert.deepStrictEqual(last, { cols: 120, rows: 40 });
+    });
+
+    it('should use minimum of active clients when multiple are active', () => {
+      const session = createMockSession('s1', { hasHadClient: true });
+      sessions._add(session);
+
+      const ws1 = createMockWs();
+      const ws2 = createMockWs();
+      wss._simulateConnection(ws1);
+      wss._simulateConnection(ws2);
+      ws1._simulateMessage({ type: 'attach', sessionId: 's1' });
+      ws2._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      // Both send resize recently — both are active
+      ws1._simulateMessage({ type: 'resize', cols: 120, rows: 40 });
+      ws2._simulateMessage({ type: 'resize', cols: 80, rows: 24 });
+
+      const last = session._resizes[session._resizes.length - 1];
+      assert.deepStrictEqual(last, { cols: 80, rows: 24 });
+    });
+
+    it('should use new active client size when all existing clients are idle', () => {
+      const session = createMockSession('s1', { hasHadClient: true });
+      sessions._add(session);
+
+      const ws1 = createMockWs();
+      const ws2 = createMockWs();
+      wss._simulateConnection(ws1);
+      wss._simulateConnection(ws2);
+      ws1._simulateMessage({ type: 'attach', sessionId: 's1' });
+      ws2._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      ws1._simulateMessage({ type: 'resize', cols: 120, rows: 40 });
+      ws2._simulateMessage({ type: 'resize', cols: 80, rows: 24 });
+
+      // Make both idle
+      ws1._lastActivity = Date.now() - ACTIVE_THRESHOLD - 1000;
+      ws2._lastActivity = Date.now() - ACTIVE_THRESHOLD - 1000;
+
+      // Trigger recalc via disconnect/reconnect of a third client
+      const ws3 = createMockWs();
+      wss._simulateConnection(ws3);
+      ws3._simulateMessage({ type: 'attach', sessionId: 's1' });
+      ws3._simulateMessage({ type: 'resize', cols: 60, rows: 15 });
+
+      // ws3 is active, so its size is used (not min of all)
+      const last = session._resizes[session._resizes.length - 1];
+      assert.deepStrictEqual(last, { cols: 60, rows: 15 });
+    });
+
+    it('should track activity on input messages', () => {
+      const session = createMockSession('s1', { hasHadClient: true });
+      sessions._add(session);
+
+      const phoneWs = createMockWs();
+      const laptopWs = createMockWs();
+      wss._simulateConnection(phoneWs);
+      wss._simulateConnection(laptopWs);
+      phoneWs._simulateMessage({ type: 'attach', sessionId: 's1' });
+      laptopWs._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      phoneWs._simulateMessage({ type: 'resize', cols: 40, rows: 20 });
+      laptopWs._simulateMessage({ type: 'resize', cols: 120, rows: 40 });
+
+      // Phone is idle but then sends input — becomes active again
+      phoneWs._lastActivity = Date.now() - ACTIVE_THRESHOLD - 1000;
+      phoneWs._simulateMessage({ type: 'input', data: 'ls\n' });
+
+      // Now both are active, trigger recalc
+      laptopWs._simulateMessage({ type: 'resize', cols: 120, rows: 40 });
+
+      // Phone is active again, so min(40, 120) = 40
+      const last = session._resizes[session._resizes.length - 1];
+      assert.deepStrictEqual(last, { cols: 40, rows: 20 });
+    });
+  });
+
   describe('unparseable messages', () => {
     it('should drop unparseable messages without closing', () => {
       const ws = createMockWs();
@@ -559,6 +732,57 @@ describe('WebSocket', () => {
 
       assert.ok(!ws._closed, 'connection should remain open');
       assert.strictEqual(ws._sent.length, 0, 'no messages should be sent');
+    });
+  });
+
+  describe('sanitizeForReplay', () => {
+    it('should strip OSC 11 background color responses', () => {
+      const buf = 'hello\x1b]11;rgb:2828/2a2a/3636\x07world';
+      assert.strictEqual(sanitizeForReplay(buf), 'helloworld');
+    });
+
+    it('should strip OSC 10 foreground color responses', () => {
+      const buf = 'hello\x1b]10;rgb:f8f8/f8f8/f2f2\x07world';
+      assert.strictEqual(sanitizeForReplay(buf), 'helloworld');
+    });
+
+    it('should strip OSC 4 palette color responses', () => {
+      const buf = 'hello\x1b]4;0;rgb:2121/2222/2c2c\x07world';
+      assert.strictEqual(sanitizeForReplay(buf), 'helloworld');
+    });
+
+    it('should strip OSC 12 cursor color responses', () => {
+      const buf = 'hello\x1b]12;rgb:ffff/ffff/ffff\x07world';
+      assert.strictEqual(sanitizeForReplay(buf), 'helloworld');
+    });
+
+    it('should strip OSC color queries', () => {
+      const buf = 'hello\x1b]11;?\x07world';
+      assert.strictEqual(sanitizeForReplay(buf), 'helloworld');
+    });
+
+    it('should strip sequences terminated with ST (ESC backslash)', () => {
+      const buf = 'hello\x1b]11;rgb:2828/2a2a/3636\x1b\\world';
+      assert.strictEqual(sanitizeForReplay(buf), 'helloworld');
+    });
+
+    it('should strip multiple consecutive OSC color sequences', () => {
+      const buf =
+        '\x1b]11;rgb:2828/2a2a/3636\x07' +
+        '\x1b]10;rgb:f8f8/f8f8/f2f2\x07' +
+        '\x1b]4;0;rgb:2121/2222/2c2c\x07' +
+        '\x1b]4;1;rgb:ffff/5555/5555\x07';
+      assert.strictEqual(sanitizeForReplay(buf), '');
+    });
+
+    it('should preserve non-color OSC sequences (title, hyperlinks)', () => {
+      const buf = 'hello\x1b]0;my title\x07\x1b]8;;https://example.com\x07link\x1b]8;;\x07world';
+      assert.strictEqual(sanitizeForReplay(buf), buf);
+    });
+
+    it('should preserve normal terminal output', () => {
+      const buf = 'hello\x1b[32mgreen\x1b[0m world\r\n$ ';
+      assert.strictEqual(sanitizeForReplay(buf), buf);
     });
   });
 });

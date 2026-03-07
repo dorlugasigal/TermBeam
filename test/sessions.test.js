@@ -202,16 +202,16 @@ describe('SessionManager', () => {
     require.cache['node-pty'].exports.spawn = origSpawn;
   });
 
-  it('should cap scrollback buffer at ~200KB', () => {
+  it('should trim scrollback to ~500KB when buffer exceeds ~1MB', () => {
     const mgr = new SessionManager();
     const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });
     const session = mgr.get(id);
     const mockProcess = mockPtyProcesses[mockPtyProcesses.length - 1];
-    // Emit a single chunk exceeding 200,000 chars
-    const bigChunk = 'x'.repeat(210000);
+    // Emit a single chunk exceeding 1,000,000 chars
+    const bigChunk = 'x'.repeat(1100000);
     mockProcess._callbacks.onData(bigChunk);
-    assert.ok(session.scrollbackBuf.length <= 100000, 'scrollbackBuf should be trimmed to ~100000');
-    assert.strictEqual(session.scrollbackBuf.length, 100000);
+    assert.ok(session.scrollbackBuf.length <= 500000, 'scrollbackBuf should be trimmed to ~500KB');
+    assert.strictEqual(session.scrollbackBuf.length, 500000);
   });
 
   it('should not throw when pty.kill() errors during shutdown', () => {

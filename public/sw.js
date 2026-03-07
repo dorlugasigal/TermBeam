@@ -1,4 +1,4 @@
-const CACHE_NAME = 'termbeam-v5';
+const CACHE_NAME = 'termbeam-v7';
 const SHELL_URLS = ['/', '/terminal'];
 
 self.addEventListener('install', (event) => {

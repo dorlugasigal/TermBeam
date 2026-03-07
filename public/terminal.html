@@ -2293,6 +2293,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-search@0.15.0/lib/addon-search.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-canvas@0.7.0/lib/addon-canvas.min.js"></script>
     <script src="/js/shared.js"></script>
     <script src="/js/themes.js"></script>
     <script src="/js/terminal-themes.js"></script>
@@ -2376,6 +2377,9 @@
       const terminalsWrapper = document.getElementById('terminals-wrapper');
 
       // ===== Font Loading (non-blocking) =====
+      // Hook for font-load refit (set inside init, called by font loader)
+      let onFontReady = null;
+
       const nerdFont = new FontFace(
         'NerdFont',
         "url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@v3.4.0/patched-fonts/JetBrainsMono/Ligatures/Regular/JetBrainsMonoNerdFont-Regular.ttf')",
@@ -2387,6 +2391,10 @@
         })
         .catch(() => {
           console.warn('Nerd Font failed to load, using fallback');
+        })
+        .finally(() => {
+          // Refit all terminals once font metrics are stable
+          if (onFontReady) onFontReady();
         });
 
       // Start immediately — don't wait for font
@@ -2511,6 +2519,7 @@
         setupPreviewModal();
         loadShellsForModal();
         startPolling();
+        setTimeout(requestWakeLock, 0);
 
         // Pinch-to-zoom
         (function setupPinchZoom() {
@@ -2577,8 +2586,21 @@
             }
           }
         }
+        onFontReady = doResize;
         window.addEventListener('resize', doResize);
         screen.orientation?.addEventListener('change', () => setTimeout(doResize, 150));
+
+        // ResizeObserver — catches container size changes that don't trigger window resize
+        if (typeof ResizeObserver !== 'undefined') {
+          let resizeTimer = null;
+          new ResizeObserver(() => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(doResize, 100);
+          }).observe(terminalsWrapper);
+        }
+
+        // Refit after all fonts finish loading (catches bold variant, system fonts)
+        document.fonts.ready.then(() => doResize());
 
         // Mobile soft keyboard
         if (window.visualViewport) {
@@ -2639,24 +2661,70 @@
           );
         }
 
-        // Scroll to bottom when returning from idle / tab switch
+        // Wake Lock — helps keep mobile browser tab alive
+        let wakeLock = null;
+
+        async function requestWakeLock() {
+          if (!('wakeLock' in navigator)) return;
+          try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            wakeLock.addEventListener('release', () => {
+              wakeLock = null;
+            });
+          } catch {
+            // Wake Lock request failed (e.g. low battery, not visible)
+          }
+        }
+
+        function releaseWakeLock() {
+          if (wakeLock) {
+            wakeLock.release().catch(() => {});
+            wakeLock = null;
+          }
+        }
+
+        // Reconnect & refit when returning from idle / tab switch
         document.addEventListener('visibilitychange', () => {
-          if (!document.hidden && activeId) {
-            clearUnreadIndicator();
-            const ms = managed.get(activeId);
-            if (ms) {
-              ms.term.scrollToBottom();
-              ms.fitAddon.fit();
-              sendResize(ms);
-            }
-            if (splitMode && splitSecondId) {
-              const ms2 = managed.get(splitSecondId);
-              if (ms2) {
-                ms2.term.scrollToBottom();
-                ms2.fitAddon.fit();
-                sendResize(ms2);
+          if (!document.hidden) {
+            if (activeId) {
+              clearUnreadIndicator();
+              const ms = managed.get(activeId);
+              if (ms) {
+                // Reconnect immediately if WebSocket died in background
+                if (!ms.exited && (!ms.ws || ms.ws.readyState !== WebSocket.OPEN)) {
+                  if (ms.reconnectTimer) {
+                    clearTimeout(ms.reconnectTimer);
+                    ms.reconnectTimer = null;
+                  }
+                  ms.reconnectDelay = 3000;
+                  connectSession(ms);
+                } else {
+                  ms.term.scrollToBottom();
+                  ms.fitAddon.fit();
+                  sendResize(ms);
+                }
+              }
+              if (splitMode && splitSecondId) {
+                const ms2 = managed.get(splitSecondId);
+                if (ms2) {
+                  if (!ms2.exited && (!ms2.ws || ms2.ws.readyState !== WebSocket.OPEN)) {
+                    if (ms2.reconnectTimer) {
+                      clearTimeout(ms2.reconnectTimer);
+                      ms2.reconnectTimer = null;
+                    }
+                    ms2.reconnectDelay = 3000;
+                    connectSession(ms2);
+                  } else {
+                    ms2.term.scrollToBottom();
+                    ms2.fitAddon.fit();
+                    sendResize(ms2);
+                  }
+                }
               }
             }
+            requestWakeLock();
+          } else {
+            releaseWakeLock();
           }
         });
 
@@ -2708,7 +2776,7 @@
           fontWeight: 'normal',
           fontWeightBold: 'bold',
           letterSpacing: 0,
-          lineHeight: 1.1,
+          lineHeight: 1.0,
           theme: TERM_THEMES[getTheme()] || darkTermTheme,
           allowProposedApi: true,
           scrollback: 10000,
@@ -2728,6 +2796,17 @@
         terminalsWrapper.appendChild(container);
         term.open(container);
 
+        // Canvas renderer — sharper text and more accurate selection.
+        // Skip in automated browsers (navigator.webdriver) where canvas
+        // rendering makes .xterm-rows inaccessible to DOM text queries.
+        if (window.CanvasAddon && !navigator.webdriver) {
+          try {
+            term.loadAddon(new window.CanvasAddon.CanvasAddon());
+          } catch {
+            // Fall back to DOM renderer
+          }
+        }
+
         // Scroll-to-bottom button
         const scrollBtn = document.createElement('button');
         scrollBtn.className = 'scroll-bottom-btn';
@@ -2739,17 +2818,28 @@
         });
         container.appendChild(scrollBtn);
 
-        // Write coalescer — batch rapid term.write() calls into one per frame
-        // so ANSI cursor-up/down pairs within a frame are processed atomically
+        // Write coalescer — batch rapid term.write() calls to reduce flicker.
+        // Single RAF for interactive typing (low latency). During bursts
+        // (>512 bytes buffered, e.g. Ctrl+O expand), waits one extra frame
+        // so cursor-movement sequences arrive as one atomic write.
         let writeBuf = '';
         let writeRaf = null;
+        function flushWrite() {
+          writeRaf = null;
+          if (writeBuf) {
+            term.write(writeBuf);
+            writeBuf = '';
+          }
+        }
         function coalescedWrite(data) {
           writeBuf += data;
           if (!writeRaf) {
             writeRaf = requestAnimationFrame(() => {
-              term.write(writeBuf);
-              writeBuf = '';
-              writeRaf = null;
+              if (writeBuf.length > 512) {
+                writeRaf = requestAnimationFrame(flushWrite);
+              } else {
+                flushWrite();
+              }
             });
           }
         }
@@ -3042,6 +3132,9 @@
           if (ms.id === activeId) {
             statusDot.className = '';
             statusText.textContent = 'Disconnected';
+            reconnectOverlay.querySelector('.msg').textContent =
+              'Disconnected. Attempting to reconnect\u2026';
+            reconnectOverlay.classList.add('visible');
           }
           if (!ms.exited) {
             ms.reconnectTimer = setTimeout(() => {

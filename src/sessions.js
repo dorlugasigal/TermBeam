@@ -144,9 +144,15 @@ class SessionManager {
     ptyProcess.onData((data) => {
       session.lastActivity = Date.now();
       session.scrollbackBuf += data;
-      // Cap scrollback at ~200KB
-      if (session.scrollbackBuf.length > 200000) {
-        session.scrollbackBuf = session.scrollbackBuf.slice(-100000);
+      // High/low water scrollback cap: trim to 500k chars when buffer exceeds 1,000,000 chars
+      if (session.scrollbackBuf.length > 1000000) {
+        let buf = session.scrollbackBuf.slice(-500000);
+        // Advance to first newline to avoid starting mid-line
+        const nlIdx = buf.indexOf('\n');
+        if (nlIdx > 0 && nlIdx < 200) {
+          buf = buf.slice(nlIdx + 1);
+        }
+        session.scrollbackBuf = buf;
       }
       for (const ws of session.clients) {
         if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'output', data }));
