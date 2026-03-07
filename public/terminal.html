@@ -2796,8 +2796,10 @@
         terminalsWrapper.appendChild(container);
         term.open(container);
 
-        // Canvas renderer — sharper text and more accurate selection
-        if (window.CanvasAddon) {
+        // Canvas renderer — sharper text and more accurate selection.
+        // Skip in automated browsers (navigator.webdriver) where canvas
+        // rendering makes .xterm-rows inaccessible to DOM text queries.
+        if (window.CanvasAddon && !navigator.webdriver) {
           try {
             term.loadAddon(new window.CanvasAddon.CanvasAddon());
           } catch {
