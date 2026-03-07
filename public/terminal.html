@@ -2377,6 +2377,9 @@
       const terminalsWrapper = document.getElementById('terminals-wrapper');
 
       // ===== Font Loading (non-blocking) =====
+      // Hook for font-load refit (set inside init, called by font loader)
+      let onFontReady = null;
+
       const nerdFont = new FontFace(
         'NerdFont',
         "url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@v3.4.0/patched-fonts/JetBrainsMono/Ligatures/Regular/JetBrainsMonoNerdFont-Regular.ttf')",
@@ -2393,9 +2396,6 @@
           // Refit all terminals once font metrics are stable
           if (onFontReady) onFontReady();
         });
-
-      // Hook for font-load refit (set inside init, called by font loader)
-      let onFontReady = null;
 
       // Start immediately — don't wait for font
       init();
@@ -2776,7 +2776,7 @@
           fontWeight: 'normal',
           fontWeightBold: 'bold',
           letterSpacing: 0,
-          lineHeight: 1.1,
+          lineHeight: 1.0,
           theme: TERM_THEMES[getTheme()] || darkTermTheme,
           allowProposedApi: true,
           scrollback: 10000,

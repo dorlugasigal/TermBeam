@@ -275,7 +275,7 @@ function createTermBeamServer(overrides = {}) {
         console.log('');
 
         // Non-blocking update check — runs after banner, never delays startup.
-        // Skip under the Node test runner, CI, and Playwright to avoid network requests in tests.
+        // Skip under the Node test runner and CI to avoid network requests in tests.
         // Accept any version containing a semver-like pattern (including dev builds).
         const versionParts = config.version.match(/(\d{1,10})\.(\d{1,10})\.(\d{1,10})/);
         if (

@@ -492,7 +492,7 @@ The connection is closed after sending this message. Sending any non-auth messag
 { "type": "attach", "sessionId": "a1b2c3d4" }
 ```
 
-After a successful `attached` response, the server immediately sends an `output` message containing the session's scrollback buffer (up to 1 MB), allowing the client to display previous terminal output.
+After a successful `attached` response, the server immediately sends an `output` message containing the session's scrollback buffer (up to ~1,000,000 characters). When the buffer grows beyond this size, it is trimmed back to ~500,000 characters to keep memory usage bounded, allowing the client to display recent terminal output.
 
 #### Send Input
 
