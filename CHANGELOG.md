@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.11.0] - 2026-03-07
+
+- feat: add update notification system
+- fix(ui): redirect to session hub when no sessions exist (#122)
+
 ## [1.10.3] - 2026-03-06
 
 - perf(ui): pin Nerd Fonts CDN to v3.4.0 for immutable caching
