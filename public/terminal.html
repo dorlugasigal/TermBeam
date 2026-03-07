@@ -2519,7 +2519,7 @@
         setupPreviewModal();
         loadShellsForModal();
         startPolling();
-        requestWakeLock();
+        setTimeout(requestWakeLock, 0);
 
         // Pinch-to-zoom
         (function setupPinchZoom() {

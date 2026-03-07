@@ -202,7 +202,7 @@ describe('SessionManager', () => {
     require.cache['node-pty'].exports.spawn = origSpawn;
   });
 
-  it('should cap scrollback buffer at ~1MB', () => {
+  it('should trim scrollback to ~500KB when buffer exceeds ~1MB', () => {
     const mgr = new SessionManager();
     const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });
     const session = mgr.get(id);

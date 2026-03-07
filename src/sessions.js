@@ -144,7 +144,7 @@ class SessionManager {
     ptyProcess.onData((data) => {
       session.lastActivity = Date.now();
       session.scrollbackBuf += data;
-      // Cap scrollback at ~1MB
+      // High/low water scrollback cap: trim to 500k when buffer exceeds 1M chars (~1MB)
       if (session.scrollbackBuf.length > 1000000) {
         session.scrollbackBuf = session.scrollbackBuf.slice(-500000);
       }

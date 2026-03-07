@@ -89,7 +89,7 @@ Registers all Express routes: login page (`GET /login`), auth API, session CRUD 
 
 ### `websocket.js` — WebSocket Handler
 
-Handles real-time communication: validates the Origin header to reject cross-origin connections, WebSocket-level authentication (password or token), session attachment, terminal I/O forwarding, and resize events. When multiple clients are connected to the same session, the PTY is resized to the minimum dimensions across active clients (active within the last 60 seconds). Idle clients are excluded from the size calculation so that a backgrounded phone tab does not constrain the terminal when resuming from a laptop. Sends keepalive pings every 30 seconds to detect stale connections and help mobile browsers maintain the WebSocket.
+Handles real-time communication: validates the Origin header to reject cross-origin connections, WebSocket-level authentication (password or token), session attachment, terminal I/O forwarding, and resize events. When multiple clients are connected to the same session, the PTY is resized to the minimum dimensions across active clients (active within the last 60 seconds). Idle clients are excluded from the size calculation so that a backgrounded phone tab does not constrain the terminal when resuming from a laptop. Sends keepalive pings every 30 seconds to help mobile browsers maintain the WebSocket and to surface broken connections sooner at the transport level.
 
 ### `preview.js` — Port Preview Proxy
 
