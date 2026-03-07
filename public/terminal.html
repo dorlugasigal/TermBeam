@@ -2293,6 +2293,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-search@0.15.0/lib/addon-search.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-canvas@0.7.0/lib/addon-canvas.min.js"></script>
     <script src="/js/shared.js"></script>
     <script src="/js/themes.js"></script>
     <script src="/js/terminal-themes.js"></script>
@@ -2581,6 +2582,11 @@
         window.addEventListener('resize', doResize);
         screen.orientation?.addEventListener('change', () => setTimeout(doResize, 150));
 
+        // ResizeObserver — catches container size changes that don't trigger window resize
+        if (typeof ResizeObserver !== 'undefined') {
+          new ResizeObserver(() => doResize()).observe(terminalsWrapper);
+        }
+
         // Mobile soft keyboard
         if (window.visualViewport) {
           const keyBar = document.getElementById('key-bar');
@@ -2774,6 +2780,15 @@
         container.style.position = 'relative';
         terminalsWrapper.appendChild(container);
         term.open(container);
+
+        // Canvas renderer — sharper text and more accurate selection
+        if (window.CanvasAddon) {
+          try {
+            term.loadAddon(new window.CanvasAddon.CanvasAddon());
+          } catch {
+            // Fall back to DOM renderer
+          }
+        }
 
         // Scroll-to-bottom button
         const scrollBtn = document.createElement('button');
