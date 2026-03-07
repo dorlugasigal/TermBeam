@@ -256,7 +256,7 @@ launchctl unload ~/Library/LaunchAgents/com.termbeam.plist
 
 <!-- prettier-ignore -->
 !!! info "Node.js Requirement"
-    TermBeam requires Node.js 18 or higher. Verify with `node --version` before setting up a background service.
+    TermBeam requires Node.js 20 or higher. Verify with `node --version` before setting up a background service.
 
 <!-- prettier-ignore -->
 !!! tip "Which method should I use?"
