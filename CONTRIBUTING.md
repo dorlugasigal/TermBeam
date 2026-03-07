@@ -4,7 +4,7 @@ Thank you for your interest in contributing! Here's everything you need to know.
 
 ## Prerequisites
 
-- **Node.js** ≥ 18
+- **Node.js** ≥ 20
 - **npm** ≥ 9
 - **Git**
 - A terminal (macOS, Linux, or Windows with WSL)
@@ -186,7 +186,7 @@ feat!: require password by default
 1. Push your branch to your fork
 2. Open a PR against `main` on [dorlugasigal/TermBeam](https://github.com/dorlugasigal/TermBeam)
 3. Fill in the PR template (if available)
-4. Ensure CI passes (tests run on Node 18, 20, 22)
+4. Ensure CI passes (tests run on Node 20, 22, 24)
 5. Wait for review — we'll provide feedback if needed
 
 ### PR Checklist
