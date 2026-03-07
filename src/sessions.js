@@ -147,7 +147,7 @@ class SessionManager {
       // High/low water scrollback cap: trim to 500k chars when buffer exceeds 1,000,000 chars
       if (session.scrollbackBuf.length > 1000000) {
         let buf = session.scrollbackBuf.slice(-500000);
-        // Advance to first newline to avoid starting mid-escape-sequence
+        // Advance to first newline to avoid starting mid-line
         const nlIdx = buf.indexOf('\n');
         if (nlIdx > 0 && nlIdx < 200) {
           buf = buf.slice(nlIdx + 1);
