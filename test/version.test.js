@@ -30,28 +30,84 @@ describe('Version', () => {
     assert.equal(version, pkg.version);
   });
 
-  it('should include -dev suffix when running from source without npm_package_version', () => {
+  it('should derive version from git tag, not package.json, when running from source', () => {
     delete process.env.npm_package_version;
     const { getVersion } = require('../src/version');
     const version = getVersion();
-    const pkg = require('../package.json');
-    // Running from source in a git repo, should either be exact version or dev version
-    assert.ok(
-      version === pkg.version || version.startsWith(pkg.version),
-      `Expected version to start with ${pkg.version}, got ${version}`,
-    );
+    // Should be a semver or semver-dev string derived from the git tag
+    assert.match(version, /^\d+\.\d+\.\d+/);
   });
 
-  it('should return dev version with git describe info', () => {
+  it('should return clean version when exactly on a git tag', () => {
     delete process.env.npm_package_version;
-    const { getVersion } = require('../src/version');
-    const version = getVersion();
-    const pkg = require('../package.json');
-    // In a git repo from source, version should contain the base version
-    assert.ok(version.includes(pkg.version));
-    // If not on an exact tag, should have -dev suffix with git hash
-    if (version !== pkg.version) {
-      assert.match(version, /^\d+\.\d+\.\d+-dev \(/);
+    const child_process = require('child_process');
+    const origExecSync = child_process.execSync;
+    child_process.execSync = (cmd, opts) => {
+      if (cmd.includes('git describe')) return 'v2.5.0\n';
+      return origExecSync(cmd, opts);
+    };
+    try {
+      delete require.cache[require.resolve('../src/version')];
+      const { getVersion } = require('../src/version');
+      assert.equal(getVersion(), '2.5.0');
+    } finally {
+      child_process.execSync = origExecSync;
+      delete require.cache[require.resolve('../src/version')];
+    }
+  });
+
+  it('should return dev version from git tag when ahead of tag', () => {
+    delete process.env.npm_package_version;
+    const child_process = require('child_process');
+    const origExecSync = child_process.execSync;
+    child_process.execSync = (cmd, opts) => {
+      if (cmd.includes('git describe')) return 'v2.5.0-3-gabcdef1\n';
+      return origExecSync(cmd, opts);
+    };
+    try {
+      delete require.cache[require.resolve('../src/version')];
+      const { getVersion } = require('../src/version');
+      assert.equal(getVersion(), '2.5.0-dev (v2.5.0-3-gabcdef1)');
+    } finally {
+      child_process.execSync = origExecSync;
+      delete require.cache[require.resolve('../src/version')];
+    }
+  });
+
+  it('should return dev version from git tag when dirty', () => {
+    delete process.env.npm_package_version;
+    const child_process = require('child_process');
+    const origExecSync = child_process.execSync;
+    child_process.execSync = (cmd, opts) => {
+      if (cmd.includes('git describe')) return 'v2.5.0-dirty\n';
+      return origExecSync(cmd, opts);
+    };
+    try {
+      delete require.cache[require.resolve('../src/version')];
+      const { getVersion } = require('../src/version');
+      assert.equal(getVersion(), '2.5.0-dev (v2.5.0-dirty)');
+    } finally {
+      child_process.execSync = origExecSync;
+      delete require.cache[require.resolve('../src/version')];
+    }
+  });
+
+  it('should fall back to package.json when git has no semver tag', () => {
+    delete process.env.npm_package_version;
+    const child_process = require('child_process');
+    const origExecSync = child_process.execSync;
+    child_process.execSync = (cmd, opts) => {
+      if (cmd.includes('git describe')) return 'abcdef1\n';
+      return origExecSync(cmd, opts);
+    };
+    try {
+      delete require.cache[require.resolve('../src/version')];
+      const { getVersion } = require('../src/version');
+      const pkg = require('../package.json');
+      assert.equal(getVersion(), `${pkg.version}-dev (abcdef1)`);
+    } finally {
+      child_process.execSync = origExecSync;
+      delete require.cache[require.resolve('../src/version')];
     }
   });
 

@@ -10,16 +10,25 @@ function getVersion() {
     return base;
   }
 
-  // Running from source — try git describe for a dev version
+  // Running from source — git tags are the version source of truth.
+  // This avoids drift between package.json and tagged releases.
   try {
     const gitDesc = execSync('git describe --tags --always --dirty', {
       cwd: path.join(__dirname, '..'),
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
-    // If we have a tag like v1.0.0, and we're exactly on it, return base
-    if (gitDesc === `v${base}`) return base;
-    // Otherwise return dev version
+
+    const tagMatch = gitDesc.match(/^v(\d+\.\d+\.\d+)/);
+    if (tagMatch) {
+      const gitVersion = tagMatch[1];
+      // Exactly on a clean tag — return the tag version
+      if (gitDesc === `v${gitVersion}`) return gitVersion;
+      // Ahead of tag or dirty — show dev version derived from the tag
+      return `${gitVersion}-dev (${gitDesc})`;
+    }
+
+    // No semver tag found (e.g. bare commit hash) — fall back to package.json
     return `${base}-dev (${gitDesc})`;
   } catch {
     return `${base}-dev`;
