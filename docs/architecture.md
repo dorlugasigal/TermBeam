@@ -125,7 +125,7 @@ Provides ANSI color helpers (`green`, `yellow`, `red`, `cyan`, `bold`, `dim`) an
 
 ### `version.js` — Version Detection
 
-Smart version that shows `1.0.0` for npm installs and `1.0.0-dev (git-hash)` for local development.
+Smart version detection with two paths: npm installs use the `package.json` version as-is, while local development derives the version from git tags. On a clean tag it shows `1.11.0`; when ahead of a tag or with uncommitted changes it shows `1.11.0-dev (v1.11.0-3-gabcdef1)`. Falls back to `package.json` when no semver tag exists.
 
 ### Client-Side Features (`terminal.html`)
 
