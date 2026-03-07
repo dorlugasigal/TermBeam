@@ -16,6 +16,7 @@ const { setupWebSocket } = require('./websocket');
 const { startTunnel, cleanupTunnel, findDevtunnel } = require('./tunnel');
 const { createPreviewProxy } = require('./preview');
 const { writeConnectionConfig, removeConnectionConfig } = require('./resume');
+const { checkForUpdate, detectInstallMethod } = require('./update-check');
 
 // --- Helpers ---
 function getLocalIP() {
@@ -73,7 +74,7 @@ function createTermBeamServer(overrides = {}) {
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 1 * 1024 * 1024 });
 
-  const state = { shareBaseUrl: null };
+  const state = { shareBaseUrl: null, updateInfo: null };
   app.use('/preview', auth.middleware, createPreviewProxy());
   setupRoutes(app, { auth, sessions, config, state });
   setupWebSocket(wss, { auth, sessions });
@@ -272,6 +273,35 @@ function createTermBeamServer(overrides = {}) {
           `${_dm}    termbeam resume      Attach to a session (or: termbeam attach)${rs}`,
         );
         console.log('');
+
+        // Non-blocking update check — runs after banner, never delays startup.
+        // Skip under the Node test runner to avoid network requests in tests.
+        const isRelease = /^\d+\.\d+\.\d+$/.test(config.version);
+        if (isRelease && !process.env.NODE_TEST_CONTEXT) {
+          const installInfo = detectInstallMethod();
+          checkForUpdate({ currentVersion: config.version })
+            .then((info) => {
+              state.updateInfo = { ...info, ...installInfo };
+              if (info.updateAvailable) {
+                const yl = '\x1b[33m';
+                const gn2 = '\x1b[38;5;114m';
+                const dm = '\x1b[2m';
+                console.log('');
+                console.log(
+                  `  ${yl}Update available:${rs} ${dm}${info.current}${rs} → ${gn2}${info.latest}${rs}`,
+                );
+                if (installInfo.method === 'npx') {
+                  console.log(`  Next time, run: ${gn2}npx termbeam@latest${rs}`);
+                } else {
+                  console.log(`  Run: ${gn2}${installInfo.command}${rs}`);
+                }
+                console.log('');
+              }
+            })
+            .catch(() => {
+              // Silent failure — update check is non-critical
+            });
+        }
 
         resolve({ url: `http://localhost:${actualPort}`, defaultId });
       });

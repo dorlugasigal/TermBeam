@@ -273,6 +273,33 @@ Get the server version.
 { "version": "1.0.0" }
 ```
 
+#### `GET /api/update-check`
+
+Check if a newer version of TermBeam is available on npm. Results are cached for 24 hours.
+Requires authentication (session cookie or `Authorization: Bearer <password>`) when authentication is enabled. If the server is started with `--no-password`, this endpoint is accessible without authentication.
+
+**Query parameters:**
+
+| Parameter | Type    | Description                       |
+| --------- | ------- | --------------------------------- |
+| `force`   | boolean | Bypass cache and fetch fresh data |
+
+**Response:**
+
+```json
+{
+  "current": "1.10.2",
+  "latest": "1.11.0",
+  "updateAvailable": true,
+  "method": "npm",
+  "command": "npm install -g termbeam@latest"
+}
+```
+
+The `method` field indicates how TermBeam was installed (`npm`, `npx`, `yarn`, or `pnpm`) and `command` provides the appropriate update command.
+
+When no update is available or the check fails, `updateAvailable` is `false` and `latest` may be `null`.
+
 #### `GET /api/dirs?q=/path`
 
 List subdirectories for the folder browser.

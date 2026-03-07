@@ -197,6 +197,45 @@
         border: 1px solid rgba(128, 128, 128, 0.3);
       }
 
+      .update-banner {
+        margin: 12px 16px 0;
+        padding: 10px 14px;
+        background: var(--surface);
+        border: 1px solid var(--accent);
+        border-radius: 10px;
+        display: none;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        color: var(--text);
+      }
+      .update-banner.visible {
+        display: flex;
+      }
+      .update-banner-text {
+        flex: 1;
+      }
+      .update-banner-text code {
+        font-size: 12px;
+        background: var(--border);
+        padding: 2px 6px;
+        border-radius: 4px;
+        word-break: break-all;
+      }
+      .update-banner-dismiss {
+        background: none;
+        border: none;
+        color: var(--text-dim);
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+        padding: 0 2px;
+        flex-shrink: 0;
+      }
+      .update-banner-dismiss:hover {
+        color: var(--text);
+      }
+
       .sessions-list {
         padding: 16px;
         padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
@@ -833,6 +872,23 @@
       </div>
     </div>
 
+    <div class="update-banner" id="update-banner">
+      <div class="update-banner-text">
+        <strong>Update available:</strong> <span id="update-versions"></span><br />
+        <span id="update-command-text"
+          >Run: <code id="update-command">npm install -g termbeam@latest</code></span
+        >
+      </div>
+      <button
+        class="update-banner-dismiss"
+        id="update-dismiss"
+        title="Dismiss"
+        aria-label="Dismiss update notification"
+      >
+        &times;
+      </button>
+    </div>
+
     <div class="sessions-list" id="sessions-list"></div>
     <button class="new-session" id="new-session-btn">+ New Session</button>
 
@@ -980,6 +1036,36 @@
 
       const listEl = document.getElementById('sessions-list');
       const modal = document.getElementById('modal');
+
+      // Update notification
+      (async function checkUpdate() {
+        if (sessionStorage.getItem('update-dismissed')) return;
+        try {
+          const res = await fetch('/api/update-check');
+          if (!res.ok) return;
+          const info = await res.json();
+          if (info.updateAvailable && info.latest) {
+            const banner = document.getElementById('update-banner');
+            document.getElementById('update-versions').textContent =
+              'v' + info.current + ' \u2192 v' + info.latest;
+            if (info.command) {
+              const cmdEl = document.getElementById('update-command');
+              cmdEl.textContent = info.command;
+              if (info.method === 'npx') {
+                document.getElementById('update-command-text').textContent = 'Next time, run: ';
+                document.getElementById('update-command-text').appendChild(cmdEl);
+              }
+            }
+            banner.classList.add('visible');
+          }
+        } catch {
+          // Silent — update check is non-critical
+        }
+      })();
+      document.getElementById('update-dismiss').addEventListener('click', () => {
+        document.getElementById('update-banner').classList.remove('visible');
+        sessionStorage.setItem('update-dismissed', '1');
+      });
 
       function getActivityLabel(ts) {
         if (!ts) return '';
