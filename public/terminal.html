@@ -2511,6 +2511,7 @@
         setupPreviewModal();
         loadShellsForModal();
         startPolling();
+        requestWakeLock();
 
         // Pinch-to-zoom
         (function setupPinchZoom() {
@@ -2639,24 +2640,70 @@
           );
         }
 
-        // Scroll to bottom when returning from idle / tab switch
+        // Wake Lock — helps keep mobile browser tab alive
+        let wakeLock = null;
+
+        async function requestWakeLock() {
+          if (!('wakeLock' in navigator)) return;
+          try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            wakeLock.addEventListener('release', () => {
+              wakeLock = null;
+            });
+          } catch {
+            // Wake Lock request failed (e.g. low battery, not visible)
+          }
+        }
+
+        function releaseWakeLock() {
+          if (wakeLock) {
+            wakeLock.release().catch(() => {});
+            wakeLock = null;
+          }
+        }
+
+        // Reconnect & refit when returning from idle / tab switch
         document.addEventListener('visibilitychange', () => {
-          if (!document.hidden && activeId) {
-            clearUnreadIndicator();
-            const ms = managed.get(activeId);
-            if (ms) {
-              ms.term.scrollToBottom();
-              ms.fitAddon.fit();
-              sendResize(ms);
-            }
-            if (splitMode && splitSecondId) {
-              const ms2 = managed.get(splitSecondId);
-              if (ms2) {
-                ms2.term.scrollToBottom();
-                ms2.fitAddon.fit();
-                sendResize(ms2);
+          if (!document.hidden) {
+            if (activeId) {
+              clearUnreadIndicator();
+              const ms = managed.get(activeId);
+              if (ms) {
+                // Reconnect immediately if WebSocket died in background
+                if (!ms.exited && (!ms.ws || ms.ws.readyState !== WebSocket.OPEN)) {
+                  if (ms.reconnectTimer) {
+                    clearTimeout(ms.reconnectTimer);
+                    ms.reconnectTimer = null;
+                  }
+                  ms.reconnectDelay = 3000;
+                  connectSession(ms);
+                } else {
+                  ms.term.scrollToBottom();
+                  ms.fitAddon.fit();
+                  sendResize(ms);
+                }
+              }
+              if (splitMode && splitSecondId) {
+                const ms2 = managed.get(splitSecondId);
+                if (ms2) {
+                  if (!ms2.exited && (!ms2.ws || ms2.ws.readyState !== WebSocket.OPEN)) {
+                    if (ms2.reconnectTimer) {
+                      clearTimeout(ms2.reconnectTimer);
+                      ms2.reconnectTimer = null;
+                    }
+                    ms2.reconnectDelay = 3000;
+                    connectSession(ms2);
+                  } else {
+                    ms2.term.scrollToBottom();
+                    ms2.fitAddon.fit();
+                    sendResize(ms2);
+                  }
+                }
               }
             }
+            requestWakeLock();
+          } else {
+            releaseWakeLock();
           }
         });
 
@@ -3042,6 +3089,9 @@
           if (ms.id === activeId) {
             statusDot.className = '';
             statusText.textContent = 'Disconnected';
+            reconnectOverlay.querySelector('.msg').textContent =
+              'Disconnected. Attempting to reconnect\u2026';
+            reconnectOverlay.classList.add('visible');
           }
           if (!ms.exited) {
             ms.reconnectTimer = setTimeout(() => {

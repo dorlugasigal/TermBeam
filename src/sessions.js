@@ -144,9 +144,9 @@ class SessionManager {
     ptyProcess.onData((data) => {
       session.lastActivity = Date.now();
       session.scrollbackBuf += data;
-      // Cap scrollback at ~200KB
-      if (session.scrollbackBuf.length > 200000) {
-        session.scrollbackBuf = session.scrollbackBuf.slice(-100000);
+      // Cap scrollback at ~1MB
+      if (session.scrollbackBuf.length > 1000000) {
+        session.scrollbackBuf = session.scrollbackBuf.slice(-500000);
       }
       for (const ws of session.clients) {
         if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'output', data }));

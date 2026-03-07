@@ -1,14 +1,29 @@
 const log = require('./logger');
 
+const ACTIVE_THRESHOLD = 60000; // 60 seconds
+
 function recalcPtySize(session) {
-  let minCols = Infinity;
-  let minRows = Infinity;
+  const now = Date.now();
+  let activeCols = Infinity;
+  let activeRows = Infinity;
+  let allCols = Infinity;
+  let allRows = Infinity;
+  let hasActive = false;
+
   for (const client of session.clients) {
-    if (client._dims) {
-      minCols = Math.min(minCols, client._dims.cols);
-      minRows = Math.min(minRows, client._dims.rows);
+    if (!client._dims) continue;
+    allCols = Math.min(allCols, client._dims.cols);
+    allRows = Math.min(allRows, client._dims.rows);
+    if (client._lastActivity && now - client._lastActivity < ACTIVE_THRESHOLD) {
+      activeCols = Math.min(activeCols, client._dims.cols);
+      activeRows = Math.min(activeRows, client._dims.rows);
+      hasActive = true;
     }
   }
+
+  const minCols = hasActive ? activeCols : allCols;
+  const minRows = hasActive ? activeRows : allRows;
+
   if (minCols === Infinity || minRows === Infinity) return;
   if (minCols === session._lastCols && minRows === session._lastRows) return;
   session._lastCols = minCols;
@@ -38,6 +53,11 @@ function setupWebSocket(wss, { auth, sessions }) {
         return;
       }
     }
+
+    const pingInterval = setInterval(() => {
+      if (ws.readyState === 1) ws.ping();
+    }, 30000);
+    if (typeof pingInterval.unref === 'function') pingInterval.unref();
 
     let authenticated = !auth.password;
     let attached = null;
@@ -95,6 +115,7 @@ function setupWebSocket(wss, { auth, sessions }) {
             log.warn(`WS: attach failed — session ${msg.sessionId} not found`);
             return;
           }
+          ws._lastActivity = Date.now();
           attached = session;
           // First client: defer adding to session.clients until after the
           // first resize so we can decide whether the PTY needs resizing.
@@ -115,12 +136,14 @@ function setupWebSocket(wss, { auth, sessions }) {
         if (!attached) return;
 
         if (msg.type === 'input') {
+          ws._lastActivity = Date.now();
           attached.pty.write(msg.data);
         } else if (msg.type === 'resize') {
           const cols = Math.floor(msg.cols);
           const rows = Math.floor(msg.rows);
           if (cols > 0 && cols <= 500 && rows > 0 && rows <= 200) {
             ws._dims = { cols, rows };
+            ws._lastActivity = Date.now();
             if (ws._pendingResize) {
               ws._pendingResize = false;
               // Only discard scrollback and send SIGWINCH if the PTY was
@@ -150,6 +173,7 @@ function setupWebSocket(wss, { auth, sessions }) {
     });
 
     ws.on('close', () => {
+      clearInterval(pingInterval);
       if (attached) {
         attached.clients.delete(ws);
         recalcPtySize(attached);
@@ -159,4 +183,4 @@ function setupWebSocket(wss, { auth, sessions }) {
   });
 }
 
-module.exports = { setupWebSocket };
+module.exports = { setupWebSocket, ACTIVE_THRESHOLD };

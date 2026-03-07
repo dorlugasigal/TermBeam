@@ -1,6 +1,6 @@
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert');
-const { setupWebSocket } = require('../src/websocket');
+const { setupWebSocket, ACTIVE_THRESHOLD } = require('../src/websocket');
 
 function createMockAuth(password = null) {
   const tokens = new Set();
@@ -68,6 +68,7 @@ function createMockWs() {
   const sent = [];
   const closeCbs = [];
   return {
+    readyState: 1,
     send(data) {
       sent.push(JSON.parse(data));
     },
@@ -76,6 +77,7 @@ function createMockWs() {
       this._closeCode = code;
       this._closeReason = reason;
     },
+    ping() {},
     on(event, cb) {
       if (event === 'message') this._onMessage = cb;
       if (event === 'close') closeCbs.push(cb);
@@ -546,6 +548,106 @@ describe('WebSocket', () => {
 
       assert.strictEqual(session._resizes.length, 1);
       assert.deepStrictEqual(session._resizes[0], { cols: 120, rows: 40 });
+    });
+  });
+
+  describe('activity-aware resize', () => {
+    it('should prefer active client dimensions over idle clients', () => {
+      const session = createMockSession('s1', { hasHadClient: true });
+      sessions._add(session);
+
+      const phoneWs = createMockWs();
+      const laptopWs = createMockWs();
+      wss._simulateConnection(phoneWs);
+      wss._simulateConnection(laptopWs);
+      phoneWs._simulateMessage({ type: 'attach', sessionId: 's1' });
+      laptopWs._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      // Phone sets small size
+      phoneWs._simulateMessage({ type: 'resize', cols: 40, rows: 20 });
+      assert.deepStrictEqual(session._resizes[session._resizes.length - 1], { cols: 40, rows: 20 });
+
+      // Make phone idle by backdating its activity
+      phoneWs._lastActivity = Date.now() - ACTIVE_THRESHOLD - 1000;
+
+      // Laptop sends resize — should use laptop's size since phone is idle
+      laptopWs._simulateMessage({ type: 'resize', cols: 120, rows: 40 });
+      const last = session._resizes[session._resizes.length - 1];
+      assert.deepStrictEqual(last, { cols: 120, rows: 40 });
+    });
+
+    it('should use minimum of active clients when multiple are active', () => {
+      const session = createMockSession('s1', { hasHadClient: true });
+      sessions._add(session);
+
+      const ws1 = createMockWs();
+      const ws2 = createMockWs();
+      wss._simulateConnection(ws1);
+      wss._simulateConnection(ws2);
+      ws1._simulateMessage({ type: 'attach', sessionId: 's1' });
+      ws2._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      // Both send resize recently — both are active
+      ws1._simulateMessage({ type: 'resize', cols: 120, rows: 40 });
+      ws2._simulateMessage({ type: 'resize', cols: 80, rows: 24 });
+
+      const last = session._resizes[session._resizes.length - 1];
+      assert.deepStrictEqual(last, { cols: 80, rows: 24 });
+    });
+
+    it('should fall back to all clients when none are active', () => {
+      const session = createMockSession('s1', { hasHadClient: true });
+      sessions._add(session);
+
+      const ws1 = createMockWs();
+      const ws2 = createMockWs();
+      wss._simulateConnection(ws1);
+      wss._simulateConnection(ws2);
+      ws1._simulateMessage({ type: 'attach', sessionId: 's1' });
+      ws2._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      ws1._simulateMessage({ type: 'resize', cols: 120, rows: 40 });
+      ws2._simulateMessage({ type: 'resize', cols: 80, rows: 24 });
+
+      // Make both idle
+      ws1._lastActivity = Date.now() - ACTIVE_THRESHOLD - 1000;
+      ws2._lastActivity = Date.now() - ACTIVE_THRESHOLD - 1000;
+
+      // Trigger recalc via disconnect/reconnect of a third client
+      const ws3 = createMockWs();
+      wss._simulateConnection(ws3);
+      ws3._simulateMessage({ type: 'attach', sessionId: 's1' });
+      ws3._simulateMessage({ type: 'resize', cols: 60, rows: 15 });
+
+      // ws3 is active, so its size is used (not min of all)
+      const last = session._resizes[session._resizes.length - 1];
+      assert.deepStrictEqual(last, { cols: 60, rows: 15 });
+    });
+
+    it('should track activity on input messages', () => {
+      const session = createMockSession('s1', { hasHadClient: true });
+      sessions._add(session);
+
+      const phoneWs = createMockWs();
+      const laptopWs = createMockWs();
+      wss._simulateConnection(phoneWs);
+      wss._simulateConnection(laptopWs);
+      phoneWs._simulateMessage({ type: 'attach', sessionId: 's1' });
+      laptopWs._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      phoneWs._simulateMessage({ type: 'resize', cols: 40, rows: 20 });
+      laptopWs._simulateMessage({ type: 'resize', cols: 120, rows: 40 });
+
+      // Phone is idle but then sends input — becomes active again
+      phoneWs._lastActivity = Date.now() - ACTIVE_THRESHOLD - 1000;
+      phoneWs._simulateMessage({ type: 'input', data: 'ls\n' });
+
+      // Now both are active, trigger recalc
+      laptopWs._simulateMessage({ type: 'resize', cols: 120, rows: 40 });
+
+      // Phone is active again, so min(40, 120) = 40
+      const last = session._resizes[session._resizes.length - 1];
+      assert.deepStrictEqual(last, { cols: 40, rows: 20 });
     });
   });
 
