@@ -77,7 +77,7 @@ Factory function `createAuth(password)` returns an object with middleware, token
 
 ### `sessions.js` — Session Manager
 
-`SessionManager` class wraps the PTY lifecycle. Handles spawning, tracking, listing, updating, and cleaning up terminal sessions. Each session has an auto-assigned color, tracks `lastActivity` timestamps, a `createdAt` timestamp, and supports live updates via the `update()` method. Sessions maintain a scrollback buffer (capped at 200 KB) that is sent to newly connecting clients, and track a `clients` Set of active WebSocket connections. Supports an optional `initialCommand` that is written to the PTY shortly after spawn. The `list()` method detects the live working directory of the shell process (via `lsof` on macOS, `/proc` on Linux) and enriches each session with git repository information, using an async cache to avoid blocking the event loop.
+`SessionManager` class wraps the PTY lifecycle. Handles spawning, tracking, listing, updating, and cleaning up terminal sessions. Each session has an auto-assigned color, tracks `lastActivity` timestamps, a `createdAt` timestamp, and supports live updates via the `update()` method. Sessions maintain a scrollback buffer (capped at 1 MB) that is sent to newly connecting clients, and track a `clients` Set of active WebSocket connections. Supports an optional `initialCommand` that is written to the PTY shortly after spawn. The `list()` method detects the live working directory of the shell process (via `lsof` on macOS, `/proc` on Linux) and enriches each session with git repository information, using an async cache to avoid blocking the event loop.
 
 ### `git.js` — Git Repository Detection
 
@@ -89,7 +89,7 @@ Registers all Express routes: login page (`GET /login`), auth API, session CRUD 
 
 ### `websocket.js` — WebSocket Handler
 
-Handles real-time communication: validates the Origin header to reject cross-origin connections, WebSocket-level authentication (password or token), session attachment, terminal I/O forwarding, and resize events. When multiple clients are connected to the same session, the PTY is resized to the minimum dimensions across all clients.
+Handles real-time communication: validates the Origin header to reject cross-origin connections, WebSocket-level authentication (password or token), session attachment, terminal I/O forwarding, and resize events. When multiple clients are connected to the same session, the PTY is resized to the minimum dimensions across active clients (active within the last 60 seconds). Idle clients are excluded from the size calculation so that a backgrounded phone tab does not constrain the terminal when resuming from a laptop. Sends keepalive pings every 30 seconds to detect stale connections and help mobile browsers maintain the WebSocket.
 
 ### `preview.js` — Port Preview Proxy
 
