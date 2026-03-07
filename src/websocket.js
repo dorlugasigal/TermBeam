@@ -2,6 +2,14 @@ const log = require('./logger');
 
 const ACTIVE_THRESHOLD = 60000; // 60 seconds
 
+// OSC color query/response sequences (OSC 4/10/11/12) cause garbled output
+// on replay: color queries trigger xterm.js to generate responses that echo
+// through the PTY as visible text, accumulating on each refresh.
+const OSC_COLOR_RE = /\x1b\](?:4;\d+|10|11|12);[^\x07\x1b]*(?:\x07|\x1b\\)/g;
+function sanitizeForReplay(buf) {
+  return buf.replace(OSC_COLOR_RE, '');
+}
+
 function recalcPtySize(session) {
   const now = Date.now();
   let activeCols = Infinity;
@@ -125,7 +133,9 @@ function setupWebSocket(wss, { auth, sessions }) {
           } else {
             session.clients.add(ws);
             if (session.scrollbackBuf.length > 0) {
-              ws.send(JSON.stringify({ type: 'output', data: session.scrollbackBuf }));
+              ws.send(
+                JSON.stringify({ type: 'output', data: sanitizeForReplay(session.scrollbackBuf) }),
+              );
             }
           }
           ws.send(JSON.stringify({ type: 'attached', sessionId: msg.sessionId }));
@@ -159,7 +169,12 @@ function setupWebSocket(wss, { auth, sessions }) {
               } else {
                 attached.clients.add(ws);
                 if (attached.scrollbackBuf.length > 0) {
-                  ws.send(JSON.stringify({ type: 'output', data: attached.scrollbackBuf }));
+                  ws.send(
+                    JSON.stringify({
+                      type: 'output',
+                      data: sanitizeForReplay(attached.scrollbackBuf),
+                    }),
+                  );
                 }
               }
             } else {
@@ -183,4 +198,4 @@ function setupWebSocket(wss, { auth, sessions }) {
   });
 }
 
-module.exports = { setupWebSocket, ACTIVE_THRESHOLD };
+module.exports = { setupWebSocket, ACTIVE_THRESHOLD, sanitizeForReplay };

@@ -1,6 +1,6 @@
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert');
-const { setupWebSocket, ACTIVE_THRESHOLD } = require('../src/websocket');
+const { setupWebSocket, ACTIVE_THRESHOLD, sanitizeForReplay } = require('../src/websocket');
 
 function createMockAuth(password = null) {
   const tokens = new Set();
@@ -686,6 +686,57 @@ describe('WebSocket', () => {
 
       assert.ok(!ws._closed, 'connection should remain open');
       assert.strictEqual(ws._sent.length, 0, 'no messages should be sent');
+    });
+  });
+
+  describe('sanitizeForReplay', () => {
+    it('should strip OSC 11 background color responses', () => {
+      const buf = 'hello\x1b]11;rgb:2828/2a2a/3636\x07world';
+      assert.strictEqual(sanitizeForReplay(buf), 'helloworld');
+    });
+
+    it('should strip OSC 10 foreground color responses', () => {
+      const buf = 'hello\x1b]10;rgb:f8f8/f8f8/f2f2\x07world';
+      assert.strictEqual(sanitizeForReplay(buf), 'helloworld');
+    });
+
+    it('should strip OSC 4 palette color responses', () => {
+      const buf = 'hello\x1b]4;0;rgb:2121/2222/2c2c\x07world';
+      assert.strictEqual(sanitizeForReplay(buf), 'helloworld');
+    });
+
+    it('should strip OSC 12 cursor color responses', () => {
+      const buf = 'hello\x1b]12;rgb:ffff/ffff/ffff\x07world';
+      assert.strictEqual(sanitizeForReplay(buf), 'helloworld');
+    });
+
+    it('should strip OSC color queries', () => {
+      const buf = 'hello\x1b]11;?\x07world';
+      assert.strictEqual(sanitizeForReplay(buf), 'helloworld');
+    });
+
+    it('should strip sequences terminated with ST (ESC backslash)', () => {
+      const buf = 'hello\x1b]11;rgb:2828/2a2a/3636\x1b\\world';
+      assert.strictEqual(sanitizeForReplay(buf), 'helloworld');
+    });
+
+    it('should strip multiple consecutive OSC color sequences', () => {
+      const buf =
+        '\x1b]11;rgb:2828/2a2a/3636\x07' +
+        '\x1b]10;rgb:f8f8/f8f8/f2f2\x07' +
+        '\x1b]4;0;rgb:2121/2222/2c2c\x07' +
+        '\x1b]4;1;rgb:ffff/5555/5555\x07';
+      assert.strictEqual(sanitizeForReplay(buf), '');
+    });
+
+    it('should preserve non-color OSC sequences (title, hyperlinks)', () => {
+      const buf = 'hello\x1b]0;my title\x07\x1b]8;;https://example.com\x07link\x1b]8;;\x07world';
+      assert.strictEqual(sanitizeForReplay(buf), buf);
+    });
+
+    it('should preserve normal terminal output', () => {
+      const buf = 'hello\x1b[32mgreen\x1b[0m world\r\n$ ';
+      assert.strictEqual(sanitizeForReplay(buf), buf);
     });
   });
 });
