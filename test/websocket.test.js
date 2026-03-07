@@ -551,6 +551,55 @@ describe('WebSocket', () => {
     });
   });
 
+  describe('keepalive ping', () => {
+    it('should call ws.ping() on the keepalive interval', (t) => {
+      t.mock.timers.enable({ apis: ['setInterval'] });
+
+      const localWss = createMockWss();
+      const localAuth = createMockAuth();
+      const localSessions = createMockSessions();
+      setupWebSocket(localWss, { auth: localAuth, sessions: localSessions });
+
+      const ws = createMockWs();
+      let pingCount = 0;
+      ws.ping = () => {
+        pingCount++;
+      };
+      localWss._simulateConnection(ws);
+
+      t.mock.timers.tick(30000);
+      assert.strictEqual(pingCount, 1, 'ping should fire after 30s');
+
+      t.mock.timers.tick(30000);
+      assert.strictEqual(pingCount, 2, 'ping should fire again after 60s');
+    });
+
+    it('should stop pinging after ws close', (t) => {
+      t.mock.timers.enable({ apis: ['setInterval'] });
+
+      const localWss = createMockWss();
+      const localAuth = createMockAuth();
+      const localSessions = createMockSessions();
+      setupWebSocket(localWss, { auth: localAuth, sessions: localSessions });
+
+      const ws = createMockWs();
+      let pingCount = 0;
+      ws.ping = () => {
+        pingCount++;
+      };
+      localWss._simulateConnection(ws);
+
+      t.mock.timers.tick(30000);
+      assert.strictEqual(pingCount, 1);
+
+      ws.readyState = 3;
+      ws._simulateClose();
+
+      t.mock.timers.tick(60000);
+      assert.strictEqual(pingCount, 1, 'no more pings after close');
+    });
+  });
+
   describe('activity-aware resize', () => {
     it('should prefer active client dimensions over idle clients', () => {
       const session = createMockSession('s1', { hasHadClient: true });
@@ -595,7 +644,7 @@ describe('WebSocket', () => {
       assert.deepStrictEqual(last, { cols: 80, rows: 24 });
     });
 
-    it('should fall back to all clients when none are active', () => {
+    it('should use new active client size when all existing clients are idle', () => {
       const session = createMockSession('s1', { hasHadClient: true });
       sessions._add(session);
 
