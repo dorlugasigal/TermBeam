@@ -1,0 +1,49 @@
+{
+  "name": "termbeam-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "build:only": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@radix-ui/react-dialog": "^1.1.6",
+    "@use-gesture/react": "^10.3.1",
+    "@xterm/addon-canvas": "^0.7.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-search": "^0.15.0",
+    "@xterm/addon-web-links": "^0.11.0",
+    "@xterm/xterm": "^5.5.0",
+    "cmdk": "^1.0.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sonner": "^2.0.3",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "jsdom": "^26.0.0",
+    "typescript": "~5.7.2",
+    "vite": "^6.3.0",
+    "vite-plugin-pwa": "^0.21.1",
+    "vitest": "^3.1.1",
+    "workbox-expiration": "^7.3.0",
+    "workbox-precaching": "^7.3.0",
+    "workbox-routing": "^7.3.0",
+    "workbox-strategies": "^7.3.0"
+  }
+}

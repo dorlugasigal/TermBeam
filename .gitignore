@@ -8,3 +8,5 @@ test-results/
 junit.xml
 .idea/
 .vscode/
+public-react/
+frontend/node_modules/

@@ -1,0 +1,124 @@
+.wrapper {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.deleteBackground {
+  position: absolute;
+  inset: 0;
+  background: var(--danger);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 1.25rem;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  user-select: none;
+  pointer-events: none;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+  touch-action: pan-y;
+  user-select: none;
+  z-index: 1;
+}
+
+.card:hover {
+  border-color: var(--accent);
+  background: var(--bg);
+}
+
+.colorDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.deleteBtn {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    background 0.15s,
+    color 0.15s;
+}
+
+.card:hover .deleteBtn {
+  opacity: 1;
+}
+
+.deleteBtn:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+@media (pointer: coarse) {
+  .deleteBtn {
+    display: none;
+  }
+}

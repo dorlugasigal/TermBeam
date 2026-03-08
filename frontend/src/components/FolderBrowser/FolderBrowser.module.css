@@ -1,0 +1,155 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 400px;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 0.4rem 0.6rem;
+  background: var(--bg);
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  min-height: 2rem;
+}
+
+.breadcrumbSegment {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0.1rem 0.2rem;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  transition: background 0.1s;
+}
+
+.breadcrumbSegment:hover {
+  background: var(--surface);
+}
+
+.breadcrumbSep {
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 120px;
+  max-height: 280px;
+  padding: 0.25rem;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+
+.entry {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.1s;
+}
+
+.entry:hover {
+  background: var(--surface);
+}
+
+.entryIcon {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+
+.entryName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileEntry {
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.fileEntry:hover {
+  background: transparent;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.selectBtn {
+  padding: 0.45rem 1rem;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.selectBtn:hover {
+  opacity: 0.9;
+}
+
+.selectBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancelBtn {
+  padding: 0.45rem 1rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.cancelBtn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 0.82rem;
+  text-align: center;
+  padding: 1rem;
+}

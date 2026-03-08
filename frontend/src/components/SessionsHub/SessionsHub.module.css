@@ -1,0 +1,135 @@
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+  user-select: none;
+}
+
+.logoIcon {
+  font-size: 1.35rem;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.headerBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.headerBtn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.content {
+  flex: 1;
+  padding: 1rem 1.25rem;
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.sessionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 4rem 1rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 2.5rem;
+  opacity: 0.5;
+}
+
+.emptyText {
+  font-size: 0.95rem;
+}
+
+.emptyHint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.fab {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  border: none;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 1.6rem;
+  font-weight: 300;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transition:
+    transform 0.15s,
+    opacity 0.15s;
+  z-index: 50;
+}
+
+.fab:hover {
+  transform: scale(1.06);
+}
+
+.fab:active {
+  transform: scale(0.96);
+}
+
+.refreshSpin {
+  animation: spin 0.6s linear;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,0 +1,149 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-bg);
+  z-index: 200;
+  animation: fadeIn 150ms ease-out;
+}
+
+.content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  width: min(380px, calc(100vw - 32px));
+  z-index: 201;
+  animation: slideUp 150ms ease-out;
+}
+
+.title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+
+.description {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0 0 20px;
+}
+
+.label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+/* Hide spinner arrows on number input */
+.input::-webkit-inner-spin-button,
+.input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.cancelBtn {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: border-color 150ms;
+}
+
+.cancelBtn:hover {
+  border-color: var(--text-secondary);
+}
+
+.openBtn {
+  padding: 8px 20px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background 150ms;
+}
+
+.openBtn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.openBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 4px;
+}
+
+.close:hover {
+  color: var(--text);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}

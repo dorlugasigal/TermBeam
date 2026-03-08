@@ -1,0 +1,56 @@
+.touchBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
+  background: var(--keybar-bg, var(--surface, #1a1a2e));
+  border-top: 1px solid var(--border, #333);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.row {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+}
+
+.key {
+  flex: 1;
+  min-width: 0;
+  max-width: 56px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 5px;
+  background: var(--keybar-btn-bg, var(--surface, #2a2a3e));
+  color: var(--keybar-btn-fg, var(--text, #ccc));
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.08s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.key:hover {
+  background: var(--keybar-btn-hover, #3a3a4e);
+}
+
+.key:active,
+.flash {
+  background: var(--keybar-btn-active, var(--accent, #4a9eff)) !important;
+  color: #fff;
+}
+
+.active {
+  background: var(--accent, #4a9eff);
+  color: #fff;
+}

@@ -1,0 +1,166 @@
+import { useRef, useEffect, useCallback, useState } from 'react';
+import type { Terminal } from '@xterm/xterm';
+import { getWebSocketUrl } from '@/services/api';
+import { toast } from 'sonner';
+import type { WSServerMessage } from '@/types';
+
+export interface UseTerminalSocketOptions {
+  sessionId: string;
+  terminal: Terminal | null;
+  onExit?: (sessionId: string) => void;
+  onConnected?: () => void;
+}
+
+export interface UseTerminalSocketReturn {
+  send: (data: string) => void;
+  sendResize: (cols: number, rows: number) => void;
+  connected: boolean;
+  ws: WebSocket | null;
+}
+
+const INITIAL_RECONNECT_DELAY = 3000;
+const MAX_RECONNECT_DELAY = 30_000;
+const KEEPALIVE_INTERVAL = 30_000;
+
+// Strip OSC 4/10/11/12 sequences that can cause display issues
+function stripOscSequences(data: string): string {
+  return data.replace(/\x1b\](?:4|10|11|12);[^\x07\x1b]*(?:\x07|\x1b\\)/g, '');
+}
+
+export function useTerminalSocket(options: UseTerminalSocketOptions): UseTerminalSocketReturn {
+  const { sessionId, terminal, onExit, onConnected } = options;
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectDelayRef = useRef(INITIAL_RECONNECT_DELAY);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const keepaliveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef = useRef(true);
+
+  const [connected, setConnected] = useState(false);
+
+  const clearTimers = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    if (keepaliveTimerRef.current) {
+      clearInterval(keepaliveTimerRef.current);
+      keepaliveTimerRef.current = null;
+    }
+  }, []);
+
+  const send = useCallback((data: string) => {
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'input', data }));
+    }
+  }, []);
+
+  const sendResize = useCallback((cols: number, rows: number) => {
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!terminal || !sessionId) return;
+    mountedRef.current = true;
+
+    function connect() {
+      if (!mountedRef.current) return;
+
+      const url = getWebSocketUrl();
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        if (!mountedRef.current) {
+          ws.close();
+          return;
+        }
+        ws.send(JSON.stringify({ type: 'attach', sessionId }));
+        reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
+
+        // Start keepalive pings
+        keepaliveTimerRef.current = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, KEEPALIVE_INTERVAL);
+      };
+
+      ws.onmessage = (event) => {
+        if (!mountedRef.current || !terminal) return;
+
+        let msg: WSServerMessage;
+        try {
+          msg = JSON.parse(event.data as string) as WSServerMessage;
+        } catch {
+          return;
+        }
+
+        switch (msg.type) {
+          case 'attached': {
+            setConnected(true);
+            onConnected?.();
+            if (msg.scrollback) {
+              terminal.write(stripOscSequences(msg.scrollback));
+            }
+            break;
+          }
+          case 'output': {
+            terminal.write(msg.data);
+            break;
+          }
+          case 'exit': {
+            onExit?.(msg.sessionId);
+            break;
+          }
+          case 'error': {
+            toast.error(msg.message);
+            break;
+          }
+        }
+      };
+
+      ws.onclose = () => {
+        setConnected(false);
+        wsRef.current = null;
+
+        if (keepaliveTimerRef.current) {
+          clearInterval(keepaliveTimerRef.current);
+          keepaliveTimerRef.current = null;
+        }
+
+        if (!mountedRef.current) return;
+
+        // Exponential backoff reconnect
+        const delay = reconnectDelayRef.current;
+        reconnectDelayRef.current = Math.min(delay * 2, MAX_RECONNECT_DELAY);
+        reconnectTimerRef.current = setTimeout(connect, delay);
+      };
+
+      ws.onerror = () => {
+        // onclose will fire after onerror, handling reconnect
+      };
+    }
+
+    connect();
+
+    return () => {
+      mountedRef.current = false;
+      clearTimers();
+      const ws = wsRef.current;
+      if (ws) {
+        ws.onclose = null;
+        ws.onerror = null;
+        ws.onmessage = null;
+        ws.close();
+        wsRef.current = null;
+      }
+      setConnected(false);
+    };
+  }, [terminal, sessionId, onExit, onConnected, clearTimers]);
+
+  return { send, connected, sendResize, ws: wsRef.current };
+}

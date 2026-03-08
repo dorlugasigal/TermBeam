@@ -14,6 +14,9 @@
     "prepare": "husky",
     "format": "prettier --write .",
     "lint": "node --check src/*.js bin/*.js",
+    "dev:frontend": "cd frontend && npx vite",
+    "build:frontend": "cd frontend && npm ci --ignore-scripts && npx vite build",
+    "test:frontend": "cd frontend && npx vitest run",
     "prepublishOnly": "npm test",
     "postinstall": "node -e \"try{const p=require('path'),fs=require('fs'),r=require.resolve('node-pty/package.json'),d=p.join(p.dirname(r),'prebuilds');if(fs.existsSync(d)){for(const a of fs.readdirSync(d)){const s=p.join(d,a,'spawn-helper');try{fs.chmodSync(s,0o755)}catch{}}}}catch{}\""
   },

@@ -1,0 +1,177 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-bg);
+  z-index: 200;
+  animation: fade-in 0.15s ease;
+}
+
+.content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  z-index: 201;
+  animation: fade-in 0.2s ease;
+}
+
+.title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 1.25rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.input {
+  padding: 0.55rem 0.75rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+.select {
+  composes: input;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  padding-right: 2rem;
+}
+
+.dirRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.dirRow .input {
+  flex: 1;
+}
+
+.browseBtn {
+  padding: 0.55rem 0.85rem;
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.browseBtn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.colorPicker {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.colorDot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    transform 0.1s;
+}
+
+.colorDot:hover {
+  transform: scale(1.15);
+}
+
+.colorDotActive {
+  border-color: var(--text);
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.cancelBtn {
+  padding: 0.55rem 1rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.cancelBtn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text);
+}
+
+.submitBtn {
+  padding: 0.55rem 1.25rem;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.submitBtn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

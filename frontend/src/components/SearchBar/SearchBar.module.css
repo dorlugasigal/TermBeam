@@ -1,0 +1,67 @@
+.searchBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--surface, #1e1e2e);
+  border-bottom: 1px solid var(--border, #333);
+  animation: slide-down 0.15s ease;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border, #444);
+  border-radius: 4px;
+  background: var(--input-bg, #111);
+  color: var(--text, #ccc);
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+}
+
+.input:focus {
+  border-color: var(--accent, #4a9eff);
+}
+
+.btn {
+  background: none;
+  border: 1px solid var(--border, #444);
+  border-radius: 4px;
+  color: var(--text, #ccc);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.btn:hover {
+  background: var(--border, #333);
+}
+
+.btnActive {
+  background: var(--accent, #4a9eff);
+  color: #fff;
+  border-color: var(--accent, #4a9eff);
+}
+
+.indicator {
+  font-size: 12px;
+  color: var(--text-muted, #666);
+  white-space: nowrap;
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}

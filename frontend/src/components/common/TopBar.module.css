@@ -1,0 +1,99 @@
+.topBar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.menuBtn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.menuBtn:hover {
+  background: var(--bg);
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: color 150ms;
+}
+
+.backBtn:hover {
+  color: var(--text);
+  background: var(--bg);
+}
+
+.logo {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* Mobile: show hamburger, hide back button */
+@media (max-width: 640px) {
+  .menuBtn {
+    display: flex;
+  }
+
+  .backBtn {
+    display: none;
+  }
+}
+
+/* Desktop: hide hamburger, show back button */
+@media (min-width: 641px) {
+  .menuBtn {
+    display: none;
+  }
+
+  .backBtn {
+    display: flex;
+  }
+}

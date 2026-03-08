@@ -1,0 +1,45 @@
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.55rem 1rem;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 0.82rem;
+  font-weight: 500;
+  animation: slide-down 0.25s ease;
+}
+
+.text {
+  flex: 1;
+  text-align: center;
+}
+
+.dismiss {
+  background: transparent;
+  border: none;
+  color: var(--bg);
+  font-size: 1rem;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  transition: opacity 0.15s;
+  line-height: 1;
+}
+
+.dismiss:hover {
+  opacity: 1;
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
