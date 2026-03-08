@@ -65,12 +65,18 @@ export default function CopyOverlay() {
   }, []);
 
   const [hasSelection, setHasSelection] = useState(false);
+  const savedSelectionRef = useRef('');
 
   // Track whether the user has selected text within the overlay
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      savedSelectionRef.current = '';
+      setHasSelection(false);
+      return;
+    }
     const onSelectionChange = () => {
       const sel = window.getSelection()?.toString() ?? '';
+      if (sel.length > 0) savedSelectionRef.current = sel;
       setHasSelection(sel.length > 0);
     };
     document.addEventListener('selectionchange', onSelectionChange);
@@ -78,13 +84,13 @@ export default function CopyOverlay() {
   }, [open]);
 
   const handleCopy = useCallback(async () => {
-    const selection = window.getSelection()?.toString() ?? '';
-    const content = selection || text;
+    const content = savedSelectionRef.current || text;
     if (!content) return;
 
+    const isSelection = !!savedSelectionRef.current;
     try {
       await navigator.clipboard.writeText(content);
-      toast.success('Copied to clipboard');
+      toast.success(isSelection ? 'Selection copied' : 'All text copied');
     } catch {
       // Fallback for non-secure contexts
       const ta = document.createElement('textarea');
@@ -95,7 +101,7 @@ export default function CopyOverlay() {
       ta.select();
       document.execCommand('copy');
       document.body.removeChild(ta);
-      toast.success('Copied to clipboard');
+      toast.success(isSelection ? 'Selection copied' : 'All text copied');
     }
   }, [text]);
 
