@@ -149,7 +149,7 @@ export async function checkAuth(): Promise<{ authenticated: boolean }> {
   try {
     const res = await fetch(`${BASE}/api/sessions`, { credentials: 'same-origin' });
     if (res.status === 401) return { authenticated: false };
-    // 429 (rate limited) or 200 OK means the server is running and we're not blocked by auth
+    if (res.status === 429) return { authenticated: false };
     return { authenticated: true };
   } catch {
     return { authenticated: false };

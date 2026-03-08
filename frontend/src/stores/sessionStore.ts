@@ -66,7 +66,11 @@ function loadTabOrder(): string[] {
 }
 
 function saveTabOrder(order: string[]): void {
-  localStorage.setItem('termbeam-tab-order', JSON.stringify(order));
+  try {
+    localStorage.setItem('termbeam-tab-order', JSON.stringify(order));
+  } catch {
+    // Storage unavailable
+  }
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({

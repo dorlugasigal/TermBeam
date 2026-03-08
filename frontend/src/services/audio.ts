@@ -31,11 +31,19 @@ export function playNotificationSound(): void {
 }
 
 export function isNotificationsEnabled(): boolean {
-  return localStorage.getItem('termbeam-notifications') !== 'false';
+  try {
+    return localStorage.getItem('termbeam-notifications') !== 'false';
+  } catch {
+    return true;
+  }
 }
 
 export function setNotificationsEnabled(enabled: boolean): void {
-  localStorage.setItem('termbeam-notifications', String(enabled));
+  try {
+    localStorage.setItem('termbeam-notifications', String(enabled));
+  } catch {
+    // Storage unavailable
+  }
 }
 
 export function sendCommandNotification(sessionName: string): void {
