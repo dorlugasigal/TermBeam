@@ -297,6 +297,7 @@ export function TerminalApp() {
         <div className={styles.right}>
           <button
             className={`${styles.barBtn} ${styles.barBtnWithLabel}`}
+            data-testid="tab-new-btn"
             onClick={() => {
               if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
               openNewSessionModal();

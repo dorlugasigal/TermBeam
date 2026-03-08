@@ -93,13 +93,20 @@ async function navigateToTerminal(page, sessionId) {
 async function navigateToHub(page) {
   const port = inst.server.address().port;
   await page.goto(`http://127.0.0.1:${port}/`);
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
+  await expect(page.locator('[data-testid="hub-new-session-btn"], [data-testid="empty-state"]').first()).toBeVisible({ timeout: 10_000 });
 }
 
 async function openTerminalWithNewSession(page, name) {
   const { id } = await createSessionViaAPI(name);
   await navigateToTerminal(page, id);
   return id;
+}
+
+async function getInitialSessions() {
+  const port = inst.server.address().port;
+  const res = await fetch(`http://127.0.0.1:${port}/api/sessions`);
+  return res.json();
 }
 
 async function waitForTerminalOutput(page, pattern, timeout = 15_000) {
@@ -173,8 +180,8 @@ test.describe('New Session Modal — Hub Page', () => {
       timeout: 10_000,
     });
 
-    // Should have one tab and it should be active
-    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(1, {
+    // Should have two tabs (auto-created + new) and one should be active
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
       timeout: 5_000,
     });
     await expect(
@@ -246,8 +253,8 @@ test.describe('New Session Modal — Hub Page', () => {
       timeout: 3_000,
     });
 
-    // No sessions should have been created
-    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(0);
+    // Only the auto-created session should exist
+    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(1);
   });
 });
 
@@ -291,7 +298,7 @@ test.describe('Session Management', () => {
       timeout: 5_000,
     });
 
-    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(3, {
       timeout: 5_000,
     });
 
@@ -340,8 +347,8 @@ test.describe('Session Management', () => {
     await runCommand(page, `echo ${marker2}`);
     await waitForTerminalOutput(page, marker2);
 
-    // Switch back to first session
-    await page.locator('[data-testid="session-tab"]').first().click();
+    // Switch back to the API-created session (index 1; index 0 is auto-created)
+    await page.locator('[data-testid="session-tab"]').nth(1).click();
     await page.waitForTimeout(500);
 
     // First session should still show its marker
@@ -528,7 +535,7 @@ test.describe('Hub Page', () => {
     await createSessionViaAPI();
     await navigateToHub(page);
 
-    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(1, {
+    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(2, {
       timeout: 5_000,
     });
   });
@@ -583,8 +590,8 @@ test.describe('Hub Page', () => {
     await createSessionViaAPI();
     await navigateToHub(page);
 
-    // Session list should have sessions
-    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(1, {
+    // Session list should have sessions (auto-created + API-created)
+    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(2, {
       timeout: 5_000,
     });
 
@@ -593,7 +600,7 @@ test.describe('Hub Page', () => {
     await page.waitForTimeout(1000);
 
     // Sessions should still be listed after refresh
-    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(1, {
+    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(2, {
       timeout: 5_000,
     });
   });
@@ -602,7 +609,7 @@ test.describe('Hub Page', () => {
     await createSessionViaAPI();
     await navigateToHub(page);
 
-    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(1, {
+    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(2, {
       timeout: 5_000,
     });
     await page.locator('[data-testid="connect-btn"]').first().click();
@@ -619,7 +626,7 @@ test.describe('Hub Page', () => {
 test.describe('Multi-Session Tabs', () => {
   test('creating multiple sessions shows multiple tabs', async ({ page }) => {
     await openTerminalWithNewSession(page);
-    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(1, {
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
       timeout: 5_000,
     });
 
@@ -632,7 +639,7 @@ test.describe('Multi-Session Tabs', () => {
     await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
       timeout: 5_000,
     });
-    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(3, {
       timeout: 5_000,
     });
 
@@ -645,7 +652,7 @@ test.describe('Multi-Session Tabs', () => {
     await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
       timeout: 5_000,
     });
-    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(3, {
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(4, {
       timeout: 5_000,
     });
   });
@@ -662,7 +669,7 @@ test.describe('Multi-Session Tabs', () => {
     await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
       timeout: 5_000,
     });
-    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(3, {
       timeout: 5_000,
     });
 
@@ -711,8 +718,8 @@ test.describe('Multi-Session Tabs', () => {
     await runCommand(page, `echo ${marker2}`);
     await waitForTerminalOutput(page, marker2);
 
-    // Click first tab
-    await page.locator('[data-testid="session-tab"]').first().click();
+    // Click the API-created session tab (index 1; index 0 is auto-created)
+    await page.locator('[data-testid="session-tab"]').nth(1).click();
     await page.waitForTimeout(500);
 
     // Should see first session content
@@ -731,7 +738,7 @@ test.describe('Multi-Session Tabs', () => {
     await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
       timeout: 5_000,
     });
-    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(3, {
       timeout: 5_000,
     });
 
@@ -743,8 +750,8 @@ test.describe('Multi-Session Tabs', () => {
     await lastTab.hover();
     await lastTab.locator('[data-testid="tab-close"]').click();
 
-    // Should be back to 1 tab
-    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(1, {
+    // Should be back to 2 tabs (auto-created + API-created)
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
       timeout: 5_000,
     });
   });
@@ -761,26 +768,26 @@ test.describe('Multi-Session Tabs', () => {
     await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
       timeout: 5_000,
     });
-    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(3, {
       timeout: 5_000,
     });
 
     // Accept the confirm dialog that fires when closing a tab
     page.once('dialog', (dialog) => dialog.accept());
 
-    // The second tab is active; close it
+    // The last tab is active; close it
     const lastTab = page.locator('[data-testid="session-tab"]').last();
     await expect(lastTab).toHaveAttribute('data-active', 'true');
     await lastTab.hover();
     await lastTab.locator('[data-testid="tab-close"]').click();
 
-    // First tab should now be active
-    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(1, {
+    // Should have 2 tabs remaining and one should be active
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
       timeout: 5_000,
     });
     await expect(
-      page.locator('[data-testid="session-tab"]').first(),
-    ).toHaveAttribute('data-active', 'true', { timeout: 5_000 });
+      page.locator('[data-testid="session-tab"][data-active="true"]'),
+    ).toHaveCount(1, { timeout: 5_000 });
 
     // Terminal should still be connected
     await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
@@ -937,7 +944,7 @@ test.describe('Mobile Layout', () => {
     await createSessionViaAPI();
     await navigateToHub(page);
 
-    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(1, {
+    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(2, {
       timeout: 5_000,
     });
   });

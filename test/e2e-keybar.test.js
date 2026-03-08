@@ -760,13 +760,14 @@ test.describe('Top Bar — Side Panel (mobile viewport)', () => {
     await runCommand(page, `echo ${marker2}`);
     await waitForTerminalOutput(page, marker2);
 
-    // Open side panel and click the first session card to switch back
+    // Open side panel and click the test session card to switch back.
+    // The auto-created default session is at index 0; the test session is at index 1.
     await page.locator('[aria-label="Toggle panel"]').click();
     await expect(page.locator('[data-testid="side-panel"]')).toBeVisible();
-    await page.locator('[data-testid="side-panel-card"]').first().click();
+    await page.locator('[data-testid="side-panel-card"]').nth(1).click();
     await page.waitForTimeout(500);
 
-    // The first session should be active — it should have marker1 but not marker2
+    // The test session should be active — it should have marker1 but not marker2
     const text = await getTerminalText(page);
     expect(text).toContain(marker1);
     expect(text).not.toContain(marker2);
@@ -918,11 +919,13 @@ test.describe('Activity Indicators', () => {
       expect(hasUnread).toBeGreaterThan(0);
     }).toPass({ timeout: 10_000 });
 
-    // Click the first session tab — unread dot should disappear
-    const firstTab = page.locator('[data-testid="session-tab"]').first();
-    await firstTab.click();
+    // Click the test session tab (nth(1), after auto-created default session)
+    // to clear its unread indicator
+    const testTab = page.locator('[data-testid="session-tab"]').nth(1);
+    await testTab.click();
     await page.waitForTimeout(300);
-    const unreadAfter = await page.locator('[data-testid="tab-unread"]').count();
+    // The test session tab is now active, so its unread dot is removed
+    const unreadAfter = await testTab.locator('[data-testid="tab-unread"]').count();
     expect(unreadAfter).toBe(0);
   });
 
