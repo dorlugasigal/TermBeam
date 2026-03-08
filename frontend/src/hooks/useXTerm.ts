@@ -30,7 +30,6 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const searchRef = useRef<SearchAddon | null>(null);
-  const mountedRef = useRef(false);
 
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const [fitAddon, setFitAddon] = useState<FitAddon | null>(null);
@@ -59,10 +58,6 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     const container = terminalRef.current;
     if (!container) return;
 
-    // StrictMode guard: skip second mount if already initialized
-    if (mountedRef.current) return;
-    mountedRef.current = true;
-
     const FONT_FAMILY =
       "'NerdFont', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Menlo', 'Consolas', monospace";
     const theme = getTerminalTheme(themeId);
@@ -87,14 +82,26 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     term.loadAddon(search);
     term.loadAddon(webLinks);
 
-    // Defer open() until container has dimensions (e.g., display:none → display:flex)
+    let disposed = false;
+
+    // Suppress xterm.js async "dimensions" error from disposed terminals
+    // (StrictMode double-mount in dev: first terminal is disposed while its
+    // internal setTimeout is still pending — harmless, but noisy in console)
+    const suppressXtermError = (e: ErrorEvent) => {
+      if (e.message?.includes('dimensions')) e.preventDefault();
+    };
+
     const openTerminal = () => {
+      if (disposed) return;
+      window.addEventListener('error', suppressXtermError);
       try {
         term.open(container);
       } catch {
-        // xterm may fail if container layout isn't fully computed yet
+        window.removeEventListener('error', suppressXtermError);
         return;
       }
+      // Remove after xterm's internal async init completes
+      setTimeout(() => window.removeEventListener('error', suppressXtermError), 50);
       try {
         fit.fit();
       } catch {
@@ -112,7 +119,6 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
         }
       });
       ro.observe(container);
-      (container as unknown as Record<string, unknown>).__termOpenObserver = ro;
     }
 
     termRef.current = term;
@@ -128,6 +134,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       'url(https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@latest/patched-fonts/JetBrainsMono/Ligatures/Regular/JetBrainsMonoNerdFont-Regular.ttf)',
     );
     font.load().then((f) => {
+      if (disposed) return;
       document.fonts.add(f);
       if (termRef.current) {
         termRef.current.options.fontFamily = FONT_FAMILY;
@@ -143,8 +150,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
 
     // ResizeObserver for container size changes.
     // Guard against 0-dimension containers (display:none on an ancestor)
-    // to prevent fit() from resizing the terminal to minimum dimensions
-    // and destroying the scrollback buffer.
+    // to prevent fit() from resizing the terminal to minimum dimensions.
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry || entry.contentRect.width === 0 || entry.contentRect.height === 0) return;
@@ -157,12 +163,12 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     observer.observe(container);
 
     return () => {
+      disposed = true;
       observer.disconnect();
       term.dispose();
       termRef.current = null;
       fitRef.current = null;
       searchRef.current = null;
-      mountedRef.current = false;
       setTerminal(null);
       setFitAddon(null);
       setSearchAddon(null);
