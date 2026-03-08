@@ -97,7 +97,7 @@ export function TabBar({ inline = false }: TabBarProps) {
           aria-label="New session"
           title="New session"
         >
-          +
+          + <span className={styles.addBtnLabel}>New</span>
         </button>
       )}
     </div>

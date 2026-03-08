@@ -58,7 +58,7 @@ export function TabPreview({ session, anchorEl }: TabPreviewProps) {
 
   if (!visible) return null;
 
-  const lines = getTerminalLines(session, 5);
+  const lines = getTerminalLines(session, 12);
 
   return (
     <div className={styles.preview}>
