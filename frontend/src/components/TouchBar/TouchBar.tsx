@@ -132,7 +132,7 @@ export default function TouchBar() {
   }, []);
 
   const handlePress = useCallback(
-    (def: KeyDef) => {
+    (def: KeyDef, fromTouch = false) => {
       if (def.action === 'copy') {
         flash(def.label);
         handleCopy();
@@ -164,7 +164,8 @@ export default function TouchBar() {
       if (ctrlActive) setCtrlActive(false);
       if (shiftActive) setShiftActive(false);
 
-      refocusTerminal();
+      // Only refocus on mouse (desktop) — on touch, refocusing opens the virtual keyboard
+      if (!fromTouch) refocusTerminal();
     },
     [resolveKeyData, flash, ctrlActive, shiftActive, handleCopy, handlePaste],
   );
@@ -207,7 +208,7 @@ export default function TouchBar() {
         if (dx > SWIPE_THRESHOLD || dy > SWIPE_THRESHOLD) return;
       }
 
-      handlePress(def);
+      handlePress(def, true);
     },
     [handlePress],
   );

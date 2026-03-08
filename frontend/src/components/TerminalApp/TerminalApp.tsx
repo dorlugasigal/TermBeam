@@ -10,6 +10,8 @@ import SearchBar from '@/components/SearchBar/SearchBar';
 import CommandPalette from '@/components/CommandPalette/CommandPalette';
 import { SidePanel } from '@/components/SidePanel/SidePanel';
 import NewSessionModal from '@/components/SessionsHub/NewSessionModal';
+import { UploadModal } from '@/components/common/UploadModal';
+import { PreviewModal } from '@/components/common/PreviewModal';
 import type { Session } from '@/types';
 import styles from './TerminalApp.module.css';
 
@@ -294,6 +296,8 @@ export function TerminalApp() {
       <CommandPalette />
       <SidePanel />
       <NewSessionModal onCreated={handleNewSessionCreated} />
+      <UploadModal />
+      <PreviewModal />
     </div>
   );
 }

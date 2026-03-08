@@ -132,6 +132,24 @@ const iconAbout = (
   </svg>
 );
 
+/* ---------- clipboard fallback for non-secure (HTTP) contexts ---------- */
+
+function fallbackCopy(text: string): void {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand('copy');
+    toast.success('URL copied to clipboard');
+  } catch {
+    toast.error('Failed to copy URL');
+  }
+  document.body.removeChild(textarea);
+}
+
 /* ---------- component ---------- */
 
 export default function CommandPalette() {
@@ -366,10 +384,18 @@ export default function CommandPalette() {
           icon: iconCopyLink,
           action: () =>
             run(() => {
-              navigator.clipboard
-                .writeText(window.location.href)
-                .then(() => toast.success('URL copied to clipboard'))
-                .catch(() => toast.error('Failed to copy URL'));
+              const url = window.location.href;
+              if (navigator.clipboard?.writeText) {
+                navigator.clipboard
+                  .writeText(url)
+                  .then(() => toast.success('URL copied to clipboard'))
+                  .catch(() => {
+                    // Fallback for non-secure contexts (HTTP LAN)
+                    fallbackCopy(url);
+                  });
+              } else {
+                fallbackCopy(url);
+              }
             }),
         },
       ],

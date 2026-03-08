@@ -53,7 +53,7 @@ export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneP
     }
   }, []);
 
-  const { terminalRef, terminal, fit } = useXTerm({
+  const { terminalRef, terminal, fitAddon, searchAddon, fit } = useXTerm({
     fontSize,
     onData: handleData,
     onResize: handleResize,
@@ -110,9 +110,9 @@ export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneP
   // Update store with terminal/connection refs
   useEffect(() => {
     if (terminal) {
-      updateSession(sessionId, { term: terminal, connected, send });
+      updateSession(sessionId, { term: terminal, fitAddon, searchAddon, connected, send });
     }
-  }, [terminal, connected, send, sessionId, updateSession]);
+  }, [terminal, fitAddon, searchAddon, connected, send, sessionId, updateSession]);
 
   // Pinch-to-zoom gesture
   usePinch(

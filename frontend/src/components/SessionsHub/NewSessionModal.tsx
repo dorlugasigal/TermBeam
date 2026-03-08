@@ -58,6 +58,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
       const cols = activeMs?.term?.cols;
       const rows = activeMs?.term?.rows;
 
+      const sessionName = name.trim() || shell || 'session';
       const session = await createSession({
         name: name.trim() || undefined,
         shell: shell || undefined,
@@ -66,7 +67,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
         initialCommand: initialCommand.trim() || undefined,
         ...(cols && rows ? { cols, rows } : {}),
       });
-      toast.success(`Session "${session.name}" created`);
+      toast.success(`Session "${sessionName}" created`);
       closeNewSessionModal();
       resetForm();
       onCreated(session.id);

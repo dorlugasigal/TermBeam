@@ -3,7 +3,7 @@ import type { Terminal } from '@xterm/xterm';
 import type { ManagedSession } from '@/stores/sessionStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
-import { fetchVersion } from '@/services/api';
+import { fetchVersion, deleteSession } from '@/services/api';
 import styles from './SidePanel.module.css';
 
 function getTerminalPreview(term: Terminal | null): string {
@@ -125,7 +125,10 @@ export function SidePanel() {
 
   const handleClose = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (confirm('Close this session?')) removeSession(id);
+    if (confirm('Close this session?')) {
+      deleteSession(id).catch(() => {});
+      removeSession(id);
+    }
   };
 
   return (
@@ -183,7 +186,10 @@ export function SidePanel() {
                 onAuxClick={(e) => {
                   if (e.button === 1) {
                     e.preventDefault();
-                    if (confirm('Close this session?')) removeSession(session.id);
+                    if (confirm('Close this session?')) {
+                      deleteSession(session.id).catch(() => {});
+                      removeSession(session.id);
+                    }
                   }
                 }}
               >
