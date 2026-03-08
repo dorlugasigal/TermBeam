@@ -36,6 +36,10 @@ const originalTitle = document.title;
 // Silence timers for command-completion notifications (sessionId → timeout)
 const silenceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+// Grace period after attach — suppress notification sounds for initial output burst
+const ATTACH_GRACE_MS = 2000;
+const attachGrace = new Map<string, ReturnType<typeof setTimeout>>();
+
 // Strip OSC 4/10/11/12 sequences that can cause display issues
 function stripOscSequences(data: string): string {
   return data.replace(/\x1b\](?:4|10|11|12);[^\x07\x1b]*(?:\x07|\x1b\\)/g, '');
@@ -166,6 +170,13 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
             if (terminal.cols && terminal.rows) {
               ws.send(JSON.stringify({ type: 'resize', cols: terminal.cols, rows: terminal.rows }));
             }
+            // Start grace period — suppress notification sounds for initial output burst
+            const prev = attachGrace.get(sessionId);
+            if (prev) clearTimeout(prev);
+            attachGrace.set(
+              sessionId,
+              setTimeout(() => attachGrace.delete(sessionId), ATTACH_GRACE_MS),
+            );
             break;
           }
           case 'output': {
@@ -173,11 +184,11 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
             const store = useSessionStore.getState();
             const session = store.sessions.get(sessionId);
 
-            // Sound: only play when transitioning from read → unread
+            // Sound: only play when transitioning from read → unread (skip during attach grace)
             if (store.activeId !== sessionId) {
               const wasAlreadyUnread = session?.hasUnread ?? false;
               store.markUnread(sessionId);
-              if (!wasAlreadyUnread && isNotificationsEnabled()) {
+              if (!wasAlreadyUnread && !attachGrace.has(sessionId) && isNotificationsEnabled()) {
                 playNotificationSound();
               }
             }
