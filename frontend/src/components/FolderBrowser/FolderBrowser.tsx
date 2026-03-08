@@ -70,16 +70,19 @@ export function FolderBrowser({ currentDir = '/', onSelect, onCancel }: FolderBr
               <span className={styles.entryName}>..</span>
             </button>
           )}
-          {dirs.map((name) => (
-            <button
-              key={name}
-              className={styles.entry}
-              onClick={() => load(dir === '/' ? `/${name}` : `${dir}/${name}`)}
-            >
-              <span className={styles.entryIcon}>📁</span>
-              <span className={styles.entryName}>{name}</span>
-            </button>
-          ))}
+          {dirs.map((fullPath) => {
+            const name = fullPath.split(/[/\\]/).pop() || fullPath;
+            return (
+              <button
+                key={fullPath}
+                className={styles.entry}
+                onClick={() => load(fullPath)}
+              >
+                <span className={styles.entryIcon}>📁</span>
+                <span className={styles.entryName}>{name}</span>
+              </button>
+            );
+          })}
           {dirs.length === 0 && (
             <div className={styles.loading}>Empty directory</div>
           )}

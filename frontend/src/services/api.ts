@@ -70,7 +70,9 @@ export interface BrowseDirsResponse {
 }
 
 export async function browseDirectory(dir: string): Promise<BrowseDirsResponse> {
-  const res = await fetch(`${BASE}/api/dirs?q=${encodeURIComponent(dir)}`);
+  // Trailing slash tells backend to list contents (not prefix-filter)
+  const q = dir.endsWith('/') || dir.endsWith('\\') ? dir : dir + '/';
+  const res = await fetch(`${BASE}/api/dirs?q=${encodeURIComponent(q)}`);
   return handleResponse<BrowseDirsResponse>(res);
 }
 
