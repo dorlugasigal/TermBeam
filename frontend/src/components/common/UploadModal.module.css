@@ -13,12 +13,13 @@
   transform: translate(-50%, -50%);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 24px;
   width: min(440px, calc(100vw - 32px));
   max-height: 85dvh;
   overflow-y: auto;
   z-index: 201;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   animation: slideUp 150ms ease-out;
 }
 
@@ -45,6 +46,7 @@
 .dropZone:hover,
 .dropZoneDragOver {
   border-color: var(--accent);
+  background: rgba(74, 158, 255, 0.08);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 

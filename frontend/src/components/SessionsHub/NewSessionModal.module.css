@@ -17,9 +17,10 @@
   overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 1.5rem;
   z-index: 201;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   animation: fade-in 0.2s ease;
 }
 
