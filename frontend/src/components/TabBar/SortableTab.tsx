@@ -6,6 +6,7 @@ import styles from './TabBar.module.css';
 interface SortableTabProps {
   session: ManagedSession;
   isActive: boolean;
+  isSplit?: boolean;
   onActivate: () => void;
   onClose: () => void;
   onMouseEnter?: (e: React.MouseEvent<HTMLDivElement>) => void;
@@ -24,6 +25,7 @@ function formatTabActivity(lastActivity: string | number): string {
 export function SortableTab({
   session,
   isActive,
+  isSplit = false,
   onActivate,
   onClose,
   onMouseEnter,
@@ -45,7 +47,7 @@ export function SortableTab({
     <div
       ref={setNodeRef}
       style={style}
-      className={`${styles.tab} ${isActive ? styles.tabActive : ''}`}
+      className={`${styles.tab} ${isActive ? styles.tabActive : ''} ${isSplit ? styles.tabSplit : ''}`}
       onClick={onActivate}
       onAuxClick={(e) => {
         if (e.button === 1) {

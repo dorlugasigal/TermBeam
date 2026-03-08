@@ -11,6 +11,7 @@ import {
 import { SortableContext, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
+import { deleteSession } from '@/services/api';
 import { SortableTab } from './SortableTab';
 import { TabPreview } from './TabPreview';
 import styles from './TabBar.module.css';
@@ -23,6 +24,7 @@ export function TabBar({ inline = false }: TabBarProps) {
   const sessions = useSessionStore((s) => s.sessions);
   const activeId = useSessionStore((s) => s.activeId);
   const tabOrder = useSessionStore((s) => s.tabOrder);
+  const splitMode = useSessionStore((s) => s.splitMode);
   const setActiveId = useSessionStore((s) => s.setActiveId);
   const setTabOrder = useSessionStore((s) => s.setTabOrder);
   const removeSession = useSessionStore((s) => s.removeSession);
@@ -52,6 +54,12 @@ export function TabBar({ inline = false }: TabBarProps) {
     .map((id) => sessions.get(id))
     .filter((s): s is NonNullable<typeof s> => s != null);
 
+  // Determine the split pane's session ID (first non-active tab)
+  const splitSecondId =
+    splitMode && activeId
+      ? tabOrder.filter((id) => sessions.has(id)).find((id) => id !== activeId) ?? null
+      : null;
+
   return (
     <div className={inline ? styles.tabBarInline : styles.tabBar}>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -62,8 +70,12 @@ export function TabBar({ inline = false }: TabBarProps) {
                 <SortableTab
                   session={session}
                   isActive={session.id === activeId}
+                  isSplit={session.id === splitSecondId}
                   onActivate={() => setActiveId(session.id)}
-                  onClose={() => removeSession(session.id)}
+                  onClose={() => {
+                    deleteSession(session.id).catch(() => {});
+                    removeSession(session.id);
+                  }}
                   onMouseEnter={(e) => {
                     previewAnchorRef.current = e.currentTarget;
                     setPreviewSession(session.id);

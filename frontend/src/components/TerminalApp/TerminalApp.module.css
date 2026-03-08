@@ -169,8 +169,18 @@
   display: flex;
 }
 
-.splitDivider {
-  width: 2px;
-  background: var(--border);
-  flex-shrink: 0;
+/* Divider between split panes (accent-colored border on second pane) */
+.split .visible + .visible {
+  border-left: 2px solid var(--accent);
+}
+
+/* Mobile: stack panes vertically */
+@media (max-width: 640px) {
+  .split {
+    flex-direction: column;
+  }
+  .split .visible + .visible {
+    border-left: none;
+    border-top: 2px solid var(--accent);
+  }
 }

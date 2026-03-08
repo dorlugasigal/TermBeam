@@ -82,6 +82,11 @@
   background: var(--bg);
 }
 
+.tabSplit {
+  background: rgba(0, 120, 212, 0.1);
+  color: var(--text);
+}
+
 .colorDot {
   width: 8px;
   height: 8px;

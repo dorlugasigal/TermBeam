@@ -269,7 +269,7 @@ export function TerminalApp() {
 
       {/* ── Terminal area ── */}
       <div className={`${styles.terminalArea} ${splitMode ? styles.split : ''}`}>
-        {uniqueTabOrder.map((id, index) => {
+        {uniqueTabOrder.map((id) => {
           const isVisible = visibleIds.includes(id);
           const isActive = id === activeId;
 
@@ -282,9 +282,6 @@ export function TerminalApp() {
               }}
             >
               <TerminalPane sessionId={id} active={isActive} fontSize={fontSize} />
-              {splitMode && isVisible && index === 0 && visibleIds.length > 1 && (
-                <div className={styles.splitDivider} />
-              )}
             </div>
           );
         })}

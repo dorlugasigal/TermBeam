@@ -134,8 +134,13 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       // NerdFont unavailable — keep default monospace
     });
 
-    // ResizeObserver for container size changes
-    const observer = new ResizeObserver(() => {
+    // ResizeObserver for container size changes.
+    // Guard against 0-dimension containers (display:none on an ancestor)
+    // to prevent fit() from resizing the terminal to minimum dimensions
+    // and destroying the scrollback buffer.
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry || entry.contentRect.width === 0 || entry.contentRect.height === 0) return;
       try {
         fitRef.current?.fit();
       } catch {

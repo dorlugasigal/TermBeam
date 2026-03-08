@@ -77,14 +77,20 @@ export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneP
     sendResizeRef.current = sendResize;
   });
 
-  // Fit and focus when becoming active
+  // Fit, refresh, and focus when becoming active.
+  // After a display:none → display:flex transition the canvas may be stale
+  // (render frames dropped while hidden) and fit() can be a no-op if the
+  // dimensions haven't changed. Use requestAnimationFrame to ensure the
+  // browser has completed layout, then force a full re-render.
   useEffect(() => {
     if (active && terminal) {
-      const timer = setTimeout(() => {
+      const rafId = requestAnimationFrame(() => {
         fit();
+        terminal.refresh(0, terminal.rows - 1);
+        terminal.scrollToBottom();
         terminal.focus();
-      }, 50);
-      return () => clearTimeout(timer);
+      });
+      return () => cancelAnimationFrame(rafId);
     }
   }, [active, terminal, fit]);
 

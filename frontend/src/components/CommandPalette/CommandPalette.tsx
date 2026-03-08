@@ -217,8 +217,8 @@ export default function CommandPalette() {
     if (!activeId) return;
     if (!confirm('Stop this session? This will terminate the process.')) return;
     deleteSession(activeId)
-      .then(() => remove(activeId))
-      .catch(() => toast.error('Failed to stop session'));
+      .catch(() => toast.error('Failed to stop session'))
+      .finally(() => remove(activeId));
     close();
   };
 
@@ -283,7 +283,10 @@ export default function CommandPalette() {
           action: () =>
             run(() => {
               const { activeId, removeSession: remove } = useSessionStore.getState();
-              if (activeId) remove(activeId);
+              if (activeId) {
+                deleteSession(activeId).catch(() => {});
+                remove(activeId);
+              }
             }),
         },
         {
