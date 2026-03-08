@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
 import { createSession, fetchShells } from '@/services/api';
+import type { ShellInfo } from '@/services/api';
 import { SESSION_COLORS, type SessionColor } from '@/types';
 import { useUIStore } from '@/stores/uiStore';
 import { FolderBrowser } from '@/components/FolderBrowser/FolderBrowser';
@@ -15,7 +16,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   const { newSessionModalOpen, closeNewSessionModal } = useUIStore();
   const [name, setName] = useState('');
   const [shell, setShell] = useState('');
-  const [shells, setShells] = useState<string[]>([]);
+  const [shells, setShells] = useState<ShellInfo[]>([]);
   const [cwd, setCwd] = useState('');
   const [color, setColor] = useState<SessionColor>(SESSION_COLORS[0]);
   const [submitting, setSubmitting] = useState(false);
@@ -24,13 +25,17 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   useEffect(() => {
     if (newSessionModalOpen) {
       fetchShells()
-        .then((list) => {
+        .then(({ shells: list, defaultShell, cwd: serverCwd }) => {
           setShells(list);
-          if (!shell && list.length > 0) setShell(list[0]!);
+          if (!shell) {
+            const def = list.find((s) => s.path === defaultShell);
+            setShell(def?.path ?? list[0]?.path ?? '');
+          }
+          if (!cwd && serverCwd) setCwd(serverCwd);
         })
         .catch(() => setShells([]));
     }
-  }, [newSessionModalOpen, shell]);
+  }, [newSessionModalOpen]);
 
   function resetForm() {
     setName('');
@@ -103,8 +108,8 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                   onChange={(e) => setShell(e.target.value)}
                 >
                   {shells.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
+                    <option key={s.path} value={s.path}>
+                      {s.name} ({s.path})
                     </option>
                   ))}
                 </select>

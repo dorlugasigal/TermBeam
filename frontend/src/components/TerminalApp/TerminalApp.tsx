@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { fetchSessions, deleteSession } from '@/services/api';
+import { fetchSessions } from '@/services/api';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
-import { useThemeStore } from '@/stores/themeStore';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { TerminalPane } from '@/components/TerminalPane/TerminalPane';
 import { TabBar } from '@/components/TabBar/TabBar';
@@ -10,7 +9,6 @@ import TouchBar from '@/components/TouchBar/TouchBar';
 import SearchBar from '@/components/SearchBar/SearchBar';
 import CommandPalette from '@/components/CommandPalette/CommandPalette';
 import { SidePanel } from '@/components/SidePanel/SidePanel';
-import { THEMES, type ThemeId } from '@/themes/terminalThemes';
 import type { Session } from '@/types';
 import styles from './TerminalApp.module.css';
 
@@ -19,7 +17,7 @@ const DEFAULT_FONT_SIZE = 14;
 
 function getSessionIdFromUrl(): string | null {
   const params = new URLSearchParams(window.location.search);
-  return params.get('session');
+  return params.get('session') || params.get('id');
 }
 
 export function TerminalApp() {
@@ -34,16 +32,13 @@ export function TerminalApp() {
   const openSidePanel = useUIStore((s) => s.openSidePanel);
   const openNewSessionModal = useUIStore((s) => s.openNewSessionModal);
 
-  const themeId = useThemeStore((s) => s.themeId);
-  const setTheme = useThemeStore((s) => s.setTheme);
-
   const [fontSize] = useState(DEFAULT_FONT_SIZE);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const initializedRef = useRef(false);
 
   useWakeLock();
 
-  // Initial load — connect session from URL param
+  // Initial load — add ALL server sessions as tabs, activate URL session
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
@@ -51,31 +46,43 @@ export function TerminalApp() {
     async function init() {
       try {
         const list: Session[] = await fetchSessions();
+        const store = useSessionStore.getState();
         const urlSessionId = getSessionIdFromUrl();
-        if (urlSessionId) {
-          const serverSession = list.find((s) => s.id === urlSessionId);
-          if (serverSession) {
-            const store = useSessionStore.getState();
-            if (!store.sessions.has(urlSessionId)) {
-              store.addSession({
-                id: serverSession.id,
-                name: serverSession.name,
-                shell: serverSession.shell,
-                pid: serverSession.pid,
-                cwd: serverSession.cwd,
-                color: serverSession.color ?? '#6ec1e4',
-                createdAt: serverSession.createdAt,
-                lastActivity: serverSession.lastActivity,
-                term: null,
-                fitAddon: null,
-                searchAddon: null,
-                ws: null,
-                connected: false,
-                exited: false,
-                scrollback: '',
-              });
-            }
+
+        // Add ALL sessions from server (matching old UI behavior)
+        for (const s of list) {
+          if (!store.sessions.has(s.id)) {
+            store.addSession({
+              id: s.id,
+              name: s.name,
+              shell: s.shell,
+              pid: s.pid,
+              cwd: s.cwd,
+              color: s.color ?? '#6ec1e4',
+              createdAt: s.createdAt,
+              lastActivity: s.lastActivity,
+              term: null,
+              fitAddon: null,
+              searchAddon: null,
+              ws: null,
+              send: null,
+              connected: false,
+              exited: false,
+              scrollback: '',
+            });
           }
+        }
+
+        // Activate the URL session, or first session if URL not specified
+        const startId =
+          urlSessionId && useSessionStore.getState().sessions.has(urlSessionId)
+            ? urlSessionId
+            : list[0]?.id ?? null;
+
+        if (startId) {
+          useSessionStore.getState().setActiveId(startId);
+        } else {
+          window.location.replace('/');
         }
       } catch {
         // Will retry via polling
@@ -85,11 +92,51 @@ export function TerminalApp() {
     init();
   }, []);
 
-  // Polling — sync metadata only
+  // Polling — sync sessions (add new, update metadata, remove deleted)
   useEffect(() => {
     pollRef.current = setInterval(async () => {
       try {
-        await fetchSessions();
+        const list: Session[] = await fetchSessions();
+        const store = useSessionStore.getState();
+        const serverIds = new Set(list.map((s) => s.id));
+
+        // Add new sessions that appeared on server
+        for (const s of list) {
+          if (!store.sessions.has(s.id)) {
+            store.addSession({
+              id: s.id,
+              name: s.name,
+              shell: s.shell,
+              pid: s.pid,
+              cwd: s.cwd,
+              color: s.color ?? '#6ec1e4',
+              createdAt: s.createdAt,
+              lastActivity: s.lastActivity,
+              term: null,
+              fitAddon: null,
+              searchAddon: null,
+              ws: null,
+              send: null,
+              connected: false,
+              exited: false,
+              scrollback: '',
+            });
+          } else {
+            // Update metadata for existing sessions
+            store.updateSession(s.id, {
+              name: s.name,
+              lastActivity: s.lastActivity,
+              cwd: s.cwd,
+            });
+          }
+        }
+
+        // Remove sessions that no longer exist on server
+        for (const [id, ms] of store.sessions) {
+          if (!serverIds.has(id) && !ms.exited) {
+            store.removeSession(id);
+          }
+        }
       } catch {
         // Network error
       }
@@ -131,31 +178,14 @@ export function TerminalApp() {
   const visibleIds =
     splitMode && splitIds.length === 2 ? splitIds : activeId ? [activeId] : [];
 
+  // Status text: empty when connected (matches old UI), only show on disconnect/exit
   const statusText = activeSession
     ? activeSession.exited
       ? 'Exited'
       : activeSession.connected
-        ? 'Connected'
+        ? ''
         : 'Connecting…'
     : '';
-
-  const cycleTheme = () => {
-    const idx = THEMES.findIndex((t) => t.id === themeId);
-    const next = THEMES[(idx + 1) % THEMES.length]!;
-    setTheme(next.id as ThemeId);
-  };
-
-  const handleStop = async () => {
-    if (!activeId) return;
-    const ms = sessions.get(activeId);
-    if (ms?.ws) ms.ws.close();
-    try {
-      await deleteSession(activeId);
-    } catch {
-      // ignore
-    }
-    useSessionStore.getState().removeSession(activeId);
-  };
 
   return (
     <div className={styles.layout}>
@@ -163,21 +193,20 @@ export function TerminalApp() {
       <div className={styles.topBar}>
         <div className={styles.left}>
           <button
-            className={styles.barBtn}
+            className={`${styles.barBtn} ${styles.mobileOnly}`}
             onClick={openSidePanel}
             aria-label="Toggle panel"
             title="Sessions"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
-          <a href="/" className={styles.barBtn} aria-label="Back">
+          <a href="/" className={`${styles.barBtn} ${styles.desktopOnly}`} aria-label="Back" title="Back to sessions">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           </a>
           {activeSession && (
             <>
               <span
-                className={styles.statusDot}
-                style={{ backgroundColor: activeSession.color }}
+                className={`${styles.statusDot} ${activeSession.connected ? styles.statusConnected : ''}`}
               />
               <span className={styles.sessionName}>{activeSession.name}</span>
               {statusText && <span className={styles.statusText}>{statusText}</span>}
@@ -198,29 +227,12 @@ export function TerminalApp() {
             <span className={styles.btnLabel}>New</span>
           </button>
           <button
-            className={`${styles.barBtn} ${styles.desktopOnly}`}
-            onClick={cycleTheme}
-            aria-label="Toggle theme"
-            title="Toggle theme"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
-          </button>
-          <button
             className={styles.barBtn}
             onClick={toggleCommandPalette}
             aria-label="Tools"
             title="Tools (Ctrl+K)"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          </button>
-          <button
-            className={`${styles.barBtn} ${styles.stopBtn} ${styles.barBtnWithLabel}`}
-            onClick={handleStop}
-            aria-label="Stop"
-            title="Stop session"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-            <span className={styles.btnLabel}>Stop</span>
           </button>
         </div>
       </div>

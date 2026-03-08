@@ -23,8 +23,8 @@ export default function PasteOverlay({ open, onClose }: PasteOverlayProps) {
     const { sessions, activeId } = useSessionStore.getState();
     if (!activeId) return;
     const ms = sessions.get(activeId);
-    if (ms?.ws?.readyState === WebSocket.OPEN) {
-      ms.ws.send(JSON.stringify({ type: 'input', data: text }));
+    if (ms?.send) {
+      ms.send(text);
     }
     onClose();
   }, [text, onClose]);

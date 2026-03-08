@@ -3,7 +3,6 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { CanvasAddon } from '@xterm/addon-canvas';
 import { useThemeStore } from '@/stores/themeStore';
 import { getTerminalTheme } from '@/themes/terminalThemes';
 import '@xterm/xterm/css/xterm.css';
@@ -81,19 +80,32 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     term.loadAddon(search);
     term.loadAddon(webLinks);
 
-    term.open(container);
+    // Defer open() until container has dimensions (e.g., display:none → display:flex)
+    const openTerminal = () => {
+      try {
+        term.open(container);
+      } catch {
+        // xterm may fail if container layout isn't fully computed yet
+        return;
+      }
+      try {
+        fit.fit();
+      } catch {
+        // ignore
+      }
+    };
 
-    // CanvasAddon must be loaded after open()
-    try {
-      term.loadAddon(new CanvasAddon());
-    } catch {
-      // Canvas addon may fail in some environments; fall back to DOM renderer
-    }
-
-    try {
-      fit.fit();
-    } catch {
-      // Container may not be sized yet
+    if (container.offsetWidth > 0 && container.offsetHeight > 0) {
+      openTerminal();
+    } else {
+      const ro = new ResizeObserver(() => {
+        if (container.offsetWidth > 0 && container.offsetHeight > 0) {
+          ro.disconnect();
+          openTerminal();
+        }
+      });
+      ro.observe(container);
+      (container as unknown as Record<string, unknown>).__termOpenObserver = ro;
     }
 
     termRef.current = term;

@@ -1,22 +1,164 @@
-import { useState, useCallback } from 'react';
-import { Command } from 'cmdk';
+import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
+import { useThemeStore } from '@/stores/themeStore';
+import { deleteSession, renameSession, fetchVersion } from '@/services/api';
 import ThemePanel from './ThemePanel';
 import styles from './CommandPalette.module.css';
+
+/* ---------- inline SVG icons (16×16, stroke-based) ---------- */
+
+const iconNewTab = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="2" width="12" height="12" rx="2" />
+    <line x1="8" y1="5" x2="8" y2="11" />
+    <line x1="5" y1="8" x2="11" y2="8" />
+  </svg>
+);
+
+const iconUpload = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 10v3a1 1 0 001 1h10a1 1 0 001-1v-3" />
+    <polyline points="5 5 8 2 11 5" />
+    <line x1="8" y1="2" x2="8" y2="10" />
+  </svg>
+);
+
+const iconCloseTab = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="2" width="12" height="12" rx="2" />
+    <line x1="5.5" y1="5.5" x2="10.5" y2="10.5" />
+    <line x1="10.5" y1="5.5" x2="5.5" y2="10.5" />
+  </svg>
+);
+
+const iconRename = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 2l3 3-8 8H3v-3z" />
+    <line x1="9" y1="4" x2="12" y2="7" />
+  </svg>
+);
+
+const iconSplit = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="2" width="12" height="12" rx="2" />
+    <line x1="8" y1="2" x2="8" y2="14" />
+  </svg>
+);
+
+const iconStop = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="10" height="10" rx="1" />
+  </svg>
+);
+
+const iconSearch = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="7" cy="7" r="4" />
+    <line x1="10" y1="10" x2="14" y2="14" />
+  </svg>
+);
+
+const iconFontUp = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 13L8 3l5 10" />
+    <line x1="5" y1="9" x2="11" y2="9" />
+    <line x1="13" y1="5" x2="13" y2="1" />
+    <line x1="11" y1="3" x2="15" y2="3" />
+  </svg>
+);
+
+const iconFontDown = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 13L8 3l5 10" />
+    <line x1="5" y1="9" x2="11" y2="9" />
+    <line x1="11" y1="3" x2="15" y2="3" />
+  </svg>
+);
+
+const iconTheme = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="8" cy="8" r="6" />
+    <path d="M8 2a6 6 0 000 12z" fill="currentColor" opacity=".3" />
+  </svg>
+);
+
+const iconPreview = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="1" y="3" width="14" height="10" rx="2" />
+    <line x1="5" y1="13" x2="11" y2="13" />
+    <line x1="8" y1="13" x2="8" y2="15" />
+  </svg>
+);
+
+const iconCopyLink = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6.5 9.5a3 3 0 004 .5l2-2a3 3 0 00-4.24-4.24L7 5" />
+    <path d="M9.5 6.5a3 3 0 00-4-.5l-2 2a3 3 0 004.24 4.24L9 11" />
+  </svg>
+);
+
+const iconBell = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 6a4 4 0 018 0c0 4 2 5 2 5H2s2-1 2-5" />
+    <path d="M6.5 13a1.5 1.5 0 003 0" />
+  </svg>
+);
+
+const iconRefresh = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 8a6 6 0 0110.47-4" />
+    <polyline points="12 1 13 4 10 5" />
+    <path d="M14 8a6 6 0 01-10.47 4" />
+    <polyline points="4 15 3 12 6 11" />
+  </svg>
+);
+
+const iconClear = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 4h10" />
+    <path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1" />
+    <path d="M4 4l1 10a1 1 0 001 1h4a1 1 0 001-1l1-10" />
+  </svg>
+);
+
+const iconAbout = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="8" cy="8" r="6" />
+    <line x1="8" y1="7" x2="8" y2="11" />
+    <circle cx="8" cy="5" r=".5" fill="currentColor" />
+  </svg>
+);
+
+/* ---------- component ---------- */
 
 export default function CommandPalette() {
   const open = useUIStore((s) => s.commandPaletteOpen);
   const close = useUIStore((s) => s.closeCommandPalette);
   const [showThemes, setShowThemes] = useState(false);
-  const [search, setSearch] = useState('');
+  const [notificationsOn, setNotificationsOn] = useState(
+    () => typeof Notification !== 'undefined' && Notification.permission === 'granted',
+  );
+
+  const themeId = useThemeStore((s) => s.themeId);
+  const themeName = themeId.charAt(0).toUpperCase() + themeId.slice(1);
+
+  // Animate open: render always, toggle class
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    if (open) {
+      // Force a reflow before adding the open class so the transition fires
+      requestAnimationFrame(() => setMounted(true));
+    } else {
+      setMounted(false);
+    }
+  }, [open]);
 
   const run = useCallback(
     (fn: () => void) => {
       fn();
       close();
-      setSearch('');
       setShowThemes(false);
     },
     [close],
@@ -24,200 +166,266 @@ export default function CommandPalette() {
 
   if (!open) return null;
 
+  const panelCls = `${styles.panel} ${mounted ? styles.panelOpen : ''}`;
+
   if (showThemes) {
     return (
       <>
         <div className={styles.backdrop} onClick={close} />
-        <div className={styles.panel}>
+        <div className={panelCls}>
           <ThemePanel onBack={() => setShowThemes(false)} />
         </div>
       </>
     );
   }
 
-  const actions: { id: string; label: string; action: () => void }[] = [
+  /* ---- action handlers for new items ---- */
+
+  const handleRename = () => {
+    const { activeId, sessions, updateSession } = useSessionStore.getState();
+    if (!activeId) return;
+    const ms = sessions.get(activeId);
+    const newName = prompt('Rename session:', ms?.name ?? '');
+    if (!newName || newName === ms?.name) return;
+    renameSession(activeId, newName)
+      .then(() => {
+        updateSession(activeId, { name: newName });
+        toast.success('Session renamed');
+      })
+      .catch(() => toast.error('Failed to rename session'));
+    close();
+  };
+
+  const handleStop = () => {
+    const { activeId, removeSession: remove } = useSessionStore.getState();
+    if (!activeId) return;
+    if (!confirm('Stop this session? This will terminate the process.')) return;
+    deleteSession(activeId)
+      .then(() => remove(activeId))
+      .catch(() => toast.error('Failed to stop session'));
+    close();
+  };
+
+  const handleNotifications = () => {
+    if (typeof Notification === 'undefined') {
+      toast.error('Notifications not supported');
+      return;
+    }
+    if (Notification.permission === 'granted') {
+      setNotificationsOn(false);
+      toast('Notifications disabled for this tab');
+    } else {
+      Notification.requestPermission().then((perm) => {
+        setNotificationsOn(perm === 'granted');
+        toast(perm === 'granted' ? 'Notifications enabled' : 'Notifications denied');
+      });
+    }
+  };
+
+  const handleAbout = () => {
+    fetchVersion().then((version) => {
+      toast(`TermBeam ${version || '(unknown version)'}`, { duration: 5000 });
+    });
+    close();
+  };
+
+  /* ---- section definitions ---- */
+
+  type Action = { id: string; label: string; icon: React.ReactNode; action: () => void };
+  type Section = { title: string; actions: Action[] };
+
+  const sections: Section[] = [
     {
-      id: 'new-tab',
-      label: 'New Tab',
-      action: () => run(() => useUIStore.getState().openNewSessionModal()),
+      title: 'SESSION',
+      actions: [
+        {
+          id: 'new-tab',
+          label: 'New tab',
+          icon: iconNewTab,
+          action: () => run(() => useUIStore.getState().openNewSessionModal()),
+        },
+        {
+          id: 'upload',
+          label: 'Upload files',
+          icon: iconUpload,
+          action: () => run(() => useUIStore.getState().openUploadModal()),
+        },
+        {
+          id: 'close-tab',
+          label: 'Close tab',
+          icon: iconCloseTab,
+          action: () =>
+            run(() => {
+              const { activeId, removeSession: remove } = useSessionStore.getState();
+              if (activeId) remove(activeId);
+            }),
+        },
+        {
+          id: 'rename',
+          label: 'Rename session',
+          icon: iconRename,
+          action: handleRename,
+        },
+        {
+          id: 'split',
+          label: 'Split view',
+          icon: iconSplit,
+          action: () => run(() => useSessionStore.getState().toggleSplit()),
+        },
+        {
+          id: 'stop',
+          label: 'Stop session',
+          icon: iconStop,
+          action: handleStop,
+        },
+      ],
     },
     {
-      id: 'close-tab',
-      label: 'Close Tab',
-      action: () =>
-        run(() => {
-          const { activeId, removeSession } = useSessionStore.getState();
-          if (activeId) removeSession(activeId);
-        }),
+      title: 'SEARCH',
+      actions: [
+        {
+          id: 'find',
+          label: 'Find in terminal',
+          icon: iconSearch,
+          action: () => run(() => useUIStore.getState().openSearchBar()),
+        },
+      ],
     },
     {
-      id: 'upload',
-      label: 'Upload File',
-      action: () => run(() => useUIStore.getState().openUploadModal()),
+      title: 'VIEW',
+      actions: [
+        {
+          id: 'font-up',
+          label: 'Increase font size',
+          icon: iconFontUp,
+          action: () =>
+            run(() => {
+              const { sessions, activeId } = useSessionStore.getState();
+              if (!activeId) return;
+              const ms = sessions.get(activeId);
+              if (ms?.term) {
+                ms.term.options.fontSize = (ms.term.options.fontSize ?? 14) + 1;
+                ms.fitAddon?.fit();
+              }
+            }),
+        },
+        {
+          id: 'font-down',
+          label: 'Decrease font size',
+          icon: iconFontDown,
+          action: () =>
+            run(() => {
+              const { sessions, activeId } = useSessionStore.getState();
+              if (!activeId) return;
+              const ms = sessions.get(activeId);
+              if (ms?.term) {
+                ms.term.options.fontSize = Math.max(8, (ms.term.options.fontSize ?? 14) - 1);
+                ms.fitAddon?.fit();
+              }
+            }),
+        },
+        {
+          id: 'theme',
+          label: `Theme (${themeName})`,
+          icon: iconTheme,
+          action: () => setShowThemes(true),
+        },
+        {
+          id: 'preview',
+          label: 'Preview port',
+          icon: iconPreview,
+          action: () => run(() => useUIStore.getState().openPreviewModal()),
+        },
+      ],
     },
     {
-      id: 'split',
-      label: 'Split View',
-      action: () => run(() => useSessionStore.getState().toggleSplit()),
+      title: 'SHARE',
+      actions: [
+        {
+          id: 'copy-link',
+          label: 'Copy link',
+          icon: iconCopyLink,
+          action: () =>
+            run(() => {
+              navigator.clipboard
+                .writeText(window.location.href)
+                .then(() => toast.success('URL copied to clipboard'))
+                .catch(() => toast.error('Failed to copy URL'));
+            }),
+        },
+      ],
     },
     {
-      id: 'theme',
-      label: 'Toggle Theme',
-      action: () => setShowThemes(true),
+      title: 'NOTIFICATIONS',
+      actions: [
+        {
+          id: 'notifications',
+          label: `Notifications (${notificationsOn ? 'on' : 'off'})`,
+          icon: iconBell,
+          action: handleNotifications,
+        },
+      ],
     },
     {
-      id: 'search',
-      label: 'Search Terminal',
-      action: () => run(() => useUIStore.getState().openSearchBar()),
-    },
-    {
-      id: 'select',
-      label: 'Select / Copy',
-      action: () => run(() => useUIStore.getState().setSelectMode(true)),
-    },
-    {
-      id: 'zoom-in',
-      label: 'Zoom In',
-      action: () =>
-        run(() => {
-          const { sessions, activeId } = useSessionStore.getState();
-          if (!activeId) return;
-          const ms = sessions.get(activeId);
-          if (ms?.term) {
-            ms.term.options.fontSize = (ms.term.options.fontSize ?? 14) + 1;
-            ms.fitAddon?.fit();
-          }
-        }),
-    },
-    {
-      id: 'zoom-out',
-      label: 'Zoom Out',
-      action: () =>
-        run(() => {
-          const { sessions, activeId } = useSessionStore.getState();
-          if (!activeId) return;
-          const ms = sessions.get(activeId);
-          if (ms?.term) {
-            ms.term.options.fontSize = Math.max(
-              8,
-              (ms.term.options.fontSize ?? 14) - 1,
-            );
-            ms.fitAddon?.fit();
-          }
-        }),
-    },
-    {
-      id: 'zoom-reset',
-      label: 'Reset Zoom',
-      action: () =>
-        run(() => {
-          const { sessions, activeId } = useSessionStore.getState();
-          if (!activeId) return;
-          const ms = sessions.get(activeId);
-          if (ms?.term) {
-            ms.term.options.fontSize = 14;
-            ms.fitAddon?.fit();
-          }
-        }),
-    },
-    {
-      id: 'preview',
-      label: 'Preview Port',
-      action: () => run(() => useUIStore.getState().openPreviewModal()),
-    },
-    {
-      id: 'refresh',
-      label: 'Refresh',
-      action: () =>
-        run(() => {
-          if ('caches' in window) {
-            caches.keys().then((names) => names.forEach((n) => caches.delete(n)));
-          }
-          location.reload();
-        }),
-    },
-    {
-      id: 'share',
-      label: 'Share URL',
-      action: () =>
-        run(() => {
-          navigator.clipboard
-            .writeText(window.location.href)
-            .then(() => toast.success('URL copied to clipboard'))
-            .catch(() => toast.error('Failed to copy URL'));
-        }),
-    },
-    {
-      id: 'fullscreen',
-      label: 'Full Screen',
-      action: () =>
-        run(() => {
-          if (document.fullscreenElement) {
-            document.exitFullscreen();
-          } else {
-            document.documentElement.requestFullscreen();
-          }
-        }),
-    },
-    {
-      id: 'clear',
-      label: 'Clear Terminal',
-      action: () =>
-        run(() => {
-          const { sessions, activeId } = useSessionStore.getState();
-          if (!activeId) return;
-          const ms = sessions.get(activeId);
-          if (ms?.ws?.readyState === WebSocket.OPEN) {
-            ms.ws.send(JSON.stringify({ type: 'input', data: 'clear\r' }));
-          }
-        }),
-    },
-    {
-      id: 'disconnect',
-      label: 'Disconnect',
-      action: () =>
-        run(() => {
-          const { sessions } = useSessionStore.getState();
-          sessions.forEach((ms) => ms.ws?.close());
-          window.location.href = '/';
-        }),
+      title: 'SYSTEM',
+      actions: [
+        {
+          id: 'refresh',
+          label: 'Refresh',
+          icon: iconRefresh,
+          action: () =>
+            run(() => {
+              if ('caches' in window) {
+                caches.keys().then((names) => names.forEach((n) => caches.delete(n)));
+              }
+              location.reload();
+            }),
+        },
+        {
+          id: 'clear',
+          label: 'Clear terminal',
+          icon: iconClear,
+          action: () =>
+            run(() => {
+              const { sessions, activeId } = useSessionStore.getState();
+              if (!activeId) return;
+              const ms = sessions.get(activeId);
+              if (ms?.send) ms.send('clear\r');
+            }),
+        },
+        {
+          id: 'about',
+          label: 'About',
+          icon: iconAbout,
+          action: handleAbout,
+        },
+      ],
     },
   ];
 
   return (
     <>
       <div className={styles.backdrop} onClick={close} />
-      <div className={styles.panel}>
+      <div className={panelCls}>
         <div className={styles.header}>
-          <span className={styles.title}>Command Palette</span>
+          <span className={styles.title}>Tools</span>
           <button className={styles.closeBtn} onClick={close}>
             ✕
           </button>
         </div>
-        <Command label="Command palette" shouldFilter>
-          <Command.Input
-            className={styles.searchInput}
-            placeholder="Type a command…"
-            value={search}
-            onValueChange={setSearch}
-            autoFocus
-          />
-          <Command.List className={styles.list}>
-            <Command.Empty style={{ padding: '12px', color: 'var(--text-muted, #666)' }}>
-              No results
-            </Command.Empty>
-            {actions.map((a) => (
-              <Command.Item
-                key={a.id}
-                className={styles.item}
-                value={a.label}
-                onSelect={a.action}
-              >
-                {a.label}
-              </Command.Item>
-            ))}
-          </Command.List>
-        </Command>
+        <div className={styles.body}>
+          {sections.map((sec) => (
+            <div key={sec.title} className={styles.section}>
+              <div className={styles.sectionTitle}>{sec.title}</div>
+              {sec.actions.map((a) => (
+                <button key={a.id} className={styles.btn} onClick={a.action}>
+                  {a.icon}
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     </>
   );

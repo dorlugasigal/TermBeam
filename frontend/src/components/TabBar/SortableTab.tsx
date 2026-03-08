@@ -12,6 +12,15 @@ interface SortableTabProps {
   onMouseLeave?: () => void;
 }
 
+function formatTabActivity(lastActivity: string | number): string {
+  const ts = typeof lastActivity === 'number' ? lastActivity : new Date(lastActivity).getTime();
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return '';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
+  return `${Math.floor(diff / 86_400_000)}d`;
+}
+
 export function SortableTab({
   session,
   isActive,
@@ -30,6 +39,8 @@ export function SortableTab({
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const activity = formatTabActivity(session.lastActivity);
+
   return (
     <div
       ref={setNodeRef}
@@ -43,6 +54,7 @@ export function SortableTab({
     >
       <span className={styles.colorDot} style={{ backgroundColor: session.color }} />
       <span className={styles.tabName}>{session.name}</span>
+      {activity && <span className={styles.tabActivity}>{activity}</span>}
       <button
         className={styles.closeBtn}
         onClick={(e) => {

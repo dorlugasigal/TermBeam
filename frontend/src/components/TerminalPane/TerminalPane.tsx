@@ -91,9 +91,9 @@ export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneP
   // Update store with terminal/connection refs
   useEffect(() => {
     if (terminal) {
-      updateSession(sessionId, { term: terminal, connected });
+      updateSession(sessionId, { term: terminal, connected, send });
     }
-  }, [terminal, connected, sessionId, updateSession]);
+  }, [terminal, connected, send, sessionId, updateSession]);
 
   const scrollToBottom = useCallback(() => {
     if (terminal) {

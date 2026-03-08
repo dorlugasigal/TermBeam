@@ -16,6 +16,7 @@ export interface ManagedSession {
   fitAddon: FitAddon | null;
   searchAddon: SearchAddon | null;
   ws: WebSocket | null;
+  send: ((data: string) => void) | null;
   connected: boolean;
   exited: boolean;
   scrollback: string;

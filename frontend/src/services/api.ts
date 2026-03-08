@@ -32,9 +32,34 @@ export async function deleteSession(id: string): Promise<void> {
   }
 }
 
-export async function fetchShells(): Promise<string[]> {
+export async function renameSession(id: string, name: string): Promise<void> {
+  const res = await fetch(`${BASE}/api/sessions/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+}
+
+export interface ShellInfo {
+  name: string;
+  path: string;
+  cmd: string;
+}
+
+interface ShellsResponse {
+  shells: ShellInfo[];
+  default: string;
+  cwd: string;
+}
+
+export async function fetchShells(): Promise<{ shells: ShellInfo[]; defaultShell: string; cwd: string }> {
   const res = await fetch(`${BASE}/api/shells`);
-  return handleResponse<string[]>(res);
+  const data = await handleResponse<ShellsResponse>(res);
+  return { shells: data.shells, defaultShell: data.default, cwd: data.cwd };
 }
 
 export interface BrowseEntry {

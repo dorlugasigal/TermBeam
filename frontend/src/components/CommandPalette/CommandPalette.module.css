@@ -1,37 +1,39 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100;
-  background: rgba(0, 0, 0, 0.5);
-  animation: fade-in 0.15s ease;
+  z-index: 69;
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .panel {
   position: fixed;
   top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(360px, 90vw);
-  z-index: 101;
-  background: var(--surface, #1e1e2e);
+  right: -100%;
+  width: min(90vw, 300px);
+  height: 100%;
+  background: var(--bg, #1e1e2e);
   border-left: 1px solid var(--border, #333);
+  z-index: 70;
   display: flex;
   flex-direction: column;
-  animation: slide-in-right 0.2s ease;
-  overflow: hidden;
+  transition: right 0.25s ease;
+}
+
+.panelOpen {
+  right: 0;
 }
 
 .header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border, #333);
 }
 
 .title {
-  font-size: 14px;
   font-weight: 600;
+  font-size: 14px;
   color: var(--text, #ccc);
 }
 
@@ -50,22 +52,52 @@
   background: var(--border, #333);
 }
 
-.searchInput {
-  width: 100%;
-  padding: 10px 16px;
-  border: none;
-  border-bottom: 1px solid var(--border, #333);
-  background: transparent;
-  color: var(--text, #ccc);
-  font-size: 14px;
-  outline: none;
-  font-family: inherit;
+.body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px;
 }
 
-.searchInput::placeholder {
+.section {
+  margin-bottom: 8px;
+}
+
+.sectionTitle {
+  font-size: 10px;
+  font-weight: 700;
   color: var(--text-muted, #666);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 6px 10px 4px;
 }
 
+.btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text, #ccc);
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn:hover {
+  background: var(--surface-hover, rgba(255, 255, 255, 0.08));
+}
+
+.btn svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+/* ThemePanel reuses these styles */
 .list {
   flex: 1;
   overflow-y: auto;
@@ -80,24 +112,16 @@
   border-radius: 6px;
   cursor: pointer;
   color: var(--text, #ccc);
-  font-size: 14px;
+  font-size: 13px;
   border: none;
   background: none;
   width: 100%;
   text-align: left;
+  transition: background 0.15s;
 }
 
 .item:hover,
 .item[data-selected='true'],
 .item[aria-selected='true'] {
-  background: var(--border, #333);
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  background: var(--surface-hover, rgba(255, 255, 255, 0.08));
 }

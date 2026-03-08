@@ -54,8 +54,8 @@ function sendInput(data: string): void {
   const { sessions, activeId } = useSessionStore.getState();
   if (!activeId) return;
   const ms = sessions.get(activeId);
-  if (ms?.ws?.readyState === WebSocket.OPEN) {
-    ms.ws.send(JSON.stringify({ type: 'input', data }));
+  if (ms?.send) {
+    ms.send(data);
   }
 }
 
