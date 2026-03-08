@@ -5,6 +5,7 @@ import { createSession, fetchShells } from '@/services/api';
 import type { ShellInfo } from '@/services/api';
 import { SESSION_COLORS, type SessionColor } from '@/types';
 import { useUIStore } from '@/stores/uiStore';
+import { useSessionStore } from '@/stores/sessionStore';
 import { FolderBrowser } from '@/components/FolderBrowser/FolderBrowser';
 import styles from './NewSessionModal.module.css';
 
@@ -18,6 +19,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   const [shell, setShell] = useState('');
   const [shells, setShells] = useState<ShellInfo[]>([]);
   const [cwd, setCwd] = useState('');
+  const [initialCommand, setInitialCommand] = useState('');
   const [color, setColor] = useState<SessionColor>(SESSION_COLORS[0]);
   const [submitting, setSubmitting] = useState(false);
   const [browsing, setBrowsing] = useState(false);
@@ -28,8 +30,10 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
         .then(({ shells: list, defaultShell, cwd: serverCwd }) => {
           setShells(list);
           if (!shell) {
-            const def = list.find((s) => s.path === defaultShell);
-            setShell(def?.path ?? list[0]?.path ?? '');
+            const def =
+              list.find((s) => s.cmd === defaultShell) ||
+              list.find((s) => s.path === defaultShell);
+            setShell(def?.cmd ?? list[0]?.cmd ?? '');
           }
           if (!cwd && serverCwd) setCwd(serverCwd);
         })
@@ -41,6 +45,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     setName('');
     setShell('');
     setCwd('');
+    setInitialCommand('');
     setColor(SESSION_COLORS[0]);
     setBrowsing(false);
   }
@@ -48,11 +53,18 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   async function handleSubmit() {
     setSubmitting(true);
     try {
+      const store = useSessionStore.getState();
+      const activeMs = store.activeId ? store.sessions.get(store.activeId) : null;
+      const cols = activeMs?.term?.cols;
+      const rows = activeMs?.term?.rows;
+
       const session = await createSession({
         name: name.trim() || undefined,
         shell: shell || undefined,
         cwd: cwd.trim() || undefined,
         color,
+        initialCommand: initialCommand.trim() || undefined,
+        ...(cols && rows ? { cols, rows } : {}),
       });
       toast.success(`Session "${session.name}" created`);
       closeNewSessionModal();
@@ -108,11 +120,22 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                   onChange={(e) => setShell(e.target.value)}
                 >
                   {shells.map((s) => (
-                    <option key={s.path} value={s.path}>
+                    <option key={s.path} value={s.cmd}>
                       {s.name} ({s.path})
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className={styles.field}>
+                <label className={styles.label}>Initial command</label>
+                <input
+                  className={styles.input}
+                  type="text"
+                  placeholder="e.g. npm run dev"
+                  value={initialCommand}
+                  onChange={(e) => setInitialCommand(e.target.value)}
+                />
               </div>
 
               <div className={styles.field}>

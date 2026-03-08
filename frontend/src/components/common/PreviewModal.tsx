@@ -1,15 +1,33 @@
-import { useCallback, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useUIStore } from '@/stores/uiStore';
+import { useSessionStore } from '@/stores/sessionStore';
 import styles from './PreviewModal.module.css';
 
 export function PreviewModal() {
   const open = useUIStore((s) => s.previewModalOpen);
   const close = useUIStore((s) => s.closePreviewModal);
+  const sessionId = useSessionStore((s) => s.activeId);
   const [port, setPort] = useState('');
+  const [hint, setHint] = useState('');
+
+  useEffect(() => {
+    if (!open || !sessionId) return;
+    setHint('');
+    fetch(`/api/sessions/${sessionId}/detect-port`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.detected) {
+          setPort(String(data.port));
+          setHint(`Detected port ${data.port}`);
+        }
+      })
+      .catch(() => {});
+  }, [open, sessionId]);
 
   const handleClose = useCallback(() => {
     setPort('');
+    setHint('');
     close();
   }, [close]);
 
@@ -18,7 +36,7 @@ export function PreviewModal() {
       e?.preventDefault();
       const portNum = parseInt(port, 10);
       if (!portNum || portNum < 1 || portNum > 65535) return;
-      window.open(`/api/preview/${portNum}/`, '_blank');
+      window.open(`/preview/${portNum}/`, '_blank');
       handleClose();
     },
     [port, handleClose],
@@ -58,6 +76,11 @@ export function PreviewModal() {
               placeholder="e.g. 3000"
               autoFocus
             />
+            {hint && (
+              <div style={{ fontSize: '0.8rem', color: 'var(--accent)', marginTop: 4 }}>
+                {hint}
+              </div>
+            )}
 
             <div className={styles.actions}>
               <button

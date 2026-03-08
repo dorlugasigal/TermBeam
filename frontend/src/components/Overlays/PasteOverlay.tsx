@@ -9,14 +9,43 @@ interface PasteOverlayProps {
 
 export default function PasteOverlay({ open, onClose }: PasteOverlayProps) {
   const [text, setText] = useState('');
+  const [showManual, setShowManual] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (open) {
+    if (!open) {
       setText('');
+      setShowManual(false);
+      return;
+    }
+
+    // Try clipboard API first
+    navigator.clipboard
+      .readText()
+      .then((clipText) => {
+        if (clipText) {
+          const { sessions, activeId } = useSessionStore.getState();
+          if (activeId) {
+            const ms = sessions.get(activeId);
+            if (ms?.send) ms.send(clipText);
+          }
+          onClose();
+        } else {
+          // Empty clipboard — show manual fallback
+          setShowManual(true);
+        }
+      })
+      .catch(() => {
+        // Clipboard access denied — show manual fallback
+        setShowManual(true);
+      });
+  }, [open, onClose]);
+
+  useEffect(() => {
+    if (showManual) {
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
-  }, [open]);
+  }, [showManual]);
 
   const handleSend = useCallback(() => {
     if (!text) return;
@@ -39,7 +68,7 @@ export default function PasteOverlay({ open, onClose }: PasteOverlayProps) {
     [onClose],
   );
 
-  if (!open) return null;
+  if (!open || !showManual) return null;
 
   return (
     <div className={styles.overlay} onClick={onClose}>

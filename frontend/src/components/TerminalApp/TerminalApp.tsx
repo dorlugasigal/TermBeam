@@ -153,6 +153,7 @@ export function TerminalApp() {
               name: s.name,
               lastActivity: s.lastActivity,
               cwd: s.cwd,
+              git: s.git,
             });
           }
         }

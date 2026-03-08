@@ -20,6 +20,20 @@ export interface ManagedSession {
   connected: boolean;
   exited: boolean;
   scrollback: string;
+  git?: {
+    branch: string;
+    provider?: string;
+    repoName?: string;
+    status?: {
+      clean: boolean;
+      modified: number;
+      staged: number;
+      untracked: number;
+      ahead: number;
+      behind: number;
+      summary: string;
+    };
+  };
 }
 
 interface SessionState {

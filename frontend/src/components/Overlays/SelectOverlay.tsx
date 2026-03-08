@@ -1,14 +1,31 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
 import styles from './Overlays.module.css';
+
+const PAGE_SIZE = 200;
 
 export default function SelectOverlay() {
   const active = useUIStore((s) => s.selectModeActive);
   const setSelectMode = useUIStore((s) => s.setSelectMode);
   const activeId = useSessionStore((s) => s.activeId);
   const sessions = useSessionStore((s) => s.sessions);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const totalLines = useMemo(() => {
+    if (!active || !activeId) return 0;
+    const ms = sessions.get(activeId);
+    if (!ms?.term) return 0;
+    return ms.term.buffer.active.length;
+  }, [active, activeId, sessions]);
+
+  const [loadedFrom, setLoadedFrom] = useState(Math.max(0, totalLines - PAGE_SIZE));
+
+  // Reset loadedFrom when overlay opens or session changes
+  useMemo(() => {
+    setLoadedFrom(Math.max(0, totalLines - PAGE_SIZE));
+  }, [active, activeId, totalLines]);
 
   const text = useMemo(() => {
     if (!active || !activeId) return '';
@@ -16,12 +33,27 @@ export default function SelectOverlay() {
     if (!ms?.term) return '';
     const buffer = ms.term.buffer.active;
     const lines: string[] = [];
-    const start = Math.max(0, buffer.length - 200);
-    for (let i = start; i < buffer.length; i++) {
+    for (let i = loadedFrom; i < buffer.length; i++) {
       lines.push(buffer.getLine(i)?.translateToString() ?? '');
     }
     return lines.join('\n');
-  }, [active, activeId, sessions]);
+  }, [active, activeId, sessions, loadedFrom]);
+
+  const loadedLines = totalLines - loadedFrom;
+  const linesAbove = loadedFrom;
+
+  const handleLoadMore = useCallback(() => {
+    const el = contentRef.current;
+    const prevScrollHeight = el?.scrollHeight ?? 0;
+    setLoadedFrom((prev) => Math.max(0, prev - PAGE_SIZE));
+    // Preserve scroll position after loading more
+    requestAnimationFrame(() => {
+      if (el) {
+        const newScrollHeight = el.scrollHeight;
+        el.scrollTop += newScrollHeight - prevScrollHeight;
+      }
+    });
+  }, []);
 
   const handleCopy = useCallback(async () => {
     const selection = window.getSelection()?.toString() ?? '';
@@ -55,11 +87,16 @@ export default function SelectOverlay() {
 
   if (!active) return null;
 
+  const title =
+    loadedLines < totalLines
+      ? `Copy Text (${loadedLines}/${totalLines} lines)`
+      : `Copy Text (${totalLines} lines)`;
+
   return (
     <div className={styles.selectOverlay}>
       <div className={styles.selectHeader}>
         <span style={{ color: 'var(--text, #ccc)', fontSize: 14, fontWeight: 600 }}>
-          Select &amp; Copy
+          {title}
         </span>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className={styles.btnPrimary} onClick={handleCopy}>
@@ -70,7 +107,12 @@ export default function SelectOverlay() {
           </button>
         </div>
       </div>
-      <div className={styles.selectContent}>
+      <div className={styles.selectContent} ref={contentRef}>
+        {linesAbove > 0 && (
+          <button className={styles.loadMoreBtn} onClick={handleLoadMore}>
+            ▲ Load more ({linesAbove} lines above)
+          </button>
+        )}
         <pre className={styles.selectPre}>{text}</pre>
       </div>
     </div>

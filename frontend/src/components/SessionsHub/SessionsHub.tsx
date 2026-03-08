@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { fetchSessions, deleteSession, fetchVersion } from '@/services/api';
 import { useUIStore } from '@/stores/uiStore';
@@ -41,6 +41,8 @@ export default function SessionsHub() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [version, setVersion] = useState('');
+  const [showThemePicker, setShowThemePicker] = useState(false);
+  const themePickerRef = useRef<HTMLDivElement>(null);
   const { openNewSessionModal } = useUIStore();
   const { themeId, setTheme } = useThemeStore();
 
@@ -97,10 +99,19 @@ export default function SessionsHub() {
   }
 
   function handleCycleTheme() {
-    const currentIdx = THEMES.findIndex((t) => t.id === themeId);
-    const nextIdx = (currentIdx + 1) % THEMES.length;
-    setTheme(THEMES[nextIdx]!.id as ThemeId);
+    setShowThemePicker((v) => !v);
   }
+
+  useEffect(() => {
+    if (!showThemePicker) return;
+    const handler = (e: MouseEvent) => {
+      if (themePickerRef.current && !themePickerRef.current.contains(e.target as Node)) {
+        setShowThemePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showThemePicker]);
 
   return (
     <div className={styles.page}>
@@ -132,14 +143,34 @@ export default function SessionsHub() {
             <RefreshIcon />
           </span>
         </button>
-        <button
-          className={`${styles.headerBtn} ${styles.themeBtn}`}
-          onClick={handleCycleTheme}
-          aria-label="Change theme"
-          title="Change theme"
-        >
-          <ThemeIcon />
-        </button>
+        <div className={styles.themeWrap} ref={themePickerRef}>
+          <button
+            className={`${styles.headerBtn} ${styles.themeBtn}`}
+            onClick={handleCycleTheme}
+            aria-label="Change theme"
+            title="Change theme"
+          >
+            <ThemeIcon />
+          </button>
+          {showThemePicker && (
+            <div className={styles.themeDropdown}>
+              {THEMES.map((theme) => (
+                <button
+                  key={theme.id}
+                  className={`${styles.themeOption} ${theme.id === themeId ? styles.themeOptionActive : ''}`}
+                  onClick={() => {
+                    setTheme(theme.id as ThemeId);
+                    setShowThemePicker(false);
+                  }}
+                >
+                  <span className={styles.themeSwatch} style={{ background: theme.bg }} />
+                  {theme.name}
+                  {theme.id === themeId && <span className={styles.themeCheck}>✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </header>
 
       <main className={styles.content}>

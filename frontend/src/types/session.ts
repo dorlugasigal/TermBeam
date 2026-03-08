@@ -33,6 +33,9 @@ export interface CreateSessionRequest {
   shell?: string;
   cwd?: string;
   color?: string;
+  initialCommand?: string;
+  cols?: number;
+  rows?: number;
 }
 
 export interface ManagedSession {
@@ -47,14 +50,14 @@ export interface ManagedSession {
 }
 
 export const SESSION_COLORS = [
-  '#6ec1e4',
-  '#e4a06e',
-  '#a0e46e',
-  '#e46e9f',
-  '#9f6ee4',
-  '#e4d36e',
-  '#6ee4b0',
-  '#e46e6e',
+  '#4a9eff',
+  '#4ade80',
+  '#fbbf24',
+  '#c084fc',
+  '#f87171',
+  '#22d3ee',
+  '#fb923c',
+  '#f472b6',
 ] as const;
 
 export type SessionColor = (typeof SESSION_COLORS)[number];

@@ -15,7 +15,9 @@ export async function fetchSessions(): Promise<Session[]> {
   return handleResponse<Session[]>(res);
 }
 
-export async function createSession(req: CreateSessionRequest): Promise<Session> {
+export async function createSession(
+  req: CreateSessionRequest & { cols?: number; rows?: number },
+): Promise<Session> {
   const res = await fetch(`${BASE}/api/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -62,15 +64,14 @@ export async function fetchShells(): Promise<{ shells: ShellInfo[]; defaultShell
   return { shells: data.shells, defaultShell: data.default, cwd: data.cwd };
 }
 
-export interface BrowseEntry {
-  name: string;
-  isDirectory: boolean;
-  size?: number;
+export interface BrowseDirsResponse {
+  base: string;
+  dirs: string[];
 }
 
-export async function browseDirectory(dir: string): Promise<{ path: string; entries: BrowseEntry[] }> {
-  const res = await fetch(`${BASE}/api/browse?dir=${encodeURIComponent(dir)}`);
-  return handleResponse<{ path: string; entries: BrowseEntry[] }>(res);
+export async function browseDirectory(dir: string): Promise<BrowseDirsResponse> {
+  const res = await fetch(`${BASE}/api/dirs?q=${encodeURIComponent(dir)}`);
+  return handleResponse<BrowseDirsResponse>(res);
 }
 
 export async function uploadFile(

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { browseDirectory, type BrowseEntry } from '@/services/api';
+import { browseDirectory } from '@/services/api';
 import styles from './FolderBrowser.module.css';
 
 interface FolderBrowserProps {
@@ -10,7 +10,7 @@ interface FolderBrowserProps {
 
 export function FolderBrowser({ currentDir = '/', onSelect, onCancel }: FolderBrowserProps) {
   const [dir, setDir] = useState(currentDir);
-  const [entries, setEntries] = useState<BrowseEntry[]>([]);
+  const [dirs, setDirs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -19,12 +19,8 @@ export function FolderBrowser({ currentDir = '/', onSelect, onCancel }: FolderBr
     setError('');
     try {
       const result = await browseDirectory(path);
-      setDir(result.path);
-      const sorted = [...result.entries].sort((a, b) => {
-        if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
-        return a.name.localeCompare(b.name);
-      });
-      setEntries(sorted);
+      setDir(result.base);
+      setDirs([...result.dirs].sort((a, b) => a.localeCompare(b)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load directory');
     } finally {
@@ -74,24 +70,17 @@ export function FolderBrowser({ currentDir = '/', onSelect, onCancel }: FolderBr
               <span className={styles.entryName}>..</span>
             </button>
           )}
-          {entries.map((entry) =>
-            entry.isDirectory ? (
-              <button
-                key={entry.name}
-                className={styles.entry}
-                onClick={() => load(dir === '/' ? `/${entry.name}` : `${dir}/${entry.name}`)}
-              >
-                <span className={styles.entryIcon}>📁</span>
-                <span className={styles.entryName}>{entry.name}</span>
-              </button>
-            ) : (
-              <div key={entry.name} className={`${styles.entry} ${styles.fileEntry}`}>
-                <span className={styles.entryIcon}>📄</span>
-                <span className={styles.entryName}>{entry.name}</span>
-              </div>
-            ),
-          )}
-          {entries.length === 0 && (
+          {dirs.map((name) => (
+            <button
+              key={name}
+              className={styles.entry}
+              onClick={() => load(dir === '/' ? `/${name}` : `${dir}/${name}`)}
+            >
+              <span className={styles.entryIcon}>📁</span>
+              <span className={styles.entryName}>{name}</span>
+            </button>
+          ))}
+          {dirs.length === 0 && (
             <div className={styles.loading}>Empty directory</div>
           )}
         </div>

@@ -4,6 +4,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { deleteSession, renameSession, fetchVersion } from '@/services/api';
+import { AboutModal } from '@/components/common/AboutModal';
 import ThemePanel from './ThemePanel';
 import styles from './CommandPalette.module.css';
 
@@ -138,8 +139,10 @@ export default function CommandPalette() {
   const close = useUIStore((s) => s.closeCommandPalette);
   const [showThemes, setShowThemes] = useState(false);
   const [notificationsOn, setNotificationsOn] = useState(
-    () => typeof Notification !== 'undefined' && Notification.permission === 'granted',
+    () => localStorage.getItem('termbeam-notifications') === 'true',
   );
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [aboutVersion, setAboutVersion] = useState('');
 
   const themeId = useThemeStore((s) => s.themeId);
   const themeName = themeId.charAt(0).toUpperCase() + themeId.slice(1);
@@ -164,7 +167,15 @@ export default function CommandPalette() {
     [close],
   );
 
-  if (!open) return null;
+  if (!open) {
+    return (
+      <AboutModal
+        open={aboutOpen}
+        onClose={() => setAboutOpen(false)}
+        version={aboutVersion}
+      />
+    );
+  }
 
   const panelCls = `${styles.panel} ${mounted ? styles.panelOpen : ''}`;
 
@@ -175,6 +186,11 @@ export default function CommandPalette() {
         <div className={panelCls}>
           <ThemePanel onBack={() => setShowThemes(false)} />
         </div>
+        <AboutModal
+          open={aboutOpen}
+          onClose={() => setAboutOpen(false)}
+          version={aboutVersion}
+        />
       </>
     );
   }
@@ -207,24 +223,34 @@ export default function CommandPalette() {
   };
 
   const handleNotifications = () => {
-    if (typeof Notification === 'undefined') {
-      toast.error('Notifications not supported');
-      return;
+    const next = !notificationsOn;
+    setNotificationsOn(next);
+    localStorage.setItem('termbeam-notifications', String(next));
+    if (next) {
+      // Play a short test beep
+      try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = 440;
+        gain.gain.value = 0.15;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+        osc.onended = () => ctx.close();
+      } catch {
+        // Web Audio not available
+      }
     }
-    if (Notification.permission === 'granted') {
-      setNotificationsOn(false);
-      toast('Notifications disabled for this tab');
-    } else {
-      Notification.requestPermission().then((perm) => {
-        setNotificationsOn(perm === 'granted');
-        toast(perm === 'granted' ? 'Notifications enabled' : 'Notifications denied');
-      });
-    }
+    toast(next ? 'Notifications enabled' : 'Notifications disabled');
+    close();
   };
 
   const handleAbout = () => {
     fetchVersion().then((version) => {
-      toast(`TermBeam ${version || '(unknown version)'}`, { duration: 5000 });
+      setAboutVersion(version);
+      setAboutOpen(true);
     });
     close();
   };
@@ -417,6 +443,11 @@ export default function CommandPalette() {
           ))}
         </div>
       </div>
+      <AboutModal
+        open={aboutOpen}
+        onClose={() => setAboutOpen(false)}
+        version={aboutVersion}
+      />
     </>
   );
 }
