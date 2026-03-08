@@ -21,8 +21,8 @@ const ROW1: KeyDef[] = [
   { label: 'Esc', data: '\x1b', type: 'special' },
   { label: 'Copy', data: '', type: 'special', action: 'copy' },
   { label: 'Paste', data: '', type: 'special', action: 'paste' },
-  { label: 'Home', data: '\x1bOH', type: 'special' },
-  { label: 'End', data: '\x1bOF', type: 'special' },
+  { label: 'Home', data: '\x1b[H', type: 'special' },
+  { label: 'End', data: '\x1b[F', type: 'special' },
   { label: '↑', data: '\x1b[A', type: 'icon' },
   { label: '↵', data: '\r', type: 'enter' },
 ];
@@ -46,8 +46,8 @@ const ARROW_MAP: Record<string, string> = {
 };
 
 const HOME_END_MAP: Record<string, string> = {
-  '\x1bOH': 'H',
-  '\x1bOF': 'F',
+  '\x1b[H': 'H',
+  '\x1b[F': 'F',
 };
 
 function encodeArrowWithModifiers(arrowCode: string, ctrl: boolean, shift: boolean): string {
@@ -77,11 +77,15 @@ function sendInput(data: string): void {
   }
 }
 
-function refocusTerminal(): void {
+// Returns true if terminal already had focus, false if it needed focusing
+function refocusTerminal(): boolean {
   const { sessions, activeId } = useSessionStore.getState();
-  if (!activeId) return;
+  if (!activeId) return true;
   const ms = sessions.get(activeId);
-  ms?.term?.focus();
+  if (!ms?.term) return true;
+  const hadFocus = ms.term.textarea === document.activeElement;
+  ms.term.focus();
+  return hadFocus;
 }
 
 const SWIPE_THRESHOLD = 10;
@@ -213,15 +217,18 @@ export default function TouchBar() {
       const data = resolveKeyData(def);
       if (data === null) return;
 
+      // If terminal wasn't focused, just restore focus without sending the key.
+      // This prevents keys (especially Esc) from triggering app-level side
+      // effects when the user just wants to regain input focus.
+      const hadFocus = refocusTerminal();
+      if (!hadFocus) return;
+
       flash(def.label);
       sendInput(data);
 
       // Deactivate sticky modifiers after key press
       if (ctrlActive) setCtrlActive(false);
       if (shiftActive) setShiftActive(false);
-
-      // Always refocus so virtual keyboard input goes to xterm.js
-      refocusTerminal();
     },
     [resolveKeyData, flash, ctrlActive, shiftActive, handleCopy, handlePaste],
   );

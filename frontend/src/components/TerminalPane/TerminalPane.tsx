@@ -96,13 +96,32 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
             }, delay),
           );
         }
-        // Focus terminal after connection — use multiple delays for mobile reliability
+        // Focus terminal — works on desktop; on mobile, the gesture-based
+        // listener below handles it since programmatic focus is restricted.
         timers.push(setTimeout(() => terminal.focus(), 50));
-        timers.push(setTimeout(() => terminal.focus(), 300));
         return () => timers.forEach(clearTimeout);
       }
     }
   }, [connected, terminal, fit]);
+
+  // On mobile, browsers require a user gesture (tap/click) for programmatic
+  // focus to succeed. After (re)connect, install a one-shot capture-phase
+  // listener that focuses the terminal on the very first touch/click.
+  useEffect(() => {
+    if (connected && active && terminal) {
+      const focusOnce = () => {
+        terminal.focus();
+        document.removeEventListener('touchstart', focusOnce, true);
+        document.removeEventListener('mousedown', focusOnce, true);
+      };
+      document.addEventListener('touchstart', focusOnce, true);
+      document.addEventListener('mousedown', focusOnce, true);
+      return () => {
+        document.removeEventListener('touchstart', focusOnce, true);
+        document.removeEventListener('mousedown', focusOnce, true);
+      };
+    }
+  }, [connected, active, terminal]);
 
   // Keep refs in sync with latest WS functions
   useEffect(() => {
@@ -155,12 +174,16 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   // Throttle to avoid excessive React re-renders during rapid output.
   const wasAtBottomRef = useRef(true);
   const scrollThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoScrollRafRef = useRef<number | null>(null);
+  const programmaticScrollRef = useRef(false);
 
   useEffect(() => {
     if (!terminal) return;
     const container = terminal.element;
 
     const checkScroll = () => {
+      // Skip scroll checks triggered by our own programmatic scrollToBottom
+      if (programmaticScrollRef.current) return;
       if (scrollThrottleRef.current) return;
       scrollThrottleRef.current = setTimeout(() => {
         scrollThrottleRef.current = null;
@@ -176,22 +199,27 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     container?.addEventListener('wheel', checkScroll, { passive: true });
     container?.addEventListener('touchmove', checkScroll, { passive: true });
 
-    // Auto-scroll to bottom when new data arrives and user was already at bottom,
-    // but only if the viewport actually needs to scroll (avoids redundant re-renders
-    // that disrupt ghost text / inline suggestions)
+    // Auto-scroll to bottom when new data arrives, throttled to one RAF
+    // to avoid scroll thrashing during rapid output (e.g. long lines)
     const writeDisposable = terminal.onWriteParsed(() => {
-      if (wasAtBottomRef.current) {
+      if (!wasAtBottomRef.current) return;
+      if (autoScrollRafRef.current !== null) return;
+      autoScrollRafRef.current = requestAnimationFrame(() => {
+        autoScrollRafRef.current = null;
         const buf = terminal.buffer.active;
         if (buf.viewportY < buf.baseY) {
+          programmaticScrollRef.current = true;
           terminal.scrollToBottom();
+          programmaticScrollRef.current = false;
         }
-      }
+      });
     });
 
     return () => {
       disposable.dispose();
       writeDisposable.dispose();
       if (scrollThrottleRef.current) clearTimeout(scrollThrottleRef.current);
+      if (autoScrollRafRef.current !== null) cancelAnimationFrame(autoScrollRafRef.current);
       container?.removeEventListener('wheel', checkScroll);
       container?.removeEventListener('touchmove', checkScroll);
     };
