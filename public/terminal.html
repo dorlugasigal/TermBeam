@@ -2316,6 +2316,7 @@
       const managed = new Map(); // sessionId -> ManagedSession
       let activeId = null;
       let splitMode = false;
+      let activateResizeTimer = null;
 
       let splitSecondId = null;
 
@@ -3166,15 +3167,28 @@
         updateStatusBar();
 
         // Fit visible terminals and scroll to bottom
+        // Fit locally in a RAF for immediate display, but defer the server
+        // resize notification so that mobile viewport transitions (keyboard
+        // open/close, ~300 ms on iOS) settle before we send SIGWINCH to the
+        // PTY — avoids transient resizes that make TUI programs (vim, copilot
+        // CLI, htop, etc.) flash-redraw with intermediate dimensions.
+        clearTimeout(activateResizeTimer);
         requestAnimationFrame(() => {
           for (const [, ms] of managed) {
             if (ms.container.classList.contains('visible')) {
               ms.fitAddon.fit();
-              sendResize(ms);
               ms.term.scrollToBottom();
             }
           }
         });
+        activateResizeTimer = setTimeout(() => {
+          for (const [, ms] of managed) {
+            if (ms.container.classList.contains('visible')) {
+              ms.fitAddon.fit();
+              sendResize(ms);
+            }
+          }
+        }, 300);
 
         // Update URL
         const url = new URL(location);

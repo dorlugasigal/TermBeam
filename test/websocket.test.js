@@ -784,5 +784,53 @@ describe('WebSocket', () => {
       const buf = 'hello\x1b[32mgreen\x1b[0m world\r\n$ ';
       assert.strictEqual(sanitizeForReplay(buf), buf);
     });
+
+    it('should strip matched alternate screen buffer pairs (1049)', () => {
+      const buf = 'before\x1b[?1049h\x1b[2Jalt screen content\x1b[?1049lafter';
+      assert.strictEqual(sanitizeForReplay(buf), 'beforeafter');
+    });
+
+    it('should strip matched alternate screen buffer pairs (1047)', () => {
+      const buf = 'before\x1b[?1047halt content\x1b[?1047lafter';
+      assert.strictEqual(sanitizeForReplay(buf), 'beforeafter');
+    });
+
+    it('should strip matched alternate screen buffer pairs (47)', () => {
+      const buf = 'before\x1b[?47halt content\x1b[?47lafter';
+      assert.strictEqual(sanitizeForReplay(buf), 'beforeafter');
+    });
+
+    it('should strip multiple alt screen enter/exit pairs', () => {
+      const buf =
+        'start\x1b[?1049hvim session\x1b[?1049l' +
+        'middle\x1b[?1049hhtop session\x1b[?1049l' +
+        'end';
+      assert.strictEqual(sanitizeForReplay(buf), 'startmiddleend');
+    });
+
+    it('should strip unmatched alt screen enter (active alt screen)', () => {
+      const buf = 'before\x1b[?1049hcopilot CLI banner';
+      assert.strictEqual(sanitizeForReplay(buf), 'beforecopilot CLI banner');
+    });
+
+    it('should strip unmatched alt screen exit', () => {
+      const buf = '\x1b[?1049lrestored content';
+      assert.strictEqual(sanitizeForReplay(buf), 'restored content');
+    });
+
+    it('should strip ESC[3J clear scrollback sequences', () => {
+      const buf = 'hello\x1b[3Jworld';
+      assert.strictEqual(sanitizeForReplay(buf), 'helloworld');
+    });
+
+    it('should strip combined alt screen and clear scrollback', () => {
+      const buf = 'before\x1b[?1049h\x1b[2J\x1b[3Jcli output\x1b[?1049l\x1b[3Jafter';
+      assert.strictEqual(sanitizeForReplay(buf), 'beforeafter');
+    });
+
+    it('should preserve ESC[2J clear screen (needed for replay accuracy)', () => {
+      const buf = 'hello\x1b[2Jworld';
+      assert.strictEqual(sanitizeForReplay(buf), buf);
+    });
   });
 });
