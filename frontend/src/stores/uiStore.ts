@@ -26,6 +26,7 @@ interface UIState {
   uploadModalOpen: boolean;
   previewModalOpen: boolean;
   selectModeActive: boolean;
+  copyOverlayOpen: boolean;
   fontSize: number;
 
   openCommandPalette: () => void;
@@ -42,6 +43,8 @@ interface UIState {
   openPreviewModal: () => void;
   closePreviewModal: () => void;
   setSelectMode: (active: boolean) => void;
+  openCopyOverlay: () => void;
+  closeCopyOverlay: () => void;
   setFontSize: (size: number) => void;
 }
 
@@ -53,6 +56,7 @@ export const useUIStore = create<UIState>((set) => ({
   uploadModalOpen: false,
   previewModalOpen: false,
   selectModeActive: false,
+  copyOverlayOpen: false,
   fontSize: loadFontSize(),
 
   openCommandPalette: () => set({ commandPaletteOpen: true }),
@@ -69,6 +73,8 @@ export const useUIStore = create<UIState>((set) => ({
   openPreviewModal: () => set({ previewModalOpen: true }),
   closePreviewModal: () => set({ previewModalOpen: false }),
   setSelectMode: (active) => set({ selectModeActive: active }),
+  openCopyOverlay: () => set({ copyOverlayOpen: true }),
+  closeCopyOverlay: () => set({ copyOverlayOpen: false }),
   setFontSize: (size) => {
     const clamped = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, Math.round(size)));
     localStorage.setItem(FONT_SIZE_KEY, String(clamped));

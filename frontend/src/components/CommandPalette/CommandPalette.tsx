@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useThemeStore } from '@/stores/themeStore';
-import { deleteSession, renameSession, fetchVersion } from '@/services/api';
+import { deleteSession, renameSession, fetchVersion, getShareUrl } from '@/services/api';
 import { AboutModal } from '@/components/common/AboutModal';
 import ThemePanel from './ThemePanel';
 import styles from './CommandPalette.module.css';
@@ -233,7 +233,7 @@ export default function CommandPalette() {
   const handleStop = () => {
     const { activeId, removeSession: remove } = useSessionStore.getState();
     if (!activeId) return;
-    if (!confirm('Stop this session? This will terminate the process.')) return;
+    if (!confirm('Stop this session? The process will be killed.')) return;
     deleteSession(activeId)
       .catch(() => toast.error('Failed to stop session'))
       .finally(() => remove(activeId));
@@ -300,11 +300,12 @@ export default function CommandPalette() {
           icon: iconCloseTab,
           action: () =>
             run(() => {
-              const { activeId, removeSession: remove } = useSessionStore.getState();
-              if (activeId) {
-                deleteSession(activeId).catch(() => {});
-                remove(activeId);
-              }
+              const { activeId, sessions: sess, removeSession: remove } = useSessionStore.getState();
+              if (!activeId) return;
+              const ms = sess.get(activeId);
+              if (!confirm(`Close session "${ms?.name ?? activeId}"?`)) return;
+              deleteSession(activeId).catch(() => {});
+              remove(activeId);
             }),
         },
         {
@@ -382,21 +383,31 @@ export default function CommandPalette() {
           id: 'copy-link',
           label: 'Copy link',
           icon: iconCopyLink,
-          action: () =>
-            run(() => {
-              const url = window.location.href;
-              if (navigator.clipboard?.writeText) {
-                navigator.clipboard
-                  .writeText(url)
-                  .then(() => toast.success('URL copied to clipboard'))
-                  .catch(() => {
-                    // Fallback for non-secure contexts (HTTP LAN)
-                    fallbackCopy(url);
-                  });
-              } else {
-                fallbackCopy(url);
-              }
-            }),
+          action: () => {
+            // Start fetch immediately so the clipboard write stays in the
+            // user-gesture context (required by Safari / iOS).
+            const urlPromise = getShareUrl();
+
+            if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+              const blobPromise = urlPromise.then((u) => new Blob([u], { type: 'text/plain' }));
+              navigator.clipboard
+                .write([new ClipboardItem({ 'text/plain': blobPromise })])
+                .then(() => toast.success('Link copied!'))
+                .catch(() => urlPromise.then((url) => fallbackCopy(url)));
+            } else {
+              urlPromise.then((url) => {
+                if (navigator.clipboard?.writeText) {
+                  navigator.clipboard
+                    .writeText(url)
+                    .then(() => toast.success('Link copied!'))
+                    .catch(() => fallbackCopy(url));
+                } else {
+                  fallbackCopy(url);
+                }
+              });
+            }
+            close();
+          },
         },
       ],
     },
@@ -435,7 +446,7 @@ export default function CommandPalette() {
               const { sessions, activeId } = useSessionStore.getState();
               if (!activeId) return;
               const ms = sessions.get(activeId);
-              if (ms?.send) ms.send('clear\r');
+              ms?.term?.clear();
             }),
         },
         {

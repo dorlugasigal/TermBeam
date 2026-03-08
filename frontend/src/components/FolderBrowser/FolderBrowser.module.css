@@ -1,8 +1,9 @@
 .container {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  max-height: 400px;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .breadcrumb {
@@ -17,6 +18,7 @@
   border-radius: 6px;
   border: 1px solid var(--border-subtle);
   min-height: 2rem;
+  flex-shrink: 0;
 }
 
 .breadcrumbSegment {
@@ -41,16 +43,16 @@
 
 .list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-height: 120px;
-  max-height: 50vh;
   padding: 0.25rem;
   background: var(--bg);
   border-radius: 8px;
   border: 1px solid var(--border-subtle);
+  margin: 0.5rem 0;
 }
 
 .entry {
@@ -97,6 +99,8 @@
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;
+  flex-shrink: 0;
+  padding-top: 0.5rem;
 }
 
 .selectBtn {

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useSessionStore } from '@/stores/sessionStore';
+import { useUIStore } from '@/stores/uiStore';
 import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
 import styles from './TouchBar.module.css';
 
@@ -18,8 +19,8 @@ const ROW1: KeyDef[] = [
   { label: 'Esc', data: '\x1b', type: 'special' },
   { label: 'Copy', data: '', type: 'special', action: 'copy' },
   { label: 'Paste', data: '', type: 'special', action: 'paste' },
-  { label: 'Home', data: '\x1b[H', type: 'special' },
-  { label: 'End', data: '\x1b[F', type: 'special' },
+  { label: 'Home', data: '\x1bOH', type: 'special' },
+  { label: 'End', data: '\x1bOF', type: 'special' },
   { label: '↑', data: '\x1b[A', type: 'icon' },
   { label: '↵', data: '\r', type: 'enter' },
 ];
@@ -112,25 +113,34 @@ export default function TouchBar() {
   }, []);
 
   const handleCopy = useCallback(() => {
-    const { sessions, activeId } = useSessionStore.getState();
-    if (!activeId) return;
-    const ms = sessions.get(activeId);
-    if (ms?.term) {
-      const selection = ms.term.getSelection();
-      if (selection) {
-        navigator.clipboard.writeText(selection).catch(() => {});
-      }
-    }
+    useUIStore.getState().openCopyOverlay();
   }, []);
 
   const handlePaste = useCallback(() => {
-    navigator.clipboard
-      .readText()
-      .then((text) => {
-        if (text) sendInput(text);
-      })
-      .catch(() => {});
-    refocusTerminal();
+    if (navigator.clipboard?.readText) {
+      navigator.clipboard
+        .readText()
+        .then((text) => {
+          if (text) {
+            sendInput(text);
+            refocusTerminal();
+          }
+        })
+        .catch(() => {
+          // Clipboard API failed (HTTP context) — prompt user
+          const text = window.prompt('Paste text:');
+          if (text) {
+            sendInput(text);
+            refocusTerminal();
+          }
+        });
+    } else {
+      const text = window.prompt('Paste text:');
+      if (text) {
+        sendInput(text);
+        refocusTerminal();
+      }
+    }
   }, []);
 
   const handlePress = useCallback(

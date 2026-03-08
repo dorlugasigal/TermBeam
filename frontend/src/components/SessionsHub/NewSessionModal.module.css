@@ -13,7 +13,7 @@
   transform: translate(-50%, -50%);
   width: 90%;
   max-width: 440px;
-  max-height: 90vh;
+  max-height: 85dvh;
   overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -174,4 +174,11 @@
 .submitBtn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+@media (pointer: coarse) {
+  .content {
+    top: 30%;
+    transform: translate(-50%, -30%);
+  }
 }

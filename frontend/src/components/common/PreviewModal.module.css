@@ -16,6 +16,8 @@
   border-radius: 12px;
   padding: 24px;
   width: min(380px, calc(100vw - 32px));
+  max-height: 85dvh;
+  overflow-y: auto;
   z-index: 201;
   animation: slideUp 150ms ease-out;
 }
@@ -126,6 +128,13 @@
 
 .close:hover {
   color: var(--text);
+}
+
+@media (pointer: coarse) {
+  .content {
+    top: 30%;
+    transform: translate(-50%, -30%);
+  }
 }
 
 @keyframes fadeIn {

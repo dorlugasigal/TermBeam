@@ -158,25 +158,29 @@ export function UploadModal() {
                   setTargetDir(path);
                   setShowBrowser(false);
                 }}
+                onCancel={() => setShowBrowser(false)}
               />
             </div>
           )}
 
-          <p className={styles.hint}>Max 10 MB</p>
-
-          {/* Actions */}
-          <div className={styles.actions}>
-            <button className={styles.cancelBtn} onClick={handleClose}>
-              Cancel
-            </button>
-            <button
-              className={styles.uploadBtn}
-              onClick={handleUpload}
-              disabled={!file || !activeId || uploading}
-            >
-              {uploading ? 'Uploading…' : 'Upload'}
-            </button>
-          </div>
+          {/* Hide upload actions while browsing folders */}
+          {!showBrowser && (
+            <>
+              <p className={styles.hint}>Max 10 MB</p>
+              <div className={styles.actions}>
+                <button className={styles.cancelBtn} onClick={handleClose}>
+                  Cancel
+                </button>
+                <button
+                  className={styles.uploadBtn}
+                  onClick={handleUpload}
+                  disabled={!file || !activeId || uploading}
+                >
+                  {uploading ? 'Uploading…' : 'Upload'}
+                </button>
+              </div>
+            </>
+          )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

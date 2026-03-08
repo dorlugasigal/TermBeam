@@ -58,7 +58,6 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
       const cols = activeMs?.term?.cols;
       const rows = activeMs?.term?.rows;
 
-      const sessionName = name.trim() || shell || 'session';
       const session = await createSession({
         name: name.trim() || undefined,
         shell: shell || undefined,
@@ -67,7 +66,6 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
         initialCommand: initialCommand.trim() || undefined,
         ...(cols && rows ? { cols, rows } : {}),
       });
-      toast.success(`Session "${sessionName}" created`);
       closeNewSessionModal();
       resetForm();
       onCreated(session.id);
@@ -87,7 +85,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     }}>
       <Dialog.Portal>
         <Dialog.Overlay className={styles.overlay} />
-        <Dialog.Content className={styles.content}>
+        <Dialog.Content className={styles.content} onOpenAutoFocus={(e) => e.preventDefault()}>
           <Dialog.Title className={styles.title}>New Session</Dialog.Title>
 
           {browsing ? (
@@ -109,7 +107,6 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                   placeholder="my-session"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  autoFocus
                 />
               </div>
 

@@ -59,7 +59,7 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <a
-                href="https://github.com/nicholasgasior/termbeam"
+                href="https://github.com/dorlugasigal/TermBeam"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: 'var(--accent)', fontSize: '0.9rem' }}
@@ -67,7 +67,7 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
                 GitHub
               </a>
               <a
-                href="https://termbeam.dev/docs"
+                href="https://dorlugasigal.github.io/TermBeam/"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: 'var(--accent)', fontSize: '0.9rem' }}
@@ -75,7 +75,7 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
                 Docs
               </a>
               <a
-                href="https://termbeam.dev"
+                href="https://termbeam.pages.dev"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: 'var(--accent)', fontSize: '0.9rem' }}

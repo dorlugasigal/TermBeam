@@ -3,6 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
+import { CanvasAddon } from '@xterm/addon-canvas';
 import { useThemeStore } from '@/stores/themeStore';
 import { getTerminalTheme } from '@/themes/terminalThemes';
 import '@xterm/xterm/css/xterm.css';
@@ -102,6 +103,15 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       }
       // Remove after xterm's internal async init completes
       setTimeout(() => window.removeEventListener('error', suppressXtermError), 50);
+      // GPU-accelerated canvas renderer for sharper text
+      if (!navigator.webdriver) {
+        try {
+          const canvas = new CanvasAddon();
+          term.loadAddon(canvas);
+        } catch {
+          // Canvas not supported — DOM renderer fallback (default)
+        }
+      }
       try {
         fit.fit();
       } catch {

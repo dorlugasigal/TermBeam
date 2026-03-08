@@ -3,6 +3,7 @@ import type { Terminal } from '@xterm/xterm';
 import { getWebSocketUrl } from '@/services/api';
 import { toast } from 'sonner';
 import type { WSServerMessage } from '@/types';
+import { useSessionStore } from '@/stores/sessionStore';
 
 export interface UseTerminalSocketOptions {
   sessionId: string;
@@ -140,6 +141,10 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
           }
           case 'output': {
             scheduleWrite(msg.data);
+            const store = useSessionStore.getState();
+            if (store.activeId !== sessionId) {
+              store.markUnread(sessionId);
+            }
             break;
           }
           case 'exit': {
@@ -148,6 +153,11 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
           }
           case 'error': {
             toast.error(msg.message);
+            if (msg.message?.toLowerCase().includes('not found')) {
+              mountedRef.current = false;
+              onExit?.(sessionId);
+              ws.close();
+            }
             break;
           }
         }

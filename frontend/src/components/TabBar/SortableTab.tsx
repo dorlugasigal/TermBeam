@@ -62,6 +62,7 @@ export function SortableTab({
     >
       <span className={styles.colorDot} style={{ backgroundColor: session.color }} />
       <span className={styles.tabName}>{session.name}</span>
+      {!isActive && session.hasUnread && <span className={styles.unreadDot} />}
       {activity && <span className={styles.tabActivity}>{activity}</span>}
       <button
         className={styles.closeBtn}

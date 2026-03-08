@@ -95,6 +95,20 @@ export async function uploadFile(
   return handleResponse<{ path: string }>(res);
 }
 
+export async function uploadImage(
+  blob: Blob,
+  contentType: string,
+): Promise<{ path: string }> {
+  const res = await fetch(`${BASE}/api/upload`, {
+    method: 'POST',
+    headers: { 'Content-Type': contentType },
+    body: blob,
+    credentials: 'same-origin',
+  });
+  if (!res.ok) throw new Error('Upload failed');
+  return res.json() as Promise<{ path: string }>;
+}
+
 export async function checkAuth(): Promise<{ authenticated: boolean }> {
   try {
     const res = await fetch(`${BASE}/api/sessions`);
@@ -150,4 +164,21 @@ export async function fetchVersion(): Promise<string> {
 export function getWebSocketUrl(): string {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${proto}//${window.location.host}/ws`;
+}
+
+export function getShareUrl(): Promise<string> {
+  return fetch(`${BASE}/api/share-token`)
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (!data?.url) return window.location.href;
+      // Replace the server-returned origin with the browser's origin so the
+      // link works when accessed via a tunnel (server may return localhost).
+      try {
+        const parsed = new URL(data.url);
+        return `${window.location.origin}${parsed.pathname}${parsed.search}`;
+      } catch {
+        return data.url;
+      }
+    })
+    .catch(() => window.location.href);
 }

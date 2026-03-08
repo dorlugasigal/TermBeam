@@ -200,6 +200,9 @@ export function SidePanel() {
                     style={{ backgroundColor: session.color }}
                   />
                   <span className={styles.cardName}>{session.name}</span>
+                  {session.id !== activeId && session.hasUnread && (
+                    <span className={styles.unreadDot} />
+                  )}
                   <span
                     className={styles.cardStatus}
                     style={{ backgroundColor: statusColor(session) }}

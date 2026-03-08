@@ -10,6 +10,7 @@ export default function SearchBar() {
   const [query, setQuery] = useState('');
   const [regex, setRegex] = useState(false);
   const [hasResults, setHasResults] = useState<boolean | null>(null);
+  const [matchCount, setMatchCount] = useState<{ resultIndex: number; resultCount: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -24,6 +25,17 @@ export default function SearchBar() {
     const ms = useSessionStore.getState().sessions.get(activeId);
     return ms?.searchAddon ?? null;
   }, [activeId]);
+
+  // Listen for search result count updates
+  useEffect(() => {
+    if (!open) return;
+    const addon = getAddon();
+    if (!addon) return;
+    const disposable = addon.onDidChangeResults((e: { resultIndex: number; resultCount: number }) => {
+      setMatchCount(e);
+    });
+    return () => disposable.dispose();
+  }, [open, getAddon]);
 
   const doSearch = useCallback(
     (term: string, direction: 'next' | 'prev') => {
@@ -69,6 +81,7 @@ export default function SearchBar() {
     addon?.clearDecorations();
     setQuery('');
     setHasResults(null);
+    setMatchCount(null);
     closeSearch();
     // Re-focus the terminal
     if (activeId) {
@@ -113,7 +126,11 @@ export default function SearchBar() {
       </button>
       {hasResults !== null && (
         <span className={styles.indicator}>
-          {hasResults ? 'Found' : 'No results'}
+          {matchCount && matchCount.resultCount > 0
+            ? `${matchCount.resultIndex + 1} of ${matchCount.resultCount}`
+            : hasResults
+              ? 'Found'
+              : 'No results'}
         </span>
       )}
       <button className={styles.btn} onClick={handleClose} title="Close (Esc)">

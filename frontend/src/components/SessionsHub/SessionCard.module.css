@@ -21,7 +21,14 @@
   font-size: 12px;
   font-weight: 600;
   user-select: none;
-  pointer-events: none;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  transition: background 0.15s;
+}
+
+.deleteBackground:active {
+  background: #c0392b;
 }
 
 .card {

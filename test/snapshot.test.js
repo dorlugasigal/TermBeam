@@ -19,6 +19,7 @@ const baseConfig = {
   defaultShell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
   version: '0.1.0-test',
   logLevel: 'error',
+  reactUI: false,
 };
 
 function makeConfig(overrides = {}) {

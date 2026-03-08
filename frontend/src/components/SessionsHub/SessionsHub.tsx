@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { fetchSessions, deleteSession, fetchVersion } from '@/services/api';
+import { fetchSessions, deleteSession, fetchVersion, getShareUrl } from '@/services/api';
 import { useUIStore } from '@/stores/uiStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { THEMES, type ThemeId } from '@/themes/terminalThemes';
@@ -11,6 +11,23 @@ import NewSessionModal from './NewSessionModal';
 import styles from './SessionsHub.module.css';
 
 const POLL_INTERVAL = 3000;
+
+/* clipboard fallback for non-secure (HTTP) contexts */
+function fallbackCopyShare(text: string): void {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand('copy');
+    toast.success('URL copied to clipboard');
+  } catch {
+    toast.error('Failed to copy URL');
+  }
+  document.body.removeChild(textarea);
+}
 
 const ShareIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -55,6 +72,7 @@ export default function SessionsHub() {
   const [refreshing, setRefreshing] = useState(false);
   const [version, setVersion] = useState('');
   const [showThemePicker, setShowThemePicker] = useState(false);
+  const [revealedId, setRevealedId] = useState<string | null>(null);
   const themePickerRef = useRef<HTMLDivElement>(null);
   const { openNewSessionModal } = useUIStore();
   const { themeId, setTheme } = useThemeStore();
@@ -104,11 +122,16 @@ export default function SessionsHub() {
   }
 
   function handleShare() {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(
-      () => toast.success('URL copied to clipboard'),
-      () => toast('Could not copy URL'),
-    );
+    getShareUrl().then((url) => {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(url).then(
+          () => toast.success('URL copied to clipboard'),
+          () => fallbackCopyShare(url),
+        );
+      } else {
+        fallbackCopyShare(url);
+      }
+    });
   }
 
   function handleCycleTheme() {
@@ -208,6 +231,8 @@ export default function SessionsHub() {
                 session={session}
                 onSelect={navigateToSession}
                 onDelete={handleDelete}
+                revealedId={revealedId}
+                onRevealChange={setRevealedId}
               />
             ))}
           </div>

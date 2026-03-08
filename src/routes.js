@@ -8,6 +8,8 @@ const log = require('./logger');
 const rateLimit = require('express-rate-limit');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const REACT_DIR = path.join(__dirname, '..', 'public-react');
+const useReactUI = fs.existsSync(path.join(REACT_DIR, 'index.html'));
 const uploadedFiles = new Map(); // id -> filepath
 
 const IMAGE_SIGNATURES = [
@@ -35,6 +37,7 @@ function validateMagicBytes(buffer, contentType) {
 }
 
 function setupRoutes(app, { auth, sessions, config, state }) {
+  const serveReact = config.reactUI !== undefined ? !!config.reactUI : useReactUI;
   const pageRateLimit = rateLimit({
     windowMs: 1 * 60 * 1000,
     max: 120,
@@ -53,7 +56,10 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       res.status(429).json({ error: 'Too many requests, please try again later.' }),
   });
 
-  // Serve static files (manifest.json, sw.js, icons, etc.)
+  // Serve static files — React build takes priority if available
+  if (serveReact) {
+    app.use(express.static(REACT_DIR, { index: false }));
+  }
   app.use(express.static(PUBLIC_DIR, { index: false }));
 
   // Login page
@@ -134,12 +140,13 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     next();
   }
 
-  // Pages
+  // Pages — serve React SPA when available, otherwise old UI
+  const pageRoot = serveReact ? REACT_DIR : PUBLIC_DIR;
   app.get('/', pageRateLimit, autoLogin, auth.middleware, (_req, res) =>
-    res.sendFile('index.html', { root: PUBLIC_DIR }),
+    res.sendFile('index.html', { root: pageRoot }),
   );
   app.get('/terminal', pageRateLimit, autoLogin, auth.middleware, (_req, res) =>
-    res.sendFile('terminal.html', { root: PUBLIC_DIR }),
+    res.sendFile(serveReact ? 'index.html' : 'terminal.html', { root: pageRoot }),
   );
 
   // Share token — generates a temporary share token for the share button

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import { fetchSessions } from '@/services/api';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -13,6 +14,7 @@ import { SidePanel } from '@/components/SidePanel/SidePanel';
 import NewSessionModal from '@/components/SessionsHub/NewSessionModal';
 import { UploadModal } from '@/components/common/UploadModal';
 import { PreviewModal } from '@/components/common/PreviewModal';
+import CopyOverlay from '@/components/common/CopyOverlay';
 import type { Session } from '@/types';
 import styles from './TerminalApp.module.css';
 
@@ -51,19 +53,18 @@ export function TerminalApp() {
   }, [keyboardOpen]);
 
   async function handleNewSessionCreated(id: string) {
-    const list: Session[] = await fetchSessions();
+    // Add a placeholder immediately so TerminalPane mounts right away
     const store = useSessionStore.getState();
-    const newSession = list.find((s) => s.id === id);
-    if (newSession) {
+    if (!store.sessions.has(id)) {
       store.addSession({
-        id: newSession.id,
-        name: newSession.name,
-        shell: newSession.shell,
-        pid: newSession.pid,
-        cwd: newSession.cwd,
-        color: newSession.color ?? '#6ec1e4',
-        createdAt: newSession.createdAt,
-        lastActivity: newSession.lastActivity,
+        id,
+        name: id.slice(0, 8),
+        shell: '',
+        pid: 0,
+        cwd: '',
+        color: '#6ec1e4',
+        createdAt: new Date().toISOString(),
+        lastActivity: Date.now(),
         term: null,
         fitAddon: null,
         searchAddon: null,
@@ -72,9 +73,30 @@ export function TerminalApp() {
         connected: false,
         exited: false,
         scrollback: '',
+        hasUnread: false,
       });
     }
     store.setActiveId(id);
+
+    // Fetch real metadata in the background
+    try {
+      const list: Session[] = await fetchSessions();
+      const newSession = list.find((s) => s.id === id);
+      if (newSession) {
+        useSessionStore.getState().updateSession(id, {
+          name: newSession.name,
+          shell: newSession.shell,
+          pid: newSession.pid,
+          cwd: newSession.cwd,
+          color: newSession.color ?? '#6ec1e4',
+          createdAt: newSession.createdAt,
+          lastActivity: newSession.lastActivity,
+        });
+        toast.success(`Session "${newSession.name}" created`);
+      }
+    } catch {
+      // Polling will pick up metadata
+    }
   }
 
   // Initial load — add ALL server sessions as tabs, activate URL session
@@ -108,6 +130,7 @@ export function TerminalApp() {
               connected: false,
               exited: false,
               scrollback: '',
+              hasUnread: false,
             });
           }
         }
@@ -159,6 +182,7 @@ export function TerminalApp() {
               connected: false,
               exited: false,
               scrollback: '',
+              hasUnread: false,
             });
           } else {
             // Update metadata for existing sessions
@@ -238,6 +262,7 @@ export function TerminalApp() {
           <button
             className={`${styles.barBtn} ${styles.mobileOnly}`}
             onClick={openSidePanel}
+            onTouchStart={(e) => e.stopPropagation()}
             aria-label="Toggle panel"
             title="Sessions"
           >
@@ -262,7 +287,11 @@ export function TerminalApp() {
         <div className={styles.right}>
           <button
             className={`${styles.barBtn} ${styles.barBtnWithLabel}`}
-            onClick={openNewSessionModal}
+            onClick={() => {
+              if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+              openNewSessionModal();
+            }}
+            onTouchStart={(e) => e.stopPropagation()}
             aria-label="New tab"
             title="New tab"
           >
@@ -272,6 +301,7 @@ export function TerminalApp() {
           <button
             className={styles.barBtn}
             onClick={toggleCommandPalette}
+            onTouchStart={(e) => e.stopPropagation()}
             aria-label="Tools"
             title="Tools (Ctrl+K)"
           >
@@ -312,6 +342,7 @@ export function TerminalApp() {
       <NewSessionModal onCreated={handleNewSessionCreated} />
       <UploadModal />
       <PreviewModal />
+      <CopyOverlay />
     </div>
   );
 }

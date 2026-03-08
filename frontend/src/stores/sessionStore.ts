@@ -19,6 +19,7 @@ export interface ManagedSession {
   send: ((data: string) => void) | null;
   connected: boolean;
   exited: boolean;
+  hasUnread: boolean;
   scrollback: string;
   git?: {
     branch: string;
@@ -49,6 +50,8 @@ interface SessionState {
   setTabOrder: (order: string[]) => void;
   toggleSplit: () => void;
   setSplit: (on: boolean) => void;
+  markUnread: (id: string) => void;
+  clearUnread: (id: string) => void;
 }
 
 function loadTabOrder(): string[] {
@@ -124,4 +127,26 @@ export const useSessionStore = create<SessionState>((set, _get) => ({
 
   toggleSplit: () => set((state) => ({ splitMode: !state.splitMode })),
   setSplit: (on) => set({ splitMode: on }),
+
+  markUnread: (id) =>
+    set((state) => {
+      const sessions = new Map(state.sessions);
+      const existing = sessions.get(id);
+      if (existing && !existing.hasUnread) {
+        sessions.set(id, { ...existing, hasUnread: true });
+        return { sessions };
+      }
+      return state;
+    }),
+
+  clearUnread: (id) =>
+    set((state) => {
+      const sessions = new Map(state.sessions);
+      const existing = sessions.get(id);
+      if (existing && existing.hasUnread) {
+        sessions.set(id, { ...existing, hasUnread: false });
+        return { sessions };
+      }
+      return state;
+    }),
 }));

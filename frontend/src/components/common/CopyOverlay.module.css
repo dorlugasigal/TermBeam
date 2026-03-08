@@ -1,0 +1,101 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.85);
+  animation: fade-in 0.15s ease;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--surface, #1e1e2e);
+  border-bottom: 1px solid var(--border, #333);
+}
+
+.title {
+  color: var(--text, #ccc);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btnPrimary {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent, #4a9eff);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btnPrimary:hover {
+  opacity: 0.9;
+}
+
+.btnSecondary {
+  padding: 8px 18px;
+  border: 1px solid var(--border, #444);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text, #ccc);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btnSecondary:hover {
+  background: var(--border, #333);
+}
+
+.content {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+
+.loadMoreBtn {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border, #444);
+  border-radius: 6px;
+  background: var(--surface, #1e1e2e);
+  color: var(--accent, #4a9eff);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.loadMoreBtn:hover {
+  background: var(--border, #333);
+}
+
+.pre {
+  margin: 0;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 13px;
+  color: var(--text, #ccc);
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

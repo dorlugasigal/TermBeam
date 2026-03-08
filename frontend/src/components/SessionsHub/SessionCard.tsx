@@ -1,5 +1,4 @@
-import { useRef } from 'react';
-import { useDrag } from '@use-gesture/react';
+import { useRef, useCallback, useEffect } from 'react';
 import type { Session } from '@/types';
 import styles from './SessionCard.module.css';
 
@@ -7,6 +6,8 @@ interface SessionCardProps {
   session: Session;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  revealedId: string | null;
+  onRevealChange: (id: string | null) => void;
 }
 
 function formatActivity(lastActivity: string | number): string {
@@ -20,6 +21,7 @@ function formatActivity(lastActivity: string | number): string {
 }
 
 const SWIPE_THRESHOLD = 50;
+const REVEAL_WIDTH = 80;
 
 const FolderIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -86,37 +88,104 @@ function getProviderIcon(provider?: string) {
   return null;
 }
 
-export default function SessionCard({ session, onSelect, onDelete }: SessionCardProps) {
+export default function SessionCard({ session, onSelect, onDelete, revealedId, onRevealChange }: SessionCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const offsetX = useRef(0);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const currentX = useRef(0);
+  const isSwiping = useRef(false);
+  const revealed = revealedId === session.id;
 
-  const bind = useDrag(
-    ({ movement: [mx], down, cancel }) => {
-      if (mx > 0) {
-        cancel();
-        return;
-      }
+  const snapTo = useCallback((position: number) => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.style.transition = 'transform 0.25s ease';
+    el.style.transform = `translateX(${position}px)`;
+    currentX.current = position;
+  }, []);
 
-      const el = cardRef.current;
-      if (!el) return;
+  // Snap back when another card is revealed
+  useEffect(() => {
+    if (!revealed) {
+      snapTo(0);
+    }
+  }, [revealed, snapTo]);
 
-      if (down) {
-        offsetX.current = mx;
-        el.style.transform = `translateX(${mx}px)`;
-        el.style.transition = 'none';
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    touchStartX.current = touch.clientX;
+    touchStartY.current = touch.clientY;
+    isSwiping.current = false;
+
+    const el = cardRef.current;
+    if (el) {
+      el.style.transition = 'none';
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    const dx = touch.clientX - touchStartX.current;
+    const dy = touch.clientY - touchStartY.current;
+
+    // Determine direction on first significant move
+    if (!isSwiping.current && Math.abs(dx) > 5) {
+      // If vertical scrolling dominates, bail out
+      if (Math.abs(dy) > Math.abs(dx)) return;
+      isSwiping.current = true;
+    }
+
+    if (!isSwiping.current) return;
+
+    const el = cardRef.current;
+    if (!el) return;
+
+    // Calculate offset relative to current snap position
+    const base = revealed ? -REVEAL_WIDTH : 0;
+    let newX = base + dx;
+
+    // Clamp: don't go past reveal width or past 0
+    newX = Math.max(newX, -REVEAL_WIDTH);
+    newX = Math.min(newX, 0);
+
+    el.style.transform = `translateX(${newX}px)`;
+  }, [revealed]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!isSwiping.current) return;
+
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - touchStartX.current;
+    const base = revealed ? -REVEAL_WIDTH : 0;
+    const finalX = base + dx;
+
+    if (revealed) {
+      // If swiped right enough, snap back closed
+      if (dx > SWIPE_THRESHOLD) {
+        onRevealChange(null);
+        snapTo(0);
       } else {
-        el.style.transition = 'transform 0.25s ease';
-        if (Math.abs(mx) > SWIPE_THRESHOLD) {
-          el.style.transform = `translateX(-80px)`;
-          setTimeout(() => onDelete(session.id), 200);
-        } else {
-          el.style.transform = 'translateX(0)';
-        }
-        offsetX.current = 0;
+        snapTo(-REVEAL_WIDTH);
       }
-    },
-    { axis: 'x', filterTaps: true },
-  );
+    } else {
+      // If swiped left enough, reveal delete button
+      if (finalX < -SWIPE_THRESHOLD) {
+        onRevealChange(session.id);
+        snapTo(-REVEAL_WIDTH);
+      } else {
+        snapTo(0);
+      }
+    }
+  }, [revealed, session.id, onRevealChange, snapTo]);
+
+  const handleDeleteClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete(session.id);
+    onRevealChange(null);
+  }, [session.id, onDelete, onRevealChange]);
 
   const shellName = session.shell.split('/').pop() ?? session.shell;
   const color = session.color ?? 'var(--success)';
@@ -125,11 +194,22 @@ export default function SessionCard({ session, onSelect, onDelete }: SessionCard
 
   return (
     <div className={styles.wrapper}>
-      <div className={styles.deleteBackground}>
+      <button
+        className={styles.deleteBackground}
+        onClick={handleDeleteClick}
+        aria-label={`Delete session ${session.name}`}
+        type="button"
+      >
         <TrashIcon />
         Delete
-      </div>
-      <div ref={cardRef} className={styles.card} {...bind()}>
+      </button>
+      <div
+        ref={cardRef}
+        className={styles.card}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         {/* Top row: dot + name + PID */}
         <div className={styles.topRow}>
           <div className={styles.nameGroup}>
