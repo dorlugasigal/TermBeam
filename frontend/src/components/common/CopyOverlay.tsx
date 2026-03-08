@@ -64,6 +64,19 @@ export default function CopyOverlay() {
     });
   }, []);
 
+  const [hasSelection, setHasSelection] = useState(false);
+
+  // Track whether the user has selected text within the overlay
+  useEffect(() => {
+    if (!open) return;
+    const onSelectionChange = () => {
+      const sel = window.getSelection()?.toString() ?? '';
+      setHasSelection(sel.length > 0);
+    };
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => document.removeEventListener('selectionchange', onSelectionChange);
+  }, [open]);
+
   const handleCopy = useCallback(async () => {
     const selection = window.getSelection()?.toString() ?? '';
     const content = selection || text;
@@ -107,7 +120,7 @@ export default function CopyOverlay() {
         <span className={styles.title}>{title}</span>
         <div className={styles.actions}>
           <button className={styles.btnPrimary} onClick={handleCopy}>
-            Copy
+            {hasSelection ? 'Copy Selection' : 'Copy All'}
           </button>
           <button className={styles.btnSecondary} onClick={handleClose}>
             Close
