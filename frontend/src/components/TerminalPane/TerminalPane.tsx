@@ -233,17 +233,16 @@ export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneP
           const blob = item.getAsFile();
           if (!blob) return;
 
-          uploadImage(blob, item.type)
-            .then((data) => {
-              const filePath = data.path;
-              if (filePath) {
-                sendRef.current(filePath + ' ');
-                toast.success('Image uploaded');
-              }
-            })
-            .catch(() => {
-              toast.error('Image paste failed');
-            });
+          const uploadPromise = uploadImage(blob, item.type).then((data) => {
+            const filePath = data.path;
+            if (filePath) sendRef.current(filePath + ' ');
+            return data;
+          });
+          toast.promise(uploadPromise, {
+            loading: 'Uploading image...',
+            success: 'Image uploaded',
+            error: 'Image upload failed',
+          });
           return;
         }
       }

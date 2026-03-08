@@ -1,7 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
+import { uploadImage } from '@/services/api';
 import styles from './TouchBar.module.css';
 
 type KeyType = 'special' | 'modifier' | 'icon' | 'enter' | 'danger';
@@ -135,30 +137,49 @@ export default function TouchBar() {
     useUIStore.getState().openCopyOverlay();
   }, []);
 
-  const handlePaste = useCallback(() => {
-    if (navigator.clipboard?.readText) {
-      navigator.clipboard
-        .readText()
-        .then((text) => {
-          if (text) {
-            sendInput(text);
-            refocusTerminal();
+  const handlePaste = useCallback(async () => {
+    // Try clipboard.read() first for image support
+    if (navigator.clipboard?.read) {
+      try {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const imageType = item.types.find((t: string) => t.startsWith('image/'));
+          if (imageType) {
+            const blob = await item.getType(imageType);
+            const uploadPromise = uploadImage(blob, imageType).then((data) => {
+              if (data.path) sendInput(data.path + ' ');
+              return data;
+            });
+            toast.promise(uploadPromise, {
+              loading: 'Uploading image...',
+              success: 'Image uploaded',
+              error: 'Image upload failed',
+            });
+            return;
           }
-        })
-        .catch(() => {
-          // Clipboard API failed (HTTP context) — prompt user
-          const text = window.prompt('Paste text:');
-          if (text) {
-            sendInput(text);
-            refocusTerminal();
-          }
-        });
-    } else {
-      const text = window.prompt('Paste text:');
-      if (text) {
-        sendInput(text);
-        refocusTerminal();
+        }
+      } catch {
+        // clipboard.read() failed, try text fallback
       }
+    }
+    // Text paste
+    if (navigator.clipboard?.readText) {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          sendInput(text);
+          refocusTerminal();
+          return;
+        }
+      } catch {
+        // Clipboard API failed
+      }
+    }
+    // Final fallback: prompt
+    const text = window.prompt('Paste text:');
+    if (text) {
+      sendInput(text);
+      refocusTerminal();
     }
   }, []);
 
