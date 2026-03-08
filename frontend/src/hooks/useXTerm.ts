@@ -186,6 +186,47 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Window resize listener (covers cases ResizeObserver may miss)
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const onResize = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        try {
+          fitRef.current?.fit();
+        } catch {
+          // ignore
+        }
+      }, 100);
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      clearTimeout(timer);
+    };
+  }, []);
+
+  // Screen orientation change listener (mobile rotation)
+  useEffect(() => {
+    const orientation = screen.orientation;
+    if (!orientation) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const onChange = () => {
+      timer = setTimeout(() => {
+        try {
+          fitRef.current?.fit();
+        } catch {
+          // ignore
+        }
+      }, 150);
+    };
+    orientation.addEventListener('change', onChange);
+    return () => {
+      orientation.removeEventListener('change', onChange);
+      clearTimeout(timer);
+    };
+  }, []);
+
   // Apply theme changes
   useEffect(() => {
     if (!termRef.current) return;
