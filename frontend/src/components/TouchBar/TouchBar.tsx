@@ -77,15 +77,11 @@ function sendInput(data: string): void {
   }
 }
 
-// Returns true if terminal already had focus, false if it needed focusing
-function refocusTerminal(): boolean {
+function refocusTerminal(): void {
   const { sessions, activeId } = useSessionStore.getState();
-  if (!activeId) return true;
+  if (!activeId) return;
   const ms = sessions.get(activeId);
-  if (!ms?.term) return true;
-  const hadFocus = ms.term.textarea === document.activeElement;
-  ms.term.focus();
-  return hadFocus;
+  ms?.term?.focus();
 }
 
 const SWIPE_THRESHOLD = 10;
@@ -217,14 +213,9 @@ export default function TouchBar() {
       const data = resolveKeyData(def);
       if (data === null) return;
 
-      // If terminal wasn't focused, just restore focus without sending the key.
-      // This prevents keys (especially Esc) from triggering app-level side
-      // effects when the user just wants to regain input focus.
-      const hadFocus = refocusTerminal();
-      if (!hadFocus) return;
-
       flash(def.label);
       sendInput(data);
+      refocusTerminal();
 
       // Deactivate sticky modifiers after key press
       if (ctrlActive) setCtrlActive(false);
