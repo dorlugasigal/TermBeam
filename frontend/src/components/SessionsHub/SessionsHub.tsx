@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { fetchSessions, deleteSession } from '@/services/api';
+import { fetchSessions, deleteSession, fetchVersion } from '@/services/api';
 import { useUIStore } from '@/stores/uiStore';
+import { useThemeStore } from '@/stores/themeStore';
+import { THEMES, type ThemeId } from '@/themes/terminalThemes';
 import type { Session } from '@/types';
-import ThemePicker from '@/components/common/ThemePicker';
 import UpdateBanner from '@/components/common/UpdateBanner';
 import SessionCard from './SessionCard';
 import NewSessionModal from './NewSessionModal';
@@ -11,23 +12,42 @@ import styles from './SessionsHub.module.css';
 
 const POLL_INTERVAL = 3000;
 
+const ShareIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="18" cy="5" r="3" />
+    <circle cx="6" cy="12" r="3" />
+    <circle cx="18" cy="19" r="3" />
+    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+  </svg>
+);
+
+const RefreshIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="23 4 23 10 17 10" />
+    <polyline points="1 20 1 14 7 14" />
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+  </svg>
+);
+
+const ThemeIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+  </svg>
+);
+
 export default function SessionsHub() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [version, setVersion] = useState('');
   const { openNewSessionModal } = useUIStore();
-  const redirected = useRef(false);
+  const { themeId, setTheme } = useThemeStore();
 
   const loadSessions = useCallback(async () => {
     try {
       const list = await fetchSessions();
       setSessions(list);
-
-      // Auto-redirect if exactly one session and first load
-      if (!redirected.current && list.length === 1) {
-        redirected.current = true;
-        navigateToSession(list[0]!.id);
-      }
     } catch {
       // Silently retry on next poll
     } finally {
@@ -41,8 +61,14 @@ export default function SessionsHub() {
     return () => clearInterval(timer);
   }, [loadSessions]);
 
+  useEffect(() => {
+    fetchVersion().then((v) => {
+      if (v) setVersion(v);
+    });
+  }, []);
+
   function navigateToSession(id: string) {
-    window.location.href = `/terminal?session=${id}`;
+    window.location.href = `/terminal?id=${id}`;
   }
 
   async function handleDelete(id: string) {
@@ -70,27 +96,49 @@ export default function SessionsHub() {
     );
   }
 
+  function handleCycleTheme() {
+    const currentIdx = THEMES.findIndex((t) => t.id === themeId);
+    const nextIdx = (currentIdx + 1) % THEMES.length;
+    setTheme(THEMES[nextIdx]!.id as ThemeId);
+  }
+
   return (
     <div className={styles.page}>
       <UpdateBanner />
 
       <header className={styles.header}>
-        <div className={styles.logo}>
-          <span className={styles.logoIcon}>📡</span>
-          TermBeam
-        </div>
-        <div className={styles.spacer} />
-        <ThemePicker />
-        <button className={styles.headerBtn} onClick={handleShare} aria-label="Share URL" title="Share">
-          🔗
+        <h1 className={styles.title}>
+          📡 Term<span className={styles.accent}>Beam</span>
+        </h1>
+        <p className={styles.tagline}>
+          Beam your terminal to any device{version ? ` · v${version}` : ''}
+        </p>
+
+        <button
+          className={`${styles.headerBtn} ${styles.shareBtn}`}
+          onClick={handleShare}
+          aria-label="Share URL"
+          title="Share"
+        >
+          <ShareIcon />
         </button>
         <button
-          className={styles.headerBtn}
+          className={`${styles.headerBtn} ${styles.refreshBtn}`}
           onClick={handleRefresh}
           aria-label="Refresh sessions"
           title="Refresh"
         >
-          <span className={refreshing ? styles.refreshSpin : ''}>↻</span>
+          <span className={refreshing ? styles.refreshSpin : ''} style={{ display: 'flex' }}>
+            <RefreshIcon />
+          </span>
+        </button>
+        <button
+          className={`${styles.headerBtn} ${styles.themeBtn}`}
+          onClick={handleCycleTheme}
+          aria-label="Change theme"
+          title="Change theme"
+        >
+          <ThemeIcon />
         </button>
       </header>
 
@@ -105,7 +153,7 @@ export default function SessionsHub() {
             <span className={styles.emptyIcon}>📡</span>
             <span className={styles.emptyText}>No active sessions</span>
             <span className={styles.emptyHint}>
-              Tap + to create a new terminal session
+              Tap &quot;+ New Session&quot; to create a new terminal session
             </span>
           </div>
         ) : (
@@ -123,12 +171,11 @@ export default function SessionsHub() {
       </main>
 
       <button
-        className={styles.fab}
+        className={styles.newSessionBtn}
         onClick={openNewSessionModal}
         aria-label="New session"
-        title="New Session"
       >
-        +
+        + New Session
       </button>
 
       <NewSessionModal onCreated={navigateToSession} />

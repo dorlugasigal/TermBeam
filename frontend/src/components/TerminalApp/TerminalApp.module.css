@@ -1,6 +1,5 @@
 .layout {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
@@ -10,76 +9,99 @@
 
 /* ── Top bar ── */
 .topBar {
+  height: calc(40px + env(safe-area-inset-top, 0px));
+  padding: 0 6px;
+  padding-top: env(safe-area-inset-top, 0px);
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 8px;
-  height: 44px;
-  min-height: 44px;
-  border-bottom: 1px solid var(--border);
   background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  gap: 4px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
 }
 
-.backButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text);
-  font-size: 18px;
-  cursor: pointer;
-  flex-shrink: 0;
-  text-decoration: none;
-}
-
-.backButton:hover {
-  background: var(--border);
-}
-
-.tabArea {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-}
-
-.activeTabName {
-  font-size: 0.9rem;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--text);
-}
-
-.rightButtons {
+.left {
   display: flex;
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.iconButton {
+.right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.barBtn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text);
-  font-size: 16px;
-  cursor: pointer;
+  text-decoration: none;
+  gap: 4px;
+  padding: 0;
+  flex-shrink: 0;
 }
 
-.iconButton:hover {
+.barBtn:hover {
   background: var(--border);
+  color: var(--text);
+}
+
+.barBtnWithLabel {
+  width: auto;
+  padding: 0 8px;
+}
+
+.btnLabel {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.stopBtn {
+  color: var(--danger, #f87171);
+}
+
+.stopBtn:hover {
+  background: rgba(248, 113, 113, 0.15);
+}
+
+.statusDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sessionName {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  max-width: 120px;
+}
+
+.statusText {
+  font-size: 12px;
+  color: var(--text-secondary, var(--text-dim));
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 @media (max-width: 640px) {
@@ -90,10 +112,13 @@
 
 /* ── Terminal area ── */
 .terminalArea {
-  flex: 1;
+  position: absolute;
+  top: calc(40px + env(safe-area-inset-top, 0px));
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  left: 0;
+  right: 0;
   display: flex;
   min-height: 0;
-  position: relative;
 }
 
 .split {
@@ -105,6 +130,7 @@
   display: none;
   min-height: 0;
   min-width: 0;
+  flex-direction: column;
 }
 
 .visible {
@@ -115,11 +141,4 @@
   width: 2px;
   background: var(--border);
   flex-shrink: 0;
-}
-
-/* ── Key bar placeholder ── */
-.keyBar {
-  min-height: 44px;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
 }

@@ -1,3 +1,13 @@
+export interface GitStatus {
+  clean: boolean;
+  modified: number;
+  staged: number;
+  untracked: number;
+  ahead: number;
+  behind: number;
+  summary: string;
+}
+
 export interface Session {
   id: string;
   name: string;
@@ -5,10 +15,17 @@ export interface Session {
   pid: number;
   cwd: string;
   createdAt: string;
-  lastActivity: string;
+  lastActivity: string | number;
   color?: string;
   cols?: number;
   rows?: number;
+  clients?: number;
+  git?: {
+    branch: string;
+    provider?: string;
+    repoName?: string;
+    status?: GitStatus;
+  };
 }
 
 export interface CreateSessionRequest {

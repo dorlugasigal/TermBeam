@@ -1,14 +1,32 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import LoginPage from '@/components/common/LoginPage';
+import SessionsHub from '@/components/SessionsHub/SessionsHub';
+import { TerminalApp } from '@/components/TerminalApp/TerminalApp';
 
 function getPath() {
   return window.location.pathname;
 }
 
+/** Normalize ?id= to ?session= so TerminalApp can read it */
+function normalizeSessionParam() {
+  const params = new URLSearchParams(window.location.search);
+  const idParam = params.get('id');
+  if (idParam && !params.get('session')) {
+    params.set('session', idParam);
+    params.delete('id');
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState(null, '', newUrl);
+  }
+}
+
 export default function App() {
   const { authenticated, login, loading } = useAuth();
   const [path, setPath] = useState(getPath);
+
+  useEffect(() => {
+    normalizeSessionParam();
+  }, [path]);
 
   useEffect(() => {
     const onPopState = () => setPath(getPath());
@@ -40,8 +58,8 @@ export default function App() {
 
   // Authenticated — route by pathname
   if (path === '/terminal') {
-    return <div>Terminal App</div>;
+    return <TerminalApp />;
   }
 
-  return <div>Sessions Hub</div>;
+  return <SessionsHub />;
 }

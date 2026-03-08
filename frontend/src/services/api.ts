@@ -68,21 +68,31 @@ export async function uploadFile(
 }
 
 export async function checkAuth(): Promise<{ authenticated: boolean }> {
-  const res = await fetch(`${BASE}/api/auth/check`);
-  return handleResponse<{ authenticated: boolean }>(res);
+  try {
+    const res = await fetch(`${BASE}/api/sessions`);
+    if (res.status === 401) return { authenticated: false };
+    // 429 (rate limited) or 200 OK means the server is running and we're not blocked by auth
+    return { authenticated: true };
+  } catch {
+    return { authenticated: false };
+  }
 }
 
 export async function login(password: string): Promise<{ success: boolean }> {
-  const res = await fetch(`${BASE}/api/auth/login`, {
+  const res = await fetch(`${BASE}/api/auth`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password }),
   });
+  if (res.status === 429) {
+    throw new Error('Too many attempts. Try again later.');
+  }
   return handleResponse<{ success: boolean }>(res);
 }
 
 export async function logout(): Promise<void> {
-  await fetch(`${BASE}/api/auth/logout`, { method: 'POST' });
+  // Clear auth cookie by navigating to login — server has no logout endpoint
+  document.cookie = 'pty_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
 }
 
 export async function checkUpdate(force = false): Promise<{
@@ -97,6 +107,16 @@ export async function checkUpdate(force = false): Promise<{
   } catch {
     return null;
   }
+}
+
+export async function fetchVersion(): Promise<string> {
+  try {
+    const data = await checkUpdate();
+    if (data?.current) return data.current;
+  } catch {
+    // ignore
+  }
+  return '';
 }
 
 export function getWebSocketUrl(): string {

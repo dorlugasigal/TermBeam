@@ -15,7 +15,11 @@ import { SortableTab } from './SortableTab';
 import { TabPreview } from './TabPreview';
 import styles from './TabBar.module.css';
 
-export function TabBar() {
+interface TabBarProps {
+  inline?: boolean;
+}
+
+export function TabBar({ inline = false }: TabBarProps) {
   const sessions = useSessionStore((s) => s.sessions);
   const activeId = useSessionStore((s) => s.activeId);
   const tabOrder = useSessionStore((s) => s.tabOrder);
@@ -49,7 +53,7 @@ export function TabBar() {
     .filter((s): s is NonNullable<typeof s> => s != null);
 
   return (
-    <div className={styles.tabBar}>
+    <div className={inline ? styles.tabBarInline : styles.tabBar}>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={tabOrder} strategy={horizontalListSortingStrategy}>
           <div className={styles.tabScroller}>
@@ -74,14 +78,16 @@ export function TabBar() {
           </div>
         </SortableContext>
       </DndContext>
-      <button
-        className={styles.addBtn}
-        onClick={openNewSessionModal}
-        aria-label="New session"
-        title="New session"
-      >
-        +
-      </button>
+      {!inline && (
+        <button
+          className={styles.addBtn}
+          onClick={openNewSessionModal}
+          aria-label="New session"
+          title="New session"
+        >
+          +
+        </button>
+      )}
     </div>
   );
 }

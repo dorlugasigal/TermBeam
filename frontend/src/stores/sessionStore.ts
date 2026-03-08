@@ -10,6 +10,8 @@ export interface ManagedSession {
   pid: number;
   cwd: string;
   color: string;
+  createdAt: string;
+  lastActivity: string | number;
   term: Terminal | null;
   fitAddon: FitAddon | null;
   searchAddon: SearchAddon | null;
@@ -55,9 +57,12 @@ export const useSessionStore = create<SessionState>((set, _get) => ({
 
   addSession: (session) =>
     set((state) => {
+      if (state.sessions.has(session.id)) return state;
       const sessions = new Map(state.sessions);
       sessions.set(session.id, session);
-      const tabOrder = [...state.tabOrder, session.id];
+      const tabOrder = state.tabOrder.includes(session.id)
+        ? state.tabOrder
+        : [...state.tabOrder, session.id];
       saveTabOrder(tabOrder);
       return {
         sessions,

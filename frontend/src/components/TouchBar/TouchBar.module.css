@@ -4,12 +4,14 @@
   left: 0;
   right: 0;
   z-index: 50;
-  padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
-  background: var(--keybar-bg, var(--surface, #1a1a2e));
-  border-top: 1px solid var(--border, #333);
+  height: calc(80px + env(safe-area-inset-bottom, 0px));
+  padding: 6px 4px;
+  padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  background: #1c1c1e;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
+  justify-content: center;
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
@@ -17,40 +19,118 @@
 
 .row {
   display: flex;
-  gap: 3px;
-  justify-content: center;
+  gap: 4px;
+  padding: 0 2px;
 }
 
-.key {
-  flex: 1;
+.keyBtn {
   min-width: 0;
-  max-width: 56px;
-  height: 36px;
+  height: 34px;
+  background: var(--key-bg, #3a3a3c);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  flex: 1 1 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: none;
-  border-radius: 5px;
-  background: var(--keybar-btn-bg, var(--surface, #2a2a3e));
-  color: var(--keybar-btn-fg, var(--text, #ccc));
-  font-size: 13px;
-  font-family: inherit;
   cursor: pointer;
-  transition: background 0.08s;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
   -webkit-tap-highlight-color: transparent;
+  font-family: inherit;
+  transition: background 0.08s;
 }
 
-.key:hover {
-  background: var(--keybar-btn-hover, #3a3a4e);
+.special {
+  background: var(--key-special-bg, #4a4a4c);
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.key:active,
+.modifier {
+  background: var(--key-special-bg, #4a4a4c);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.modifier.active {
+  background: var(--accent, #0078d4);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.2),
+    0 0 10px rgba(0, 120, 212, 0.5);
+}
+
+.iconBtn {
+  font-size: 16px;
+}
+
+.keyEnter {
+  background: var(--accent, #0078d4);
+  color: #fff;
+  font-size: 20px;
+}
+
+.keyDanger {
+  background: #5c2222;
+  color: #f87171;
+}
+
 .flash {
-  background: var(--keybar-btn-active, var(--accent, #4a9eff)) !important;
+  background: var(--accent, #0078d4) !important;
+  color: #fff !important;
+}
+
+/* Light theme overrides */
+:global([data-theme='light']) .touchBar {
+  background: #d1d3d9;
+}
+
+:global([data-theme='light']) .keyBtn {
+  background: #fff;
+  color: #000;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+}
+
+:global([data-theme='light']) .special,
+:global([data-theme='light']) .modifier {
+  background: #e8e8ea;
+  color: #000;
+}
+
+:global([data-theme='light']) .keyEnter {
+  background: var(--accent, #0078d4);
   color: #fff;
 }
 
-.active {
-  background: var(--accent, #4a9eff);
+:global([data-theme='light']) .keyDanger {
+  background: #fde8e8;
+  color: #dc2626;
+}
+
+:global([data-theme='solarized-light']) .touchBar {
+  background: #d1d3d9;
+}
+
+:global([data-theme='solarized-light']) .keyBtn {
+  background: #fff;
+  color: #000;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+}
+
+:global([data-theme='solarized-light']) .special,
+:global([data-theme='solarized-light']) .modifier {
+  background: #e8e8ea;
+  color: #000;
+}
+
+:global([data-theme='solarized-light']) .keyEnter {
+  background: var(--accent, #0078d4);
   color: #fff;
+}
+
+:global([data-theme='solarized-light']) .keyDanger {
+  background: #fde8e8;
+  color: #dc2626;
 }
