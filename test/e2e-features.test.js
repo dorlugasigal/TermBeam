@@ -27,6 +27,9 @@ const baseConfig = {
   reactUI: false,
 };
 
+let inst;
+let consoleErrors;
+
 test.beforeEach(async ({ page }) => {
   inst = createTermBeamServer({ config: { ...baseConfig } });
   await inst.start();
