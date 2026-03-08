@@ -405,6 +405,8 @@ test.describe('Key Bar — Modifier Keys', () => {
 // ─── Key Bar: Copy & Paste Buttons ──────────────────────────────────────────
 
 test.describe('Key Bar — Copy & Paste', () => {
+  test.use({ viewport: { width: 375, height: 667 } });
+
   test('Copy button opens overlay with terminal content', async ({ page }) => {
     await setupTerminal(page);
     // Run a command that produces known output
@@ -620,10 +622,12 @@ test.describe('Command Palette — Split View', () => {
 
     // Toggle split via palette
     await openPaletteAndClick(page, 'Split view');
-    const afterPanes = await page
-      .locator('[data-testid="terminal-pane"][data-visible="true"]')
-      .count();
-    expect(afterPanes).toBe(2);
+    await expect(async () => {
+      const afterPanes = await page
+        .locator('[data-testid="terminal-pane"][data-visible="true"]')
+        .count();
+      expect(afterPanes).toBe(2);
+    }).toPass({ timeout: 5_000 });
 
     // Verify working terminal
     const marker = `SPLIT_${Date.now()}`;

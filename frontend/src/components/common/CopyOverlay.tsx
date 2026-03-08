@@ -132,19 +132,19 @@ export default function CopyOverlay() {
       : `Copy Text (${totalLines} lines)`;
 
   return (
-    <div className={styles.overlay}>
+    <div className={styles.overlay} data-testid="select-overlay">
       <div className={styles.header}>
         <span className={styles.title}>{title}</span>
         <div className={styles.actions}>
           <button className={styles.btnPrimary} onClick={handleCopy}>
             {hasSelection ? 'Copy Selection' : 'Copy All'}
           </button>
-          <button className={styles.btnSecondary} onClick={handleClose}>
+          <button className={styles.btnSecondary} onClick={handleClose} data-testid="select-close">
             Done
           </button>
         </div>
       </div>
-      <div className={styles.content} ref={contentRef}>
+      <div className={styles.content} ref={contentRef} data-testid="select-content">
         {linesAbove > 0 && (
           <button className={styles.loadMoreBtn} onClick={handleLoadMore}>
             ▲ Load more ({linesAbove} lines above)

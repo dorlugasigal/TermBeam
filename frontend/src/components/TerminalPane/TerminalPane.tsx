@@ -11,10 +11,11 @@ import styles from './TerminalPane.module.css';
 interface TerminalPaneProps {
   sessionId: string;
   active: boolean;
+  visible?: boolean;
   fontSize?: number;
 }
 
-export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneProps) {
+export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: TerminalPaneProps) {
   const [exited, setExited] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const updateSession = useSessionStore((s) => s.updateSession);
@@ -270,7 +271,7 @@ export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneP
   const showReconnectOverlay = !connected && !exited && hadConnectedRef.current;
 
   return (
-    <div ref={paneRef} className={styles.pane} data-testid="terminal-pane" {...(active ? { 'data-visible': 'true' } : {})}>
+    <div ref={paneRef} className={styles.pane} data-testid="terminal-pane" {...((visible ?? active) ? { 'data-visible': 'true' } : {})}>
       <div ref={terminalRef} className={styles.terminalContainer} />
 
       {showScrollBtn && (

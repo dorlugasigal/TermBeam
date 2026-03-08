@@ -339,7 +339,7 @@ export function TerminalApp() {
                 if (!isActive) setActiveId(id);
               }}
             >
-              <TerminalPane sessionId={id} active={isActive} fontSize={fontSize} />
+              <TerminalPane sessionId={id} active={isActive} visible={isVisible} fontSize={fontSize} />
             </div>
           );
         })}
