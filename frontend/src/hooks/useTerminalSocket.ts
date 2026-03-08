@@ -68,6 +68,34 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
     if (!terminal || !sessionId) return;
     mountedRef.current = true;
 
+    // RAF-based write coalescer to batch rapid terminal output and reduce flicker
+    let writeBuffer = '';
+    let rafPending = false;
+
+    function flushWrites() {
+      if (writeBuffer && terminal) {
+        terminal.write(writeBuffer);
+        writeBuffer = '';
+      }
+      rafPending = false;
+    }
+
+    function scheduleWrite(data: string) {
+      writeBuffer += data;
+      if (!rafPending) {
+        rafPending = true;
+        requestAnimationFrame(() => {
+          // For large bursts, defer one extra frame to let the browser
+          // coalesce even more data before painting
+          if (writeBuffer.length > 512) {
+            requestAnimationFrame(flushWrites);
+          } else {
+            flushWrites();
+          }
+        });
+      }
+    }
+
     function connect() {
       if (!mountedRef.current) return;
 
@@ -111,7 +139,7 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
             break;
           }
           case 'output': {
-            terminal.write(msg.data);
+            scheduleWrite(msg.data);
             break;
           }
           case 'exit': {

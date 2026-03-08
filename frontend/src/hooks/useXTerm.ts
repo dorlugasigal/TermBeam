@@ -63,12 +63,19 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     if (mountedRef.current) return;
     mountedRef.current = true;
 
+    const FONT_FAMILY =
+      "'NerdFont', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Menlo', 'Consolas', monospace";
     const theme = getTerminalTheme(themeId);
     const term = new Terminal({
       cursorBlink: true,
-      fontFamily: 'monospace',
+      fontFamily: FONT_FAMILY,
       fontSize,
       scrollback: 10_000,
+      fontWeight: 'normal',
+      fontWeightBold: 'bold',
+      letterSpacing: 0,
+      lineHeight: 1.0,
+      allowProposedApi: true,
       theme,
     });
 
@@ -123,7 +130,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     font.load().then((f) => {
       document.fonts.add(f);
       if (termRef.current) {
-        termRef.current.options.fontFamily = "'NerdFont', monospace";
+        termRef.current.options.fontFamily = FONT_FAMILY;
         try {
           fitRef.current?.fit();
         } catch {
