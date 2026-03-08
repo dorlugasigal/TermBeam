@@ -116,14 +116,24 @@ export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneP
   // Track scroll position for scroll-to-bottom button
   useEffect(() => {
     if (!terminal) return;
+    const container = terminal.element;
 
-    const disposable = terminal.onScroll(() => {
+    const checkScroll = () => {
       const buf = terminal.buffer.active;
       const atBottom = buf.viewportY >= buf.baseY;
       setShowScrollBtn(!atBottom);
-    });
+    };
 
-    return () => disposable.dispose();
+    const disposable = terminal.onScroll(checkScroll);
+    // Also detect user-initiated scroll (wheel/touch) which may not fire onScroll
+    container?.addEventListener('wheel', checkScroll, { passive: true });
+    container?.addEventListener('touchmove', checkScroll, { passive: true });
+
+    return () => {
+      disposable.dispose();
+      container?.removeEventListener('wheel', checkScroll);
+      container?.removeEventListener('touchmove', checkScroll);
+    };
   }, [terminal]);
 
   // Update store with terminal/connection refs
