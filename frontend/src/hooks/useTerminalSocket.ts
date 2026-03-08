@@ -4,6 +4,7 @@ import { getWebSocketUrl } from '@/services/api';
 import { toast } from 'sonner';
 import type { WSServerMessage } from '@/types';
 import { useSessionStore } from '@/stores/sessionStore';
+import { playNotificationSound, isNotificationsEnabled } from '@/services/audio';
 
 export interface UseTerminalSocketOptions {
   sessionId: string;
@@ -148,6 +149,9 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
             const store = useSessionStore.getState();
             if (store.activeId !== sessionId) {
               store.markUnread(sessionId);
+              if (isNotificationsEnabled()) playNotificationSound();
+            } else if (document.hidden && isNotificationsEnabled()) {
+              playNotificationSound();
             }
             break;
           }

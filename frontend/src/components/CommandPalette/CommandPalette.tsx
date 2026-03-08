@@ -4,6 +4,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { deleteSession, renameSession, fetchVersion, getShareUrl } from '@/services/api';
+import { playNotificationSound, setNotificationsEnabled } from '@/services/audio';
 import { AboutModal } from '@/components/common/AboutModal';
 import ThemePanel from './ThemePanel';
 import styles from './CommandPalette.module.css';
@@ -157,7 +158,7 @@ export default function CommandPalette() {
   const close = useUIStore((s) => s.closeCommandPalette);
   const [showThemes, setShowThemes] = useState(false);
   const [notificationsOn, setNotificationsOn] = useState(
-    () => localStorage.getItem('termbeam-notifications') === 'true',
+    () => localStorage.getItem('termbeam-notifications') !== 'false',
   );
   const [aboutOpen, setAboutOpen] = useState(false);
   const [aboutVersion, setAboutVersion] = useState('');
@@ -243,22 +244,11 @@ export default function CommandPalette() {
   const handleNotifications = () => {
     const next = !notificationsOn;
     setNotificationsOn(next);
-    localStorage.setItem('termbeam-notifications', String(next));
+    setNotificationsEnabled(next);
     if (next) {
-      // Play a short test beep
-      try {
-        const ctx = new AudioContext();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.value = 440;
-        gain.gain.value = 0.15;
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.15);
-        osc.onended = () => ctx.close();
-      } catch {
-        // Web Audio not available
+      playNotificationSound();
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        Notification.requestPermission();
       }
     }
     toast(next ? 'Notifications enabled' : 'Notifications disabled');

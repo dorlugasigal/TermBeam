@@ -43,6 +43,11 @@ const ARROW_MAP: Record<string, string> = {
   '\x1b[D': 'D',
 };
 
+const HOME_END_MAP: Record<string, string> = {
+  '\x1bOH': 'H',
+  '\x1bOF': 'F',
+};
+
 function encodeArrowWithModifiers(arrowCode: string, ctrl: boolean, shift: boolean): string {
   const dir = ARROW_MAP[arrowCode];
   if (!dir) return arrowCode;
@@ -50,6 +55,15 @@ function encodeArrowWithModifiers(arrowCode: string, ctrl: boolean, shift: boole
   if (ctrl) return `\x1b[1;5${dir}`;
   if (shift) return `\x1b[1;2${dir}`;
   return arrowCode;
+}
+
+function encodeHomeEndWithModifiers(code: string, ctrl: boolean, shift: boolean): string {
+  const dir = HOME_END_MAP[code];
+  if (!dir) return code;
+  if (ctrl && shift) return `\x1b[1;6${dir}`;
+  if (ctrl) return `\x1b[1;5${dir}`;
+  if (shift) return `\x1b[1;2${dir}`;
+  return code;
 }
 
 function sendInput(data: string): void {
@@ -100,6 +114,11 @@ export default function TouchBar() {
       // Arrow keys with modifiers
       if (ARROW_MAP[def.data]) {
         return encodeArrowWithModifiers(def.data, ctrlActive, shiftActive);
+      }
+
+      // Home/End with modifiers
+      if (HOME_END_MAP[def.data]) {
+        return encodeHomeEndWithModifiers(def.data, ctrlActive, shiftActive);
       }
 
       return def.data;
