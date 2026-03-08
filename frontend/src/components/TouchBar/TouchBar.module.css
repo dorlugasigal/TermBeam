@@ -7,7 +7,7 @@
   height: calc(80px + env(safe-area-inset-bottom, 0px));
   padding: 6px 4px;
   padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
-  background: #1c1c1e;
+  background: var(--surface);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -26,9 +26,9 @@
 .keyBtn {
   min-width: 0;
   height: 34px;
-  background: var(--key-bg, #3a3a3c);
-  color: #fff;
-  border: none;
+  background: var(--key-bg);
+  color: var(--text);
+  border: 1px solid var(--key-border);
   border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
@@ -37,20 +37,20 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: 0 1px 0 var(--key-shadow);
   -webkit-tap-highlight-color: transparent;
   font-family: inherit;
   transition: background 0.08s;
 }
 
 .special {
-  background: var(--key-special-bg, #4a4a4c);
+  background: var(--key-special-bg);
   font-size: 12px;
   font-weight: 600;
 }
 
 .modifier {
-  background: var(--key-special-bg, #4a4a4c);
+  background: var(--key-special-bg);
   font-size: 12px;
   font-weight: 600;
 }
@@ -80,57 +80,4 @@
 .flash {
   background: var(--accent, #0078d4) !important;
   color: #fff !important;
-}
-
-/* Light theme overrides */
-:global([data-theme='light']) .touchBar {
-  background: #d1d3d9;
-}
-
-:global([data-theme='light']) .keyBtn {
-  background: #fff;
-  color: #000;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
-}
-
-:global([data-theme='light']) .special,
-:global([data-theme='light']) .modifier {
-  background: #e8e8ea;
-  color: #000;
-}
-
-:global([data-theme='light']) .keyEnter {
-  background: var(--accent, #0078d4);
-  color: #fff;
-}
-
-:global([data-theme='light']) .keyDanger {
-  background: #fde8e8;
-  color: #dc2626;
-}
-
-:global([data-theme='solarized-light']) .touchBar {
-  background: #d1d3d9;
-}
-
-:global([data-theme='solarized-light']) .keyBtn {
-  background: #fff;
-  color: #000;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
-}
-
-:global([data-theme='solarized-light']) .special,
-:global([data-theme='solarized-light']) .modifier {
-  background: #e8e8ea;
-  color: #000;
-}
-
-:global([data-theme='solarized-light']) .keyEnter {
-  background: var(--accent, #0078d4);
-  color: #fff;
-}
-
-:global([data-theme='solarized-light']) .keyDanger {
-  background: #fde8e8;
-  color: #dc2626;
 }

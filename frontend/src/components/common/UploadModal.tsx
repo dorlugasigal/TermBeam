@@ -20,10 +20,11 @@ export function UploadModal() {
   const close = useUIStore((s) => s.closeUploadModal);
   const activeId = useSessionStore((s) => s.activeId);
 
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [targetDir, setTargetDir] = useState('');
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [uploadIndex, setUploadIndex] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [showBrowser, setShowBrowser] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -37,10 +38,11 @@ export function UploadModal() {
   }, [open, activeId]);
 
   const reset = useCallback(() => {
-    setFile(null);
+    setFiles([]);
     setTargetDir('');
     setUploading(false);
     setProgress(0);
+    setUploadIndex(0);
     setDragOver(false);
     setShowBrowser(false);
   }, []);
@@ -50,53 +52,68 @@ export function UploadModal() {
     close();
   }, [reset, close]);
 
-  const handleFileSelect = useCallback(
-    (selected: File | null) => {
-      if (!selected) return;
-      if (selected.size > MAX_FILE_SIZE) {
-        toast.error(`File too large (${formatSize(selected.size)}). Max 10 MB.`);
-        return;
+  const handleFileSelect = useCallback((selectedFiles: FileList | null) => {
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    const valid: File[] = [];
+    let rejected = 0;
+    for (const f of Array.from(selectedFiles)) {
+      if (f.size > MAX_FILE_SIZE) {
+        toast.error(`"${f.name}" too large (${formatSize(f.size)}). Max 10 MB.`);
+        rejected++;
+      } else {
+        valid.push(f);
       }
-      setFile(selected);
-    },
-    [],
-  );
+    }
+    if (rejected > 0 && valid.length === 0) return;
+    setFiles(valid);
+  }, []);
 
   const handleDrop = useCallback(
     (e: DragEvent) => {
       e.preventDefault();
       setDragOver(false);
-      const dropped = e.dataTransfer.files[0];
-      handleFileSelect(dropped ?? null);
+      handleFileSelect(e.dataTransfer.files);
     },
     [handleFileSelect],
   );
 
   const handleUpload = useCallback(async () => {
-    if (!file || !activeId) return;
+    if (files.length === 0 || !activeId) return;
     setUploading(true);
     setProgress(0);
-    try {
-      const result = await uploadFile(activeId, file, targetDir || undefined, (pct) =>
-        setProgress(pct),
-      );
-      toast.success(`Uploaded to ${result.path}`);
-      handleClose();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Upload failed',
-      );
-    } finally {
-      setUploading(false);
+    setUploadIndex(0);
+    let uploaded = 0;
+    let failed = 0;
+    const dir = targetDir || undefined;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]!;
+      setUploadIndex(i);
+      setProgress(0);
+      try {
+        await uploadFile(activeId, file, dir, (pct) => setProgress(pct));
+        uploaded++;
+      } catch {
+        failed++;
+      }
     }
-  }, [file, activeId, targetDir, handleClose]);
+    setUploading(false);
+    if (uploaded > 0) {
+      toast.success(
+        `${uploaded} file(s) uploaded${dir ? ` to ${dir}` : ''}`,
+      );
+    }
+    if (failed > 0) {
+      toast.error(`${failed} file(s) failed to upload`);
+    }
+    if (uploaded > 0) handleClose();
+  }, [files, activeId, targetDir, handleClose]);
 
   return (
     <Dialog.Root open={open} onOpenChange={(v) => !v && handleClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className={styles.overlay} />
         <Dialog.Content className={styles.content}>
-          <Dialog.Title className={styles.title}>Upload File</Dialog.Title>
+          <Dialog.Title className={styles.title}>Upload Files</Dialog.Title>
           <button
             className={styles.close}
             onClick={handleClose}
@@ -116,21 +133,31 @@ export function UploadModal() {
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
           >
-            {file ? 'Click or drag to replace file' : 'Drop a file here or click to browse'}
+            {files.length > 0
+              ? 'Click or drag to replace files'
+              : 'Drop files here or click to browse'}
           </div>
 
           <input
             ref={fileInputRef}
             type="file"
+            multiple
             hidden
-            onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
+            onChange={(e) => {
+              handleFileSelect(e.target.files);
+              e.target.value = '';
+            }}
           />
 
-          {/* Selected file info */}
-          {file && (
-            <div className={styles.fileInfo}>
-              <span className={styles.fileName}>{file.name}</span>
-              <span className={styles.fileSize}>{formatSize(file.size)}</span>
+          {/* Selected file list */}
+          {files.length > 0 && (
+            <div className={styles.fileList}>
+              {files.map((f, i) => (
+                <div key={`${f.name}-${i}`} className={styles.fileInfo}>
+                  <span className={styles.fileName}>{f.name}</span>
+                  <span className={styles.fileSize}>{formatSize(f.size)}</span>
+                </div>
+              ))}
             </div>
           )}
 
@@ -138,7 +165,11 @@ export function UploadModal() {
           {uploading && (
             <div className={styles.progressWrapper}>
               <div className={styles.progressBar} style={{ width: `${progress}%` }} />
-              <span className={styles.progressLabel}>{progress}%</span>
+              <span className={styles.progressLabel}>
+                {files.length > 1
+                  ? `File ${uploadIndex + 1}/${files.length} — ${progress}%`
+                  : `${progress}%`}
+              </span>
             </div>
           )}
 
@@ -187,9 +218,13 @@ export function UploadModal() {
                 <button
                   className={styles.uploadBtn}
                   onClick={handleUpload}
-                  disabled={!file || !activeId || uploading}
+                  disabled={files.length === 0 || !activeId || uploading}
                 >
-                  {uploading ? 'Uploading…' : 'Upload'}
+                  {uploading
+                    ? 'Uploading…'
+                    : files.length > 1
+                      ? `Upload ${files.length} Files`
+                      : 'Upload'}
                 </button>
               </div>
             </>

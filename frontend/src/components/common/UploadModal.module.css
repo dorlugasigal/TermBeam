@@ -48,8 +48,16 @@
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
-.fileInfo {
+.fileList {
   margin-top: 12px;
+  max-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fileInfo {
   padding: 8px 12px;
   background: var(--bg);
   border-radius: 6px;

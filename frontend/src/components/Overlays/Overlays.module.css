@@ -95,7 +95,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 10px;
   background: var(--surface, #1e1e2e);
   border-bottom: 1px solid var(--border, #333);
 }
@@ -103,7 +103,7 @@
 .selectContent {
   flex: 1;
   overflow: auto;
-  padding: 16px;
+  padding: 16px 16px calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
 .loadMoreBtn {
@@ -129,8 +129,8 @@
   font-family: 'Cascadia Code', 'Fira Code', monospace;
   font-size: 13px;
   color: var(--text, #ccc);
-  white-space: pre-wrap;
-  word-break: break-all;
+  white-space: pre;
+  word-break: normal;
   user-select: text;
   -webkit-user-select: text;
 }

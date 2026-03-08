@@ -44,8 +44,9 @@ export default function CopyOverlay() {
     const buffer = ms.term.buffer.active;
     const lines: string[] = [];
     for (let i = loadedFrom; i < buffer.length; i++) {
-      lines.push(buffer.getLine(i)?.translateToString() ?? '');
+      lines.push(buffer.getLine(i)?.translateToString(true) ?? '');
     }
+    while (lines.length > 0 && lines[lines.length - 1]!.trim() === '') lines.pop();
     return lines.join('\n');
   }, [open, activeId, sessions, loadedFrom]);
 
@@ -113,6 +114,16 @@ export default function CopyOverlay() {
     }
   }, [closeCopyOverlay, activeId]);
 
+  // Close on Escape key
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, handleClose]);
+
   if (!open) return null;
 
   const title =
@@ -129,7 +140,7 @@ export default function CopyOverlay() {
             {hasSelection ? 'Copy Selection' : 'Copy All'}
           </button>
           <button className={styles.btnSecondary} onClick={handleClose}>
-            Close
+            Done
           </button>
         </div>
       </div>

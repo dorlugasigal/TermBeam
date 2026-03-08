@@ -34,8 +34,9 @@ export default function SelectOverlay() {
     const buffer = ms.term.buffer.active;
     const lines: string[] = [];
     for (let i = loadedFrom; i < buffer.length; i++) {
-      lines.push(buffer.getLine(i)?.translateToString() ?? '');
+      lines.push(buffer.getLine(i)?.translateToString(true) ?? '');
     }
+    while (lines.length > 0 && lines[lines.length - 1]!.trim() === '') lines.pop();
     return lines.join('\n');
   }, [active, activeId, sessions, loadedFrom]);
 
@@ -103,7 +104,7 @@ export default function SelectOverlay() {
             Copy
           </button>
           <button className={styles.btnSecondary} onClick={handleClose}>
-            Close
+            Done
           </button>
         </div>
       </div>

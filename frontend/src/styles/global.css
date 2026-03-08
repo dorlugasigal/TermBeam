@@ -19,6 +19,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.3s,
+    color 0.3s;
 }
 
 #root {
@@ -76,4 +79,9 @@ textarea:focus {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--border-subtle);
+}
+
+/* Ensure toast notifications render above all overlays */
+[data-sonner-toaster] {
+  z-index: 9999 !important;
 }
