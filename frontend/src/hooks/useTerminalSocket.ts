@@ -137,6 +137,10 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
             if (msg.scrollback) {
               terminal.write(stripOscSequences(msg.scrollback));
             }
+            // Send current dimensions so the PTY adjusts to this client's viewport
+            if (terminal.cols && terminal.rows) {
+              ws.send(JSON.stringify({ type: 'resize', cols: terminal.cols, rows: terminal.rows }));
+            }
             break;
           }
           case 'output': {
