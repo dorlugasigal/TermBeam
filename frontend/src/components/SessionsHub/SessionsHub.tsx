@@ -101,7 +101,8 @@ export default function SessionsHub() {
   }, []);
 
   function navigateToSession(id: string) {
-    window.location.href = `/terminal?id=${id}`;
+    window.history.pushState(null, '', `/terminal?id=${id}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   }
 
   async function handleDelete(id: string) {
