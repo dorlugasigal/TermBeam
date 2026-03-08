@@ -215,7 +215,13 @@ export default function TouchBar() {
 
       flash(def.label);
       sendInput(data);
-      refocusTerminal();
+
+      // Only refocus on desktop (precise pointer) — on touch devices,
+      // refocusing opens the virtual keyboard which is disruptive when
+      // the user is explicitly using the touch bar for input.
+      if (window.matchMedia?.('(pointer: fine)')?.matches) {
+        refocusTerminal();
+      }
 
       // Deactivate sticky modifiers after key press
       if (ctrlActive) setCtrlActive(false);

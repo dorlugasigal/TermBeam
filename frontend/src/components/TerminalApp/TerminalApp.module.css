@@ -7,7 +7,7 @@
   background: var(--bg);
   color: var(--text);
   overscroll-behavior: none;
-  touch-action: none;
+  touch-action: pan-y;
 }
 
 /* ── Top bar ── */

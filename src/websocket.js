@@ -220,7 +220,7 @@ function setupWebSocket(wss, { auth, sessions }) {
                 const targetCols = attached._lastCols || cols;
                 const targetRows = attached._lastRows || rows;
                 try {
-                  const small = Math.max(1, targetCols - 1);
+                  const small = Math.min(500, targetCols === 1 ? 2 : targetCols - 1);
                   attached.pty.resize(small, targetRows);
                   attached._lastCols = small;
                 } catch {
@@ -256,6 +256,8 @@ function setupWebSocket(wss, { auth, sessions }) {
         if (attached._resizeBounceTimer) {
           clearTimeout(attached._resizeBounceTimer);
           attached._resizeBounceTimer = null;
+          // Restore PTY to correct size since the bounce was interrupted
+          recalcPtySize(attached);
         }
         attached.clients.delete(ws);
         recalcPtySize(attached);

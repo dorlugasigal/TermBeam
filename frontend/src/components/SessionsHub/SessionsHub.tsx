@@ -136,7 +136,7 @@ export default function SessionsHub() {
     });
   }
 
-  function handleCycleTheme() {
+  function handleToggleThemePicker() {
     setShowThemePicker((v) => !v);
   }
 
@@ -188,7 +188,7 @@ export default function SessionsHub() {
         </button>
         <button
           className={`${styles.headerBtn} ${styles.themeBtn}`}
-          onClick={handleCycleTheme}
+          onClick={handleToggleThemePicker}
           aria-label="Change theme"
           title="Change theme"
           ref={themeBtnRef}

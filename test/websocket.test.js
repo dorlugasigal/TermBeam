@@ -393,7 +393,6 @@ describe('WebSocket', () => {
       ws._simulateMessage({ type: 'attach', sessionId: 's1' });
 
       // Alt-screen enter should come AFTER scrollback replay
-      const sentTypes = ws._sent.map((m) => m.type + ':' + (m.data || '').substring(0, 10));
       const replayIdx = ws._sent.findIndex((m) => m.type === 'output' && m.data !== '\x1b[?1049h');
       const altIdx = ws._sent.findIndex((m) => m.type === 'output' && m.data === '\x1b[?1049h');
       assert.ok(altIdx > replayIdx, 'alt-screen enter should come after replay');
