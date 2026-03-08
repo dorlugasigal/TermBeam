@@ -6,8 +6,26 @@ const ACTIVE_THRESHOLD = 60000; // 60 seconds
 // on replay: color queries trigger xterm.js to generate responses that echo
 // through the PTY as visible text, accumulating on each refresh.
 const OSC_COLOR_RE = /\x1b\](?:4;\d+|10|11|12);[^\x07\x1b]*(?:\x07|\x1b\\)/g;
+
+// Alternate screen buffer sequences (DECSET/DECRST 1049, 1047, 47) cause
+// screen wipes on replay: entering alt screen hides the normal buffer content
+// and re-entering on replay makes the terminal appear blank/wiped.
+// Matched enter+exit pairs are stripped along with their content (the alt
+// screen output is no longer relevant after the program exits).
+// Unmatched enters/exits are stripped as bare sequences.
+const ALT_SCREEN_PAIR_RE = /\x1b\[\?(?:1049|1047|47)h[\s\S]*?\x1b\[\?(?:1049|1047|47)l/g;
+const ALT_SCREEN_BARE_RE = /\x1b\[\?(?:1049|1047|47)[hl]/g;
+
+// Clear-scrollback (ESC[3J) is destructive on replay — it would wipe
+// the xterm.js scrollback that the user might want to scroll through.
+const CLEAR_SCROLLBACK_RE = /\x1b\[3J/g;
+
 function sanitizeForReplay(buf) {
-  return buf.replace(OSC_COLOR_RE, '');
+  buf = buf.replace(OSC_COLOR_RE, '');
+  buf = buf.replace(ALT_SCREEN_PAIR_RE, '');
+  buf = buf.replace(ALT_SCREEN_BARE_RE, '');
+  buf = buf.replace(CLEAR_SCROLLBACK_RE, '');
+  return buf;
 }
 
 function recalcPtySize(session) {
