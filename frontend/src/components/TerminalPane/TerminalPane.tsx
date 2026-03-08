@@ -36,6 +36,19 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   );
 
   const handleData = useCallback((data: string) => {
+    // Apply touch bar Ctrl modifier to virtual keyboard input.
+    // When Ctrl is toggled on, convert single printable characters to
+    // their control-character equivalents (e.g. 'o' → Ctrl+O = 0x0f).
+    const { touchCtrlActive, setTouchCtrl } = useUIStore.getState();
+    if (touchCtrlActive && data.length === 1) {
+      const code = data.toLowerCase().charCodeAt(0);
+      if (code >= 0x61 && code <= 0x7a) {
+        // a-z → 0x01-0x1a
+        sendRef.current(String.fromCharCode(code - 0x60));
+        setTouchCtrl(false);
+        return;
+      }
+    }
     sendRef.current(data);
   }, []);
 
@@ -83,8 +96,9 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
             }, delay),
           );
         }
-        // Also focus on first refresh
+        // Focus terminal after connection — use multiple delays for mobile reliability
         timers.push(setTimeout(() => terminal.focus(), 50));
+        timers.push(setTimeout(() => terminal.focus(), 300));
         return () => timers.forEach(clearTimeout);
       }
     }
@@ -121,6 +135,22 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     }
   }, [active, terminal, fit]);
 
+  // Refocus terminal when overlays close (command palette, search bar, etc.)
+  const commandPaletteOpen = useUIStore((s) => s.commandPaletteOpen);
+  const searchBarOpen = useUIStore((s) => s.searchBarOpen);
+  const sidePanelOpen = useUIStore((s) => s.sidePanelOpen);
+  const copyOverlayOpen = useUIStore((s) => s.copyOverlayOpen);
+  const anyOverlayOpen = commandPaletteOpen || searchBarOpen || sidePanelOpen || copyOverlayOpen;
+  const prevOverlayRef = useRef(anyOverlayOpen);
+
+  useEffect(() => {
+    if (prevOverlayRef.current && !anyOverlayOpen && active && terminal) {
+      // An overlay just closed — refocus terminal
+      requestAnimationFrame(() => terminal.focus());
+    }
+    prevOverlayRef.current = anyOverlayOpen;
+  }, [anyOverlayOpen, active, terminal]);
+
   // Track scroll position for scroll-to-bottom button.
   // Throttle to avoid excessive React re-renders during rapid output.
   const wasAtBottomRef = useRef(true);
@@ -146,10 +176,15 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     container?.addEventListener('wheel', checkScroll, { passive: true });
     container?.addEventListener('touchmove', checkScroll, { passive: true });
 
-    // Auto-scroll to bottom when new data arrives and user was already at bottom
+    // Auto-scroll to bottom when new data arrives and user was already at bottom,
+    // but only if the viewport actually needs to scroll (avoids redundant re-renders
+    // that disrupt ghost text / inline suggestions)
     const writeDisposable = terminal.onWriteParsed(() => {
       if (wasAtBottomRef.current) {
-        terminal.scrollToBottom();
+        const buf = terminal.buffer.active;
+        if (buf.viewportY < buf.baseY) {
+          terminal.scrollToBottom();
+        }
       }
     });
 
@@ -286,10 +321,14 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     reconnect();
   }, [terminal, reconnect]);
 
+  const handlePaneClick = useCallback(() => {
+    terminal?.focus();
+  }, [terminal]);
+
   const showReconnectOverlay = !connected && !exited && hadConnectedRef.current;
 
   return (
-    <div ref={paneRef} className={styles.pane} data-testid="terminal-pane" {...((visible ?? active) ? { 'data-visible': 'true' } : {})}>
+    <div ref={paneRef} className={styles.pane} data-testid="terminal-pane" onClick={handlePaneClick} {...((visible ?? active) ? { 'data-visible': 'true' } : {})}>
       <div ref={terminalRef} className={styles.terminalContainer} />
 
       {showScrollBtn && (

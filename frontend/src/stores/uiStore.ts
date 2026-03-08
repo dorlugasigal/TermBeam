@@ -28,6 +28,8 @@ interface UIState {
   selectModeActive: boolean;
   copyOverlayOpen: boolean;
   fontSize: number;
+  touchCtrlActive: boolean;
+  touchShiftActive: boolean;
 
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
@@ -46,6 +48,8 @@ interface UIState {
   openCopyOverlay: () => void;
   closeCopyOverlay: () => void;
   setFontSize: (size: number) => void;
+  setTouchCtrl: (active: boolean) => void;
+  setTouchShift: (active: boolean) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -58,6 +62,8 @@ export const useUIStore = create<UIState>((set) => ({
   selectModeActive: false,
   copyOverlayOpen: false,
   fontSize: loadFontSize(),
+  touchCtrlActive: false,
+  touchShiftActive: false,
 
   openCommandPalette: () => set({ commandPaletteOpen: true }),
   closeCommandPalette: () => set({ commandPaletteOpen: false }),
@@ -84,4 +90,6 @@ export const useUIStore = create<UIState>((set) => ({
     }
     set({ fontSize: clamped });
   },
+  setTouchCtrl: (active) => set({ touchCtrlActive: active }),
+  setTouchShift: (active) => set({ touchShiftActive: active }),
 }));

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -87,9 +87,11 @@ function refocusTerminal(): void {
 const SWIPE_THRESHOLD = 10;
 
 export default function TouchBar() {
-  const [ctrlActive, setCtrlActive] = useState(false);
-  const [shiftActive, setShiftActive] = useState(false);
-  const [flashKey, setFlashKey] = useState<string | null>(null);
+  const ctrlActive = useUIStore((s) => s.touchCtrlActive);
+  const shiftActive = useUIStore((s) => s.touchShiftActive);
+  const setCtrlActive = useUIStore((s) => s.setTouchCtrl);
+  const setShiftActive = useUIStore((s) => s.setTouchShift);
+  const [flashKey, setFlashKey] = React.useState<string | null>(null);
   const repeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -186,7 +188,7 @@ export default function TouchBar() {
   }, []);
 
   const handlePress = useCallback(
-    (def: KeyDef, fromTouch = false) => {
+    (def: KeyDef) => {
       if (def.action === 'copy') {
         flash(def.label);
         handleCopy();
@@ -200,11 +202,11 @@ export default function TouchBar() {
 
       // Toggle modifiers
       if (def.modifier === 'ctrl') {
-        setCtrlActive((v) => !v);
+        setCtrlActive(!ctrlActive);
         return;
       }
       if (def.modifier === 'shift') {
-        setShiftActive((v) => !v);
+        setShiftActive(!shiftActive);
         return;
       }
 
@@ -218,8 +220,8 @@ export default function TouchBar() {
       if (ctrlActive) setCtrlActive(false);
       if (shiftActive) setShiftActive(false);
 
-      // Only refocus on mouse (desktop) — on touch, refocusing opens the virtual keyboard
-      if (!fromTouch) refocusTerminal();
+      // Always refocus so virtual keyboard input goes to xterm.js
+      refocusTerminal();
     },
     [resolveKeyData, flash, ctrlActive, shiftActive, handleCopy, handlePaste],
   );
@@ -278,7 +280,7 @@ export default function TouchBar() {
         if (dx > SWIPE_THRESHOLD || dy > SWIPE_THRESHOLD) return;
       }
 
-      handlePress(def, true);
+      handlePress(def);
     },
     [handlePress],
   );
