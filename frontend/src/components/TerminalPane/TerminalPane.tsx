@@ -318,6 +318,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
 
   const handleReconnect = useCallback(() => {
     terminal?.clear();
+    terminal?.focus();
     reconnect();
   }, [terminal, reconnect]);
 
@@ -328,7 +329,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   const showReconnectOverlay = !connected && !exited && hadConnectedRef.current;
 
   return (
-    <div ref={paneRef} className={styles.pane} data-testid="terminal-pane" onClick={handlePaneClick} {...((visible ?? active) ? { 'data-visible': 'true' } : {})}>
+    <div ref={paneRef} className={styles.pane} data-testid="terminal-pane" onClick={handlePaneClick} onTouchStart={handlePaneClick} {...((visible ?? active) ? { 'data-visible': 'true' } : {})}>
       <div ref={terminalRef} className={styles.terminalContainer} />
 
       {showScrollBtn && (

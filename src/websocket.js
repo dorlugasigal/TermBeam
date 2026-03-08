@@ -219,7 +219,12 @@ function setupWebSocket(wss, { auth, sessions }) {
                 } catch {
                   // ignore — PTY may have exited
                 }
-                setTimeout(() => {
+                // Cancel any prior bounce timer to avoid stale restores
+                if (attached._resizeBounceTimer) {
+                  clearTimeout(attached._resizeBounceTimer);
+                }
+                attached._resizeBounceTimer = setTimeout(() => {
+                  attached._resizeBounceTimer = null;
                   try {
                     attached.pty.resize(targetCols, targetRows);
                     attached._lastCols = targetCols;
@@ -241,6 +246,10 @@ function setupWebSocket(wss, { auth, sessions }) {
     ws.on('close', () => {
       clearInterval(pingInterval);
       if (attached) {
+        if (attached._resizeBounceTimer) {
+          clearTimeout(attached._resizeBounceTimer);
+          attached._resizeBounceTimer = null;
+        }
         attached.clients.delete(ws);
         recalcPtySize(attached);
         log.info('Client detached');
