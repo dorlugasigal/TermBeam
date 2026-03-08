@@ -9,7 +9,7 @@ import './styles/animations.css';
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />
-    <Toaster position="bottom-center" richColors />
+    <Toaster position="top-center" richColors />
   </React.StrictMode>,
 );
 
