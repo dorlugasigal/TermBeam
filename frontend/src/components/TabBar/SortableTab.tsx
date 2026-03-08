@@ -64,6 +64,10 @@ export function SortableTab({
       <span className={styles.tabName}>{session.name}</span>
       {!isActive && session.hasUnread && <span className={styles.unreadDot} />}
       {activity && <span className={styles.tabActivity}>{activity}</span>}
+      <span
+        className={styles.statusDot}
+        style={{ background: session.exited ? 'var(--danger)' : session.connected ? 'var(--success)' : 'var(--text-muted)' }}
+      />
       <button
         className={styles.closeBtn}
         onClick={(e) => {

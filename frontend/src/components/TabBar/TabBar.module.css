@@ -28,8 +28,13 @@
 }
 
 @media (max-width: 640px) {
-  .tabBar,
-  .tabBarInline {
+  .tabBar {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .addBtnLabel {
     display: none;
   }
 }
@@ -131,20 +136,22 @@
 }
 
 .closeBtn:hover {
-  background: var(--danger);
-  color: #fff;
+  color: var(--danger);
+  background: transparent;
 }
 
 .addBtn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  gap: 4px;
+  padding: 0 10px;
   height: 28px;
   border-radius: 6px;
-  font-size: 18px;
+  font-size: 13px;
   color: var(--text-dim);
   flex-shrink: 0;
+  white-space: nowrap;
   transition:
     background 0.15s,
     color 0.15s;
@@ -153,6 +160,14 @@
 .addBtn:hover {
   background: var(--bg);
   color: var(--text);
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-left: 4px;
 }
 
 .unreadDot {
