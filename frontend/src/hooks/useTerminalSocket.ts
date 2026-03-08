@@ -4,7 +4,11 @@ import { getWebSocketUrl } from '@/services/api';
 import { toast } from 'sonner';
 import type { WSServerMessage } from '@/types';
 import { useSessionStore } from '@/stores/sessionStore';
-import { playNotificationSound, isNotificationsEnabled } from '@/services/audio';
+import {
+  playNotificationSound,
+  isNotificationsEnabled,
+  sendCommandNotification,
+} from '@/services/audio';
 
 export interface UseTerminalSocketOptions {
   sessionId: string;
@@ -24,11 +28,26 @@ export interface UseTerminalSocketReturn {
 const INITIAL_RECONNECT_DELAY = 3000;
 const MAX_RECONNECT_DELAY = 30_000;
 const KEEPALIVE_INTERVAL = 30_000;
+const SILENCE_TIMEOUT = 3000;
+
+// Original document title, saved once for title-bullet indicator
+const originalTitle = document.title;
+
+// Silence timers for command-completion notifications (sessionId → timeout)
+const silenceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 // Strip OSC 4/10/11/12 sequences that can cause display issues
 function stripOscSequences(data: string): string {
   return data.replace(/\x1b\](?:4|10|11|12);[^\x07\x1b]*(?:\x07|\x1b\\)/g, '');
 }
+
+// Restore document title when the page becomes visible
+function handleVisibilityChange() {
+  if (!document.hidden) {
+    document.title = originalTitle;
+  }
+}
+document.addEventListener('visibilitychange', handleVisibilityChange);
 
 export function useTerminalSocket(options: UseTerminalSocketOptions): UseTerminalSocketReturn {
   const { sessionId, terminal, onExit, onConnected } = options;
@@ -128,6 +147,11 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
         try {
           msg = JSON.parse(event.data as string) as WSServerMessage;
         } catch {
+          // Write raw non-JSON data to terminal as fallback (matches old UI behavior)
+          const rawData = event.data;
+          if (typeof rawData === 'string' && rawData.length > 0) {
+            scheduleWrite(rawData);
+          }
           return;
         }
 
@@ -147,11 +171,37 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
           case 'output': {
             scheduleWrite(msg.data);
             const store = useSessionStore.getState();
+            const session = store.sessions.get(sessionId);
+
+            // Sound: only play when transitioning from read → unread
             if (store.activeId !== sessionId) {
+              const wasAlreadyUnread = session?.hasUnread ?? false;
               store.markUnread(sessionId);
-              if (isNotificationsEnabled()) playNotificationSound();
-            } else if (document.hidden && isNotificationsEnabled()) {
-              playNotificationSound();
+              if (!wasAlreadyUnread && isNotificationsEnabled()) {
+                playNotificationSound();
+              }
+            }
+
+            // Title bullet indicator when page is hidden
+            if (document.hidden && isNotificationsEnabled()) {
+              if (!document.title.startsWith('(\u25CF) ')) {
+                document.title = '(\u25CF) ' + originalTitle;
+              }
+            }
+
+            // 3s silence timer for command-completion desktop notification
+            if (isNotificationsEnabled()) {
+              const existing = silenceTimers.get(sessionId);
+              if (existing) clearTimeout(existing);
+              silenceTimers.set(
+                sessionId,
+                setTimeout(() => {
+                  silenceTimers.delete(sessionId);
+                  if (document.hidden) {
+                    sendCommandNotification(session?.name ?? sessionId);
+                  }
+                }, SILENCE_TIMEOUT),
+              );
             }
             break;
           }
@@ -205,6 +255,12 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
     return () => {
       mountedRef.current = false;
       clearTimers();
+      // Clean up silence timer for this session
+      const timer = silenceTimers.get(sessionId);
+      if (timer) {
+        clearTimeout(timer);
+        silenceTimers.delete(sessionId);
+      }
       const ws = wsRef.current;
       if (ws) {
         ws.onclose = null;
