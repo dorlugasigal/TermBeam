@@ -203,7 +203,7 @@ export default function CommandPalette() {
     return (
       <>
         <div className={styles.themeBackdrop} onClick={() => { close(); setShowThemes(false); }} />
-        <div className={styles.themeFloating}>
+        <div className={styles.themeFloating} data-testid="theme-subpanel" data-open="true">
           <div className={styles.header}>
             <button className={styles.closeBtn} onClick={() => setShowThemes(false)}>
               ←
