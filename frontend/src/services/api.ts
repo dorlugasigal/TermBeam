@@ -76,37 +76,71 @@ export async function browseDirectory(dir: string): Promise<BrowseDirsResponse> 
   return handleResponse<BrowseDirsResponse>(res);
 }
 
-export async function uploadFile(
+/** Upload with XHR for progress tracking */
+function xhrUpload(
+  url: string,
+  body: Blob,
+  headers: Record<string, string>,
+  onProgress?: (pct: number) => void,
+): Promise<{ path: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    for (const [k, v] of Object.entries(headers)) {
+      xhr.setRequestHeader(k, v);
+    }
+    xhr.withCredentials = true;
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch {
+          reject(new Error('Invalid response'));
+        }
+      } else {
+        try {
+          const body = JSON.parse(xhr.responseText);
+          reject(new Error(body.error || `Upload failed (${xhr.status})`));
+        } catch {
+          reject(new Error(`Upload failed (${xhr.status})`));
+        }
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.send(body);
+  });
+}
+
+export function uploadFile(
   sessionId: string,
   file: File,
   targetDir?: string,
+  onProgress?: (pct: number) => void,
 ): Promise<{ path: string }> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/octet-stream',
     'X-Filename': file.name,
   };
   if (targetDir) headers['X-Target-Dir'] = targetDir;
-
-  const res = await fetch(`${BASE}/api/sessions/${sessionId}/upload`, {
-    method: 'POST',
-    headers,
-    body: file,
-  });
-  return handleResponse<{ path: string }>(res);
+  return xhrUpload(`${BASE}/api/sessions/${sessionId}/upload`, file, headers, onProgress);
 }
 
-export async function uploadImage(
+export function uploadImage(
   blob: Blob,
   contentType: string,
+  onProgress?: (pct: number) => void,
 ): Promise<{ path: string }> {
-  const res = await fetch(`${BASE}/api/upload`, {
-    method: 'POST',
-    headers: { 'Content-Type': contentType },
-    body: blob,
-    credentials: 'same-origin',
-  });
-  if (!res.ok) throw new Error('Upload failed');
-  return res.json() as Promise<{ path: string }>;
+  return xhrUpload(
+    `${BASE}/api/upload`,
+    blob,
+    { 'Content-Type': contentType },
+    onProgress,
+  );
 }
 
 export async function checkAuth(): Promise<{ authenticated: boolean }> {

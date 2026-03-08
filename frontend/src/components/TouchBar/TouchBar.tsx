@@ -146,15 +146,17 @@ export default function TouchBar() {
           const imageType = item.types.find((t: string) => t.startsWith('image/'));
           if (imageType) {
             const blob = await item.getType(imageType);
-            const uploadPromise = uploadImage(blob, imageType).then((data) => {
-              if (data.path) sendInput(data.path + ' ');
-              return data;
-            });
-            toast.promise(uploadPromise, {
-              loading: 'Uploading image...',
-              success: 'Image uploaded',
-              error: 'Image upload failed',
-            });
+            const toastId = toast.loading('Uploading image... 0%');
+            uploadImage(blob, imageType, (pct) => {
+              toast.loading(`Uploading image... ${pct}%`, { id: toastId });
+            })
+              .then((data) => {
+                if (data.path) sendInput(data.path + ' ');
+                toast.success('Image uploaded', { id: toastId });
+              })
+              .catch(() => {
+                toast.error('Image upload failed', { id: toastId });
+              });
             return;
           }
         }

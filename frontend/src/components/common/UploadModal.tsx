@@ -23,6 +23,7 @@ export function UploadModal() {
   const [file, setFile] = useState<File | null>(null);
   const [targetDir, setTargetDir] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [showBrowser, setShowBrowser] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -39,6 +40,7 @@ export function UploadModal() {
     setFile(null);
     setTargetDir('');
     setUploading(false);
+    setProgress(0);
     setDragOver(false);
     setShowBrowser(false);
   }, []);
@@ -73,8 +75,11 @@ export function UploadModal() {
   const handleUpload = useCallback(async () => {
     if (!file || !activeId) return;
     setUploading(true);
+    setProgress(0);
     try {
-      const result = await uploadFile(activeId, file, targetDir || undefined);
+      const result = await uploadFile(activeId, file, targetDir || undefined, (pct) =>
+        setProgress(pct),
+      );
       toast.success(`Uploaded to ${result.path}`);
       handleClose();
     } catch (err) {
@@ -126,6 +131,14 @@ export function UploadModal() {
             <div className={styles.fileInfo}>
               <span className={styles.fileName}>{file.name}</span>
               <span className={styles.fileSize}>{formatSize(file.size)}</span>
+            </div>
+          )}
+
+          {/* Progress bar */}
+          {uploading && (
+            <div className={styles.progressWrapper}>
+              <div className={styles.progressBar} style={{ width: `${progress}%` }} />
+              <span className={styles.progressLabel}>{progress}%</span>
             </div>
           )}
 
