@@ -48,7 +48,7 @@ export default function LoginPage({ onLogin, loading }: LoginPageProps) {
             autoComplete="current-password"
           />
           <button className={styles.button} type="submit" disabled={loading || !password.trim()}>
-            {loading ? 'Signing in…' : 'Sign In'}
+            {loading ? 'Unlocking…' : 'Unlock'}
           </button>
         </form>
 

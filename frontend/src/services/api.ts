@@ -11,7 +11,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 export async function fetchSessions(): Promise<Session[]> {
-  const res = await fetch(`${BASE}/api/sessions`);
+  const res = await fetch(`${BASE}/api/sessions`, { credentials: 'same-origin' });
   return handleResponse<Session[]>(res);
 }
 
@@ -22,12 +22,13 @@ export async function createSession(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
+    credentials: 'same-origin',
   });
   return handleResponse<Session>(res);
 }
 
 export async function deleteSession(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/api/sessions/${id}`, { method: 'DELETE' });
+  const res = await fetch(`${BASE}/api/sessions/${id}`, { method: 'DELETE', credentials: 'same-origin' });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(text || `HTTP ${res.status}`);
@@ -39,6 +40,7 @@ export async function renameSession(id: string, name: string): Promise<void> {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),
+    credentials: 'same-origin',
   });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
@@ -59,7 +61,7 @@ interface ShellsResponse {
 }
 
 export async function fetchShells(): Promise<{ shells: ShellInfo[]; defaultShell: string; cwd: string }> {
-  const res = await fetch(`${BASE}/api/shells`);
+  const res = await fetch(`${BASE}/api/shells`, { credentials: 'same-origin' });
   const data = await handleResponse<ShellsResponse>(res);
   return { shells: data.shells, defaultShell: data.default, cwd: data.cwd };
 }
@@ -72,7 +74,7 @@ export interface BrowseDirsResponse {
 export async function browseDirectory(dir: string): Promise<BrowseDirsResponse> {
   // Trailing slash tells backend to list contents (not prefix-filter)
   const q = dir.endsWith('/') || dir.endsWith('\\') ? dir : dir + '/';
-  const res = await fetch(`${BASE}/api/dirs?q=${encodeURIComponent(q)}`);
+  const res = await fetch(`${BASE}/api/dirs?q=${encodeURIComponent(q)}`, { credentials: 'same-origin' });
   return handleResponse<BrowseDirsResponse>(res);
 }
 
@@ -145,7 +147,7 @@ export function uploadImage(
 
 export async function checkAuth(): Promise<{ authenticated: boolean }> {
   try {
-    const res = await fetch(`${BASE}/api/sessions`);
+    const res = await fetch(`${BASE}/api/sessions`, { credentials: 'same-origin' });
     if (res.status === 401) return { authenticated: false };
     // 429 (rate limited) or 200 OK means the server is running and we're not blocked by auth
     return { authenticated: true };
@@ -159,6 +161,7 @@ export async function login(password: string): Promise<{ success: boolean }> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password }),
+    credentials: 'same-origin',
   });
   if (res.status === 429) {
     throw new Error('Too many attempts. Try again later.');
@@ -177,7 +180,7 @@ export async function checkUpdate(force = false): Promise<{
   latest: string;
 } | null> {
   try {
-    const res = await fetch(`${BASE}/api/update-check${force ? '?force=true' : ''}`);
+    const res = await fetch(`${BASE}/api/update-check${force ? '?force=true' : ''}`, { credentials: 'same-origin' });
     if (!res.ok) return null;
     return res.json();
   } catch {
@@ -201,7 +204,7 @@ export function getWebSocketUrl(): string {
 }
 
 export function getShareUrl(): Promise<string> {
-  return fetch(`${BASE}/api/share-token`)
+  return fetch(`${BASE}/api/share-token`, { credentials: 'same-origin' })
     .then((res) => (res.ok ? res.json() : null))
     .then((data) => {
       if (!data?.url) return window.location.href;
