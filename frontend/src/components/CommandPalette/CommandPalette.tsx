@@ -3,10 +3,10 @@ import { toast } from 'sonner';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { THEMES, type ThemeId } from '@/themes/terminalThemes';
 import { deleteSession, renameSession, fetchVersion, getShareUrl } from '@/services/api';
 import { playNotificationSound, setNotificationsEnabled } from '@/services/audio';
 import { AboutModal } from '@/components/common/AboutModal';
-import ThemePanel from './ThemePanel';
 import styles from './CommandPalette.module.css';
 
 /* ---------- inline SVG icons (16×16, stroke-based) ---------- */
@@ -164,6 +164,7 @@ export default function CommandPalette() {
   const [aboutVersion, setAboutVersion] = useState('');
 
   const themeId = useThemeStore((s) => s.themeId);
+  const setTheme = useThemeStore((s) => s.setTheme);
   const themeName = themeId.charAt(0).toUpperCase() + themeId.slice(1);
 
   // Animate open: render always, toggle class
@@ -201,9 +202,45 @@ export default function CommandPalette() {
   if (showThemes) {
     return (
       <>
-        <div className={styles.backdrop} onClick={close} />
-        <div className={panelCls} data-testid="palette-panel" data-open="true">
-          <ThemePanel onBack={() => setShowThemes(false)} />
+        <div className={styles.themeBackdrop} onClick={() => { close(); setShowThemes(false); }} />
+        <div className={styles.themeFloating}>
+          <div className={styles.header}>
+            <button className={styles.closeBtn} onClick={() => setShowThemes(false)}>
+              ←
+            </button>
+            <span className={styles.title}>Theme</span>
+            <button className={styles.closeBtn} onClick={() => { close(); setShowThemes(false); }}>
+              ✕
+            </button>
+          </div>
+          <div className={styles.list}>
+            {THEMES.map((theme) => (
+              <button
+                key={theme.id}
+                className={styles.item}
+                data-selected={theme.id === themeId}
+                data-testid="theme-item"
+                data-tid={theme.id}
+                onClick={() => setTheme(theme.id as ThemeId)}
+              >
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: 16,
+                    height: 16,
+                    borderRadius: 4,
+                    background: theme.bg,
+                    border: '1px solid var(--border, #555)',
+                    flexShrink: 0,
+                  }}
+                />
+                <span>{theme.name}</span>
+                {theme.id === themeId && (
+                  <span style={{ marginLeft: 'auto', fontSize: 12, opacity: 0.6 }}>✓</span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
         <AboutModal
           open={aboutOpen}

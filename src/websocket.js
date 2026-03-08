@@ -155,6 +155,12 @@ function setupWebSocket(wss, { auth, sessions }) {
                 JSON.stringify({ type: 'output', data: sanitizeForReplay(session.scrollbackBuf) }),
               );
             }
+            // If a TUI app is in alt screen, re-enter it so xterm.js uses
+            // the correct buffer before SIGWINCH triggers a redraw.
+            if (session.inAltScreen) {
+              ws._needsRedraw = true;
+              ws.send(JSON.stringify({ type: 'output', data: '\x1b[?1049h' }));
+            }
           }
           ws.send(JSON.stringify({ type: 'attached', sessionId: msg.sessionId }));
           log.info(`Client attached to session ${msg.sessionId}`);
@@ -196,7 +202,34 @@ function setupWebSocket(wss, { auth, sessions }) {
                 }
               }
             } else {
-              recalcPtySize(attached);
+              if (ws._needsRedraw) {
+                ws._needsRedraw = false;
+                // Force SIGWINCH so TUI apps (vim, copilot, htop) redraw
+                // after client reconnect. The ioctl only fires SIGWINCH when
+                // the size actually changes, and standard signals coalesce —
+                // so we must delay the restore to ensure the app queries
+                // the intermediate size before we resize back.
+                // Skip recalcPtySize here — the setTimeout restores correct size.
+                const pc = attached._lastCols || cols;
+                const pr = attached._lastRows || rows;
+                try {
+                  const small = Math.max(1, pc - 1);
+                  attached.pty.resize(small, pr);
+                  attached._lastCols = small;
+                } catch {
+                  // ignore — PTY may have exited
+                }
+                setTimeout(() => {
+                  try {
+                    attached.pty.resize(pc, pr);
+                    attached._lastCols = pc;
+                  } catch {
+                    // ignore — PTY may have exited
+                  }
+                }, 50);
+              } else {
+                recalcPtySize(attached);
+              }
             }
           }
         }

@@ -99,6 +99,28 @@
 }
 
 /* ThemePanel reuses these styles */
+.themeBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+.themeFloating {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 240px;
+  max-height: min(420px, 60vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface, #252526);
+  border: 1px solid var(--border, #333);
+  border-radius: 12px;
+  z-index: 1000;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
 .list {
   flex: 1;
   overflow-y: auto;

@@ -73,7 +73,8 @@ export default function SessionsHub() {
   const [version, setVersion] = useState('');
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [revealedId, setRevealedId] = useState<string | null>(null);
-  const themePickerRef = useRef<HTMLDivElement>(null);
+  const themeBtnRef = useRef<HTMLButtonElement>(null);
+  const themePanelRef = useRef<HTMLDivElement>(null);
   const { openNewSessionModal } = useUIStore();
   const { themeId, setTheme } = useThemeStore();
 
@@ -142,7 +143,11 @@ export default function SessionsHub() {
   useEffect(() => {
     if (!showThemePicker) return;
     const handler = (e: MouseEvent) => {
-      if (themePickerRef.current && !themePickerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        themePanelRef.current && !themePanelRef.current.contains(target) &&
+        themeBtnRef.current && !themeBtnRef.current.contains(target)
+      ) {
         setShowThemePicker(false);
       }
     };
@@ -181,35 +186,44 @@ export default function SessionsHub() {
             <RefreshIcon />
           </span>
         </button>
-        <div className={styles.themeWrap} ref={themePickerRef}>
-          <button
-            className={`${styles.headerBtn} ${styles.themeBtn}`}
-            onClick={handleCycleTheme}
-            aria-label="Change theme"
-            title="Change theme"
-          >
-            <ThemeIcon />
-          </button>
-          {showThemePicker && (
-            <div className={styles.themeDropdown}>
-              {THEMES.map((theme) => (
-                <button
-                  key={theme.id}
-                  className={`${styles.themeOption} ${theme.id === themeId ? styles.themeOptionActive : ''}`}
-                  onClick={() => {
-                    setTheme(theme.id as ThemeId);
-                    setShowThemePicker(false);
-                  }}
-                >
-                  <span className={styles.themeSwatch} style={{ background: theme.bg }} />
-                  {theme.name}
-                  {theme.id === themeId && <span className={styles.themeCheck}>✓</span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <button
+          className={`${styles.headerBtn} ${styles.themeBtn}`}
+          onClick={handleCycleTheme}
+          aria-label="Change theme"
+          title="Change theme"
+          ref={themeBtnRef}
+        >
+          <ThemeIcon />
+        </button>
       </header>
+
+      {showThemePicker && (
+        <div className={styles.themePanel} ref={themePanelRef}>
+          <div className={styles.themePanelHeader}>
+            <span className={styles.themePanelTitle}>Theme</span>
+            <button
+              className={styles.themePanelClose}
+              onClick={() => setShowThemePicker(false)}
+              aria-label="Close theme picker"
+            >
+              ✕
+            </button>
+          </div>
+          <div className={styles.themePanelList}>
+            {THEMES.map((theme) => (
+              <button
+                key={theme.id}
+                className={`${styles.themeOption} ${theme.id === themeId ? styles.themeOptionActive : ''}`}
+                onClick={() => setTheme(theme.id as ThemeId)}
+              >
+                <span className={styles.themeSwatch} style={{ background: theme.bg }} />
+                {theme.name}
+                {theme.id === themeId && <span className={styles.themeCheck}>✓</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <main className={styles.content}>
         {loading ? (

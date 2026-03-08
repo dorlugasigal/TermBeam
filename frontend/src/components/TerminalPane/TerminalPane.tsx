@@ -121,15 +121,24 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     }
   }, [active, terminal, fit]);
 
-  // Track scroll position for scroll-to-bottom button
+  // Track scroll position for scroll-to-bottom button.
+  // Throttle to avoid excessive React re-renders during rapid output.
+  const wasAtBottomRef = useRef(true);
+  const scrollThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!terminal) return;
     const container = terminal.element;
 
     const checkScroll = () => {
-      const buf = terminal.buffer.active;
-      const atBottom = buf.viewportY >= buf.baseY;
-      setShowScrollBtn(!atBottom);
+      if (scrollThrottleRef.current) return;
+      scrollThrottleRef.current = setTimeout(() => {
+        scrollThrottleRef.current = null;
+        const buf = terminal.buffer.active;
+        const atBottom = buf.viewportY >= buf.baseY;
+        wasAtBottomRef.current = atBottom;
+        setShowScrollBtn(!atBottom);
+      }, 100);
     };
 
     const disposable = terminal.onScroll(checkScroll);
@@ -137,8 +146,17 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     container?.addEventListener('wheel', checkScroll, { passive: true });
     container?.addEventListener('touchmove', checkScroll, { passive: true });
 
+    // Auto-scroll to bottom when new data arrives and user was already at bottom
+    const writeDisposable = terminal.onWriteParsed(() => {
+      if (wasAtBottomRef.current) {
+        terminal.scrollToBottom();
+      }
+    });
+
     return () => {
       disposable.dispose();
+      writeDisposable.dispose();
+      if (scrollThrottleRef.current) clearTimeout(scrollThrottleRef.current);
       container?.removeEventListener('wheel', checkScroll);
       container?.removeEventListener('touchmove', checkScroll);
     };

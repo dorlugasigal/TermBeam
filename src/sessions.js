@@ -137,6 +137,7 @@ class SessionManager {
       scrollback: [],
       scrollbackBuf: '',
       hasHadClient: false,
+      inAltScreen: false,
       _lastCols: cols,
       _lastRows: rows,
     };
@@ -144,6 +145,20 @@ class SessionManager {
     ptyProcess.onData((data) => {
       session.lastActivity = Date.now();
       session.scrollbackBuf += data;
+
+      // Track alt screen mode so reconnecting clients can re-enter it
+      const altEnterIdx = Math.max(
+        data.lastIndexOf('\x1b[?1049h'),
+        data.lastIndexOf('\x1b[?1047h'),
+        data.lastIndexOf('\x1b[?47h'),
+      );
+      const altExitIdx = Math.max(
+        data.lastIndexOf('\x1b[?1049l'),
+        data.lastIndexOf('\x1b[?1047l'),
+        data.lastIndexOf('\x1b[?47l'),
+      );
+      if (altEnterIdx > altExitIdx) session.inAltScreen = true;
+      else if (altExitIdx > altEnterIdx) session.inAltScreen = false;
       // High/low water scrollback cap: trim to 500k chars when buffer exceeds 1,000,000 chars
       if (session.scrollbackBuf.length > 1000000) {
         let buf = session.scrollbackBuf.slice(-500000);

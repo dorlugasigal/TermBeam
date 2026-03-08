@@ -242,16 +242,32 @@ export default function TouchBar() {
     clearRepeat();
   }, [clearRepeat]);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    if (touch) {
-      touchStartRef.current = { x: touch.clientX, y: touch.clientY };
-    }
-  }, []);
+  const REPEATABLE = new Set(['\x1b[A', '\x1b[B', '\x1b[C', '\x1b[D']);
+
+  const handleTouchStart = useCallback(
+    (def: KeyDef, e: React.TouchEvent) => {
+      const touch = e.touches[0];
+      if (touch) {
+        touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+      }
+      // Start key-repeat for arrow keys on touch hold
+      if (REPEATABLE.has(def.data) && !def.modifier && !def.action) {
+        clearRepeat();
+        repeatTimerRef.current = setTimeout(() => {
+          repeatIntervalRef.current = setInterval(() => {
+            const data = resolveKeyData(def);
+            if (data !== null) sendInput(data);
+          }, 80);
+        }, 400);
+      }
+    },
+    [resolveKeyData, clearRepeat],
+  );
 
   const handleTouchEnd = useCallback(
     (def: KeyDef, e: React.TouchEvent) => {
       e.preventDefault();
+      clearRepeat();
       const start = touchStartRef.current;
       const end = e.changedTouches[0];
       touchStartRef.current = null;
@@ -301,8 +317,9 @@ export default function TouchBar() {
       onMouseDown={() => handleMouseDown(def)}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      onTouchStart={handleTouchStart}
+      onTouchStart={(e) => handleTouchStart(def, e)}
       onTouchEnd={(e) => handleTouchEnd(def, e)}
+      onTouchCancel={handleMouseUp}
     >
       {def.label}
     </button>

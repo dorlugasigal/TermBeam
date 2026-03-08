@@ -6,6 +6,8 @@
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 /* ── Top bar ── */
