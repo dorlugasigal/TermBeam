@@ -96,6 +96,25 @@ jobs:
       - run: npm ci
       - run: node --check src/*.js bin/*.js
 
+  frontend:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+      - name: Type-check frontend
+        run: cd frontend && npx tsc --noEmit
+      - name: Build frontend
+        run: cd frontend && npm run build
+      - name: Verify build output
+        run: test -f public-react/index.html
+
   e2e:
     name: E2E (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -110,6 +129,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Build frontend
+        run: cd frontend && npm ci && npm run build
       - name: Install Playwright (Linux)
         if: runner.os == 'Linux'
         run: npx playwright install --with-deps chromium

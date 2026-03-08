@@ -38,6 +38,8 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - name: Build frontend
+        run: cd frontend && npm ci && npm run build
       - run: npm test
       - run: echo "node=$(node -v) npm=$(npm -v)"
 
