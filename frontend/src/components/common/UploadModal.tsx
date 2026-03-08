@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type DragEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
 import { useUIStore } from '@/stores/uiStore';
@@ -26,6 +26,14 @@ export function UploadModal() {
   const [dragOver, setDragOver] = useState(false);
   const [showBrowser, setShowBrowser] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Pre-fill target directory with session cwd when modal opens
+  useEffect(() => {
+    if (open && activeId) {
+      const ms = useSessionStore.getState().sessions.get(activeId);
+      if (ms?.cwd) setTargetDir(ms.cwd);
+    }
+  }, [open, activeId]);
 
   const reset = useCallback(() => {
     setFile(null);
@@ -145,6 +153,7 @@ export function UploadModal() {
           {showBrowser && (
             <div className={styles.folderBrowserWrapper}>
               <FolderBrowser
+                currentDir={targetDir || '/'}
                 onSelect={(path) => {
                   setTargetDir(path);
                   setShowBrowser(false);

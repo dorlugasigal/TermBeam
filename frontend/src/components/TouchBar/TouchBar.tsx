@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useSessionStore } from '@/stores/sessionStore';
+import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
 import styles from './TouchBar.module.css';
 
 type KeyType = 'special' | 'modifier' | 'icon' | 'enter' | 'danger';
@@ -75,6 +76,7 @@ export default function TouchBar() {
   const repeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const { keyboardHeight } = useMobileKeyboard();
 
   const clearRepeat = useCallback(() => {
     if (repeatTimerRef.current) {
@@ -245,8 +247,17 @@ export default function TouchBar() {
     </button>
   );
 
+  // When keyboard is open, extend the touchbar downward to fill the gap
+  // between the key buttons and the keyboard (no floating look)
+  const touchBarStyle: React.CSSProperties = keyboardHeight > 0
+    ? {
+        height: `${80 + keyboardHeight}px`,
+        paddingBottom: `${keyboardHeight}px`,
+      }
+    : {};
+
   return (
-    <div className={styles.touchBar}>
+    <div className={styles.touchBar} style={touchBarStyle}>
       <div className={styles.row}>{ROW1.map(renderKey)}</div>
       <div className={styles.row}>{ROW2.map(renderKey)}</div>
     </div>

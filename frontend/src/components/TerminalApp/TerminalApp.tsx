@@ -3,6 +3,7 @@ import { fetchSessions } from '@/services/api';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useWakeLock } from '@/hooks/useWakeLock';
+import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
 import { TerminalPane } from '@/components/TerminalPane/TerminalPane';
 import { TabBar } from '@/components/TabBar/TabBar';
 import TouchBar from '@/components/TouchBar/TouchBar';
@@ -38,6 +39,16 @@ export function TerminalApp() {
   const initializedRef = useRef(false);
 
   useWakeLock();
+
+  const { keyboardOpen, keyboardHeight } = useMobileKeyboard();
+
+  // Reset page scroll when keyboard opens (iOS can scroll body)
+  useEffect(() => {
+    if (keyboardOpen) {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+    }
+  }, [keyboardOpen]);
 
   async function handleNewSessionCreated(id: string) {
     const list: Session[] = await fetchSessions();
@@ -217,7 +228,10 @@ export function TerminalApp() {
     : '';
 
   return (
-    <div className={styles.layout}>
+    <div
+      className={styles.layout}
+      style={{ '--keyboard-height': `${keyboardHeight}px` } as React.CSSProperties}
+    >
       {/* ── Top bar ── */}
       <div className={styles.topBar}>
         <div className={styles.left}>

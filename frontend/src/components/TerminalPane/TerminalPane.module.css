@@ -3,7 +3,7 @@
   position: relative;
   overflow: hidden;
   min-height: 0;
-  touch-action: pan-x pan-y;
+  touch-action: none;
 }
 
 .terminalContainer {

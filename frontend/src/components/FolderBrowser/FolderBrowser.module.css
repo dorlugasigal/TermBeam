@@ -46,7 +46,7 @@
   flex-direction: column;
   gap: 2px;
   min-height: 120px;
-  max-height: 280px;
+  max-height: 50vh;
   padding: 0.25rem;
   background: var(--bg);
   border-radius: 8px;

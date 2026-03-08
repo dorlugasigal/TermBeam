@@ -1,4 +1,5 @@
 .layout {
+  --keyboard-height: 0px;
   position: relative;
   height: 100vh;
   height: 100dvh;
@@ -146,7 +147,7 @@
 .terminalArea {
   position: absolute;
   top: calc(40px + env(safe-area-inset-top, 0px));
-  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px) + var(--keyboard-height, 0px));
   left: 0;
   right: 0;
   display: flex;

@@ -190,8 +190,7 @@
   margin-top: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  overflow: hidden;
-  max-height: 200px;
+  max-height: 300px;
   overflow-y: auto;
 }
 
