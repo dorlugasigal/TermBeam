@@ -64,20 +64,27 @@ export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneP
     onExit: handleExit,
   });
 
-  // When connected, force a canvas repaint after scrollback is written.
-  // Mobile browsers sometimes skip repainting canvas until a user interaction;
-  // this ensures the terminal is visible immediately.
+  // When connected, force canvas repaints after scrollback is written.
+  // The CanvasAddon may defer painting until a user interaction on some
+  // browsers/devices; repeatedly refreshing ensures content is visible.
   useEffect(() => {
     if (connected) {
       hadConnectedRef.current = true;
       if (terminal) {
-        const id = setTimeout(() => {
-          fit();
-          terminal.refresh(0, terminal.rows - 1);
-          terminal.scrollToBottom();
-          terminal.focus();
-        }, 100);
-        return () => clearTimeout(id);
+        const timers: ReturnType<typeof setTimeout>[] = [];
+        // Refresh at multiple intervals to catch scrollback replay data
+        for (const delay of [50, 150, 400, 1000]) {
+          timers.push(
+            setTimeout(() => {
+              fit();
+              terminal.refresh(0, terminal.rows - 1);
+              terminal.scrollToBottom();
+            }, delay),
+          );
+        }
+        // Also focus on first refresh
+        timers.push(setTimeout(() => terminal.focus(), 50));
+        return () => timers.forEach(clearTimeout);
       }
     }
   }, [connected, terminal, fit]);
