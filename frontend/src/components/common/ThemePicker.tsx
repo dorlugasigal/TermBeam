@@ -6,13 +6,18 @@ import styles from './ThemePicker.module.css';
 export default function ThemePicker() {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const { themeId, setTheme } = useThemeStore();
 
   const currentTheme = THEMES.find((t) => t.id === themeId) ?? THEMES[0]!;
 
   const handleClickOutside = useCallback(
     (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        panelRef.current && !panelRef.current.contains(target) &&
+        triggerRef.current && !triggerRef.current.contains(target)
+      ) {
         setOpen(false);
       }
     },
@@ -28,7 +33,7 @@ export default function ThemePicker() {
 
   return (
     <>
-      <button className={styles.trigger} onClick={() => setOpen((v) => !v)} aria-label="Pick theme">
+      <button ref={triggerRef} className={styles.trigger} onClick={() => setOpen((v) => !v)} aria-label="Pick theme">
         <span className={styles.swatch} style={{ background: currentTheme.bg }} />
         {currentTheme.name}
       </button>

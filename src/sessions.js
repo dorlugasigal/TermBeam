@@ -138,6 +138,7 @@ class SessionManager {
       scrollbackBuf: '',
       hasHadClient: false,
       inAltScreen: false,
+      _altScanTail: '',
       _lastCols: cols,
       _lastRows: rows,
     };
@@ -146,16 +147,20 @@ class SessionManager {
       session.lastActivity = Date.now();
       session.scrollbackBuf += data;
 
-      // Track alt screen mode so reconnecting clients can re-enter it
+      // Track alt screen mode so reconnecting clients can re-enter it.
+      // Carry a small tail between chunks so split escape sequences are detected.
+      const scanBuf = session._altScanTail + data;
+      session._altScanTail =
+        data.length >= 16 ? data.slice(-16) : (session._altScanTail + data).slice(-16);
       const altEnterIdx = Math.max(
-        data.lastIndexOf('\x1b[?1049h'),
-        data.lastIndexOf('\x1b[?1047h'),
-        data.lastIndexOf('\x1b[?47h'),
+        scanBuf.lastIndexOf('\x1b[?1049h'),
+        scanBuf.lastIndexOf('\x1b[?1047h'),
+        scanBuf.lastIndexOf('\x1b[?47h'),
       );
       const altExitIdx = Math.max(
-        data.lastIndexOf('\x1b[?1049l'),
-        data.lastIndexOf('\x1b[?1047l'),
-        data.lastIndexOf('\x1b[?47l'),
+        scanBuf.lastIndexOf('\x1b[?1049l'),
+        scanBuf.lastIndexOf('\x1b[?1047l'),
+        scanBuf.lastIndexOf('\x1b[?47l'),
       );
       if (altEnterIdx > altExitIdx) session.inAltScreen = true;
       else if (altExitIdx > altEnterIdx) session.inAltScreen = false;

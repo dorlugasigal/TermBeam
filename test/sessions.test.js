@@ -214,6 +214,62 @@ describe('SessionManager', () => {
     assert.strictEqual(session.scrollbackBuf.length, 500000);
   });
 
+  it('should track inAltScreen when alt screen enter sequence is received', () => {
+    const mgr = new SessionManager();
+    const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });
+    const session = mgr.get(id);
+    const mockProcess = mockPtyProcesses[mockPtyProcesses.length - 1];
+    assert.strictEqual(session.inAltScreen, false);
+
+    mockProcess._callbacks.onData('\x1b[?1049h');
+    assert.strictEqual(session.inAltScreen, true);
+  });
+
+  it('should track inAltScreen when alt screen exit sequence is received', () => {
+    const mgr = new SessionManager();
+    const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });
+    const session = mgr.get(id);
+    const mockProcess = mockPtyProcesses[mockPtyProcesses.length - 1];
+
+    mockProcess._callbacks.onData('\x1b[?1049h');
+    assert.strictEqual(session.inAltScreen, true);
+
+    mockProcess._callbacks.onData('\x1b[?1049l');
+    assert.strictEqual(session.inAltScreen, false);
+  });
+
+  it('should detect alt screen sequences split across chunks', () => {
+    const mgr = new SessionManager();
+    const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });
+    const session = mgr.get(id);
+    const mockProcess = mockPtyProcesses[mockPtyProcesses.length - 1];
+    assert.strictEqual(session.inAltScreen, false);
+
+    // Split \x1b[?1049h across two chunks
+    mockProcess._callbacks.onData('some output\x1b[?10');
+    mockProcess._callbacks.onData('49h');
+    assert.strictEqual(session.inAltScreen, true, 'should detect split alt screen enter');
+  });
+
+  it('should track all alt screen buffer variants (1047, 47)', () => {
+    const mgr = new SessionManager();
+    const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });
+    const session = mgr.get(id);
+    const mockProcess = mockPtyProcesses[mockPtyProcesses.length - 1];
+
+    mockProcess._callbacks.onData('\x1b[?1047h');
+    assert.strictEqual(session.inAltScreen, true);
+
+    mockProcess._callbacks.onData('\x1b[?1047l');
+    assert.strictEqual(session.inAltScreen, false);
+
+    mockProcess._callbacks.onData('\x1b[?47h');
+    assert.strictEqual(session.inAltScreen, true);
+
+    mockProcess._callbacks.onData('\x1b[?47l');
+    assert.strictEqual(session.inAltScreen, false);
+  });
+
   it('should not throw when pty.kill() errors during shutdown', () => {
     const mgr = new SessionManager();
     const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });

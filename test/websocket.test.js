@@ -382,6 +382,52 @@ describe('WebSocket', () => {
       ws._simulateClose();
       assert.ok(!session.clients.has(ws));
     });
+
+    it('should send alt screen enter on attach when session is in alt screen', () => {
+      const session = createMockSession('s1', { hasHadClient: true });
+      session.inAltScreen = true;
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      const altScreenMsg = ws._sent.find((m) => m.type === 'output' && m.data === '\x1b[?1049h');
+      assert.ok(altScreenMsg, 'should send alt screen enter sequence');
+      assert.strictEqual(ws._needsRedraw, true, 'should flag client for redraw');
+    });
+
+    it('should not send alt screen enter when session is not in alt screen', () => {
+      const session = createMockSession('s1', { hasHadClient: true, scrollbackBuf: 'hello' });
+      session.inAltScreen = false;
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      const altScreenMsg = ws._sent.find((m) => m.type === 'output' && m.data === '\x1b[?1049h');
+      assert.strictEqual(altScreenMsg, undefined, 'should not send alt screen enter');
+      assert.strictEqual(ws._needsRedraw, undefined, 'should not flag for redraw');
+    });
+
+    it('should force SIGWINCH via temporary resize on first resize after alt-screen reattach', () => {
+      const session = createMockSession('s1', { hasHadClient: true, _lastCols: 80, _lastRows: 24 });
+      session.inAltScreen = true;
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+      assert.strictEqual(ws._needsRedraw, true);
+
+      ws._simulateMessage({ type: 'resize', cols: 80, rows: 24 });
+      assert.strictEqual(ws._needsRedraw, false, 'redraw flag should be cleared');
+
+      // Should have resized to cols-1 for the intermediate SIGWINCH
+      assert.ok(session._resizes.length >= 1, 'should have at least one resize');
+      assert.strictEqual(session._resizes[0].cols, 79, 'intermediate resize should be cols-1');
+    });
   });
 
   describe('input (paste flow)', () => {

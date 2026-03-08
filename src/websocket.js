@@ -209,20 +209,20 @@ function setupWebSocket(wss, { auth, sessions }) {
                 // the size actually changes, and standard signals coalesce —
                 // so we must delay the restore to ensure the app queries
                 // the intermediate size before we resize back.
-                // Skip recalcPtySize here — the setTimeout restores correct size.
-                const pc = attached._lastCols || cols;
-                const pr = attached._lastRows || rows;
+                recalcPtySize(attached);
+                const targetCols = attached._lastCols || cols;
+                const targetRows = attached._lastRows || rows;
                 try {
-                  const small = Math.max(1, pc - 1);
-                  attached.pty.resize(small, pr);
+                  const small = Math.max(1, targetCols - 1);
+                  attached.pty.resize(small, targetRows);
                   attached._lastCols = small;
                 } catch {
                   // ignore — PTY may have exited
                 }
                 setTimeout(() => {
                   try {
-                    attached.pty.resize(pc, pr);
-                    attached._lastCols = pc;
+                    attached.pty.resize(targetCols, targetRows);
+                    attached._lastCols = targetCols;
                   } catch {
                     // ignore — PTY may have exited
                   }
