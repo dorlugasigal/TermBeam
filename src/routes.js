@@ -10,24 +10,6 @@ const rateLimit = require('express-rate-limit');
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const uploadedFiles = new Map(); // id -> filepath
 
-const pageRateLimit = rateLimit({
-  windowMs: 1 * 60 * 1000,
-  max: 120,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (_req, res) =>
-    res.status(429).json({ error: 'Too many requests, please try again later.' }),
-});
-
-const apiRateLimit = rateLimit({
-  windowMs: 1 * 60 * 1000,
-  max: 120,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (_req, res) =>
-    res.status(429).json({ error: 'Too many requests, please try again later.' }),
-});
-
 const IMAGE_SIGNATURES = [
   { type: 'image/png', bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
   { type: 'image/jpeg', bytes: [0xff, 0xd8, 0xff] },
@@ -53,6 +35,24 @@ function validateMagicBytes(buffer, contentType) {
 }
 
 function setupRoutes(app, { auth, sessions, config, state }) {
+  const pageRateLimit = rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (_req, res) =>
+      res.status(429).json({ error: 'Too many requests, please try again later.' }),
+  });
+
+  const apiRateLimit = rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (_req, res) =>
+      res.status(429).json({ error: 'Too many requests, please try again later.' }),
+  });
+
   // Serve static files (manifest.json, sw.js, icons, etc.)
   app.use(express.static(PUBLIC_DIR, { index: false }));
 

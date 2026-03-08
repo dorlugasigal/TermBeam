@@ -13,6 +13,10 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>TermBeam</title>
+    <script>
+      const t = localStorage.getItem('termbeam-theme');
+      if (t) document.documentElement.setAttribute('data-theme', t);
+    </script>
   </head>
   <body>
     <div id="root"></div>

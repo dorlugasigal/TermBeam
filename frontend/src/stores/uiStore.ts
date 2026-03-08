@@ -1,5 +1,23 @@
 import { create } from 'zustand';
 
+const FONT_SIZE_KEY = 'termbeam-font-size';
+const MIN_FONT_SIZE = 2;
+const MAX_FONT_SIZE = 32;
+const DEFAULT_FONT_SIZE = 14;
+
+function loadFontSize(): number {
+  try {
+    const saved = localStorage.getItem(FONT_SIZE_KEY);
+    if (saved) {
+      const n = Number(saved);
+      if (!Number.isNaN(n) && n >= MIN_FONT_SIZE && n <= MAX_FONT_SIZE) return n;
+    }
+  } catch {
+    // ignore
+  }
+  return DEFAULT_FONT_SIZE;
+}
+
 interface UIState {
   commandPaletteOpen: boolean;
   searchBarOpen: boolean;
@@ -8,6 +26,7 @@ interface UIState {
   uploadModalOpen: boolean;
   previewModalOpen: boolean;
   selectModeActive: boolean;
+  fontSize: number;
 
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
@@ -23,6 +42,7 @@ interface UIState {
   openPreviewModal: () => void;
   closePreviewModal: () => void;
   setSelectMode: (active: boolean) => void;
+  setFontSize: (size: number) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -33,6 +53,7 @@ export const useUIStore = create<UIState>((set) => ({
   uploadModalOpen: false,
   previewModalOpen: false,
   selectModeActive: false,
+  fontSize: loadFontSize(),
 
   openCommandPalette: () => set({ commandPaletteOpen: true }),
   closeCommandPalette: () => set({ commandPaletteOpen: false }),
@@ -48,4 +69,9 @@ export const useUIStore = create<UIState>((set) => ({
   openPreviewModal: () => set({ previewModalOpen: true }),
   closePreviewModal: () => set({ previewModalOpen: false }),
   setSelectMode: (active) => set({ selectModeActive: active }),
+  setFontSize: (size) => {
+    const clamped = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, Math.round(size)));
+    localStorage.setItem(FONT_SIZE_KEY, String(clamped));
+    set({ fontSize: clamped });
+  },
 }));

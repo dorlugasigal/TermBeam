@@ -300,13 +300,8 @@ export default function CommandPalette() {
           icon: iconFontUp,
           action: () =>
             run(() => {
-              const { sessions, activeId } = useSessionStore.getState();
-              if (!activeId) return;
-              const ms = sessions.get(activeId);
-              if (ms?.term) {
-                ms.term.options.fontSize = (ms.term.options.fontSize ?? 14) + 1;
-                ms.fitAddon?.fit();
-              }
+              const { fontSize: current, setFontSize } = useUIStore.getState();
+              setFontSize(current + 1);
             }),
         },
         {
@@ -315,13 +310,8 @@ export default function CommandPalette() {
           icon: iconFontDown,
           action: () =>
             run(() => {
-              const { sessions, activeId } = useSessionStore.getState();
-              if (!activeId) return;
-              const ms = sessions.get(activeId);
-              if (ms?.term) {
-                ms.term.options.fontSize = Math.max(8, (ms.term.options.fontSize ?? 14) - 1);
-                ms.fitAddon?.fit();
-              }
+              const { fontSize: current, setFontSize } = useUIStore.getState();
+              setFontSize(current - 1);
             }),
         },
         {

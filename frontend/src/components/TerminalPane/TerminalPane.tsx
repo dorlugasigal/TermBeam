@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePinch } from '@use-gesture/react';
 import { toast } from 'sonner';
 import { useXTerm } from '@/hooks/useXTerm';
 import { useTerminalSocket } from '@/hooks/useTerminalSocket';
+import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
 import { useSessionStore } from '@/stores/sessionStore';
+import { useUIStore } from '@/stores/uiStore';
 import styles from './TerminalPane.module.css';
 
 interface TerminalPaneProps {
@@ -15,6 +18,11 @@ export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneP
   const [exited, setExited] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const updateSession = useSessionStore((s) => s.updateSession);
+  const setFontSize = useUIStore((s) => s.setFontSize);
+
+  const paneRef = useRef<HTMLDivElement>(null);
+  const hadConnectedRef = useRef(false);
+  const pinchBaseSizeRef = useRef(fontSize);
 
   // Refs to hold latest WS send functions so xterm callbacks stay stable
   const sendRef = useRef<(data: string) => void>(() => {});
@@ -52,11 +60,16 @@ export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneP
     onSelectionChange: handleSelectionChange,
   });
 
-  const { send, sendResize, connected } = useTerminalSocket({
+  const { send, sendResize, connected, reconnect } = useTerminalSocket({
     sessionId,
     terminal,
     onExit: handleExit,
   });
+
+  // Track whether connection was ever established
+  useEffect(() => {
+    if (connected) hadConnectedRef.current = true;
+  }, [connected]);
 
   // Keep refs in sync with latest WS functions
   useEffect(() => {
@@ -95,6 +108,30 @@ export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneP
     }
   }, [terminal, connected, send, sessionId, updateSession]);
 
+  // Pinch-to-zoom gesture
+  usePinch(
+    ({ offset: [scale], first }) => {
+      if (first) pinchBaseSizeRef.current = fontSize;
+      const newSize = Math.round(
+        Math.min(32, Math.max(2, pinchBaseSizeRef.current * scale)),
+      );
+      setFontSize(newSize);
+    },
+    {
+      target: paneRef,
+      scaleBounds: { min: 0.15, max: 2.5 },
+      eventOptions: { passive: false },
+    },
+  );
+
+  // Scroll to bottom when mobile keyboard opens
+  const { keyboardOpen } = useMobileKeyboard();
+  useEffect(() => {
+    if (keyboardOpen && terminal) {
+      terminal.scrollToBottom();
+    }
+  }, [keyboardOpen, terminal]);
+
   const scrollToBottom = useCallback(() => {
     if (terminal) {
       terminal.scrollToBottom();
@@ -102,8 +139,15 @@ export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneP
     }
   }, [terminal]);
 
+  const handleReconnect = useCallback(() => {
+    terminal?.clear();
+    reconnect();
+  }, [terminal, reconnect]);
+
+  const showReconnectOverlay = !connected && !exited && hadConnectedRef.current;
+
   return (
-    <div className={styles.pane}>
+    <div ref={paneRef} className={styles.pane}>
       <div ref={terminalRef} className={styles.terminalContainer} />
 
       {showScrollBtn && (
@@ -114,6 +158,22 @@ export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneP
         >
           ↓
         </button>
+      )}
+
+      {showReconnectOverlay && (
+        <div className={styles.reconnectOverlay}>
+          <div className={styles.reconnectContent}>
+            <span className={styles.reconnectMessage}>Session disconnected</span>
+            <div className={styles.reconnectActions}>
+              <a href="/" className={styles.reconnectBtn}>
+                Sessions
+              </a>
+              <button className={styles.reconnectBtn} onClick={handleReconnect}>
+                Reconnect
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {exited && (

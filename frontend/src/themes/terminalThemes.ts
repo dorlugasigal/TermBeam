@@ -284,7 +284,7 @@ export const THEMES = [
   { id: 'light', name: 'Light', bg: '#f3f3f3' },
   { id: 'monokai', name: 'Monokai', bg: '#272822' },
   { id: 'solarized-dark', name: 'Solarized Dark', bg: '#002b36' },
-  { id: 'solarized-light', name: 'Solarized Light', bg: '#eee8d5' },
+  { id: 'solarized-light', name: 'Solarized Light', bg: '#fdf6e3' },
   { id: 'nord', name: 'Nord', bg: '#2e3440' },
   { id: 'dracula', name: 'Dracula', bg: '#282a36' },
   { id: 'github-dark', name: 'GitHub Dark', bg: '#0d1117' },

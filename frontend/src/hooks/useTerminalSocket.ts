@@ -15,6 +15,7 @@ export interface UseTerminalSocketReturn {
   send: (data: string) => void;
   sendResize: (cols: number, rows: number) => void;
   connected: boolean;
+  reconnect: () => void;
   ws: WebSocket | null;
 }
 
@@ -34,6 +35,7 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keepaliveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
+  const connectFnRef = useRef<(() => void) | null>(null);
 
   const [connected, setConnected] = useState(false);
 
@@ -145,6 +147,7 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
       };
     }
 
+    connectFnRef.current = connect;
     connect();
 
     return () => {
@@ -162,5 +165,27 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
     };
   }, [terminal, sessionId, onExit, onConnected, clearTimers]);
 
-  return { send, connected, sendResize, ws: wsRef.current };
+  const reconnect = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    if (keepaliveTimerRef.current) {
+      clearInterval(keepaliveTimerRef.current);
+      keepaliveTimerRef.current = null;
+    }
+    const ws = wsRef.current;
+    if (ws) {
+      ws.onclose = null;
+      ws.onerror = null;
+      ws.onmessage = null;
+      ws.close();
+      wsRef.current = null;
+    }
+    reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
+    setConnected(false);
+    connectFnRef.current?.();
+  }, []);
+
+  return { send, connected, sendResize, reconnect, ws: wsRef.current };
 }

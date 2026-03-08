@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { fetchSessions } from '@/services/api';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -9,12 +9,11 @@ import TouchBar from '@/components/TouchBar/TouchBar';
 import SearchBar from '@/components/SearchBar/SearchBar';
 import CommandPalette from '@/components/CommandPalette/CommandPalette';
 import { SidePanel } from '@/components/SidePanel/SidePanel';
+import NewSessionModal from '@/components/SessionsHub/NewSessionModal';
 import type { Session } from '@/types';
 import styles from './TerminalApp.module.css';
 
 const POLL_INTERVAL = 3000;
-const DEFAULT_FONT_SIZE = 14;
-
 function getSessionIdFromUrl(): string | null {
   const params = new URLSearchParams(window.location.search);
   return params.get('session') || params.get('id');
@@ -31,12 +30,39 @@ export function TerminalApp() {
   const toggleCommandPalette = useUIStore((s) => s.toggleCommandPalette);
   const openSidePanel = useUIStore((s) => s.openSidePanel);
   const openNewSessionModal = useUIStore((s) => s.openNewSessionModal);
+  const fontSize = useUIStore((s) => s.fontSize);
 
-  const [fontSize] = useState(DEFAULT_FONT_SIZE);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const initializedRef = useRef(false);
 
   useWakeLock();
+
+  async function handleNewSessionCreated(id: string) {
+    const list: Session[] = await fetchSessions();
+    const store = useSessionStore.getState();
+    const newSession = list.find((s) => s.id === id);
+    if (newSession) {
+      store.addSession({
+        id: newSession.id,
+        name: newSession.name,
+        shell: newSession.shell,
+        pid: newSession.pid,
+        cwd: newSession.cwd,
+        color: newSession.color ?? '#6ec1e4',
+        createdAt: newSession.createdAt,
+        lastActivity: newSession.lastActivity,
+        term: null,
+        fitAddon: null,
+        searchAddon: null,
+        ws: null,
+        send: null,
+        connected: false,
+        exited: false,
+        scrollback: '',
+      });
+    }
+    store.setActiveId(id);
+  }
 
   // Initial load — add ALL server sessions as tabs, activate URL session
   useEffect(() => {
@@ -269,6 +295,7 @@ export function TerminalApp() {
       {/* ── Overlays ── */}
       <CommandPalette />
       <SidePanel />
+      <NewSessionModal onCreated={handleNewSessionCreated} />
     </div>
   );
 }

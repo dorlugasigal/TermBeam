@@ -17,6 +17,7 @@ export function SidePanel() {
   const activeId = useSessionStore((s) => s.activeId);
   const tabOrder = useSessionStore((s) => s.tabOrder);
   const setActiveId = useSessionStore((s) => s.setActiveId);
+  const removeSession = useSessionStore((s) => s.removeSession);
 
   const [closing, setClosing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -75,6 +76,12 @@ export function SidePanel() {
               key={session.id}
               className={`${styles.sessionCard} ${session.id === activeId ? styles.sessionCardActive : ''}`}
               onClick={() => selectSession(session.id)}
+              onAuxClick={(e) => {
+                if (e.button === 1) {
+                  e.preventDefault();
+                  if (confirm('Close this session?')) removeSession(session.id);
+                }
+              }}
             >
               <span className={styles.sessionDot} style={{ backgroundColor: session.color }} />
               <div className={styles.sessionInfo}>

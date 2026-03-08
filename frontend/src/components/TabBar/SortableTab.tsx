@@ -47,6 +47,12 @@ export function SortableTab({
       style={style}
       className={`${styles.tab} ${isActive ? styles.tabActive : ''}`}
       onClick={onActivate}
+      onAuxClick={(e) => {
+        if (e.button === 1) {
+          e.preventDefault();
+          if (confirm('Close this session?')) onClose();
+        }
+      }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       {...attributes}
