@@ -42,6 +42,7 @@ interface SessionState {
   activeId: string | null;
   tabOrder: string[];
   splitMode: boolean;
+  deletedIds: Set<string>;
 
   addSession: (session: ManagedSession) => void;
   removeSession: (id: string) => void;
@@ -52,6 +53,7 @@ interface SessionState {
   setSplit: (on: boolean) => void;
   markUnread: (id: string) => void;
   clearUnread: (id: string) => void;
+  isDeleted: (id: string) => boolean;
 }
 
 function loadTabOrder(): string[] {
@@ -67,15 +69,16 @@ function saveTabOrder(order: string[]): void {
   localStorage.setItem('termbeam-tab-order', JSON.stringify(order));
 }
 
-export const useSessionStore = create<SessionState>((set, _get) => ({
+export const useSessionStore = create<SessionState>((set, get) => ({
   sessions: new Map(),
   activeId: null,
   tabOrder: loadTabOrder(),
   splitMode: false,
+  deletedIds: new Set(),
 
   addSession: (session) =>
     set((state) => {
-      if (state.sessions.has(session.id)) return state;
+      if (state.sessions.has(session.id) || state.deletedIds.has(session.id)) return state;
       const sessions = new Map(state.sessions);
       sessions.set(session.id, session);
       const tabOrder = state.tabOrder.includes(session.id)
@@ -101,11 +104,21 @@ export const useSessionStore = create<SessionState>((set, _get) => ({
       const tabOrder = state.tabOrder.filter((tid) => tid !== id);
       saveTabOrder(tabOrder);
 
+      const deletedIds = new Set(state.deletedIds);
+      deletedIds.add(id);
+      // Auto-clear after 30s so stale IDs don't accumulate
+      setTimeout(() => {
+        const s = get();
+        const next = new Set(s.deletedIds);
+        next.delete(id);
+        set({ deletedIds: next });
+      }, 30_000);
+
       let activeId = state.activeId;
       if (activeId === id) {
         activeId = tabOrder[0] ?? null;
       }
-      return { sessions, tabOrder, activeId };
+      return { sessions, tabOrder, activeId, deletedIds };
     }),
 
   setActiveId: (id) => set({ activeId: id }),
@@ -149,4 +162,6 @@ export const useSessionStore = create<SessionState>((set, _get) => ({
       }
       return state;
     }),
+
+  isDeleted: (id) => get().deletedIds.has(id),
 }));

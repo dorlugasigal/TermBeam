@@ -42,6 +42,14 @@ export function TerminalApp() {
 
   useWakeLock();
 
+  // Navigate back to sessions hub when all sessions are removed
+  useEffect(() => {
+    if (initializedRef.current && sessions.size === 0) {
+      window.history.pushState(null, '', '/');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+  }, [sessions.size]);
+
   const { keyboardOpen, keyboardHeight } = useMobileKeyboard();
 
   // Reset page scroll when keyboard opens (iOS can scroll body)

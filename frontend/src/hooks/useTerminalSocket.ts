@@ -156,11 +156,17 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
             break;
           }
           case 'error': {
-            toast.error(msg.message);
             if (msg.message?.toLowerCase().includes('not found')) {
               mountedRef.current = false;
-              onExit?.(sessionId);
+              // Only show toast if user didn't intentionally delete this session
+              const store = useSessionStore.getState();
+              if (!store.isDeleted(sessionId)) {
+                toast.error(msg.message);
+                onExit?.(sessionId);
+              }
               ws.close();
+            } else {
+              toast.error(msg.message);
             }
             break;
           }
