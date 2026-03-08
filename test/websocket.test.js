@@ -383,8 +383,8 @@ describe('WebSocket', () => {
       assert.ok(!session.clients.has(ws));
     });
 
-    it('should flag for redraw on attach when session is in alt screen', () => {
-      const session = createMockSession('s1', { hasHadClient: true });
+    it('should send alt screen enter after replay when session is in alt screen', () => {
+      const session = createMockSession('s1', { hasHadClient: true, scrollbackBuf: 'some output' });
       session.inAltScreen = true;
       sessions._add(session);
 
@@ -392,9 +392,11 @@ describe('WebSocket', () => {
       wss._simulateConnection(ws);
       ws._simulateMessage({ type: 'attach', sessionId: 's1' });
 
-      // Should NOT send explicit alt-screen enter (scrollback already has it)
-      const altScreenMsg = ws._sent.find((m) => m.type === 'output' && m.data === '\x1b[?1049h');
-      assert.strictEqual(altScreenMsg, undefined, 'should not send explicit alt screen enter');
+      // Alt-screen enter should come AFTER scrollback replay
+      const sentTypes = ws._sent.map((m) => m.type + ':' + (m.data || '').substring(0, 10));
+      const replayIdx = ws._sent.findIndex((m) => m.type === 'output' && m.data !== '\x1b[?1049h');
+      const altIdx = ws._sent.findIndex((m) => m.type === 'output' && m.data === '\x1b[?1049h');
+      assert.ok(altIdx > replayIdx, 'alt-screen enter should come after replay');
       assert.strictEqual(ws._needsRedraw, true, 'should flag client for redraw');
     });
 
