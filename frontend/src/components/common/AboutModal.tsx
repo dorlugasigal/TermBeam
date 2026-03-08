@@ -20,7 +20,7 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
       const data = await checkUpdate(true);
       if (!data) {
         setUpdateStatus('Unable to check for updates');
-      } else if (data.hasUpdate) {
+      } else if (data.updateAvailable) {
         setUpdateStatus(`Update available: v${data.latest} (current: v${data.current})`);
       } else {
         setUpdateStatus(`You're up to date (v${data.current})`);

@@ -8,7 +8,7 @@ export default function UpdateBanner() {
 
   useEffect(() => {
     checkUpdate().then((result) => {
-      if (result?.hasUpdate) {
+      if (result?.updateAvailable) {
         setUpdate({ current: result.current, latest: result.latest });
       }
     });

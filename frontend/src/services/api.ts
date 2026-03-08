@@ -17,14 +17,14 @@ export async function fetchSessions(): Promise<Session[]> {
 
 export async function createSession(
   req: CreateSessionRequest & { cols?: number; rows?: number },
-): Promise<Session> {
+): Promise<{ id: string; url: string }> {
   const res = await fetch(`${BASE}/api/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
     credentials: 'same-origin',
   });
-  return handleResponse<Session>(res);
+  return handleResponse<{ id: string; url: string }>(res);
 }
 
 export async function deleteSession(id: string): Promise<void> {
@@ -156,7 +156,7 @@ export async function checkAuth(): Promise<{ authenticated: boolean }> {
   }
 }
 
-export async function login(password: string): Promise<{ success: boolean }> {
+export async function login(password: string): Promise<{ ok: boolean }> {
   const res = await fetch(`${BASE}/api/auth`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -166,16 +166,16 @@ export async function login(password: string): Promise<{ success: boolean }> {
   if (res.status === 429) {
     throw new Error('Too many attempts. Try again later.');
   }
-  return handleResponse<{ success: boolean }>(res);
+  return handleResponse<{ ok: boolean }>(res);
 }
 
 export async function logout(): Promise<void> {
-  // Clear auth cookie by navigating to login — server has no logout endpoint
-  document.cookie = 'pty_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+  // Auth cookie is httpOnly — we can't clear it client-side.
+  // Redirect to login page; server will reject subsequent requests without a valid token.
 }
 
 export async function checkUpdate(force = false): Promise<{
-  hasUpdate: boolean;
+  updateAvailable: boolean;
   current: string;
   latest: string;
 } | null> {

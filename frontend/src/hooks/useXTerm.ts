@@ -130,16 +130,18 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       }
     };
 
+    let initRo: ResizeObserver | null = null;
     if (container.offsetWidth > 0 && container.offsetHeight > 0) {
       openTerminal();
     } else {
-      const ro = new ResizeObserver(() => {
+      initRo = new ResizeObserver(() => {
         if (container.offsetWidth > 0 && container.offsetHeight > 0) {
-          ro.disconnect();
+          initRo!.disconnect();
+          initRo = null;
           openTerminal();
         }
       });
-      ro.observe(container);
+      initRo.observe(container);
     }
 
     termRef.current = term;
@@ -185,6 +187,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
 
     return () => {
       disposed = true;
+      initRo?.disconnect();
       observer.disconnect();
       term.dispose();
       termRef.current = null;

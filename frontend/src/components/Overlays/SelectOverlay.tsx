@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -23,7 +23,7 @@ export default function SelectOverlay() {
   const [loadedFrom, setLoadedFrom] = useState(Math.max(0, totalLines - PAGE_SIZE));
 
   // Reset loadedFrom when overlay opens or session changes
-  useMemo(() => {
+  useEffect(() => {
     setLoadedFrom(Math.max(0, totalLines - PAGE_SIZE));
   }, [active, activeId, totalLines]);
 

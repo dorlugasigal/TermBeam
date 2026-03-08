@@ -77,7 +77,11 @@ export const useUIStore = create<UIState>((set) => ({
   closeCopyOverlay: () => set({ copyOverlayOpen: false }),
   setFontSize: (size) => {
     const clamped = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, Math.round(size)));
-    localStorage.setItem(FONT_SIZE_KEY, String(clamped));
+    try {
+      localStorage.setItem(FONT_SIZE_KEY, String(clamped));
+    } catch {
+      // localStorage may be unavailable (private browsing, quota exceeded)
+    }
     set({ fontSize: clamped });
   },
 }));

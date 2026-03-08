@@ -62,20 +62,6 @@ export default function SearchBar() {
     [doSearch],
   );
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        doSearch(query, e.shiftKey ? 'prev' : 'next');
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleClose();
-      }
-    },
-    [query, doSearch],
-  );
-
   const handleClose = useCallback(() => {
     const addon = getAddon();
     addon?.clearDecorations();
@@ -89,6 +75,20 @@ export default function SearchBar() {
       ms?.term?.focus();
     }
   }, [getAddon, closeSearch, activeId]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        doSearch(query, e.shiftKey ? 'prev' : 'next');
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleClose();
+      }
+    },
+    [query, doSearch, handleClose],
+  );
 
   if (!open) return null;
 

@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { CacheFirst, NetworkFirst } from 'workbox-strategies';
+import { CacheFirst, NetworkOnly } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 
 declare let self: ServiceWorkerGlobalScope;
@@ -25,10 +25,10 @@ registerRoute(
   }),
 );
 
-// Network-first for API calls
+// Network-only for API calls — never cache auth or session data
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/'),
-  new NetworkFirst({ cacheName: 'termbeam-api' }),
+  new NetworkOnly(),
 );
 
 // Skip waiting and claim clients immediately

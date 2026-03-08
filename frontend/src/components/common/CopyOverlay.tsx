@@ -23,7 +23,7 @@ export default function CopyOverlay() {
   const [loadedFrom, setLoadedFrom] = useState(Math.max(0, totalLines - PAGE_SIZE));
 
   // Reset loadedFrom when overlay opens or session changes
-  useMemo(() => {
+  useEffect(() => {
     setLoadedFrom(Math.max(0, totalLines - PAGE_SIZE));
   }, [open, activeId, totalLines]);
 

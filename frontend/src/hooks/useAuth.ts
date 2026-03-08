@@ -34,8 +34,8 @@ export function useAuth(): UseAuthReturn {
             body: JSON.stringify({ password: ott }),
           });
           if (!cancelled && res.ok) {
-            const data = (await res.json()) as { success: boolean };
-            if (data.success) {
+            const data = (await res.json()) as { ok: boolean };
+            if (data.ok) {
               setAuthenticated(true);
               return;
             }
@@ -62,9 +62,9 @@ export function useAuth(): UseAuthReturn {
   const login = useCallback(async (password: string): Promise<boolean> => {
     setLoading(true);
     try {
-      const { success } = await apiLogin(password);
-      setAuthenticated(success);
-      return success;
+      const { ok } = await apiLogin(password);
+      setAuthenticated(ok);
+      return ok;
     } catch (err) {
       // Re-throw so caller can distinguish 429 from other errors
       throw err;

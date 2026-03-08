@@ -10,3 +10,4 @@ junit.xml
 .vscode/
 public-react/
 frontend/node_modules/
+*.tsbuildinfo
