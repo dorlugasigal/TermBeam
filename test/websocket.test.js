@@ -383,7 +383,7 @@ describe('WebSocket', () => {
       assert.ok(!session.clients.has(ws));
     });
 
-    it('should send alt screen enter on attach when session is in alt screen', () => {
+    it('should flag for redraw on attach when session is in alt screen', () => {
       const session = createMockSession('s1', { hasHadClient: true });
       session.inAltScreen = true;
       sessions._add(session);
@@ -392,8 +392,9 @@ describe('WebSocket', () => {
       wss._simulateConnection(ws);
       ws._simulateMessage({ type: 'attach', sessionId: 's1' });
 
+      // Should NOT send explicit alt-screen enter (scrollback already has it)
       const altScreenMsg = ws._sent.find((m) => m.type === 'output' && m.data === '\x1b[?1049h');
-      assert.ok(altScreenMsg, 'should send alt screen enter sequence');
+      assert.strictEqual(altScreenMsg, undefined, 'should not send explicit alt screen enter');
       assert.strictEqual(ws._needsRedraw, true, 'should flag client for redraw');
     });
 

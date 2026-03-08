@@ -155,11 +155,11 @@ function setupWebSocket(wss, { auth, sessions }) {
                 JSON.stringify({ type: 'output', data: sanitizeForReplay(session.scrollbackBuf) }),
               );
             }
-            // If a TUI app is in alt screen, re-enter it so xterm.js uses
-            // the correct buffer before SIGWINCH triggers a redraw.
+            // If a TUI app is in alt screen, trigger a SIGWINCH redraw
+            // so the app repaints. The scrollback buffer already contains the
+            // alt-screen enter sequence from the original output.
             if (session.inAltScreen) {
               ws._needsRedraw = true;
-              ws.send(JSON.stringify({ type: 'output', data: '\x1b[?1049h' }));
             }
           }
           ws.send(JSON.stringify({ type: 'attached', sessionId: msg.sessionId }));
