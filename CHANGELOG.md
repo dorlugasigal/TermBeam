@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.12.0] - 2026-03-08
+
+- feat(frontend): rewrite frontend in React + TypeScript (#128)
+
 ## [1.11.1] - 2026-03-07
 
 - chore: drop Node.js 18 support (EOL April 2025) (#126)
