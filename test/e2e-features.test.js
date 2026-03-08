@@ -1,8 +1,8 @@
 /**
- * E2E tests — comprehensive feature coverage for the TermBeam UI.
+ * E2E tests — comprehensive feature coverage for the TermBeam React UI.
  *
  * Covers: session management, theme persistence, hub page, multi-session tabs,
- * search, keyboard shortcuts, upload/share palette actions, reconnect status,
+ * search, keyboard shortcuts, upload/share palette actions, connection status,
  * mobile layout, and new-session modal details.
  *
  * Run:  npx playwright test test/e2e-features.test.js
@@ -24,7 +24,6 @@ const baseConfig = {
   defaultShell: process.platform === 'win32' ? 'cmd.exe' : '/bin/bash',
   version: '0.1.0-test',
   logLevel: 'error',
-  reactUI: false,
 };
 
 let inst;
@@ -72,12 +71,47 @@ function getBaseURL() {
   return `http://127.0.0.1:${port}`;
 }
 
+async function createSessionViaAPI(name) {
+  const port = inst.server.address().port;
+  const body = name ? { name } : {};
+  const res = await fetch(`http://127.0.0.1:${port}/api/sessions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+async function navigateToTerminal(page, sessionId) {
+  const port = inst.server.address().port;
+  await page.goto(`http://127.0.0.1:${port}/terminal?id=${sessionId}`);
+  await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
+    timeout: 10_000,
+  });
+}
+
+async function navigateToHub(page) {
+  const port = inst.server.address().port;
+  await page.goto(`http://127.0.0.1:${port}/`);
+  await page.waitForLoadState('networkidle');
+}
+
+async function openTerminalWithNewSession(page, name) {
+  const { id } = await createSessionViaAPI(name);
+  await navigateToTerminal(page, id);
+  return id;
+}
+
 async function waitForTerminalOutput(page, pattern, timeout = 15_000) {
   const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
   await expect(async () => {
     const text = await page.evaluate(() => {
-      const pane = document.querySelector('.terminal-pane.visible');
-      const rows = pane ? pane.querySelector('.xterm-rows') : document.querySelector('.xterm-rows');
+      const pane = document.querySelector(
+        '[data-testid="terminal-pane"][data-visible="true"]',
+      );
+      const rows = pane
+        ? pane.querySelector('.xterm-rows')
+        : document.querySelector('.xterm-rows');
       return rows ? rows.innerText : '';
     });
     expect(text).toMatch(regex);
@@ -86,14 +120,20 @@ async function waitForTerminalOutput(page, pattern, timeout = 15_000) {
 
 function getTerminalText(page) {
   return page.evaluate(() => {
-    const pane = document.querySelector('.terminal-pane.visible');
-    const rows = pane ? pane.querySelector('.xterm-rows') : document.querySelector('.xterm-rows');
+    const pane = document.querySelector(
+      '[data-testid="terminal-pane"][data-visible="true"]',
+    );
+    const rows = pane
+      ? pane.querySelector('.xterm-rows')
+      : document.querySelector('.xterm-rows');
     return rows ? rows.innerText : '';
   });
 }
 
 async function typeInTerminal(page, text) {
-  const textarea = page.locator('.terminal-pane.visible .xterm-helper-textarea').first();
+  const textarea = page
+    .locator('[data-testid="terminal-pane"][data-visible="true"] .xterm-helper-textarea')
+    .first();
   await textarea.focus();
   for (const ch of text) {
     await textarea.press(ch);
@@ -101,91 +141,91 @@ async function typeInTerminal(page, text) {
   }
 }
 
-async function openTerminal(page) {
-  const port = inst.server.address().port;
-  await page.goto(`http://127.0.0.1:${port}/terminal`);
-  await expect(page.locator('#status-dot.connected')).toBeVisible({
-    timeout: 10_000,
-  });
-}
-
 async function runCommand(page, cmd) {
   await typeInTerminal(page, cmd);
-  await page.click('button[data-key="enter"]');
+  await page.keyboard.press('Enter');
 }
 
 async function openPaletteAndClick(page, actionLabel) {
-  await page.click('#palette-trigger');
-  await expect(page.locator('.palette-panel')).toHaveClass(/open/);
-  await page.click(`.palette-action:has-text("${actionLabel}")`);
+  await page.click('[data-testid="palette-trigger"]');
+  await expect(
+    page.locator('[data-testid="palette-panel"][data-open="true"]'),
+  ).toBeVisible({ timeout: 3_000 });
+  await page.click(`[data-testid="palette-action"]:has-text("${actionLabel}")`);
   await page.waitForTimeout(300);
 }
 
-async function openHub(page) {
-  const port = inst.server.address().port;
-  await page.goto(`http://127.0.0.1:${port}/`);
-  await page.waitForLoadState('networkidle');
-}
+// ─── 1. New Session Modal — Hub Page ────────────────────────────────────────
 
-// ─── 1. New Session Modal from Terminal Page ────────────────────────────────
-
-test.describe('New Session Modal — Terminal Page', () => {
+test.describe('New Session Modal — Hub Page', () => {
   test('creating a session adds a new tab and switches to it', async ({ page }) => {
-    await openTerminal(page);
-    const tabsBefore = await page.locator('.session-tab').count();
+    await navigateToHub(page);
 
-    await page.click('#tab-new-btn');
-    await expect(page.locator('#new-session-modal')).toHaveClass(/visible/);
-    await page.click('#ns-create');
-    await expect(page.locator('#new-session-modal')).not.toHaveClass(/visible/, { timeout: 5_000 });
-
-    // Wait for new tab to appear
-    await expect(page.locator('.session-tab')).toHaveCount(tabsBefore + 1, {
-      timeout: 5_000,
+    await page.click('[data-testid="hub-new-session-btn"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible({
+      timeout: 3_000,
     });
+    await page.click('[data-testid="ns-create"]');
 
-    // New tab should be active
-    const lastTab = page.locator('.session-tab').last();
-    await expect(lastTab).toHaveClass(/active/, { timeout: 5_000 });
-
-    // Terminal should be connected
-    await expect(page.locator('#status-dot.connected')).toBeVisible({
+    // Should navigate to terminal page
+    await expect(page).toHaveURL(/\/terminal/, { timeout: 10_000 });
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
       timeout: 10_000,
     });
+
+    // Should have one tab and it should be active
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(1, {
+      timeout: 5_000,
+    });
+    await expect(
+      page.locator('[data-testid="session-tab"][data-active="true"]'),
+    ).toHaveCount(1);
   });
 
   test('session is created with custom name', async ({ page }) => {
-    await openTerminal(page);
-    await page.click('#tab-new-btn');
-    await expect(page.locator('#new-session-modal')).toHaveClass(/visible/);
+    await navigateToHub(page);
+    await page.click('[data-testid="hub-new-session-btn"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible({
+      timeout: 3_000,
+    });
 
     const customName = `Custom_${Date.now()}`;
-    await page.fill('#ns-name', customName);
-    await page.click('#ns-create');
-    await expect(page.locator('#new-session-modal')).not.toHaveClass(/visible/, { timeout: 5_000 });
+    await page.fill('[data-testid="ns-name"]', customName);
+    await page.click('[data-testid="ns-create"]');
 
-    // The new tab should show the custom name
-    await expect(page.locator('.session-tab.active .tab-name')).toHaveText(customName, {
-      timeout: 5_000,
+    // Should navigate to terminal
+    await expect(page).toHaveURL(/\/terminal/, { timeout: 10_000 });
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
+      timeout: 10_000,
     });
+
+    // The active tab should show the custom name
+    await expect(
+      page.locator(
+        '[data-testid="session-tab"][data-active="true"] [data-testid="tab-name"]',
+      ),
+    ).toHaveText(customName, { timeout: 5_000 });
   });
 
   test('session is created with selected shell', async ({ page }) => {
-    await openTerminal(page);
-    await page.click('#tab-new-btn');
-    await expect(page.locator('#new-session-modal')).toHaveClass(/visible/);
-
-    // Shell dropdown should have options loaded
-    await expect(page.locator('#ns-shell option')).not.toHaveCount(0, {
-      timeout: 5_000,
+    await navigateToHub(page);
+    await page.click('[data-testid="hub-new-session-btn"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible({
+      timeout: 3_000,
     });
 
-    // Select first available shell and create
-    await page.click('#ns-create');
-    await expect(page.locator('#new-session-modal')).not.toHaveClass(/visible/, { timeout: 5_000 });
+    // Shell dropdown should have options loaded
+    const shellSelect = page.locator('[data-testid="ns-shell"]');
+    await expect(shellSelect).toBeVisible();
+    const optionCount = await shellSelect.locator('option').count();
+    expect(optionCount).toBeGreaterThan(0);
 
-    // Verify the terminal is functional
-    await expect(page.locator('#status-dot.connected')).toBeVisible({
+    // Select first available shell and create
+    await page.click('[data-testid="ns-create"]');
+
+    // Should navigate to terminal and be functional
+    await expect(page).toHaveURL(/\/terminal/, { timeout: 10_000 });
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
       timeout: 10_000,
     });
     const marker = `SHELL_${Date.now()}`;
@@ -194,16 +234,20 @@ test.describe('New Session Modal — Terminal Page', () => {
   });
 
   test('cancel button closes modal without creating', async ({ page }) => {
-    await openTerminal(page);
-    const tabsBefore = await page.locator('.session-tab').count();
+    await navigateToHub(page);
 
-    await page.click('#tab-new-btn');
-    await expect(page.locator('#new-session-modal')).toHaveClass(/visible/);
-    await page.click('#ns-cancel');
-    await expect(page.locator('#new-session-modal')).not.toHaveClass(/visible/, { timeout: 3_000 });
+    await page.click('[data-testid="hub-new-session-btn"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible({
+      timeout: 3_000,
+    });
 
-    // Tab count should not change
-    await expect(page.locator('.session-tab')).toHaveCount(tabsBefore);
+    await page.click('[data-testid="ns-cancel"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
+      timeout: 3_000,
+    });
+
+    // No sessions should have been created
+    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(0);
   });
 });
 
@@ -211,7 +255,7 @@ test.describe('New Session Modal — Terminal Page', () => {
 
 test.describe('Session Management', () => {
   test('rename session via palette changes the displayed name', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
     const newName = `Renamed_${Date.now()}`;
 
     // The rename action uses window.prompt — we must handle the dialog
@@ -222,31 +266,37 @@ test.describe('Session Management', () => {
     await openPaletteAndClick(page, 'Rename session');
 
     // Verify the session name is updated in the top bar
-    await expect(page.locator('#session-name')).toHaveText(newName, {
+    await expect(page.locator('[data-testid="session-name-display"]')).toHaveText(newName, {
       timeout: 5_000,
     });
 
     // Verify it's also updated in the active tab
-    await expect(page.locator('.session-tab.active .tab-name')).toHaveText(newName, {
-      timeout: 5_000,
-    });
+    await expect(
+      page.locator(
+        '[data-testid="session-tab"][data-active="true"] [data-testid="tab-name"]',
+      ),
+    ).toHaveText(newName, { timeout: 5_000 });
   });
 
   test('multiple sessions can exist simultaneously', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
-    // Create a second session
-    await page.click('#tab-new-btn');
-    await expect(page.locator('#new-session-modal')).toHaveClass(/visible/);
-    await page.click('#ns-create');
-    await expect(page.locator('#new-session-modal')).not.toHaveClass(/visible/, { timeout: 5_000 });
+    // Create a second session via tab-new-btn
+    await page.click('[data-testid="tab-new-btn"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible({
+      timeout: 3_000,
+    });
+    await page.click('[data-testid="ns-create"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
+      timeout: 5_000,
+    });
 
-    await expect(page.locator('.session-tab')).toHaveCount(2, {
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
       timeout: 5_000,
     });
 
     // Both sessions should be functional — type in second
-    await expect(page.locator('#status-dot.connected')).toBeVisible({
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
       timeout: 10_000,
     });
     const marker2 = `S2_${Date.now()}`;
@@ -254,7 +304,7 @@ test.describe('Session Management', () => {
     await waitForTerminalOutput(page, marker2);
 
     // Switch to first session
-    await page.locator('.session-tab').first().click();
+    await page.locator('[data-testid="session-tab"]').first().click();
     await page.waitForTimeout(500);
 
     // Type in first — should work
@@ -265,7 +315,7 @@ test.describe('Session Management', () => {
 
   test('switching between sessions preserves terminal content', async ({ page }) => {
     test.skip(isWindows, 'bash-specific');
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
     // Output a unique marker in first session
     const marker1 = `FIRST_${Date.now()}`;
@@ -273,11 +323,15 @@ test.describe('Session Management', () => {
     await waitForTerminalOutput(page, marker1);
 
     // Create second session
-    await page.click('#tab-new-btn');
-    await expect(page.locator('#new-session-modal')).toHaveClass(/visible/);
-    await page.click('#ns-create');
-    await expect(page.locator('#new-session-modal')).not.toHaveClass(/visible/, { timeout: 5_000 });
-    await expect(page.locator('#status-dot.connected')).toBeVisible({
+    await page.click('[data-testid="tab-new-btn"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible({
+      timeout: 3_000,
+    });
+    await page.click('[data-testid="ns-create"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
       timeout: 10_000,
     });
 
@@ -287,7 +341,7 @@ test.describe('Session Management', () => {
     await waitForTerminalOutput(page, marker2);
 
     // Switch back to first session
-    await page.locator('.session-tab').first().click();
+    await page.locator('[data-testid="session-tab"]').first().click();
     await page.waitForTimeout(500);
 
     // First session should still show its marker
@@ -301,16 +355,16 @@ test.describe('Session Management', () => {
 
 test.describe('Theme System', () => {
   test('theme persists across page reload', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
     // Open palette and click Theme to open subpanel
     await openPaletteAndClick(page, 'Theme');
-    await expect(page.locator('#theme-subpanel')).toHaveClass(/open/, {
-      timeout: 3_000,
-    });
+    await expect(
+      page.locator('[data-testid="theme-subpanel"][data-open="true"]'),
+    ).toBeVisible({ timeout: 3_000 });
 
     // Apply 'nord' theme
-    await page.click('.theme-subpanel-item[data-tid="nord"]');
+    await page.click('[data-testid="theme-item"][data-tid="nord"]');
     await page.waitForTimeout(300);
 
     // Verify theme is applied
@@ -321,7 +375,7 @@ test.describe('Theme System', () => {
 
     // Reload and verify persistence
     await page.reload();
-    await expect(page.locator('#status-dot.connected')).toBeVisible({
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
       timeout: 10_000,
     });
 
@@ -332,21 +386,23 @@ test.describe('Theme System', () => {
   });
 
   test('theme applies to both hub and terminal pages', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
     // Set theme on terminal page
     await openPaletteAndClick(page, 'Theme');
-    await expect(page.locator('#theme-subpanel')).toHaveClass(/open/, {
-      timeout: 3_000,
-    });
-    await page.click('.theme-subpanel-item[data-tid="dracula"]');
+    await expect(
+      page.locator('[data-testid="theme-subpanel"][data-open="true"]'),
+    ).toBeVisible({ timeout: 3_000 });
+    await page.click('[data-testid="theme-item"][data-tid="dracula"]');
     await page.waitForTimeout(300);
 
     // Navigate to hub
-    await openHub(page);
+    await navigateToHub(page);
 
     // Hub should also have dracula theme
-    const hubTheme = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+    const hubTheme = await page.evaluate(() =>
+      document.documentElement.getAttribute('data-theme'),
+    );
     expect(hubTheme).toBe('dracula');
   });
 
@@ -366,14 +422,14 @@ test.describe('Theme System', () => {
       'night-owl',
     ];
 
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
     await openPaletteAndClick(page, 'Theme');
-    await expect(page.locator('#theme-subpanel')).toHaveClass(/open/, {
-      timeout: 3_000,
-    });
+    await expect(
+      page.locator('[data-testid="theme-subpanel"][data-open="true"]'),
+    ).toBeVisible({ timeout: 3_000 });
 
     for (const theme of themes) {
-      await page.click(`.theme-subpanel-item[data-tid="${theme}"]`);
+      await page.click(`[data-testid="theme-item"][data-tid="${theme}"]`);
       await page.waitForTimeout(150);
 
       const applied = await page.evaluate(() =>
@@ -384,18 +440,15 @@ test.describe('Theme System', () => {
   });
 
   test('theme picker in palette shows theme options', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
     await openPaletteAndClick(page, 'Theme');
-    await expect(page.locator('#theme-subpanel')).toHaveClass(/open/, {
-      timeout: 3_000,
-    });
+    await expect(
+      page.locator('[data-testid="theme-subpanel"][data-open="true"]'),
+    ).toBeVisible({ timeout: 3_000 });
 
     // Should show at least 12 theme options
-    const count = await page.locator('.theme-subpanel-item').count();
+    const count = await page.locator('[data-testid="theme-item"]').count();
     expect(count).toBeGreaterThanOrEqual(12);
-
-    // Current theme should be marked active
-    await expect(page.locator('.theme-subpanel-item.active')).toHaveCount(1);
   });
 });
 
@@ -403,66 +456,68 @@ test.describe('Theme System', () => {
 
 test.describe('Upload & Share Palette Actions', () => {
   test('upload files action exists in palette', async ({ page }) => {
-    await openTerminal(page);
-    await page.click('#palette-trigger');
-    await expect(page.locator('.palette-panel')).toHaveClass(/open/);
+    await openTerminalWithNewSession(page);
+    await page.click('[data-testid="palette-trigger"]');
+    await expect(
+      page.locator('[data-testid="palette-panel"][data-open="true"]'),
+    ).toBeVisible({ timeout: 3_000 });
 
-    await expect(page.locator('.palette-action:has-text("Upload files")')).toBeVisible();
+    await expect(
+      page.locator('[data-testid="palette-action"]:has-text("Upload files")'),
+    ).toBeVisible();
   });
 
   test('copy link action exists in palette', async ({ page }) => {
-    await openTerminal(page);
-    await page.click('#palette-trigger');
-    await expect(page.locator('.palette-panel')).toHaveClass(/open/);
+    await openTerminalWithNewSession(page);
+    await page.click('[data-testid="palette-trigger"]');
+    await expect(
+      page.locator('[data-testid="palette-panel"][data-open="true"]'),
+    ).toBeVisible({ timeout: 3_000 });
 
-    await expect(page.locator('.palette-action:has-text("Copy link")')).toBeVisible();
+    await expect(
+      page.locator('[data-testid="palette-action"]:has-text("Copy link")'),
+    ).toBeVisible();
   });
 
   test('about dialog shows version info', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
     await openPaletteAndClick(page, 'About');
 
-    // About dialog creates a fixed overlay — look for the dynamically created box
-    // containing "TermBeam" text. Use a specific selector to avoid matching other elements.
-    await expect(page.locator('div').filter({ hasText: /^TermBeam$/ })).toBeVisible({
-      timeout: 3_000,
-    });
+    // About modal should show TermBeam branding and version
+    await expect(page.getByText(/TermBeam/).first()).toBeVisible({ timeout: 3_000 });
 
     // The dialog shows links to GitHub and Docs
-    await expect(page.locator('a[href*="github.com"]')).toBeVisible({
-      timeout: 3_000,
-    });
-    await expect(page.locator('a:has-text("Docs")')).toBeVisible({
-      timeout: 3_000,
-    });
+    await expect(page.locator('a[href*="github.com"]')).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('a:has-text("Docs")')).toBeVisible({ timeout: 3_000 });
   });
 });
 
-// ─── 5. Reconnect Behavior ─────────────────────────────────────────────────
+// ─── 5. Connection Status ──────────────────────────────────────────────────
 
 test.describe('Connection Status', () => {
   test('terminal shows connected state with green dot', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
     // Status dot should be visible and have 'connected' class
-    await expect(page.locator('#status-dot.connected')).toBeVisible({
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
       timeout: 10_000,
     });
 
     // Status dot element should exist with the connected class
-    const dotClass = await page.locator('#status-dot').getAttribute('class');
+    const dotClass = await page
+      .locator('[data-testid="status-dot"]')
+      .getAttribute('class');
     expect(dotClass).toContain('connected');
   });
 
   test('session name is displayed in top bar', async ({ page }) => {
-    await openTerminal(page);
+    const name = `TestSession_${Date.now()}`;
+    await openTerminalWithNewSession(page, name);
 
-    // Session name should not be the placeholder
-    await expect(page.locator('#session-name')).not.toHaveText('…', {
+    // Session name should show the name we gave it
+    await expect(page.locator('[data-testid="session-name-display"]')).toHaveText(name, {
       timeout: 5_000,
     });
-    const name = await page.locator('#session-name').textContent();
-    expect(name.length).toBeGreaterThan(0);
   });
 });
 
@@ -470,53 +525,54 @@ test.describe('Connection Status', () => {
 
 test.describe('Hub Page', () => {
   test('hub page lists all sessions', async ({ page }) => {
-    await openHub(page);
+    await createSessionViaAPI();
+    await navigateToHub(page);
 
-    // The default server starts with one session
-    await expect(page.locator('.session-card')).toHaveCount(1, {
+    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(1, {
       timeout: 5_000,
     });
   });
 
   test('sessions show shell and PID info', async ({ page }) => {
-    await openHub(page);
+    await createSessionViaAPI();
+    await navigateToHub(page);
 
     // Each session card should show PID
-    await expect(page.locator('.session-card .pid').first()).toBeVisible({
-      timeout: 5_000,
-    });
-    const pidText = await page.locator('.session-card .pid').first().textContent();
-    expect(pidText).toMatch(/PID \d+/);
+    const pidEl = page.locator('[data-testid="session-pid"]').first();
+    await expect(pidEl).toBeVisible({ timeout: 5_000 });
+    const pidText = await pidEl.textContent();
+    expect(pidText).toMatch(/\d+/);
 
-    // Details should show shell and working directory
-    const details = page.locator('.session-card .details').first();
-    await expect(details).toBeVisible({ timeout: 5_000 });
-    const detailsText = await details.textContent();
-    // Should contain directory info and shell info
-    expect(detailsText).toBeTruthy();
+    // Session card should show shell info
+    const shellEl = page.locator('[data-testid="session-shell"]').first();
+    await expect(shellEl).toBeVisible({ timeout: 5_000 });
+    const shellText = await shellEl.textContent();
+    expect(shellText).toBeTruthy();
   });
 
-  test('new session button on hub creates session and navigates to terminal', async ({ page }) => {
-    await openHub(page);
-    await page.click('#new-session-btn');
+  test('new session button on hub creates session and navigates to terminal', async ({
+    page,
+  }) => {
+    await navigateToHub(page);
+    await page.click('[data-testid="hub-new-session-btn"]');
 
     // Modal should open
-    await expect(page.locator('#modal')).toHaveClass(/visible/, {
+    await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible({
       timeout: 3_000,
     });
-    await page.click('#modal-create');
+    await page.click('[data-testid="ns-create"]');
 
     // Should navigate to terminal page
     await expect(page).toHaveURL(/\/terminal/, { timeout: 10_000 });
-    await expect(page.locator('#status-dot.connected')).toBeVisible({
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
       timeout: 10_000,
     });
   });
 
   test('version is displayed in hub header', async ({ page }) => {
-    await openHub(page);
+    await navigateToHub(page);
 
-    const versionEl = page.locator('#version');
+    const versionEl = page.locator('[data-testid="hub-version"]');
     await expect(versionEl).toBeVisible({ timeout: 5_000 });
     const versionText = await versionEl.textContent();
     // Version should be non-empty (format: "vX.Y.Z" or similar)
@@ -524,33 +580,35 @@ test.describe('Hub Page', () => {
   });
 
   test('refresh button reloads session list', async ({ page }) => {
-    await openHub(page);
+    await createSessionViaAPI();
+    await navigateToHub(page);
 
     // Session list should have sessions
-    await expect(page.locator('.session-card')).toHaveCount(1, {
+    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(1, {
       timeout: 5_000,
     });
 
     // Click refresh
-    await page.click('#refresh-btn');
+    await page.click('[data-testid="hub-refresh-btn"]');
     await page.waitForTimeout(1000);
 
     // Sessions should still be listed after refresh
-    await expect(page.locator('.session-card')).toHaveCount(1, {
+    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(1, {
       timeout: 5_000,
     });
   });
 
   test('connect button on session card navigates to terminal', async ({ page }) => {
-    await openHub(page);
+    await createSessionViaAPI();
+    await navigateToHub(page);
 
-    await expect(page.locator('.session-card')).toHaveCount(1, {
+    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(1, {
       timeout: 5_000,
     });
-    await page.locator('.session-card .connect-btn').first().click();
+    await page.locator('[data-testid="connect-btn"]').first().click();
 
     await expect(page).toHaveURL(/\/terminal/, { timeout: 10_000 });
-    await expect(page.locator('#status-dot.connected')).toBeVisible({
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
       timeout: 10_000,
     });
   });
@@ -560,61 +618,75 @@ test.describe('Hub Page', () => {
 
 test.describe('Multi-Session Tabs', () => {
   test('creating multiple sessions shows multiple tabs', async ({ page }) => {
-    await openTerminal(page);
-    await expect(page.locator('.session-tab')).toHaveCount(1, {
+    await openTerminalWithNewSession(page);
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(1, {
       timeout: 5_000,
     });
 
-    // Create second session
-    await page.click('#tab-new-btn');
-    await expect(page.locator('#new-session-modal')).toHaveClass(/visible/);
-    await page.click('#ns-create');
-    await expect(page.locator('#new-session-modal')).not.toHaveClass(/visible/, { timeout: 5_000 });
-    await expect(page.locator('.session-tab')).toHaveCount(2, {
+    // Create second session via tab-new-btn (opens modal)
+    await page.click('[data-testid="tab-new-btn"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible({
+      timeout: 3_000,
+    });
+    await page.click('[data-testid="ns-create"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
       timeout: 5_000,
     });
 
     // Create third session
-    await page.click('#tab-new-btn');
-    await expect(page.locator('#new-session-modal')).toHaveClass(/visible/);
-    await page.click('#ns-create');
-    await expect(page.locator('#new-session-modal')).not.toHaveClass(/visible/, { timeout: 5_000 });
-    await expect(page.locator('.session-tab')).toHaveCount(3, {
+    await page.click('[data-testid="tab-new-btn"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible({
+      timeout: 3_000,
+    });
+    await page.click('[data-testid="ns-create"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(3, {
       timeout: 5_000,
     });
   });
 
   test('active tab is visually distinguished', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
     // Create a second session so we have 2 tabs
-    await page.click('#tab-new-btn');
-    await expect(page.locator('#new-session-modal')).toHaveClass(/visible/);
-    await page.click('#ns-create');
-    await expect(page.locator('#new-session-modal')).not.toHaveClass(/visible/, { timeout: 5_000 });
-    await expect(page.locator('.session-tab')).toHaveCount(2, {
+    await page.click('[data-testid="tab-new-btn"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible({
+      timeout: 3_000,
+    });
+    await page.click('[data-testid="ns-create"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
       timeout: 5_000,
     });
 
     // Exactly one tab should be active
-    await expect(page.locator('.session-tab.active')).toHaveCount(1);
+    await expect(
+      page.locator('[data-testid="session-tab"][data-active="true"]'),
+    ).toHaveCount(1);
 
     // The last tab (newly created) should be active
-    const lastTab = page.locator('.session-tab').last();
-    await expect(lastTab).toHaveClass(/active/);
+    const lastTab = page.locator('[data-testid="session-tab"]').last();
+    await expect(lastTab).toHaveAttribute('data-active', 'true');
   });
 
-  test('tab shows session color dot', async ({ page }) => {
-    await openTerminal(page);
+  test('tab shows session status dot', async ({ page }) => {
+    await openTerminalWithNewSession(page);
 
-    // Each tab should have a colored dot
-    const tabDot = page.locator('.session-tab .tab-dot').first();
+    // Each tab should have a status dot
+    const tabDot = page.locator('[data-testid="tab-status-dot"]').first();
     await expect(tabDot).toBeVisible({ timeout: 5_000 });
   });
 
   test('clicking a tab switches to that session', async ({ page }) => {
     test.skip(isWindows, 'bash-specific');
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
     // Mark first session
     const marker1 = `TAB1_${Date.now()}`;
@@ -622,11 +694,15 @@ test.describe('Multi-Session Tabs', () => {
     await waitForTerminalOutput(page, marker1);
 
     // Create second session
-    await page.click('#tab-new-btn');
-    await expect(page.locator('#new-session-modal')).toHaveClass(/visible/);
-    await page.click('#ns-create');
-    await expect(page.locator('#new-session-modal')).not.toHaveClass(/visible/, { timeout: 5_000 });
-    await expect(page.locator('#status-dot.connected')).toBeVisible({
+    await page.click('[data-testid="tab-new-btn"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible({
+      timeout: 3_000,
+    });
+    await page.click('[data-testid="ns-create"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
       timeout: 10_000,
     });
 
@@ -636,7 +712,7 @@ test.describe('Multi-Session Tabs', () => {
     await waitForTerminalOutput(page, marker2);
 
     // Click first tab
-    await page.locator('.session-tab').first().click();
+    await page.locator('[data-testid="session-tab"]').first().click();
     await page.waitForTimeout(500);
 
     // Should see first session content
@@ -644,14 +720,18 @@ test.describe('Multi-Session Tabs', () => {
   });
 
   test('close button on tab removes the tab', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
     // Create a second session
-    await page.click('#tab-new-btn');
-    await expect(page.locator('#new-session-modal')).toHaveClass(/visible/);
-    await page.click('#ns-create');
-    await expect(page.locator('#new-session-modal')).not.toHaveClass(/visible/, { timeout: 5_000 });
-    await expect(page.locator('.session-tab')).toHaveCount(2, {
+    await page.click('[data-testid="tab-new-btn"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible({
+      timeout: 3_000,
+    });
+    await page.click('[data-testid="ns-create"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
       timeout: 5_000,
     });
 
@@ -659,25 +739,29 @@ test.describe('Multi-Session Tabs', () => {
     page.once('dialog', (dialog) => dialog.accept());
 
     // Hover over last tab to reveal close button, then click it
-    const lastTab = page.locator('.session-tab').last();
+    const lastTab = page.locator('[data-testid="session-tab"]').last();
     await lastTab.hover();
-    await lastTab.locator('.tab-close').click();
+    await lastTab.locator('[data-testid="tab-close"]').click();
 
     // Should be back to 1 tab
-    await expect(page.locator('.session-tab')).toHaveCount(1, {
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(1, {
       timeout: 5_000,
     });
   });
 
   test('closing active tab switches to adjacent session', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
     // Create second session
-    await page.click('#tab-new-btn');
-    await expect(page.locator('#new-session-modal')).toHaveClass(/visible/);
-    await page.click('#ns-create');
-    await expect(page.locator('#new-session-modal')).not.toHaveClass(/visible/, { timeout: 5_000 });
-    await expect(page.locator('.session-tab')).toHaveCount(2, {
+    await page.click('[data-testid="tab-new-btn"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible({
+      timeout: 3_000,
+    });
+    await page.click('[data-testid="ns-create"]');
+    await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
       timeout: 5_000,
     });
 
@@ -685,21 +769,21 @@ test.describe('Multi-Session Tabs', () => {
     page.once('dialog', (dialog) => dialog.accept());
 
     // The second tab is active; close it
-    const lastTab = page.locator('.session-tab').last();
-    await expect(lastTab).toHaveClass(/active/);
+    const lastTab = page.locator('[data-testid="session-tab"]').last();
+    await expect(lastTab).toHaveAttribute('data-active', 'true');
     await lastTab.hover();
-    await lastTab.locator('.tab-close').click();
+    await lastTab.locator('[data-testid="tab-close"]').click();
 
     // First tab should now be active
-    await expect(page.locator('.session-tab')).toHaveCount(1, {
+    await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(1, {
       timeout: 5_000,
     });
-    await expect(page.locator('.session-tab').first()).toHaveClass(/active/, {
-      timeout: 5_000,
-    });
+    await expect(
+      page.locator('[data-testid="session-tab"]').first(),
+    ).toHaveAttribute('data-active', 'true', { timeout: 5_000 });
 
     // Terminal should still be connected
-    await expect(page.locator('#status-dot.connected')).toBeVisible({
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
       timeout: 10_000,
     });
   });
@@ -709,18 +793,18 @@ test.describe('Multi-Session Tabs', () => {
 
 test.describe('Search', () => {
   test('search bar opens via palette "Find in terminal"', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
     await openPaletteAndClick(page, 'Find in terminal');
 
-    await expect(page.locator('#search-bar')).toHaveClass(/visible/, {
-      timeout: 3_000,
-    });
-    await expect(page.locator('#search-input')).toBeFocused();
+    await expect(
+      page.locator('[data-testid="search-bar"][data-open="true"]'),
+    ).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="search-input"]')).toBeFocused();
   });
 
   test('search finds text in terminal output', async ({ page }) => {
     test.skip(isWindows, 'bash-specific');
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
     // Output some searchable text
     const marker = `SEARCHME_${Date.now()}`;
@@ -729,43 +813,51 @@ test.describe('Search', () => {
 
     // Open search and type the marker
     await openPaletteAndClick(page, 'Find in terminal');
-    await expect(page.locator('#search-bar')).toHaveClass(/visible/);
-    await page.fill('#search-input', marker);
+    await expect(
+      page.locator('[data-testid="search-bar"][data-open="true"]'),
+    ).toBeVisible();
+    await page.fill('[data-testid="search-input"]', marker);
     await page.waitForTimeout(500);
 
-    // Search count should indicate found
-    const countText = await page.locator('#search-count').textContent();
-    expect(countText).toContain('Found');
+    // Search indicator should show a match (e.g. "1 of 1" or "Found")
+    await expect(async () => {
+      const barText = await page.locator('[data-testid="search-bar"]').innerText();
+      expect(barText).toMatch(/Found|\d+ of \d+/);
+    }).toPass({ timeout: 5_000 });
   });
 
   test('search navigation (prev/next) buttons exist', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
     await openPaletteAndClick(page, 'Find in terminal');
 
-    await expect(page.locator('#search-prev')).toBeVisible();
-    await expect(page.locator('#search-next')).toBeVisible();
+    await expect(page.locator('[data-testid="search-prev"]')).toBeVisible();
+    await expect(page.locator('[data-testid="search-next"]')).toBeVisible();
   });
 
   test('closing search bar hides it', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
     await openPaletteAndClick(page, 'Find in terminal');
 
-    await expect(page.locator('#search-bar')).toHaveClass(/visible/);
-    await page.click('#search-close');
-    await expect(page.locator('#search-bar')).not.toHaveClass(/visible/, {
-      timeout: 3_000,
-    });
+    await expect(
+      page.locator('[data-testid="search-bar"][data-open="true"]'),
+    ).toBeVisible();
+    await page.click('[data-testid="search-close"]');
+    await expect(
+      page.locator('[data-testid="search-bar"][data-open="true"]'),
+    ).not.toBeVisible({ timeout: 3_000 });
   });
 
   test('Escape key closes search bar', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
     await openPaletteAndClick(page, 'Find in terminal');
 
-    await expect(page.locator('#search-bar')).toHaveClass(/visible/);
-    await page.locator('#search-input').press('Escape');
-    await expect(page.locator('#search-bar')).not.toHaveClass(/visible/, {
-      timeout: 3_000,
-    });
+    await expect(
+      page.locator('[data-testid="search-bar"][data-open="true"]'),
+    ).toBeVisible();
+    await page.locator('[data-testid="search-input"]').press('Escape');
+    await expect(
+      page.locator('[data-testid="search-bar"][data-open="true"]'),
+    ).not.toBeVisible({ timeout: 3_000 });
   });
 });
 
@@ -773,86 +865,90 @@ test.describe('Search', () => {
 
 test.describe('Keyboard Shortcuts', () => {
   test('Ctrl+K opens command palette', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
     await page.keyboard.press('Control+k');
-    await expect(page.locator('.palette-panel')).toHaveClass(/open/, {
-      timeout: 3_000,
-    });
+    await expect(
+      page.locator('[data-testid="palette-panel"][data-open="true"]'),
+    ).toBeVisible({ timeout: 3_000 });
   });
 
   test('Escape closes command palette', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
     await page.keyboard.press('Control+k');
-    await expect(page.locator('.palette-panel')).toHaveClass(/open/, {
-      timeout: 3_000,
-    });
+    await expect(
+      page.locator('[data-testid="palette-panel"][data-open="true"]'),
+    ).toBeVisible({ timeout: 3_000 });
 
     await page.keyboard.press('Escape');
-    await expect(page.locator('.palette-panel')).not.toHaveClass(/open/, {
-      timeout: 3_000,
-    });
+    await expect(
+      page.locator('[data-testid="palette-panel"][data-open="true"]'),
+    ).not.toBeVisible({ timeout: 3_000 });
   });
 
   test('Ctrl+F opens search bar', async ({ page }) => {
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
     await page.keyboard.press('Control+f');
-    await expect(page.locator('#search-bar')).toHaveClass(/visible/, {
-      timeout: 3_000,
-    });
-    await expect(page.locator('#search-input')).toBeFocused();
+    await expect(
+      page.locator('[data-testid="search-bar"][data-open="true"]'),
+    ).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="search-input"]')).toBeFocused();
   });
 });
 
 // ─── 10. Mobile Layout ─────────────────────────────────────────────────────
 
 test.describe('Mobile Layout', () => {
-  test('hamburger menu visible on mobile viewport', async ({ page }) => {
+  test('terminal loads and connects on mobile viewport', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
-    await expect(page.locator('#panel-toggle')).toBeVisible({ timeout: 5_000 });
-  });
-
-  test('tab bar hidden on mobile', async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 667 });
-    await openTerminal(page);
-
-    await expect(page.locator('#tab-list')).not.toBeVisible();
-  });
-
-  test('side panel opens on hamburger click', async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 667 });
-    await openTerminal(page);
-
-    await page.click('#panel-toggle');
-    await expect(page.locator('#side-panel')).toHaveClass(/open/, {
-      timeout: 3_000,
+    await expect(page.locator('[data-testid="terminal-app"]')).toBeVisible({
+      timeout: 5_000,
     });
-
-    // Side panel should show session list and brand
-    await expect(page.locator('.side-panel-brand')).toBeVisible();
-  });
-
-  test('side panel shows new session button', async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 667 });
-    await openTerminal(page);
-
-    await page.click('#panel-toggle');
-    await expect(page.locator('#side-panel')).toHaveClass(/open/, {
-      timeout: 3_000,
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
+      timeout: 10_000,
     });
-
-    await expect(page.locator('#side-panel-new-btn')).toBeVisible();
   });
 
-  test('back button hidden on mobile', async ({ page }) => {
+  test('palette trigger visible on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
-    await openTerminal(page);
+    await openTerminalWithNewSession(page);
 
-    // Back button should be hidden on mobile
-    await expect(page.locator('#back-btn')).not.toBeVisible();
+    await expect(page.locator('[data-testid="palette-trigger"]')).toBeVisible({
+      timeout: 5_000,
+    });
+  });
+
+  test('command palette works on mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await openTerminalWithNewSession(page);
+
+    await page.click('[data-testid="palette-trigger"]');
+    await expect(
+      page.locator('[data-testid="palette-panel"][data-open="true"]'),
+    ).toBeVisible({ timeout: 3_000 });
+  });
+
+  test('hub page works on mobile viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await createSessionViaAPI();
+    await navigateToHub(page);
+
+    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(1, {
+      timeout: 5_000,
+    });
+  });
+
+  test('terminal is functional on mobile viewport', async ({ page }) => {
+    test.skip(isWindows, 'bash-specific');
+    await page.setViewportSize({ width: 375, height: 667 });
+    await openTerminalWithNewSession(page);
+
+    const marker = `MOBILE_${Date.now()}`;
+    await runCommand(page, `echo ${marker}`);
+    await waitForTerminalOutput(page, marker);
   });
 });

@@ -139,7 +139,7 @@ export function SidePanel() {
         onClick={animateClose}
         aria-hidden="true"
       />
-      <div className={styles.panel} data-closing={closing} ref={panelRef} role="dialog">
+      <div className={styles.panel} data-closing={closing} ref={panelRef} role="dialog" data-testid="side-panel">
         {/* Brand header */}
         <div className={styles.header}>
           <div className={styles.brand}>
@@ -172,7 +172,7 @@ export function SidePanel() {
         <div className={styles.sectionTitle}>Sessions</div>
 
         {/* Session list */}
-        <div className={styles.list}>
+        <div className={styles.list} data-testid="side-panel-list">
           {orderedSessions.map((session) => {
             const preview = getTerminalPreview(session.term);
             const activity = getActivityLabel(session.lastActivity);
@@ -182,6 +182,7 @@ export function SidePanel() {
               <div
                 key={session.id}
                 className={`${styles.card} ${session.id === activeId ? styles.cardActive : ''}`}
+                data-testid="side-panel-card"
                 onClick={() => selectSession(session.id)}
                 onAuxClick={(e) => {
                   if (e.button === 1) {

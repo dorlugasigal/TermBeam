@@ -159,7 +159,7 @@ export default function SessionsHub() {
           📡 Term<span className={styles.accent}>Beam</span>
         </h1>
         <p className={styles.tagline}>
-          Beam your terminal to any device{version ? ` · v${version}` : ''}
+          Beam your terminal to any device{version ? <span data-testid="hub-version"> · v{version}</span> : ''}
         </p>
 
         <button
@@ -175,6 +175,7 @@ export default function SessionsHub() {
           onClick={handleRefresh}
           aria-label="Refresh sessions"
           title="Refresh"
+          data-testid="hub-refresh-btn"
         >
           <span className={refreshing ? styles.refreshSpin : ''} style={{ display: 'flex' }}>
             <RefreshIcon />
@@ -217,7 +218,7 @@ export default function SessionsHub() {
             <span className={styles.emptyText}>Loading sessions…</span>
           </div>
         ) : sessions.length === 0 ? (
-          <div className={styles.emptyState}>
+          <div className={styles.emptyState} data-testid="empty-state">
             <span className={styles.emptyIcon}>📡</span>
             <span className={styles.emptyText}>No active sessions</span>
             <span className={styles.emptyHint}>
@@ -225,7 +226,7 @@ export default function SessionsHub() {
             </span>
           </div>
         ) : (
-          <div className={styles.sessionsList}>
+          <div className={styles.sessionsList} data-testid="sessions-list">
             {sessions.map((session) => (
               <SessionCard
                 key={session.id}
@@ -244,6 +245,7 @@ export default function SessionsHub() {
         className={styles.newSessionBtn}
         onClick={openNewSessionModal}
         aria-label="New session"
+        data-testid="hub-new-session-btn"
       >
         + New Session
       </button>

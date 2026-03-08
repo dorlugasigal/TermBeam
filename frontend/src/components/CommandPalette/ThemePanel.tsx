@@ -15,7 +15,7 @@ export default function ThemePanel({ onBack }: ThemePanelProps) {
   };
 
   return (
-    <>
+    <div data-testid="theme-subpanel" data-open="true">
       <div className={styles.header}>
         <button className={styles.closeBtn} onClick={onBack}>
           ←
@@ -29,6 +29,8 @@ export default function ThemePanel({ onBack }: ThemePanelProps) {
             key={theme.id}
             className={styles.item}
             data-selected={theme.id === currentTheme}
+            data-testid="theme-item"
+            data-tid={theme.id}
             onClick={() => handleSelect(theme.id)}
           >
             <span
@@ -51,6 +53,6 @@ export default function ThemePanel({ onBack }: ThemePanelProps) {
           </button>
         ))}
       </div>
-    </>
+    </div>
   );
 }

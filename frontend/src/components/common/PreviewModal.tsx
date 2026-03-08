@@ -51,7 +51,7 @@ export function PreviewModal() {
     <Dialog.Root open={open} onOpenChange={(v) => !v && handleClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className={styles.overlay} />
-        <Dialog.Content className={styles.content}>
+        <Dialog.Content className={styles.content} data-testid="preview-modal">
           <Dialog.Title className={styles.title}>Port Preview</Dialog.Title>
           <Dialog.Description className={styles.description}>
             Preview a service running on localhost
@@ -75,6 +75,7 @@ export function PreviewModal() {
               onChange={(e) => setPort(e.target.value)}
               placeholder="e.g. 3000"
               autoFocus
+              data-testid="preview-port-input"
             />
             {hint && (
               <div style={{ fontSize: '0.8rem', color: 'var(--accent)', marginTop: 4 }}>
@@ -94,6 +95,7 @@ export function PreviewModal() {
                 type="submit"
                 className={styles.openBtn}
                 disabled={!isValid}
+                data-testid="preview-open"
               >
                 Open Preview
               </button>

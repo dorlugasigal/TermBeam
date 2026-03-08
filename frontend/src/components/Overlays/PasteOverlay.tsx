@@ -71,7 +71,7 @@ export default function PasteOverlay({ open, onClose }: PasteOverlayProps) {
   if (!open || !showManual) return null;
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    <div className={styles.overlay} onClick={onClose} data-testid="paste-overlay">
       <div className={styles.card} onClick={(e) => e.stopPropagation()}>
         <h3 className={styles.heading}>Paste your text here</h3>
         <textarea
@@ -81,12 +81,13 @@ export default function PasteOverlay({ open, onClose }: PasteOverlayProps) {
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Paste content…"
+          data-testid="paste-input"
         />
         <div className={styles.actions}>
-          <button className={styles.btnSecondary} onClick={onClose}>
+          <button className={styles.btnSecondary} onClick={onClose} data-testid="paste-cancel">
             Cancel
           </button>
-          <button className={styles.btnPrimary} onClick={handleSend}>
+          <button className={styles.btnPrimary} onClick={handleSend} data-testid="paste-send">
             Send
           </button>
         </div>

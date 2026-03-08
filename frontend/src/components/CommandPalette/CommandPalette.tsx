@@ -202,7 +202,7 @@ export default function CommandPalette() {
     return (
       <>
         <div className={styles.backdrop} onClick={close} />
-        <div className={panelCls}>
+        <div className={panelCls} data-testid="palette-panel" data-open="true">
           <ThemePanel onBack={() => setShowThemes(false)} />
         </div>
         <AboutModal
@@ -452,7 +452,7 @@ export default function CommandPalette() {
   return (
     <>
       <div className={styles.backdrop} onClick={close} />
-      <div className={panelCls}>
+      <div className={panelCls} data-testid="palette-panel" data-open="true">
         <div className={styles.header}>
           <span className={styles.title}>Tools</span>
           <button className={styles.closeBtn} onClick={close}>
@@ -464,7 +464,7 @@ export default function CommandPalette() {
             <div key={sec.title} className={styles.section}>
               <div className={styles.sectionTitle}>{sec.title}</div>
               {sec.actions.map((a) => (
-                <button key={a.id} className={styles.btn} onClick={a.action}>
+                <button key={a.id} className={styles.btn} onClick={a.action} data-testid="palette-action">
                   {a.icon}
                   {a.label}
                 </button>

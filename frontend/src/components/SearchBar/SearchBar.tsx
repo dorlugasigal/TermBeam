@@ -93,7 +93,7 @@ export default function SearchBar() {
   if (!open) return null;
 
   return (
-    <div className={styles.searchBar}>
+    <div className={styles.searchBar} data-testid="search-bar" data-open="true">
       <input
         ref={inputRef}
         className={styles.input}
@@ -102,11 +102,13 @@ export default function SearchBar() {
         value={query}
         onChange={(e) => handleChange(e.target.value)}
         onKeyDown={handleKeyDown}
+        data-testid="search-input"
       />
       <button
         className={styles.btn}
         onClick={() => doSearch(query, 'prev')}
         title="Previous (Shift+Enter)"
+        data-testid="search-prev"
       >
         ▲
       </button>
@@ -114,6 +116,7 @@ export default function SearchBar() {
         className={styles.btn}
         onClick={() => doSearch(query, 'next')}
         title="Next (Enter)"
+        data-testid="search-next"
       >
         ▼
       </button>
@@ -133,7 +136,7 @@ export default function SearchBar() {
               : 'No results'}
         </span>
       )}
-      <button className={styles.btn} onClick={handleClose} title="Close (Esc)">
+      <button className={styles.btn} onClick={handleClose} title="Close (Esc)" data-testid="search-close">
         ✕
       </button>
     </div>

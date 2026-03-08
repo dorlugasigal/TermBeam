@@ -85,7 +85,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     }}>
       <Dialog.Portal>
         <Dialog.Overlay className={styles.overlay} />
-        <Dialog.Content className={styles.content} onOpenAutoFocus={(e) => e.preventDefault()}>
+        <Dialog.Content className={styles.content} data-testid="new-session-modal" onOpenAutoFocus={(e) => e.preventDefault()}>
           <Dialog.Title className={styles.title}>New Session</Dialog.Title>
 
           {browsing ? (
@@ -107,6 +107,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                   placeholder="my-session"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  data-testid="ns-name"
                 />
               </div>
 
@@ -116,6 +117,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                   className={styles.select}
                   value={shell}
                   onChange={(e) => setShell(e.target.value)}
+                  data-testid="ns-shell"
                 >
                   {shells.map((s) => (
                     <option key={s.path} value={s.cmd}>
@@ -176,6 +178,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                 <button
                   type="button"
                   className={styles.cancelBtn}
+                  data-testid="ns-cancel"
                   onClick={() => {
                     closeNewSessionModal();
                     resetForm();
@@ -187,6 +190,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                   type="button"
                   className={styles.submitBtn}
                   disabled={submitting}
+                  data-testid="ns-create"
                   onClick={handleSubmit}
                 >
                   {submitting ? 'Creating…' : 'Create'}

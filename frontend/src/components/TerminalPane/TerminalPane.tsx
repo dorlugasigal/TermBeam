@@ -270,7 +270,7 @@ export function TerminalPane({ sessionId, active, fontSize = 14 }: TerminalPaneP
   const showReconnectOverlay = !connected && !exited && hadConnectedRef.current;
 
   return (
-    <div ref={paneRef} className={styles.pane}>
+    <div ref={paneRef} className={styles.pane} data-testid="terminal-pane" {...(active ? { 'data-visible': 'true' } : {})}>
       <div ref={terminalRef} className={styles.terminalContainer} />
 
       {showScrollBtn && (

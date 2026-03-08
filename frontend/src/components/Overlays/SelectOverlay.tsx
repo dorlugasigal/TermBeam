@@ -94,7 +94,7 @@ export default function SelectOverlay() {
       : `Copy Text (${totalLines} lines)`;
 
   return (
-    <div className={styles.selectOverlay}>
+    <div className={styles.selectOverlay} data-testid="select-overlay">
       <div className={styles.selectHeader}>
         <span style={{ color: 'var(--text, #ccc)', fontSize: 14, fontWeight: 600 }}>
           {title}
@@ -103,12 +103,12 @@ export default function SelectOverlay() {
           <button className={styles.btnPrimary} onClick={handleCopy}>
             Copy
           </button>
-          <button className={styles.btnSecondary} onClick={handleClose}>
+          <button className={styles.btnSecondary} onClick={handleClose} data-testid="select-close">
             Done
           </button>
         </div>
       </div>
-      <div className={styles.selectContent} ref={contentRef}>
+      <div className={styles.selectContent} ref={contentRef} data-testid="select-content">
         {linesAbove > 0 && (
           <button className={styles.loadMoreBtn} onClick={handleLoadMore}>
             ▲ Load more ({linesAbove} lines above)

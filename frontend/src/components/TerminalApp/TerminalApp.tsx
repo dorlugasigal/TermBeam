@@ -262,6 +262,7 @@ export function TerminalApp() {
   return (
     <div
       className={styles.layout}
+      data-testid="terminal-app"
       style={{ '--keyboard-height': `${keyboardHeight}px` } as React.CSSProperties}
     >
       {/* ── Top bar ── */}
@@ -282,9 +283,10 @@ export function TerminalApp() {
           {activeSession && (
             <>
               <span
-                className={`${styles.statusDot} ${activeSession.connected ? styles.statusConnected : ''}`}
+                className={`${styles.statusDot} ${activeSession.connected ? styles.statusConnected : ''} ${activeSession.connected ? 'connected' : 'disconnected'}`}
+                data-testid="status-dot"
               />
-              <span className={styles.sessionName}>{activeSession.name}</span>
+              <span className={styles.sessionName} data-testid="session-name-display">{activeSession.name}</span>
               {statusText && <span className={styles.statusText}>{statusText}</span>}
             </>
           )}
@@ -312,6 +314,7 @@ export function TerminalApp() {
             onTouchStart={(e) => e.stopPropagation()}
             aria-label="Tools"
             title="Tools (Ctrl+K)"
+            data-testid="palette-trigger"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
           </button>

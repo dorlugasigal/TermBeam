@@ -48,6 +48,8 @@ export function SortableTab({
       ref={setNodeRef}
       style={style}
       className={`${styles.tab} ${isActive ? styles.tabActive : ''} ${isSplit ? styles.tabSplit : ''}`}
+      data-testid="session-tab"
+      {...(isActive ? { 'data-active': 'true' } : {})}
       onClick={onActivate}
       onAuxClick={(e) => {
         if (e.button === 1) {
@@ -61,15 +63,17 @@ export function SortableTab({
       {...listeners}
     >
       <span className={styles.colorDot} style={{ backgroundColor: session.color }} />
-      <span className={styles.tabName}>{session.name}</span>
-      {!isActive && session.hasUnread && <span className={styles.unreadDot} />}
+      <span className={styles.tabName} data-testid="tab-name">{session.name}</span>
+      {!isActive && session.hasUnread && <span className={styles.unreadDot} data-testid="tab-unread" />}
       {activity && <span className={styles.tabActivity}>{activity}</span>}
       <span
         className={styles.statusDot}
+        data-testid="tab-status-dot"
         style={{ background: session.exited ? 'var(--danger)' : session.connected ? 'var(--success)' : 'var(--text-muted)' }}
       />
       <button
         className={styles.closeBtn}
+        data-testid="tab-close"
         onClick={(e) => {
           e.stopPropagation();
           onClose();

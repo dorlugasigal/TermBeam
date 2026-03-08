@@ -93,6 +93,7 @@ export function TabBar({ inline = false }: TabBarProps) {
       {!inline && (
         <button
           className={styles.addBtn}
+          data-testid="tab-new-btn"
           onClick={openNewSessionModal}
           aria-label="New session"
           title="New session"

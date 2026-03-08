@@ -206,6 +206,7 @@ export default function SessionCard({ session, onSelect, onDelete, revealedId, o
       <div
         ref={cardRef}
         className={styles.card}
+        data-testid="session-card"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -214,9 +215,9 @@ export default function SessionCard({ session, onSelect, onDelete, revealedId, o
         <div className={styles.topRow}>
           <div className={styles.nameGroup}>
             <span className={styles.colorDot} style={{ background: color }} />
-            <span className={styles.name}>{session.name}</span>
+            <span className={styles.name} data-testid="session-name">{session.name}</span>
           </div>
-          <span className={styles.pidBadge}>PID {session.pid}</span>
+          <span className={styles.pidBadge} data-testid="session-pid">PID {session.pid}</span>
         </div>
 
         {/* Details row */}
@@ -224,7 +225,7 @@ export default function SessionCard({ session, onSelect, onDelete, revealedId, o
           <span className={styles.detailItem}>
             <FolderIcon /> {session.cwd}
           </span>
-          <span className={styles.detailItem}>
+          <span className={styles.detailItem} data-testid="session-shell">
             <ShellIcon /> {shellName}
           </span>
           <span className={styles.detailItem}>
@@ -258,6 +259,7 @@ export default function SessionCard({ session, onSelect, onDelete, revealedId, o
         {/* Connect button */}
         <button
           className={styles.connectBtn}
+          data-testid="connect-btn"
           onClick={(e) => {
             e.stopPropagation();
             onSelect(session.id);

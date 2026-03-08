@@ -284,10 +284,19 @@ export default function TouchBar() {
     return classes.join(' ');
   };
 
+  const getTestId = (def: KeyDef): string | undefined => {
+    if (def.modifier === 'ctrl') return 'ctrl-btn';
+    if (def.modifier === 'shift') return 'shift-btn';
+    if (def.action === 'copy') return 'select-btn';
+    if (def.action === 'paste') return 'paste-btn';
+    return undefined;
+  };
+
   const renderKey = (def: KeyDef) => (
     <button
       key={def.label}
       className={getKeyClassName(def)}
+      data-testid={getTestId(def)}
       onClick={() => handlePress(def)}
       onMouseDown={() => handleMouseDown(def)}
       onMouseUp={handleMouseUp}
