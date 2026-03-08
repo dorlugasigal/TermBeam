@@ -5,6 +5,7 @@ import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { CanvasAddon } from '@xterm/addon-canvas';
 import { useThemeStore } from '@/stores/themeStore';
+import { useUIStore } from '@/stores/uiStore';
 import { getTerminalTheme } from '@/themes/terminalThemes';
 import '@xterm/xterm/css/xterm.css';
 
@@ -82,6 +83,16 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     term.loadAddon(fit);
     term.loadAddon(search);
     term.loadAddon(webLinks);
+
+    // Let Ctrl+K, Ctrl+F, and Escape (when overlays are open) propagate to the document
+    term.attachCustomKeyEventHandler((e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'f')) return false;
+      if (e.key === 'Escape') {
+        const ui = useUIStore.getState();
+        if (ui.commandPaletteOpen || ui.searchBarOpen || ui.copyOverlayOpen) return false;
+      }
+      return true;
+    });
 
     let disposed = false;
 

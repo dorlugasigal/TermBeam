@@ -33,6 +33,8 @@ export function TerminalApp() {
 
   const openSearchBar = useUIStore((s) => s.openSearchBar);
   const toggleCommandPalette = useUIStore((s) => s.toggleCommandPalette);
+  const closeCommandPalette = useUIStore((s) => s.closeCommandPalette);
+  const closeSearchBar = useUIStore((s) => s.closeSearchBar);
   const openSidePanel = useUIStore((s) => s.openSidePanel);
   const openNewSessionModal = useUIStore((s) => s.openNewSessionModal);
   const fontSize = useUIStore((s) => s.fontSize);
@@ -229,10 +231,20 @@ export function TerminalApp() {
         e.preventDefault();
         openSearchBar();
       }
+      if (e.key === 'Escape') {
+        const state = useUIStore.getState();
+        if (state.commandPaletteOpen) {
+          e.preventDefault();
+          closeCommandPalette();
+        } else if (state.searchBarOpen) {
+          e.preventDefault();
+          closeSearchBar();
+        }
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [toggleCommandPalette, openSearchBar]);
+  }, [toggleCommandPalette, openSearchBar, closeCommandPalette, closeSearchBar]);
 
   const activeSession = activeId ? sessions.get(activeId) : null;
 
