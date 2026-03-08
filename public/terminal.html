@@ -2629,15 +2629,18 @@
               terminalsWrapper.style.bottom = '';
             }
             const keyboardJustClosed = wasKeyboardOpen && !keyboardOpen;
+            const keyboardJustOpened = !wasKeyboardOpen && keyboardOpen;
             wasKeyboardOpen = keyboardOpen;
             resetScroll();
             clearTimeout(vpResizeTimer);
             vpResizeTimer = setTimeout(() => {
               resetScroll();
               doResize();
-              // When keyboard closes, the terminal grows taller — scroll to
-              // bottom so the cursor stays visible instead of appearing offset.
-              if (keyboardJustClosed) {
+              // Keep cursor visible after keyboard transitions: when the
+              // keyboard opens the terminal shrinks and the viewport can
+              // jump to the top of scrollback; when it closes the terminal
+              // grows and the cursor can end up off-screen.
+              if (keyboardJustClosed || keyboardJustOpened) {
                 for (const [, ms] of managed) {
                   if (ms.container.classList.contains('visible')) {
                     ms.term.scrollToBottom();
