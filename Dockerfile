@@ -11,7 +11,7 @@ COPY src/frontend/package.json src/frontend/package-lock.json src/frontend/
 RUN cd src/frontend && npm ci
 COPY bin/ bin/
 COPY src/ src/
-RUN cd src/frontend && npm run build
+RUN cd src/frontend && npm run build && rm -rf /app/src/frontend
 
 EXPOSE 3456
 CMD ["node", "bin/termbeam.js", "--no-tunnel", "--no-password"]
