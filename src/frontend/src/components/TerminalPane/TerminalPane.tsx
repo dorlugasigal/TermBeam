@@ -102,24 +102,56 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     }
   }, [connected, terminal, fit]);
 
-  // On mobile, browsers require a user gesture (tap/click) for programmatic
-  // focus to succeed. After (re)connect, install a one-shot capture-phase
-  // listener that focuses the terminal on the very first touch/click.
+  // On mobile, our touch scroll handler prevents touchmove default, which
+  // blocks the browser from synthesising click events. We need a persistent
+  // tap-to-focus listener (touchend with distance check) so that tapping the
+  // terminal still opens the soft keyboard. The listener is scoped to the
+  // pane and checks that the tap target is inside the terminal container —
+  // tapping UI buttons (e.g. scroll-to-bottom) won't trigger focus.
   useEffect(() => {
-    if (connected && active && terminal) {
-      const focusOnce = () => {
-        terminal.focus();
-        document.removeEventListener('touchstart', focusOnce, true);
-        document.removeEventListener('mousedown', focusOnce, true);
-      };
-      document.addEventListener('touchstart', focusOnce, true);
-      document.addEventListener('mousedown', focusOnce, true);
-      return () => {
-        document.removeEventListener('touchstart', focusOnce, true);
-        document.removeEventListener('mousedown', focusOnce, true);
-      };
-    }
-  }, [connected, active, terminal]);
+    if (!terminal || !active) return;
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (!isTouchDevice) return;
+
+    const el = paneRef.current;
+    if (!el) return;
+
+    let startX = 0;
+    let startY = 0;
+    let startTarget: Element | null = null;
+    const TAP_THRESHOLD = 10;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        startX = e.touches[0]!.clientX;
+        startY = e.touches[0]!.clientY;
+        startTarget = e.target as Element | null;
+      }
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!startTarget) return;
+      const touch = e.changedTouches[0]!;
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (Math.abs(dx) < TAP_THRESHOLD && Math.abs(dy) < TAP_THRESHOLD) {
+        // Check the original touchstart target — not elementFromPoint at
+        // touchend time. UI buttons (e.g. scroll-to-bottom) may disappear
+        // between touchstart and touchend, causing elementFromPoint to
+        // resolve to the terminal behind them and incorrectly open the
+        // mobile keyboard.
+        if (startTarget && terminalRef.current?.contains(startTarget)) {
+          terminal.focus();
+        }
+      }
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
+    el.addEventListener('touchend', onTouchEnd, { capture: true });
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart, { capture: true });
+      el.removeEventListener('touchend', onTouchEnd, { capture: true });
+    };
+  }, [terminal, active]);
 
   // Keep refs in sync with latest WS functions
   useEffect(() => {
@@ -208,7 +240,11 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     const disposable = terminal.onScroll(checkScroll);
     // Also detect user-initiated scroll (wheel/touch) which may not fire onScroll
     container?.addEventListener('wheel', checkScroll, { passive: true });
-    container?.addEventListener('touchmove', checkScroll, { passive: true });
+    // Listen on the viewport's native scroll event as a backup — our mobile
+    // touch handler scrolls the viewport directly, so the wheel listener
+    // alone may not catch all scroll activity.
+    const viewport = container?.querySelector('.xterm-viewport') ?? null;
+    viewport?.addEventListener('scroll', checkScroll, { passive: true });
 
     // Auto-scroll to bottom when new data arrives, throttled to one RAF
     // to avoid scroll thrashing during rapid output (e.g. long lines)
@@ -232,7 +268,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
       if (scrollThrottleRef.current) clearTimeout(scrollThrottleRef.current);
       if (autoScrollRafRef.current !== null) cancelAnimationFrame(autoScrollRafRef.current);
       container?.removeEventListener('wheel', checkScroll);
-      container?.removeEventListener('touchmove', checkScroll);
+      viewport?.removeEventListener('scroll', checkScroll);
     };
   }, [terminal]);
 
@@ -295,13 +331,104 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     el.addEventListener('touchcancel', onTouchEnd, { capture: true });
 
     return () => {
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-      el.removeEventListener('touchcancel', onTouchEnd);
+      el.removeEventListener('touchstart', onTouchStart, { capture: true });
+      el.removeEventListener('touchmove', onTouchMove, { capture: true });
+      el.removeEventListener('touchend', onTouchEnd, { capture: true });
+      el.removeEventListener('touchcancel', onTouchEnd, { capture: true });
       if (zoomTimer) clearTimeout(zoomTimer);
     };
   }, []);
+
+  // On mobile, xterm.js intercepts touch on this.element (.xterm) for coarse
+  // 1:1 pixel scrolling with no momentum. Since xterm registers its handlers
+  // first on .xterm, we register on the PARENT container (terminalRef) in
+  // capture phase — capture goes parent→child, so our handler fires before
+  // xterm's and stopPropagation prevents the event from reaching .xterm.
+  // See also: pointer-events:none CSS on .xterm-screen children to prevent
+  // touch "escape" when the finger crosses DOM-rendered text span boundaries
+  // (known xterm.js issue https://github.com/xtermjs/xterm.js/issues/3613).
+  useEffect(() => {
+    if (!terminal) return;
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (!isTouchDevice) return;
+
+    const container = terminalRef.current;
+    if (!container) return;
+    const xtermEl = terminal.element;
+    if (!xtermEl) return;
+    const viewport = xtermEl.querySelector('.xterm-viewport') as HTMLElement | null;
+    if (!viewport) return;
+    const vp = viewport;
+
+    let lastY = 0;
+    let lastTime = 0;
+    let velocity = 0;
+    let coastRaf = 0;
+    let tracking = false;
+
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length !== 1) return;
+      cancelAnimationFrame(coastRaf);
+      tracking = true;
+      lastY = e.touches[0]!.clientY;
+      lastTime = performance.now();
+      velocity = 0;
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      if (!tracking || e.touches.length !== 1) {
+        tracking = false;
+        return;
+      }
+      e.stopPropagation();
+      e.preventDefault();
+
+      const y = e.touches[0]!.clientY;
+      const now = performance.now();
+      const dt = now - lastTime;
+      const dy = lastY - y;
+
+      if (Math.abs(dy) >= 1) {
+        if (dt > 0) {
+          velocity = dy / dt;
+        }
+        vp.scrollTop += dy;
+        wasAtBottomRef.current = false;
+        lastY = y;
+        lastTime = now;
+      }
+    }
+
+    function coast() {
+      velocity *= 0.96;
+      if (Math.abs(velocity) < 0.05) return;
+      vp.scrollTop += velocity * 16;
+      coastRaf = requestAnimationFrame(coast);
+    }
+
+    function onTouchEnd() {
+      if (!tracking) return;
+      tracking = false;
+      if (Math.abs(velocity) > 0.15) {
+        coastRaf = requestAnimationFrame(coast);
+      }
+    }
+
+    container.addEventListener('touchstart', onTouchStart, { capture: true, passive: false });
+    container.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
+    container.addEventListener('touchend', onTouchEnd, { capture: true });
+    container.addEventListener('touchcancel', onTouchEnd, { capture: true });
+
+    return () => {
+      cancelAnimationFrame(coastRaf);
+      container.removeEventListener('touchstart', onTouchStart, { capture: true });
+      container.removeEventListener('touchmove', onTouchMove, { capture: true });
+      container.removeEventListener('touchend', onTouchEnd, { capture: true });
+      container.removeEventListener('touchcancel', onTouchEnd, { capture: true });
+    };
+  }, [terminal]);
 
   // Fit and scroll when mobile keyboard opens/closes.
   // Uses a short RAF delay so the container has settled at its new size
@@ -357,12 +484,21 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     return () => document.removeEventListener('paste', onPaste as EventListener, true);
   }, [active]);
 
-  const scrollToBottom = useCallback(() => {
-    if (terminal) {
-      terminal.scrollToBottom();
-      setShowScrollBtn(false);
-    }
-  }, [terminal]);
+  const scrollToBottom = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (terminal) {
+        programmaticScrollRef.current = true;
+        terminal.scrollToBottom();
+        programmaticScrollRef.current = false;
+        wasAtBottomRef.current = true;
+        setShowScrollBtn(false);
+        terminal.focus();
+      }
+    },
+    [terminal],
+  );
 
   const handleReconnect = useCallback(() => {
     terminal?.clear();
@@ -392,6 +528,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
         <button
           className={styles.scrollToBottom}
           onClick={scrollToBottom}
+          tabIndex={0}
           aria-label="Scroll to bottom"
         >
           ↓

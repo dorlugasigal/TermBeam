@@ -1,6 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="80" fill="#1e1e1e"/>
-  <rect x="32" y="32" width="448" height="448" rx="56" fill="#252526" stroke="#3c3c3c" stroke-width="4"/>
-  <polyline points="140,200 220,260 140,320" fill="none" stroke="#0078d4" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
-  <line x1="260" y1="320" x2="380" y2="320" stroke="#d4d4d4" stroke-width="28" stroke-linecap="round"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0a1e"/>
+      <stop offset="100%" stop-color="#060612"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00bfff"/>
+      <stop offset="100%" stop-color="#5b5bff"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <ellipse cx="275" cy="256" rx="100" ry="140" fill="#0078d4" opacity="0.04"/>
+  <ellipse cx="275" cy="256" rx="80" ry="170" fill="none" stroke="url(#ring)" stroke-width="8" opacity="0.6" filter="url(#glow)"/>
+  <polyline points="135,185 265,256 135,327" fill="none" stroke="#e8e8e8" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
