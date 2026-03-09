@@ -572,7 +572,7 @@ describe('Integration', () => {
           method: 'GET',
         });
         sessions = JSON.parse(res.data);
-        if (sessions[0]?.git) break;
+        if (sessions[0]?.git?.branch) break;
       }
 
       assert.ok(sessions.length >= 1, 'Should have at least one session');
