@@ -308,7 +308,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   // before we refit — avoids a flicker from fitting at an intermediate size.
   const { keyboardOpen } = useMobileKeyboard();
   useEffect(() => {
-    if (terminal) {
+    if (terminal && (visible ?? active)) {
       const rafId = requestAnimationFrame(() => {
         fit();
         terminal.refresh(0, terminal.rows - 1);
@@ -318,7 +318,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
       });
       return () => cancelAnimationFrame(rafId);
     }
-  }, [keyboardOpen, terminal, fit]);
+  }, [keyboardOpen, terminal, fit, visible, active]);
 
   // Image paste: intercept paste events with image data, upload, and send path to terminal
   useEffect(() => {

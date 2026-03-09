@@ -311,6 +311,10 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
       };
 
       ws.onclose = () => {
+        // Guard against stale sockets — if a newer connection has already
+        // replaced this one, ignore the close event from the old socket.
+        if (wsRef.current !== ws) return;
+
         setConnected(false);
         wsRef.current = null;
 

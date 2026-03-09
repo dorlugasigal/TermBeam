@@ -345,7 +345,7 @@ export default function TouchBar() {
   // maximize terminal space. The on-screen keyboard already provides keys.
   const isLandscapeTight =
     typeof window !== 'undefined' &&
-    window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    (window.matchMedia?.('(orientation: landscape) and (max-height: 500px)')?.matches ?? false);
 
   if (keyboardOpen && isLandscapeTight) return null;
 
