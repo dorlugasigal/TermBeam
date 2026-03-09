@@ -22,6 +22,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
 
   const paneRef = useRef<HTMLDivElement>(null);
   const hadConnectedRef = useRef(false);
+  const [reconnectGraceExpired, setReconnectGraceExpired] = useState(false);
 
   // Refs to hold latest WS send functions so xterm callbacks stay stable
   const sendRef = useRef<(data: string) => void>(() => {});
@@ -72,7 +73,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     onSelectionChange: handleSelectionChange,
   });
 
-  const { send, sendResize, connected, reconnect } = useTerminalSocket({
+  const { send, sendResize, connected, reconnecting, reconnect } = useTerminalSocket({
     sessionId,
     terminal,
     onExit: handleExit,
@@ -131,6 +132,19 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
 
   // Clear unread indicator when this pane becomes active
   const clearUnread = useSessionStore((s) => s.clearUnread);
+
+  // Two-phase reconnect: show subtle indicator first, escalate after grace period
+  const RECONNECT_GRACE_MS = 8000;
+  useEffect(() => {
+    if (connected) {
+      setReconnectGraceExpired(false);
+      return;
+    }
+    if (!hadConnectedRef.current) return;
+    const timer = setTimeout(() => setReconnectGraceExpired(true), RECONNECT_GRACE_MS);
+    return () => clearTimeout(timer);
+  }, [connected]);
+
   useEffect(() => {
     if (active) {
       clearUnread(sessionId);
@@ -355,6 +369,8 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   }, [terminal]);
 
   const showReconnectOverlay = !connected && !exited && hadConnectedRef.current;
+  const showReconnectingIndicator = showReconnectOverlay && reconnecting && !reconnectGraceExpired;
+  const showDisconnectedOverlay = showReconnectOverlay && (!reconnecting || reconnectGraceExpired);
 
   return (
     <div ref={paneRef} className={styles.pane} data-testid="terminal-pane" onClick={handlePaneClick} onTouchStart={handlePaneClick} {...((visible ?? active) ? { 'data-visible': 'true' } : {})}>
@@ -370,8 +386,15 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
         </button>
       )}
 
-      {showReconnectOverlay && (
-        <div className={styles.reconnectOverlay}>
+      {showReconnectingIndicator && (
+        <div className={styles.reconnectingBar} data-testid="reconnecting-indicator">
+          <span className={styles.reconnectingDot} />
+          <span>Reconnecting…</span>
+        </div>
+      )}
+
+      {showDisconnectedOverlay && (
+        <div className={styles.reconnectOverlay} data-testid="reconnect-overlay">
           <div className={styles.reconnectContent}>
             <span className={styles.reconnectMessage}>Session disconnected</span>
             <div className={styles.reconnectActions}>

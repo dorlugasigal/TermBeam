@@ -21,6 +21,7 @@ export interface UseTerminalSocketReturn {
   send: (data: string) => void;
   sendResize: (cols: number, rows: number) => void;
   connected: boolean;
+  reconnecting: boolean;
   reconnect: () => void;
   ws: WebSocket | null;
 }
@@ -28,13 +29,24 @@ export interface UseTerminalSocketReturn {
 const INITIAL_RECONNECT_DELAY = 3000;
 const MAX_RECONNECT_DELAY = 30_000;
 const KEEPALIVE_INTERVAL = 30_000;
-const SILENCE_TIMEOUT = 3000;
+const SILENCE_TIMEOUT = 5000;
+
+// Minimum duration of output activity before a silence triggers a notification.
+// Prevents notifications for trivial/instant commands (e.g. `ls`, single-line output).
+const MIN_ACTIVITY_DURATION = 2000;
 
 // Original document title, saved once for title-bullet indicator
 const originalTitle = document.title;
 
 // Silence timers for command-completion notifications (sessionId → timeout)
 const silenceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+// Track when the current burst of output activity started per session.
+// Used to avoid notifying for trivial/instant commands.
+const activityStart = new Map<string, number>();
+// Track whether we already notified for the current activity burst,
+// so we don't send repeated notifications during a long build with pauses.
+const notifiedForBurst = new Set<string>();
 
 // Grace period after attach — suppress notification sounds for initial output burst
 const ATTACH_GRACE_MS = 2000;
@@ -63,6 +75,7 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
   const connectFnRef = useRef<(() => void) | null>(null);
 
   const [connected, setConnected] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
 
   const clearTimers = useCallback(() => {
     if (reconnectTimerRef.current) {
@@ -113,6 +126,23 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
       }
     }
 
+    // Bell listener — when the terminal receives BEL (\x07), a running program
+    // is explicitly requesting attention (command finished, input needed, etc.).
+    // Trigger notification sound + desktop notification immediately.
+    const bellDisposable = terminal.onBell(() => {
+      if (!isNotificationsEnabled()) return;
+      const store = useSessionStore.getState();
+      if (store.activeId !== sessionId || document.hidden) {
+        if (!attachGrace.has(sessionId)) {
+          playNotificationSound();
+        }
+        const session = store.sessions.get(sessionId);
+        if (document.hidden) {
+          sendCommandNotification(session?.name ?? sessionId);
+        }
+      }
+    });
+
     function connect() {
       if (!mountedRef.current) return;
 
@@ -127,6 +157,7 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
         }
         ws.send(JSON.stringify({ type: 'attach', sessionId }));
         reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
+        setReconnecting(false);
 
         // Start keepalive pings
         keepaliveTimerRef.current = setInterval(() => {
@@ -176,11 +207,18 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
             const store = useSessionStore.getState();
             const session = store.sessions.get(sessionId);
 
-            // Sound: only play when transitioning from read → unread (skip during attach grace)
+            // Unread tracking + notification sound.
+            // Sound only plays when the PAGE is hidden (user in another app).
+            // Within TermBeam, the visual unread dot on the tab is sufficient.
             if (store.activeId !== sessionId) {
               const wasAlreadyUnread = session?.hasUnread ?? false;
               store.markUnread(sessionId);
-              if (!wasAlreadyUnread && !attachGrace.has(sessionId) && isNotificationsEnabled()) {
+              if (
+                document.hidden &&
+                !wasAlreadyUnread &&
+                !attachGrace.has(sessionId) &&
+                isNotificationsEnabled()
+              ) {
                 playNotificationSound();
               }
             }
@@ -192,15 +230,33 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
               }
             }
 
-            // 3s silence timer for command-completion desktop notification
+            // Activity-based command-completion notification.
+            // Tracks output bursts and only notifies once when a long-running
+            // command goes silent (idle after sustained activity).
             if (isNotificationsEnabled()) {
+              // Mark start of activity burst if not already tracking
+              if (!activityStart.has(sessionId)) {
+                activityStart.set(sessionId, Date.now());
+                notifiedForBurst.delete(sessionId);
+              }
+
               const existing = silenceTimers.get(sessionId);
               if (existing) clearTimeout(existing);
               silenceTimers.set(
                 sessionId,
                 setTimeout(() => {
                   silenceTimers.delete(sessionId);
-                  if (document.hidden) {
+                  const start = activityStart.get(sessionId);
+                  const duration = start ? Date.now() - start : 0;
+                  // Reset activity tracking — this burst is over
+                  activityStart.delete(sessionId);
+
+                  if (
+                    document.hidden &&
+                    duration >= MIN_ACTIVITY_DURATION &&
+                    !notifiedForBurst.has(sessionId)
+                  ) {
+                    notifiedForBurst.add(sessionId);
                     sendCommandNotification(session?.name ?? sessionId);
                   }
                 }, SILENCE_TIMEOUT),
@@ -242,6 +298,7 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
         if (!mountedRef.current) return;
 
         // Exponential backoff reconnect
+        setReconnecting(true);
         const delay = reconnectDelayRef.current;
         reconnectDelayRef.current = Math.min(delay * 2, MAX_RECONNECT_DELAY);
         reconnectTimerRef.current = setTimeout(connect, delay);
@@ -255,15 +312,37 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
     connectFnRef.current = connect;
     connect();
 
+    // Instant reconnect when the page becomes visible again (e.g. mobile app switch).
+    // Bypasses backoff timer so the user doesn't see a "disconnected" overlay.
+    function handleVisibilityReconnect() {
+      if (document.hidden || !mountedRef.current) return;
+      const ws = wsRef.current;
+      const isOpen = ws && ws.readyState === WebSocket.OPEN;
+      if (!isOpen) {
+        // Cancel pending backoff timer and reconnect immediately
+        if (reconnectTimerRef.current) {
+          clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = null;
+        }
+        reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
+        connect();
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityReconnect);
+
     return () => {
       mountedRef.current = false;
       clearTimers();
+      document.removeEventListener('visibilitychange', handleVisibilityReconnect);
       // Clean up silence timer for this session
       const timer = silenceTimers.get(sessionId);
       if (timer) {
         clearTimeout(timer);
         silenceTimers.delete(sessionId);
       }
+      activityStart.delete(sessionId);
+      notifiedForBurst.delete(sessionId);
+      bellDisposable.dispose();
       const ws = wsRef.current;
       if (ws) {
         ws.onclose = null;
@@ -295,8 +374,9 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
     }
     reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
     setConnected(false);
+    setReconnecting(false);
     connectFnRef.current?.();
   }, []);
 
-  return { send, connected, sendResize, reconnect, ws: wsRef.current };
+  return { send, connected, reconnecting, sendResize, reconnect, ws: wsRef.current };
 }
