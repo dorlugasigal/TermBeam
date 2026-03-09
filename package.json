@@ -2,18 +2,18 @@
   "name": "termbeam",
   "version": "1.12.1",
   "description": "Beam your terminal to any device — mobile-optimized web terminal with multi-session support",
-  "main": "src/server.js",
+  "main": "src/server/index.js",
   "bin": {
     "termbeam": "./bin/termbeam.js"
   },
   "scripts": {
     "start": "node bin/termbeam.js",
     "dev": "node bin/termbeam.js --generate-password",
-    "test": "node -e \"require('child_process').execFileSync(process.execPath,['--test',...require('fs').readdirSync('test').filter(f=>f.endsWith('.test.js')&&!f.startsWith('e2e-')&&f!=='devtunnel-install.test.js').map(f=>'test/'+f)],{stdio:'inherit'})\"",
-    "test:coverage": "c8 --exclude=src/tunnel.js --exclude=src/devtunnel-install.js --exclude=test --reporter=text --reporter=lcov --reporter=json-summary --reporter=json node -e \"require('child_process').execFileSync(process.execPath,['--test','--test-reporter=spec','--test-reporter-destination=stdout',...require('fs').readdirSync('test').filter(f=>f.endsWith('.test.js')&&!f.startsWith('e2e-')&&f!=='devtunnel-install.test.js').map(f=>'test/'+f)],{stdio:'inherit'})\"",
+    "test": "node -e \"const{execFileSync:r}=require('child_process'),{readdirSync:d,statSync:s}=require('fs'),{join:j}=require('path');function f(p){let a=[];for(const e of d(p)){const c=j(p,e);s(c).isDirectory()?a.push(...f(c)):e.endsWith('.test.js')&&!e.startsWith('e2e-')&&e!=='devtunnel-install.test.js'&&a.push(c)}return a}r(process.execPath,['--test',...f('test')],{stdio:'inherit'})\"",
+    "test:coverage": "c8 --exclude=src/tunnel/ --exclude=test --reporter=text --reporter=lcov --reporter=json-summary --reporter=json node -e \"const{execFileSync:r}=require('child_process'),{readdirSync:d,statSync:s}=require('fs'),{join:j}=require('path');function f(p){let a=[];for(const e of d(p)){const c=j(p,e);s(c).isDirectory()?a.push(...f(c)):e.endsWith('.test.js')&&!e.startsWith('e2e-')&&e!=='devtunnel-install.test.js'&&a.push(c)}return a}r(process.execPath,['--test','--test-reporter=spec','--test-reporter-destination=stdout',...f('test')],{stdio:'inherit'})\"",
     "prepare": "husky",
     "format": "prettier --write .",
-    "lint": "node --check src/*.js bin/*.js",
+    "lint": "node --check src/server/*.js src/cli/*.js src/tunnel/*.js src/utils/*.js bin/*.js",
     "build:frontend": "cd frontend && npm ci && npm run build",
     "prepublishOnly": "npm run build:frontend && npm test",
     "postinstall": "node -e \"try{const p=require('path'),fs=require('fs'),r=require.resolve('node-pty/package.json'),d=p.join(p.dirname(r),'prebuilds');if(fs.existsSync(d)){for(const a of fs.readdirSync(d)){const s=p.join(d,a,'spawn-helper');try{fs.chmodSync(s,0o755)}catch{}}}}catch{}\""
@@ -53,7 +53,7 @@
   "files": [
     "bin/",
     "src/",
-    "public-react/",
+    "public/",
     "LICENSE",
     "README.md"
   ],

@@ -10,6 +10,8 @@ module.exports = [
       'playwright-report/',
       'test-results/',
       'landing/',
+      'demo-video/',
+      'frontend/',
     ],
   },
   js.configs.recommended,

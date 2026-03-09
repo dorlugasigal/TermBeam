@@ -80,9 +80,9 @@ async function setupTerminal(page) {
   const resp = await page.request.post(`${getBaseURL()}/api/sessions`);
   const { id } = await resp.json();
   await page.goto(`${getBaseURL()}/terminal?id=${id}`);
-  await expect(
-    page.locator('[data-testid="status-dot"].connected'),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
+    timeout: 10_000,
+  });
   return id;
 }
 
@@ -131,10 +131,7 @@ async function runCommand(page, cmd) {
 async function openPaletteAndClick(page, actionLabel) {
   await page.locator('[data-testid="palette-trigger"]').click();
   await expect(page.locator('[data-testid="palette-panel"]')).toBeVisible();
-  await page
-    .locator('[data-testid="palette-action"]')
-    .filter({ hasText: actionLabel })
-    .click();
+  await page.locator('[data-testid="palette-action"]').filter({ hasText: actionLabel }).click();
   await page.waitForTimeout(300);
 }
 
@@ -606,9 +603,9 @@ test.describe('Command Palette — Split View', () => {
     await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible();
     await page.locator('[data-testid="ns-name"]').fill('Split Target');
     await page.locator('[data-testid="ns-create"]').click();
-    await expect(
-      page.locator('[data-testid="new-session-modal"]'),
-    ).not.toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
+      timeout: 5_000,
+    });
     await page.waitForTimeout(500);
 
     const initialPanes = await page
@@ -671,18 +668,18 @@ test.describe('Top Bar — New Session', () => {
     await page.locator('[data-testid="ns-create"]').click();
 
     // Wait for modal to close and new tab to appear
-    await expect(
-      page.locator('[data-testid="new-session-modal"]'),
-    ).not.toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
+      timeout: 5_000,
+    });
     await page.waitForTimeout(1000);
 
     const finalTabs = await page.locator('[data-testid="session-tab"]').count();
     expect(finalTabs).toBe(initialTabs + 1);
 
     // Wait for the new session's WebSocket to connect
-    await expect(
-      page.locator('[data-testid="status-dot"].connected'),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
+      timeout: 10_000,
+    });
     await page.waitForTimeout(500);
 
     // Verify the new session has a working terminal
@@ -744,15 +741,15 @@ test.describe('Top Bar — Side Panel (mobile viewport)', () => {
     await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible();
     await page.locator('[data-testid="ns-name"]').fill('Second');
     await page.locator('[data-testid="ns-create"]').click();
-    await expect(
-      page.locator('[data-testid="new-session-modal"]'),
-    ).not.toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
+      timeout: 5_000,
+    });
     await page.waitForTimeout(1000);
 
     // Wait for second session to connect
-    await expect(
-      page.locator('[data-testid="status-dot"].connected'),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
+      timeout: 10_000,
+    });
     await page.waitForTimeout(500);
 
     // Run a command in the second session
@@ -908,9 +905,9 @@ test.describe('Activity Indicators', () => {
     await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible();
     await page.locator('[data-testid="ns-name"]').fill('Second');
     await page.locator('[data-testid="ns-create"]').click();
-    await expect(
-      page.locator('[data-testid="new-session-modal"]'),
-    ).not.toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
+      timeout: 5_000,
+    });
     await page.waitForTimeout(500);
 
     // Wait for the first session's output to arrive while we're on the second tab

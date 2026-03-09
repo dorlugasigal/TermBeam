@@ -3,19 +3,19 @@
 // Dispatch subcommands before loading the server
 const subcommand = (process.argv[2] || '').toLowerCase();
 if (subcommand === 'service') {
-  const { run } = require('../src/service');
+  const { run } = require('../src/cli/service');
   run(process.argv.slice(3)).catch((err) => {
     console.error(err.message);
     process.exit(1);
   });
 } else if (subcommand === 'resume' || subcommand === 'attach') {
-  const { resume } = require('../src/resume');
+  const { resume } = require('../src/cli/resume');
   resume(process.argv.slice(3)).catch((err) => {
     console.error(err.message);
     process.exit(1);
   });
 } else if (subcommand === 'list') {
-  const { list } = require('../src/resume');
+  const { list } = require('../src/cli/resume');
   list().catch((err) => {
     console.error(err.message);
     process.exit(1);
@@ -29,10 +29,10 @@ if (subcommand === 'service') {
     process.exit(1);
   }
 
-  const { createTermBeamServer } = require('../src/server.js');
+  const { createTermBeamServer } = require('../src/server');
   const { parseArgs } = require('../src/cli');
-  const { runInteractiveSetup } = require('../src/interactive');
-  const { readConnectionConfig } = require('../src/resume');
+  const { runInteractiveSetup } = require('../src/cli/interactive');
+  const { readConnectionConfig } = require('../src/cli/resume');
   const http = require('http');
 
   function httpPost(url, headers) {

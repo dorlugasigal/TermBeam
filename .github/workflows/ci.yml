@@ -98,7 +98,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node --check src/*.js bin/*.js
+      - run: node --check src/server/*.js src/cli/*.js src/tunnel/*.js src/utils/*.js bin/*.js
 
   frontend:
     name: Frontend Build
@@ -117,7 +117,7 @@ jobs:
       - name: Build frontend
         run: cd frontend && npm run build
       - name: Verify build output
-        run: test -f public-react/index.html
+        run: test -f public/index.html
 
   e2e:
     name: E2E (${{ matrix.os }})
@@ -174,4 +174,4 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node --test test/devtunnel-install.test.js
+      - run: node --test test/tunnel/devtunnel-install.test.js
