@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.12.5] - 2026-03-09
+
+- chore(ci): bump github/codeql-action from 3.32.5 to 4.32.6 (#137)
+- chore(deps): bump eslint from 10.0.2 to 10.0.3 (#138)
+- chore(deps): bump express-rate-limit from 8.3.0 to 8.3.1 (#136)
+- chore(ci): bump aquasecurity/trivy-action from 0.34.2 to 0.35.0 (#135)
+- fix(frontend): revert scroll-to-bottom focus/tabIndex — prevents mobile keyboard
+- feat(frontend): improve mobile touch scrolling and update PWA icons (#140)
+
 ## [1.12.4] - 2026-03-09
 
 - fix(deps): patch serialize-javascript vulnerability (GHSA-5c6j-r48x-rmvq) (#134)
