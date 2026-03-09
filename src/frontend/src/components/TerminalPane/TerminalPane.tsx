@@ -129,6 +129,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
       }
     };
     const onTouchEnd = (e: TouchEvent) => {
+      if (!startTarget) return;
       const touch = e.changedTouches[0]!;
       const dx = touch.clientX - startX;
       const dy = touch.clientY - startY;
@@ -240,8 +241,8 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     // Also detect user-initiated scroll (wheel/touch) which may not fire onScroll
     container?.addEventListener('wheel', checkScroll, { passive: true });
     // Listen on the viewport's native scroll event as a backup — our mobile
-    // touch handler scrolls the viewport directly and stops propagation of
-    // touchmove events, so the touchmove listener below may not fire.
+    // touch handler scrolls the viewport directly, so the wheel listener
+    // alone may not catch all scroll activity.
     const viewport = container?.querySelector('.xterm-viewport') ?? null;
     viewport?.addEventListener('scroll', checkScroll, { passive: true });
 
@@ -493,6 +494,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
         programmaticScrollRef.current = false;
         wasAtBottomRef.current = true;
         setShowScrollBtn(false);
+        terminal.focus();
       }
     },
     [terminal],
@@ -526,7 +528,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
         <button
           className={styles.scrollToBottom}
           onClick={scrollToBottom}
-          tabIndex={-1}
+          tabIndex={0}
           aria-label="Scroll to bottom"
         >
           ↓
