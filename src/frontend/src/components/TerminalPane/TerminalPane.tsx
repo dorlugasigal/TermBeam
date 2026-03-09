@@ -487,6 +487,9 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   const scrollToBottom = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
+      // stopPropagation prevents the pane's onClick (which calls terminal.focus())
+      // from firing — intentional so tapping this button on mobile does NOT open
+      // the soft keyboard.
       e.stopPropagation();
       if (terminal) {
         programmaticScrollRef.current = true;
@@ -494,7 +497,9 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
         programmaticScrollRef.current = false;
         wasAtBottomRef.current = true;
         setShowScrollBtn(false);
-        terminal.focus();
+        // NOTE: Do NOT call terminal.focus() here — on mobile devices that
+        // would open the soft keyboard, covering half the terminal. Users who
+        // want to type can tap the terminal area directly.
       }
     },
     [terminal],
@@ -528,7 +533,11 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
         <button
           className={styles.scrollToBottom}
           onClick={scrollToBottom}
-          tabIndex={0}
+          // tabIndex={-1}: intentionally removed from tab order so that
+          // tapping this button on mobile doesn't make it the active element
+          // and inadvertently open the soft keyboard. The button is still
+          // reachable via screen readers through its aria-label.
+          tabIndex={-1}
           aria-label="Scroll to bottom"
         >
           ↓
