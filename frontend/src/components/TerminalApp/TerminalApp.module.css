@@ -187,3 +187,18 @@
     border-top: 2px solid var(--accent);
   }
 }
+
+/* Landscape on short screens: compact bars so the terminal keeps usable height */
+@media (orientation: landscape) and (max-height: 500px) {
+  .topBar {
+    height: calc(32px + env(safe-area-inset-top, 0px));
+  }
+  .terminalArea {
+    top: calc(32px + env(safe-area-inset-top, 0px));
+    bottom: calc(44px + env(safe-area-inset-bottom, 0px) + var(--keyboard-height, 0px));
+  }
+  /* TouchBar hides when keyboard is open — remove its offset */
+  .layout[data-keyboard-open] .terminalArea {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--keyboard-height, 0px));
+  }
+}

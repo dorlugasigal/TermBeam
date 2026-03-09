@@ -22,6 +22,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
 
   const paneRef = useRef<HTMLDivElement>(null);
   const hadConnectedRef = useRef(false);
+  const [reconnectGraceExpired, setReconnectGraceExpired] = useState(false);
 
   // Refs to hold latest WS send functions so xterm callbacks stay stable
   const sendRef = useRef<(data: string) => void>(() => {});
@@ -72,34 +73,31 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     onSelectionChange: handleSelectionChange,
   });
 
-  const { send, sendResize, connected, reconnect } = useTerminalSocket({
+  const { send, sendResize, connected, reconnecting, reconnect } = useTerminalSocket({
     sessionId,
     terminal,
     onExit: handleExit,
   });
 
-  // When connected, force canvas repaints after scrollback is written.
+  // When connected, force a single canvas repaint after scrollback is written.
   // The CanvasAddon may defer painting until a user interaction on some
-  // browsers/devices; repeatedly refreshing ensures content is visible.
+  // browsers/devices; one delayed refresh ensures content is visible.
   useEffect(() => {
     if (connected) {
       hadConnectedRef.current = true;
       if (terminal) {
-        const timers: ReturnType<typeof setTimeout>[] = [];
-        // Refresh at multiple intervals to catch scrollback replay data
-        for (const delay of [50, 150, 400, 1000]) {
-          timers.push(
-            setTimeout(() => {
-              fit();
-              terminal.refresh(0, terminal.rows - 1);
-              terminal.scrollToBottom();
-            }, delay),
-          );
-        }
+        const timer = setTimeout(() => {
+          fit();
+          terminal.refresh(0, terminal.rows - 1);
+          terminal.scrollToBottom();
+        }, 200);
         // Focus terminal — works on desktop; on mobile, the gesture-based
         // listener below handles it since programmatic focus is restricted.
-        timers.push(setTimeout(() => terminal.focus(), 50));
-        return () => timers.forEach(clearTimeout);
+        const focusTimer = setTimeout(() => terminal.focus(), 50);
+        return () => {
+          clearTimeout(timer);
+          clearTimeout(focusTimer);
+        };
       }
     }
   }, [connected, terminal, fit]);
@@ -131,6 +129,19 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
 
   // Clear unread indicator when this pane becomes active
   const clearUnread = useSessionStore((s) => s.clearUnread);
+
+  // Two-phase reconnect: show subtle indicator first, escalate after grace period
+  const RECONNECT_GRACE_MS = 8000;
+  useEffect(() => {
+    if (connected) {
+      setReconnectGraceExpired(false);
+      return;
+    }
+    if (!hadConnectedRef.current) return;
+    const timer = setTimeout(() => setReconnectGraceExpired(true), RECONNECT_GRACE_MS);
+    return () => clearTimeout(timer);
+  }, [connected]);
+
   useEffect(() => {
     if (active) {
       clearUnread(sessionId);
@@ -292,13 +303,22 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     };
   }, []);
 
-  // Scroll to bottom when mobile keyboard opens
+  // Fit and scroll when mobile keyboard opens/closes.
+  // Uses a short RAF delay so the container has settled at its new size
+  // before we refit — avoids a flicker from fitting at an intermediate size.
   const { keyboardOpen } = useMobileKeyboard();
   useEffect(() => {
-    if (keyboardOpen && terminal) {
-      terminal.scrollToBottom();
+    if (terminal && (visible ?? active)) {
+      const rafId = requestAnimationFrame(() => {
+        fit();
+        terminal.refresh(0, terminal.rows - 1);
+        if (keyboardOpen) {
+          terminal.scrollToBottom();
+        }
+      });
+      return () => cancelAnimationFrame(rafId);
     }
-  }, [keyboardOpen, terminal]);
+  }, [keyboardOpen, terminal, fit, visible, active]);
 
   // Image paste: intercept paste events with image data, upload, and send path to terminal
   useEffect(() => {
@@ -355,9 +375,11 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   }, [terminal]);
 
   const showReconnectOverlay = !connected && !exited && hadConnectedRef.current;
+  const showReconnectingIndicator = showReconnectOverlay && reconnecting && !reconnectGraceExpired;
+  const showDisconnectedOverlay = showReconnectOverlay && (!reconnecting || reconnectGraceExpired);
 
   return (
-    <div ref={paneRef} className={styles.pane} data-testid="terminal-pane" onClick={handlePaneClick} onTouchStart={handlePaneClick} {...((visible ?? active) ? { 'data-visible': 'true' } : {})}>
+    <div ref={paneRef} className={styles.pane} data-testid="terminal-pane" onClick={handlePaneClick} {...((visible ?? active) ? { 'data-visible': 'true' } : {})}>
       <div ref={terminalRef} className={styles.terminalContainer} />
 
       {showScrollBtn && (
@@ -370,8 +392,15 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
         </button>
       )}
 
-      {showReconnectOverlay && (
-        <div className={styles.reconnectOverlay}>
+      {showReconnectingIndicator && (
+        <div className={styles.reconnectingBar} data-testid="reconnecting-indicator">
+          <span className={styles.reconnectingDot} />
+          <span>Reconnecting…</span>
+        </div>
+      )}
+
+      {showDisconnectedOverlay && (
+        <div className={styles.reconnectOverlay} data-testid="reconnect-overlay">
           <div className={styles.reconnectContent}>
             <span className={styles.reconnectMessage}>Session disconnected</span>
             <div className={styles.reconnectActions}>
