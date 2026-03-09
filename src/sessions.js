@@ -137,6 +137,8 @@ class SessionManager {
       scrollback: [],
       scrollbackBuf: '',
       hasHadClient: false,
+      inAltScreen: false,
+      _altScanTail: '',
       _lastCols: cols,
       _lastRows: rows,
     };
@@ -144,6 +146,35 @@ class SessionManager {
     ptyProcess.onData((data) => {
       session.lastActivity = Date.now();
       session.scrollbackBuf += data;
+
+      // Track alt screen mode so reconnecting clients can re-enter it.
+      // Carry a small tail between chunks so split escape sequences are detected.
+      const scanBuf = session._altScanTail + data;
+      session._altScanTail =
+        data.length >= 16 ? data.slice(-16) : (session._altScanTail + data).slice(-16);
+      const altEnterIdx = Math.max(
+        scanBuf.lastIndexOf('\x1b[?1049h'),
+        scanBuf.lastIndexOf('\x1b[?1047h'),
+        scanBuf.lastIndexOf('\x1b[?47h'),
+      );
+      const altExitIdx = Math.max(
+        scanBuf.lastIndexOf('\x1b[?1049l'),
+        scanBuf.lastIndexOf('\x1b[?1047l'),
+        scanBuf.lastIndexOf('\x1b[?47l'),
+      );
+      if (altEnterIdx > altExitIdx) {
+        session.inAltScreen = true;
+        // Track which mode was used so reconnect sends the matching sequence
+        const enter1049 = scanBuf.lastIndexOf('\x1b[?1049h');
+        const enter1047 = scanBuf.lastIndexOf('\x1b[?1047h');
+        const enter47 = scanBuf.lastIndexOf('\x1b[?47h');
+        if (altEnterIdx === enter1049) session.altScreenMode = '1049';
+        else if (altEnterIdx === enter1047) session.altScreenMode = '1047';
+        else if (altEnterIdx === enter47) session.altScreenMode = '47';
+      } else if (altExitIdx > altEnterIdx) {
+        session.inAltScreen = false;
+        session.altScreenMode = undefined;
+      }
       // High/low water scrollback cap: trim to 500k chars when buffer exceeds 1,000,000 chars
       if (session.scrollbackBuf.length > 1000000) {
         let buf = session.scrollbackBuf.slice(-500000);

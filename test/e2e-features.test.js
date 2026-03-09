@@ -94,7 +94,9 @@ async function navigateToHub(page) {
   const port = inst.server.address().port;
   await page.goto(`http://127.0.0.1:${port}/`);
   await page.waitForLoadState('domcontentloaded');
-  await expect(page.locator('[data-testid="hub-new-session-btn"], [data-testid="empty-state"]').first()).toBeVisible({ timeout: 10_000 });
+  await expect(
+    page.locator('[data-testid="hub-new-session-btn"], [data-testid="empty-state"]').first(),
+  ).toBeVisible({ timeout: 10_000 });
 }
 
 async function openTerminalWithNewSession(page, name) {
@@ -113,12 +115,8 @@ async function waitForTerminalOutput(page, pattern, timeout = 15_000) {
   const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
   await expect(async () => {
     const text = await page.evaluate(() => {
-      const pane = document.querySelector(
-        '[data-testid="terminal-pane"][data-visible="true"]',
-      );
-      const rows = pane
-        ? pane.querySelector('.xterm-rows')
-        : document.querySelector('.xterm-rows');
+      const pane = document.querySelector('[data-testid="terminal-pane"][data-visible="true"]');
+      const rows = pane ? pane.querySelector('.xterm-rows') : document.querySelector('.xterm-rows');
       return rows ? rows.innerText : '';
     });
     expect(text).toMatch(regex);
@@ -127,12 +125,8 @@ async function waitForTerminalOutput(page, pattern, timeout = 15_000) {
 
 function getTerminalText(page) {
   return page.evaluate(() => {
-    const pane = document.querySelector(
-      '[data-testid="terminal-pane"][data-visible="true"]',
-    );
-    const rows = pane
-      ? pane.querySelector('.xterm-rows')
-      : document.querySelector('.xterm-rows');
+    const pane = document.querySelector('[data-testid="terminal-pane"][data-visible="true"]');
+    const rows = pane ? pane.querySelector('.xterm-rows') : document.querySelector('.xterm-rows');
     return rows ? rows.innerText : '';
   });
 }
@@ -155,9 +149,9 @@ async function runCommand(page, cmd) {
 
 async function openPaletteAndClick(page, actionLabel) {
   await page.click('[data-testid="palette-trigger"]');
-  await expect(
-    page.locator('[data-testid="palette-panel"][data-open="true"]'),
-  ).toBeVisible({ timeout: 3_000 });
+  await expect(page.locator('[data-testid="palette-panel"][data-open="true"]')).toBeVisible({
+    timeout: 3_000,
+  });
   await page.click(`[data-testid="palette-action"]:has-text("${actionLabel}")`);
   await page.waitForTimeout(300);
 }
@@ -184,9 +178,7 @@ test.describe('New Session Modal — Hub Page', () => {
     await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
       timeout: 5_000,
     });
-    await expect(
-      page.locator('[data-testid="session-tab"][data-active="true"]'),
-    ).toHaveCount(1);
+    await expect(page.locator('[data-testid="session-tab"][data-active="true"]')).toHaveCount(1);
   });
 
   test('session is created with custom name', async ({ page }) => {
@@ -208,9 +200,7 @@ test.describe('New Session Modal — Hub Page', () => {
 
     // The active tab should show the custom name
     await expect(
-      page.locator(
-        '[data-testid="session-tab"][data-active="true"] [data-testid="tab-name"]',
-      ),
+      page.locator('[data-testid="session-tab"][data-active="true"] [data-testid="tab-name"]'),
     ).toHaveText(customName, { timeout: 5_000 });
   });
 
@@ -279,9 +269,7 @@ test.describe('Session Management', () => {
 
     // Verify it's also updated in the active tab
     await expect(
-      page.locator(
-        '[data-testid="session-tab"][data-active="true"] [data-testid="tab-name"]',
-      ),
+      page.locator('[data-testid="session-tab"][data-active="true"] [data-testid="tab-name"]'),
     ).toHaveText(newName, { timeout: 5_000 });
   });
 
@@ -366,9 +354,9 @@ test.describe('Theme System', () => {
 
     // Open palette and click Theme to open subpanel
     await openPaletteAndClick(page, 'Theme');
-    await expect(
-      page.locator('[data-testid="theme-subpanel"][data-open="true"]'),
-    ).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="theme-subpanel"][data-open="true"]')).toBeVisible({
+      timeout: 3_000,
+    });
 
     // Apply 'nord' theme
     await page.click('[data-testid="theme-item"][data-tid="nord"]');
@@ -397,9 +385,9 @@ test.describe('Theme System', () => {
 
     // Set theme on terminal page
     await openPaletteAndClick(page, 'Theme');
-    await expect(
-      page.locator('[data-testid="theme-subpanel"][data-open="true"]'),
-    ).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="theme-subpanel"][data-open="true"]')).toBeVisible({
+      timeout: 3_000,
+    });
     await page.click('[data-testid="theme-item"][data-tid="dracula"]');
     await page.waitForTimeout(300);
 
@@ -407,13 +395,11 @@ test.describe('Theme System', () => {
     await navigateToHub(page);
 
     // Hub should also have dracula theme
-    const hubTheme = await page.evaluate(() =>
-      document.documentElement.getAttribute('data-theme'),
-    );
+    const hubTheme = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
     expect(hubTheme).toBe('dracula');
   });
 
-  test('all 12 themes can be applied without errors', async ({ page }) => {
+  test('all 30 themes can be applied without errors', async ({ page }) => {
     const themes = [
       'dark',
       'light',
@@ -427,13 +413,31 @@ test.describe('Theme System', () => {
       'catppuccin',
       'gruvbox',
       'night-owl',
+      'tokyo-night',
+      'rose-pine',
+      'kanagawa',
+      'everforest',
+      'ayu-dark',
+      'matrix',
+      'cyberpunk',
+      'sunset-glow',
+      'synthwave',
+      'aurora',
+      'retro-amber',
+      'deep-ocean',
+      'neon-noir',
+      'frost-byte',
+      'vice-city',
+      'radical',
+      'material-ocean',
+      'sakura',
     ];
 
     await openTerminalWithNewSession(page);
     await openPaletteAndClick(page, 'Theme');
-    await expect(
-      page.locator('[data-testid="theme-subpanel"][data-open="true"]'),
-    ).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="theme-subpanel"][data-open="true"]')).toBeVisible({
+      timeout: 3_000,
+    });
 
     for (const theme of themes) {
       await page.click(`[data-testid="theme-item"][data-tid="${theme}"]`);
@@ -449,13 +453,13 @@ test.describe('Theme System', () => {
   test('theme picker in palette shows theme options', async ({ page }) => {
     await openTerminalWithNewSession(page);
     await openPaletteAndClick(page, 'Theme');
-    await expect(
-      page.locator('[data-testid="theme-subpanel"][data-open="true"]'),
-    ).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="theme-subpanel"][data-open="true"]')).toBeVisible({
+      timeout: 3_000,
+    });
 
-    // Should show at least 12 theme options
+    // Should show at least 30 theme options
     const count = await page.locator('[data-testid="theme-item"]').count();
-    expect(count).toBeGreaterThanOrEqual(12);
+    expect(count).toBeGreaterThanOrEqual(30);
   });
 });
 
@@ -465,9 +469,9 @@ test.describe('Upload & Share Palette Actions', () => {
   test('upload files action exists in palette', async ({ page }) => {
     await openTerminalWithNewSession(page);
     await page.click('[data-testid="palette-trigger"]');
-    await expect(
-      page.locator('[data-testid="palette-panel"][data-open="true"]'),
-    ).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="palette-panel"][data-open="true"]')).toBeVisible({
+      timeout: 3_000,
+    });
 
     await expect(
       page.locator('[data-testid="palette-action"]:has-text("Upload files")'),
@@ -477,9 +481,9 @@ test.describe('Upload & Share Palette Actions', () => {
   test('copy link action exists in palette', async ({ page }) => {
     await openTerminalWithNewSession(page);
     await page.click('[data-testid="palette-trigger"]');
-    await expect(
-      page.locator('[data-testid="palette-panel"][data-open="true"]'),
-    ).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="palette-panel"][data-open="true"]')).toBeVisible({
+      timeout: 3_000,
+    });
 
     await expect(
       page.locator('[data-testid="palette-action"]:has-text("Copy link")'),
@@ -511,9 +515,7 @@ test.describe('Connection Status', () => {
     });
 
     // Status dot element should exist with the connected class
-    const dotClass = await page
-      .locator('[data-testid="status-dot"]')
-      .getAttribute('class');
+    const dotClass = await page.locator('[data-testid="status-dot"]').getAttribute('class');
     expect(dotClass).toContain('connected');
   });
 
@@ -557,9 +559,7 @@ test.describe('Hub Page', () => {
     expect(shellText).toBeTruthy();
   });
 
-  test('new session button on hub creates session and navigates to terminal', async ({
-    page,
-  }) => {
+  test('new session button on hub creates session and navigates to terminal', async ({ page }) => {
     await navigateToHub(page);
     await page.click('[data-testid="hub-new-session-btn"]');
 
@@ -674,9 +674,7 @@ test.describe('Multi-Session Tabs', () => {
     });
 
     // Exactly one tab should be active
-    await expect(
-      page.locator('[data-testid="session-tab"][data-active="true"]'),
-    ).toHaveCount(1);
+    await expect(page.locator('[data-testid="session-tab"][data-active="true"]')).toHaveCount(1);
 
     // The last tab (newly created) should be active
     const lastTab = page.locator('[data-testid="session-tab"]').last();
@@ -785,9 +783,9 @@ test.describe('Multi-Session Tabs', () => {
     await expect(page.locator('[data-testid="session-tab"]')).toHaveCount(2, {
       timeout: 5_000,
     });
-    await expect(
-      page.locator('[data-testid="session-tab"][data-active="true"]'),
-    ).toHaveCount(1, { timeout: 5_000 });
+    await expect(page.locator('[data-testid="session-tab"][data-active="true"]')).toHaveCount(1, {
+      timeout: 5_000,
+    });
 
     // Terminal should still be connected
     await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
@@ -803,9 +801,9 @@ test.describe('Search', () => {
     await openTerminalWithNewSession(page);
     await openPaletteAndClick(page, 'Find in terminal');
 
-    await expect(
-      page.locator('[data-testid="search-bar"][data-open="true"]'),
-    ).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="search-bar"][data-open="true"]')).toBeVisible({
+      timeout: 3_000,
+    });
     await expect(page.locator('[data-testid="search-input"]')).toBeFocused();
   });
 
@@ -820,9 +818,7 @@ test.describe('Search', () => {
 
     // Open search and type the marker
     await openPaletteAndClick(page, 'Find in terminal');
-    await expect(
-      page.locator('[data-testid="search-bar"][data-open="true"]'),
-    ).toBeVisible();
+    await expect(page.locator('[data-testid="search-bar"][data-open="true"]')).toBeVisible();
     await page.fill('[data-testid="search-input"]', marker);
     await page.waitForTimeout(500);
 
@@ -845,26 +841,22 @@ test.describe('Search', () => {
     await openTerminalWithNewSession(page);
     await openPaletteAndClick(page, 'Find in terminal');
 
-    await expect(
-      page.locator('[data-testid="search-bar"][data-open="true"]'),
-    ).toBeVisible();
+    await expect(page.locator('[data-testid="search-bar"][data-open="true"]')).toBeVisible();
     await page.click('[data-testid="search-close"]');
-    await expect(
-      page.locator('[data-testid="search-bar"][data-open="true"]'),
-    ).not.toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="search-bar"][data-open="true"]')).not.toBeVisible({
+      timeout: 3_000,
+    });
   });
 
   test('Escape key closes search bar', async ({ page }) => {
     await openTerminalWithNewSession(page);
     await openPaletteAndClick(page, 'Find in terminal');
 
-    await expect(
-      page.locator('[data-testid="search-bar"][data-open="true"]'),
-    ).toBeVisible();
+    await expect(page.locator('[data-testid="search-bar"][data-open="true"]')).toBeVisible();
     await page.locator('[data-testid="search-input"]').press('Escape');
-    await expect(
-      page.locator('[data-testid="search-bar"][data-open="true"]'),
-    ).not.toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="search-bar"][data-open="true"]')).not.toBeVisible({
+      timeout: 3_000,
+    });
   });
 });
 
@@ -875,32 +867,32 @@ test.describe('Keyboard Shortcuts', () => {
     await openTerminalWithNewSession(page);
 
     await page.keyboard.press('Control+k');
-    await expect(
-      page.locator('[data-testid="palette-panel"][data-open="true"]'),
-    ).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="palette-panel"][data-open="true"]')).toBeVisible({
+      timeout: 3_000,
+    });
   });
 
   test('Escape closes command palette', async ({ page }) => {
     await openTerminalWithNewSession(page);
 
     await page.keyboard.press('Control+k');
-    await expect(
-      page.locator('[data-testid="palette-panel"][data-open="true"]'),
-    ).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="palette-panel"][data-open="true"]')).toBeVisible({
+      timeout: 3_000,
+    });
 
     await page.keyboard.press('Escape');
-    await expect(
-      page.locator('[data-testid="palette-panel"][data-open="true"]'),
-    ).not.toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="palette-panel"][data-open="true"]')).not.toBeVisible({
+      timeout: 3_000,
+    });
   });
 
   test('Ctrl+F opens search bar', async ({ page }) => {
     await openTerminalWithNewSession(page);
 
     await page.keyboard.press('Control+f');
-    await expect(
-      page.locator('[data-testid="search-bar"][data-open="true"]'),
-    ).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="search-bar"][data-open="true"]')).toBeVisible({
+      timeout: 3_000,
+    });
     await expect(page.locator('[data-testid="search-input"]')).toBeFocused();
   });
 });
@@ -934,9 +926,9 @@ test.describe('Mobile Layout', () => {
     await openTerminalWithNewSession(page);
 
     await page.click('[data-testid="palette-trigger"]');
-    await expect(
-      page.locator('[data-testid="palette-panel"][data-open="true"]'),
-    ).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('[data-testid="palette-panel"][data-open="true"]')).toBeVisible({
+      timeout: 3_000,
+    });
   });
 
   test('hub page works on mobile viewport', async ({ page }) => {

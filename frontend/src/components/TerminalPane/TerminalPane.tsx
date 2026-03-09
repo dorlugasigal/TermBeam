@@ -36,6 +36,19 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   );
 
   const handleData = useCallback((data: string) => {
+    // Apply touch bar Ctrl modifier to virtual keyboard input.
+    // When Ctrl is toggled on, convert single printable characters to
+    // their control-character equivalents (e.g. 'o' → Ctrl+O = 0x0f).
+    const { touchCtrlActive, setTouchCtrl } = useUIStore.getState();
+    if (touchCtrlActive && data.length === 1) {
+      const code = data.toLowerCase().charCodeAt(0);
+      if (code >= 0x61 && code <= 0x7a) {
+        // a-z → 0x01-0x1a
+        sendRef.current(String.fromCharCode(code - 0x60));
+        setTouchCtrl(false);
+        return;
+      }
+    }
     sendRef.current(data);
   }, []);
 
@@ -83,12 +96,32 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
             }, delay),
           );
         }
-        // Also focus on first refresh
+        // Focus terminal — works on desktop; on mobile, the gesture-based
+        // listener below handles it since programmatic focus is restricted.
         timers.push(setTimeout(() => terminal.focus(), 50));
         return () => timers.forEach(clearTimeout);
       }
     }
   }, [connected, terminal, fit]);
+
+  // On mobile, browsers require a user gesture (tap/click) for programmatic
+  // focus to succeed. After (re)connect, install a one-shot capture-phase
+  // listener that focuses the terminal on the very first touch/click.
+  useEffect(() => {
+    if (connected && active && terminal) {
+      const focusOnce = () => {
+        terminal.focus();
+        document.removeEventListener('touchstart', focusOnce, true);
+        document.removeEventListener('mousedown', focusOnce, true);
+      };
+      document.addEventListener('touchstart', focusOnce, true);
+      document.addEventListener('mousedown', focusOnce, true);
+      return () => {
+        document.removeEventListener('touchstart', focusOnce, true);
+        document.removeEventListener('mousedown', focusOnce, true);
+      };
+    }
+  }, [connected, active, terminal]);
 
   // Keep refs in sync with latest WS functions
   useEffect(() => {
@@ -121,15 +154,44 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     }
   }, [active, terminal, fit]);
 
-  // Track scroll position for scroll-to-bottom button
+  // Refocus terminal when overlays close (command palette, search bar, etc.)
+  const commandPaletteOpen = useUIStore((s) => s.commandPaletteOpen);
+  const searchBarOpen = useUIStore((s) => s.searchBarOpen);
+  const sidePanelOpen = useUIStore((s) => s.sidePanelOpen);
+  const copyOverlayOpen = useUIStore((s) => s.copyOverlayOpen);
+  const anyOverlayOpen = commandPaletteOpen || searchBarOpen || sidePanelOpen || copyOverlayOpen;
+  const prevOverlayRef = useRef(anyOverlayOpen);
+
+  useEffect(() => {
+    if (prevOverlayRef.current && !anyOverlayOpen && active && terminal) {
+      // An overlay just closed — refocus terminal
+      requestAnimationFrame(() => terminal.focus());
+    }
+    prevOverlayRef.current = anyOverlayOpen;
+  }, [anyOverlayOpen, active, terminal]);
+
+  // Track scroll position for scroll-to-bottom button.
+  // Throttle to avoid excessive React re-renders during rapid output.
+  const wasAtBottomRef = useRef(true);
+  const scrollThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoScrollRafRef = useRef<number | null>(null);
+  const programmaticScrollRef = useRef(false);
+
   useEffect(() => {
     if (!terminal) return;
     const container = terminal.element;
 
     const checkScroll = () => {
-      const buf = terminal.buffer.active;
-      const atBottom = buf.viewportY >= buf.baseY;
-      setShowScrollBtn(!atBottom);
+      // Skip scroll checks triggered by our own programmatic scrollToBottom
+      if (programmaticScrollRef.current) return;
+      if (scrollThrottleRef.current) return;
+      scrollThrottleRef.current = setTimeout(() => {
+        scrollThrottleRef.current = null;
+        const buf = terminal.buffer.active;
+        const atBottom = buf.viewportY >= buf.baseY;
+        wasAtBottomRef.current = atBottom;
+        setShowScrollBtn(!atBottom);
+      }, 100);
     };
 
     const disposable = terminal.onScroll(checkScroll);
@@ -137,8 +199,27 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     container?.addEventListener('wheel', checkScroll, { passive: true });
     container?.addEventListener('touchmove', checkScroll, { passive: true });
 
+    // Auto-scroll to bottom when new data arrives, throttled to one RAF
+    // to avoid scroll thrashing during rapid output (e.g. long lines)
+    const writeDisposable = terminal.onWriteParsed(() => {
+      if (!wasAtBottomRef.current) return;
+      if (autoScrollRafRef.current !== null) return;
+      autoScrollRafRef.current = requestAnimationFrame(() => {
+        autoScrollRafRef.current = null;
+        const buf = terminal.buffer.active;
+        if (buf.viewportY < buf.baseY) {
+          programmaticScrollRef.current = true;
+          terminal.scrollToBottom();
+          programmaticScrollRef.current = false;
+        }
+      });
+    });
+
     return () => {
       disposable.dispose();
+      writeDisposable.dispose();
+      if (scrollThrottleRef.current) clearTimeout(scrollThrottleRef.current);
+      if (autoScrollRafRef.current !== null) cancelAnimationFrame(autoScrollRafRef.current);
       container?.removeEventListener('wheel', checkScroll);
       container?.removeEventListener('touchmove', checkScroll);
     };
@@ -265,13 +346,18 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
 
   const handleReconnect = useCallback(() => {
     terminal?.clear();
+    terminal?.focus();
     reconnect();
   }, [terminal, reconnect]);
+
+  const handlePaneClick = useCallback(() => {
+    terminal?.focus();
+  }, [terminal]);
 
   const showReconnectOverlay = !connected && !exited && hadConnectedRef.current;
 
   return (
-    <div ref={paneRef} className={styles.pane} data-testid="terminal-pane" {...((visible ?? active) ? { 'data-visible': 'true' } : {})}>
+    <div ref={paneRef} className={styles.pane} data-testid="terminal-pane" onClick={handlePaneClick} onTouchStart={handlePaneClick} {...((visible ?? active) ? { 'data-visible': 'true' } : {})}>
       <div ref={terminalRef} className={styles.terminalContainer} />
 
       {showScrollBtn && (

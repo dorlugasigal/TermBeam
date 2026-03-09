@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -21,8 +21,8 @@ const ROW1: KeyDef[] = [
   { label: 'Esc', data: '\x1b', type: 'special' },
   { label: 'Copy', data: '', type: 'special', action: 'copy' },
   { label: 'Paste', data: '', type: 'special', action: 'paste' },
-  { label: 'Home', data: '\x1bOH', type: 'special' },
-  { label: 'End', data: '\x1bOF', type: 'special' },
+  { label: 'Home', data: '\x1b[H', type: 'special' },
+  { label: 'End', data: '\x1b[F', type: 'special' },
   { label: '↑', data: '\x1b[A', type: 'icon' },
   { label: '↵', data: '\r', type: 'enter' },
 ];
@@ -46,8 +46,8 @@ const ARROW_MAP: Record<string, string> = {
 };
 
 const HOME_END_MAP: Record<string, string> = {
-  '\x1bOH': 'H',
-  '\x1bOF': 'F',
+  '\x1b[H': 'H',
+  '\x1b[F': 'F',
 };
 
 function encodeArrowWithModifiers(arrowCode: string, ctrl: boolean, shift: boolean): string {
@@ -87,9 +87,11 @@ function refocusTerminal(): void {
 const SWIPE_THRESHOLD = 10;
 
 export default function TouchBar() {
-  const [ctrlActive, setCtrlActive] = useState(false);
-  const [shiftActive, setShiftActive] = useState(false);
-  const [flashKey, setFlashKey] = useState<string | null>(null);
+  const ctrlActive = useUIStore((s) => s.touchCtrlActive);
+  const shiftActive = useUIStore((s) => s.touchShiftActive);
+  const setCtrlActive = useUIStore((s) => s.setTouchCtrl);
+  const setShiftActive = useUIStore((s) => s.setTouchShift);
+  const [flashKey, setFlashKey] = React.useState<string | null>(null);
   const repeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -186,7 +188,7 @@ export default function TouchBar() {
   }, []);
 
   const handlePress = useCallback(
-    (def: KeyDef, fromTouch = false) => {
+    (def: KeyDef) => {
       if (def.action === 'copy') {
         flash(def.label);
         handleCopy();
@@ -200,11 +202,11 @@ export default function TouchBar() {
 
       // Toggle modifiers
       if (def.modifier === 'ctrl') {
-        setCtrlActive((v) => !v);
+        setCtrlActive(!ctrlActive);
         return;
       }
       if (def.modifier === 'shift') {
-        setShiftActive((v) => !v);
+        setShiftActive(!shiftActive);
         return;
       }
 
@@ -214,12 +216,17 @@ export default function TouchBar() {
       flash(def.label);
       sendInput(data);
 
+      // Refocus terminal after sending key. On mobile, only refocus when
+      // the virtual keyboard is already open (avoids popping it up when
+      // the user is deliberately using just the touch bar).
+      const mobileKeyboardOpen = keyboardHeight > 0;
+      if (window.matchMedia?.('(pointer: fine)')?.matches || mobileKeyboardOpen) {
+        refocusTerminal();
+      }
+
       // Deactivate sticky modifiers after key press
       if (ctrlActive) setCtrlActive(false);
       if (shiftActive) setShiftActive(false);
-
-      // Only refocus on mouse (desktop) — on touch, refocusing opens the virtual keyboard
-      if (!fromTouch) refocusTerminal();
     },
     [resolveKeyData, flash, ctrlActive, shiftActive, handleCopy, handlePaste],
   );
@@ -242,16 +249,32 @@ export default function TouchBar() {
     clearRepeat();
   }, [clearRepeat]);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    if (touch) {
-      touchStartRef.current = { x: touch.clientX, y: touch.clientY };
-    }
-  }, []);
+  const REPEATABLE = new Set(['\x1b[A', '\x1b[B', '\x1b[C', '\x1b[D']);
+
+  const handleTouchStart = useCallback(
+    (def: KeyDef, e: React.TouchEvent) => {
+      const touch = e.touches[0];
+      if (touch) {
+        touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+      }
+      // Start key-repeat for arrow keys on touch hold
+      if (REPEATABLE.has(def.data) && !def.modifier && !def.action) {
+        clearRepeat();
+        repeatTimerRef.current = setTimeout(() => {
+          repeatIntervalRef.current = setInterval(() => {
+            const data = resolveKeyData(def);
+            if (data !== null) sendInput(data);
+          }, 80);
+        }, 400);
+      }
+    },
+    [resolveKeyData, clearRepeat],
+  );
 
   const handleTouchEnd = useCallback(
     (def: KeyDef, e: React.TouchEvent) => {
       e.preventDefault();
+      clearRepeat();
       const start = touchStartRef.current;
       const end = e.changedTouches[0];
       touchStartRef.current = null;
@@ -262,7 +285,7 @@ export default function TouchBar() {
         if (dx > SWIPE_THRESHOLD || dy > SWIPE_THRESHOLD) return;
       }
 
-      handlePress(def, true);
+      handlePress(def);
     },
     [handlePress],
   );
@@ -301,8 +324,9 @@ export default function TouchBar() {
       onMouseDown={() => handleMouseDown(def)}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      onTouchStart={handleTouchStart}
+      onTouchStart={(e) => handleTouchStart(def, e)}
       onTouchEnd={(e) => handleTouchEnd(def, e)}
+      onTouchCancel={handleMouseUp}
     >
       {def.label}
     </button>

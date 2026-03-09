@@ -109,15 +109,7 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
       writeBuffer += data;
       if (!rafPending) {
         rafPending = true;
-        requestAnimationFrame(() => {
-          // For large bursts, defer one extra frame to let the browser
-          // coalesce even more data before painting
-          if (writeBuffer.length > 512) {
-            requestAnimationFrame(flushWrites);
-          } else {
-            flushWrites();
-          }
-        });
+        requestAnimationFrame(flushWrites);
       }
     }
 
