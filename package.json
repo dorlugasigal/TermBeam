@@ -52,7 +52,10 @@
   },
   "files": [
     "bin/",
-    "src/",
+    "src/server/",
+    "src/cli/",
+    "src/tunnel/",
+    "src/utils/",
     "public/",
     "LICENSE",
     "README.md"
