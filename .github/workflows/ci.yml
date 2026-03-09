@@ -31,7 +31,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Build frontend
-        run: cd frontend && npm ci && npm run build
+        run: cd src/frontend && npm ci && npm run build
       - run: npm test
 
   coverage:
@@ -48,7 +48,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Build frontend
-        run: cd frontend && npm ci && npm run build
+        run: cd src/frontend && npm ci && npm run build
       - run: npm run test:coverage
       - name: Check coverage threshold
         run: |
@@ -111,11 +111,11 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Install frontend dependencies
-        run: cd frontend && npm ci
+        run: cd src/frontend && npm ci
       - name: Type-check frontend
-        run: cd frontend && npx tsc --noEmit
+        run: cd src/frontend && npx tsc --noEmit
       - name: Build frontend
-        run: cd frontend && npm run build
+        run: cd src/frontend && npm run build
       - name: Verify build output
         run: test -f public/index.html
 
@@ -134,7 +134,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Build frontend
-        run: cd frontend && npm ci && npm run build
+        run: cd src/frontend && npm ci && npm run build
       - name: Install Playwright (Linux)
         if: runner.os == 'Linux'
         run: npx playwright install --with-deps chromium

@@ -11,7 +11,7 @@ module.exports = [
       'test-results/',
       'packages/landing/',
       'packages/demo-video/',
-      'frontend/',
+      'src/frontend/',
     ],
   },
   js.configs.recommended,

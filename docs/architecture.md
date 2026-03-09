@@ -26,7 +26,7 @@ termbeam/
 │   ├── logger.js            # Structured logger with levels
 │   ├── update-check.js      # npm update checking & version comparison
 │   └── version.js           # Smart version detection
-├── frontend/                   # React 19 + Vite + TypeScript SPA
+├── src/frontend/               # React 19 + Vite + TypeScript SPA
 │   ├── src/
 │   │   ├── App.tsx             # Root component
 │   │   ├── main.tsx            # Entry point
@@ -146,7 +146,7 @@ Smart version detection with two paths: npm installs use the `package.json` vers
 
 ### Frontend — React SPA
 
-The frontend is a React 19 single-page application built with Vite and TypeScript, located in `frontend/`. It builds to `public-react/`, which Express serves as the primary static directory. The `public/` directory contains only shared PWA assets (icons, manifest, service worker) and is served as a secondary static layer. Key dependencies include `@xterm/xterm` (npm package, not CDN), Zustand for state management, Radix UI for dialogs, `@dnd-kit` for drag-and-drop, and Sonner for toast notifications.
+The frontend is a React 19 single-page application built with Vite and TypeScript, located in `src/frontend/`. It builds to `public-react/`, which Express serves as the primary static directory. The `public/` directory contains only shared PWA assets (icons, manifest, service worker) and is served as a secondary static layer. Key dependencies include `@xterm/xterm` (npm package, not CDN), Zustand for state management, Radix UI for dialogs, `@dnd-kit` for drag-and-drop, and Sonner for toast notifications.
 
 The terminal page includes several client-side features:
 

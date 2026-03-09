@@ -5,3 +5,4 @@ docs/
 .gitignore
 CONTRIBUTING.md
 CHANGELOG.md
+src/frontend/
