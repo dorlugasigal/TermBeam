@@ -31,8 +31,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
           setShells(list);
           if (!shell) {
             const def =
-              list.find((s) => s.cmd === defaultShell) ||
-              list.find((s) => s.path === defaultShell);
+              list.find((s) => s.cmd === defaultShell) || list.find((s) => s.path === defaultShell);
             setShell(def?.cmd ?? list[0]?.cmd ?? '');
           }
           if (!cwd && serverCwd) setCwd(serverCwd);
@@ -77,15 +76,22 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   }
 
   return (
-    <Dialog.Root open={newSessionModalOpen} onOpenChange={(open) => {
-      if (!open) {
-        closeNewSessionModal();
-        resetForm();
-      }
-    }}>
+    <Dialog.Root
+      open={newSessionModalOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          closeNewSessionModal();
+          resetForm();
+        }
+      }}
+    >
       <Dialog.Portal>
         <Dialog.Overlay className={styles.overlay} />
-        <Dialog.Content className={styles.content} data-testid="new-session-modal" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <Dialog.Content
+          className={styles.content}
+          data-testid="new-session-modal"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <Dialog.Title className={styles.title}>New Session</Dialog.Title>
 
           {browsing ? (

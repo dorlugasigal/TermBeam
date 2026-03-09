@@ -24,7 +24,8 @@ export function useAuth(): UseAuthReturn {
         // Remove ott from URL without reload
         params.delete('ott');
         const search = params.toString();
-        const newUrl = window.location.pathname + (search ? `?${search}` : '') + window.location.hash;
+        const newUrl =
+          window.location.pathname + (search ? `?${search}` : '') + window.location.hash;
         window.history.replaceState(null, '', newUrl);
 
         try {

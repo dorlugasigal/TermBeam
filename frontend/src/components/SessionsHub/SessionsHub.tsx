@@ -145,8 +145,10 @@ export default function SessionsHub() {
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
       if (
-        themePanelRef.current && !themePanelRef.current.contains(target) &&
-        themeBtnRef.current && !themeBtnRef.current.contains(target)
+        themePanelRef.current &&
+        !themePanelRef.current.contains(target) &&
+        themeBtnRef.current &&
+        !themeBtnRef.current.contains(target)
       ) {
         setShowThemePicker(false);
       }
@@ -164,7 +166,8 @@ export default function SessionsHub() {
           📡 Term<span className={styles.accent}>Beam</span>
         </h1>
         <p className={styles.tagline}>
-          Beam your terminal to any device{version ? <span data-testid="hub-version"> · v{version}</span> : ''}
+          Beam your terminal to any device
+          {version ? <span data-testid="hub-version"> · v{version}</span> : ''}
         </p>
 
         <button

@@ -120,8 +120,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       // The CanvasAddon's 2D canvas clear→redraw cycle causes visible flicker
       // on mobile GPUs during rapid output (e.g. TUI apps redrawing).
       const isMobileDevice =
-        ('ontouchstart' in window || navigator.maxTouchPoints > 0) &&
-        window.innerWidth < 768;
+        ('ontouchstart' in window || navigator.maxTouchPoints > 0) && window.innerWidth < 768;
       if (!navigator.webdriver && !isMobileDevice) {
         try {
           const canvas = new CanvasAddon();
@@ -163,20 +162,23 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       'NerdFont',
       'url(https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@latest/patched-fonts/JetBrainsMono/Ligatures/Regular/JetBrainsMonoNerdFont-Regular.ttf)',
     );
-    font.load().then((f) => {
-      if (disposed) return;
-      document.fonts.add(f);
-      if (termRef.current) {
-        termRef.current.options.fontFamily = FONT_FAMILY;
-        try {
-          fitRef.current?.fit();
-        } catch {
-          // ignore
+    font
+      .load()
+      .then((f) => {
+        if (disposed) return;
+        document.fonts.add(f);
+        if (termRef.current) {
+          termRef.current.options.fontFamily = FONT_FAMILY;
+          try {
+            fitRef.current?.fit();
+          } catch {
+            // ignore
+          }
         }
-      }
-    }).catch(() => {
-      // NerdFont unavailable — keep default monospace
-    });
+      })
+      .catch(() => {
+        // NerdFont unavailable — keep default monospace
+      });
 
     // ResizeObserver for container size changes.
     // Guard against 0-dimension containers (display:none on an ancestor)

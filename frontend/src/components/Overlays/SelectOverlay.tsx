@@ -96,9 +96,7 @@ export default function SelectOverlay() {
   return (
     <div className={styles.selectOverlay} data-testid="select-overlay">
       <div className={styles.selectHeader}>
-        <span style={{ color: 'var(--text, #ccc)', fontSize: 14, fontWeight: 600 }}>
-          {title}
-        </span>
+        <span style={{ color: 'var(--text, #ccc)', fontSize: 14, fontWeight: 600 }}>{title}</span>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className={styles.btnPrimary} onClick={handleCopy}>
             Copy

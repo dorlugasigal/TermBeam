@@ -6,13 +6,20 @@ import { useThemeStore } from '@/stores/themeStore';
 import { THEMES, type ThemeId } from '@/themes/terminalThemes';
 import { deleteSession, renameSession, fetchVersion, getShareUrl } from '@/services/api';
 import { playNotificationSound, setNotificationsEnabled } from '@/services/audio';
-import { AboutModal } from '@/components/common/AboutModal';
+import { AboutModal } from '@/components/Modals/AboutModal';
 import styles from './CommandPalette.module.css';
 
 /* ---------- inline SVG icons (16×16, stroke-based) ---------- */
 
 const iconNewTab = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <rect x="2" y="2" width="12" height="12" rx="2" />
     <line x1="8" y1="5" x2="8" y2="11" />
     <line x1="5" y1="8" x2="11" y2="8" />
@@ -20,7 +27,14 @@ const iconNewTab = (
 );
 
 const iconUpload = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M2 10v3a1 1 0 001 1h10a1 1 0 001-1v-3" />
     <polyline points="5 5 8 2 11 5" />
     <line x1="8" y1="2" x2="8" y2="10" />
@@ -28,7 +42,14 @@ const iconUpload = (
 );
 
 const iconCloseTab = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <rect x="2" y="2" width="12" height="12" rx="2" />
     <line x1="5.5" y1="5.5" x2="10.5" y2="10.5" />
     <line x1="10.5" y1="5.5" x2="5.5" y2="10.5" />
@@ -36,34 +57,69 @@ const iconCloseTab = (
 );
 
 const iconRename = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M11 2l3 3-8 8H3v-3z" />
     <line x1="9" y1="4" x2="12" y2="7" />
   </svg>
 );
 
 const iconSplit = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <rect x="2" y="2" width="12" height="12" rx="2" />
     <line x1="8" y1="2" x2="8" y2="14" />
   </svg>
 );
 
 const iconStop = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <rect x="3" y="3" width="10" height="10" rx="1" />
   </svg>
 );
 
 const iconSearch = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <circle cx="7" cy="7" r="4" />
     <line x1="10" y1="10" x2="14" y2="14" />
   </svg>
 );
 
 const iconFontUp = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M3 13L8 3l5 10" />
     <line x1="5" y1="9" x2="11" y2="9" />
     <line x1="13" y1="5" x2="13" y2="1" />
@@ -72,7 +128,14 @@ const iconFontUp = (
 );
 
 const iconFontDown = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M3 13L8 3l5 10" />
     <line x1="5" y1="9" x2="11" y2="9" />
     <line x1="11" y1="3" x2="15" y2="3" />
@@ -80,14 +143,28 @@ const iconFontDown = (
 );
 
 const iconTheme = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <circle cx="8" cy="8" r="6" />
     <path d="M8 2a6 6 0 000 12z" fill="currentColor" opacity=".3" />
   </svg>
 );
 
 const iconPreview = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <rect x="1" y="3" width="14" height="10" rx="2" />
     <line x1="5" y1="13" x2="11" y2="13" />
     <line x1="8" y1="13" x2="8" y2="15" />
@@ -95,21 +172,42 @@ const iconPreview = (
 );
 
 const iconCopyLink = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M6.5 9.5a3 3 0 004 .5l2-2a3 3 0 00-4.24-4.24L7 5" />
     <path d="M9.5 6.5a3 3 0 00-4-.5l-2 2a3 3 0 004.24 4.24L9 11" />
   </svg>
 );
 
 const iconBell = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M4 6a4 4 0 018 0c0 4 2 5 2 5H2s2-1 2-5" />
     <path d="M6.5 13a1.5 1.5 0 003 0" />
   </svg>
 );
 
 const iconRefresh = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M2 8a6 6 0 0110.47-4" />
     <polyline points="12 1 13 4 10 5" />
     <path d="M14 8a6 6 0 01-10.47 4" />
@@ -118,7 +216,14 @@ const iconRefresh = (
 );
 
 const iconClear = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M3 4h10" />
     <path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1" />
     <path d="M4 4l1 10a1 1 0 001 1h4a1 1 0 001-1l1-10" />
@@ -126,7 +231,14 @@ const iconClear = (
 );
 
 const iconAbout = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <circle cx="8" cy="8" r="6" />
     <line x1="8" y1="7" x2="8" y2="11" />
     <circle cx="8" cy="5" r=".5" fill="currentColor" />
@@ -189,11 +301,7 @@ export default function CommandPalette() {
 
   if (!open) {
     return (
-      <AboutModal
-        open={aboutOpen}
-        onClose={() => setAboutOpen(false)}
-        version={aboutVersion}
-      />
+      <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} version={aboutVersion} />
     );
   }
 
@@ -202,14 +310,26 @@ export default function CommandPalette() {
   if (showThemes) {
     return (
       <>
-        <div className={styles.themeBackdrop} onClick={() => { close(); setShowThemes(false); }} />
+        <div
+          className={styles.themeBackdrop}
+          onClick={() => {
+            close();
+            setShowThemes(false);
+          }}
+        />
         <div className={styles.themeFloating} data-testid="theme-subpanel" data-open="true">
           <div className={styles.header}>
             <button className={styles.closeBtn} onClick={() => setShowThemes(false)}>
               ←
             </button>
             <span className={styles.title}>Theme</span>
-            <button className={styles.closeBtn} onClick={() => { close(); setShowThemes(false); }}>
+            <button
+              className={styles.closeBtn}
+              onClick={() => {
+                close();
+                setShowThemes(false);
+              }}
+            >
               ✕
             </button>
           </div>
@@ -242,11 +362,7 @@ export default function CommandPalette() {
             ))}
           </div>
         </div>
-        <AboutModal
-          open={aboutOpen}
-          onClose={() => setAboutOpen(false)}
-          version={aboutVersion}
-        />
+        <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} version={aboutVersion} />
       </>
     );
   }
@@ -327,7 +443,11 @@ export default function CommandPalette() {
           icon: iconCloseTab,
           action: () =>
             run(() => {
-              const { activeId, sessions: sess, removeSession: remove } = useSessionStore.getState();
+              const {
+                activeId,
+                sessions: sess,
+                removeSession: remove,
+              } = useSessionStore.getState();
               if (!activeId) return;
               const ms = sess.get(activeId);
               if (!confirm(`Close session "${ms?.name ?? activeId}"?`)) return;
@@ -501,7 +621,12 @@ export default function CommandPalette() {
             <div key={sec.title} className={styles.section}>
               <div className={styles.sectionTitle}>{sec.title}</div>
               {sec.actions.map((a) => (
-                <button key={a.id} className={styles.btn} onClick={a.action} data-testid="palette-action">
+                <button
+                  key={a.id}
+                  className={styles.btn}
+                  onClick={a.action}
+                  data-testid="palette-action"
+                >
                   {a.icon}
                   {a.label}
                 </button>
@@ -510,11 +635,7 @@ export default function CommandPalette() {
           ))}
         </div>
       </div>
-      <AboutModal
-        open={aboutOpen}
-        onClose={() => setAboutOpen(false)}
-        version={aboutVersion}
-      />
+      <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} version={aboutVersion} />
     </>
   );
 }

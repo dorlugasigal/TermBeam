@@ -12,8 +12,7 @@ cleanupOutdatedCaches();
 
 // Cache-first for CDN fonts (NerdFont)
 registerRoute(
-  ({ url }) =>
-    url.hostname === 'cdn.jsdelivr.net' && url.pathname.endsWith('.ttf'),
+  ({ url }) => url.hostname === 'cdn.jsdelivr.net' && url.pathname.endsWith('.ttf'),
   new CacheFirst({
     cacheName: 'termbeam-fonts',
     plugins: [
@@ -26,10 +25,7 @@ registerRoute(
 );
 
 // Network-only for API calls — never cache auth or session data
-registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/'),
-  new NetworkOnly(),
-);
+registerRoute(({ url }) => url.pathname.startsWith('/api/'), new NetworkOnly());
 
 // Skip waiting and claim clients immediately
 self.addEventListener('install', () => {

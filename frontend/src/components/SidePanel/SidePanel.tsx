@@ -139,7 +139,13 @@ export function SidePanel() {
         onClick={animateClose}
         aria-hidden="true"
       />
-      <div className={styles.panel} data-closing={closing} ref={panelRef} role="dialog" data-testid="side-panel">
+      <div
+        className={styles.panel}
+        data-closing={closing}
+        ref={panelRef}
+        role="dialog"
+        data-testid="side-panel"
+      >
         {/* Brand header */}
         <div className={styles.header}>
           <div className={styles.brand}>
@@ -159,11 +165,7 @@ export function SidePanel() {
             TermBeam
           </div>
           {version && <div className={styles.version}>v{version}</div>}
-          <button
-            className={styles.closeBtn}
-            onClick={animateClose}
-            aria-label="Close side panel"
-          >
+          <button className={styles.closeBtn} onClick={animateClose} aria-label="Close side panel">
             ×
           </button>
         </div>
@@ -196,10 +198,7 @@ export function SidePanel() {
               >
                 {/* Card header: color dot, name, status, close */}
                 <div className={styles.cardHeader}>
-                  <span
-                    className={styles.cardDot}
-                    style={{ backgroundColor: session.color }}
-                  />
+                  <span className={styles.cardDot} style={{ backgroundColor: session.color }} />
                   <span className={styles.cardName}>{session.name}</span>
                   {session.id !== activeId && session.hasUnread && (
                     <span className={styles.unreadDot} />
@@ -208,11 +207,7 @@ export function SidePanel() {
                     className={styles.cardStatus}
                     style={{ backgroundColor: statusColor(session) }}
                     title={
-                      session.exited
-                        ? 'Exited'
-                        : session.connected
-                          ? 'Connected'
-                          : 'Disconnected'
+                      session.exited ? 'Exited' : session.connected ? 'Connected' : 'Disconnected'
                     }
                   />
                   <button
@@ -237,12 +232,8 @@ export function SidePanel() {
                     <span className={styles.gitBadge}>
                       <BranchIcon /> {git.branch || 'detached'}
                     </span>
-                    {git.provider && (
-                      <span className={styles.gitBadge}>{git.provider}</span>
-                    )}
-                    {git.repoName && (
-                      <span className={styles.gitBadge}>{git.repoName}</span>
-                    )}
+                    {git.provider && <span className={styles.gitBadge}>{git.provider}</span>}
+                    {git.repoName && <span className={styles.gitBadge}>{git.repoName}</span>}
                     {git.status && (
                       <span
                         className={`${styles.gitBadge} ${git.status.clean ? styles.gitClean : styles.gitDirty}`}

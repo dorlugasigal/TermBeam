@@ -88,7 +88,13 @@ function getProviderIcon(provider?: string) {
   return null;
 }
 
-export default function SessionCard({ session, onSelect, onDelete, revealedId, onRevealChange }: SessionCardProps) {
+export default function SessionCard({
+  session,
+  onSelect,
+  onDelete,
+  revealedId,
+  onRevealChange,
+}: SessionCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
@@ -124,68 +130,77 @@ export default function SessionCard({ session, onSelect, onDelete, revealedId, o
     }
   }, []);
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    if (!touch) return;
-    const dx = touch.clientX - touchStartX.current;
-    const dy = touch.clientY - touchStartY.current;
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      const dx = touch.clientX - touchStartX.current;
+      const dy = touch.clientY - touchStartY.current;
 
-    // Determine direction on first significant move
-    if (!isSwiping.current && Math.abs(dx) > 5) {
-      // If vertical scrolling dominates, bail out
-      if (Math.abs(dy) > Math.abs(dx)) return;
-      isSwiping.current = true;
-    }
-
-    if (!isSwiping.current) return;
-
-    const el = cardRef.current;
-    if (!el) return;
-
-    // Calculate offset relative to current snap position
-    const base = revealed ? -REVEAL_WIDTH : 0;
-    let newX = base + dx;
-
-    // Clamp: don't go past reveal width or past 0
-    newX = Math.max(newX, -REVEAL_WIDTH);
-    newX = Math.min(newX, 0);
-
-    el.style.transform = `translateX(${newX}px)`;
-  }, [revealed]);
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!isSwiping.current) return;
-
-    const touch = e.changedTouches[0];
-    if (!touch) return;
-    const dx = touch.clientX - touchStartX.current;
-    const base = revealed ? -REVEAL_WIDTH : 0;
-    const finalX = base + dx;
-
-    if (revealed) {
-      // If swiped right enough, snap back closed
-      if (dx > SWIPE_THRESHOLD) {
-        onRevealChange(null);
-        snapTo(0);
-      } else {
-        snapTo(-REVEAL_WIDTH);
+      // Determine direction on first significant move
+      if (!isSwiping.current && Math.abs(dx) > 5) {
+        // If vertical scrolling dominates, bail out
+        if (Math.abs(dy) > Math.abs(dx)) return;
+        isSwiping.current = true;
       }
-    } else {
-      // If swiped left enough, reveal delete button
-      if (finalX < -SWIPE_THRESHOLD) {
-        onRevealChange(session.id);
-        snapTo(-REVEAL_WIDTH);
-      } else {
-        snapTo(0);
-      }
-    }
-  }, [revealed, session.id, onRevealChange, snapTo]);
 
-  const handleDeleteClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    onDelete(session.id);
-    onRevealChange(null);
-  }, [session.id, onDelete, onRevealChange]);
+      if (!isSwiping.current) return;
+
+      const el = cardRef.current;
+      if (!el) return;
+
+      // Calculate offset relative to current snap position
+      const base = revealed ? -REVEAL_WIDTH : 0;
+      let newX = base + dx;
+
+      // Clamp: don't go past reveal width or past 0
+      newX = Math.max(newX, -REVEAL_WIDTH);
+      newX = Math.min(newX, 0);
+
+      el.style.transform = `translateX(${newX}px)`;
+    },
+    [revealed],
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isSwiping.current) return;
+
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+      const dx = touch.clientX - touchStartX.current;
+      const base = revealed ? -REVEAL_WIDTH : 0;
+      const finalX = base + dx;
+
+      if (revealed) {
+        // If swiped right enough, snap back closed
+        if (dx > SWIPE_THRESHOLD) {
+          onRevealChange(null);
+          snapTo(0);
+        } else {
+          snapTo(-REVEAL_WIDTH);
+        }
+      } else {
+        // If swiped left enough, reveal delete button
+        if (finalX < -SWIPE_THRESHOLD) {
+          onRevealChange(session.id);
+          snapTo(-REVEAL_WIDTH);
+        } else {
+          snapTo(0);
+        }
+      }
+    },
+    [revealed, session.id, onRevealChange, snapTo],
+  );
+
+  const handleDeleteClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onDelete(session.id);
+      onRevealChange(null);
+    },
+    [session.id, onDelete, onRevealChange],
+  );
 
   const shellName = session.shell.split('/').pop() ?? session.shell;
   const color = session.color ?? 'var(--success)';
@@ -215,9 +230,13 @@ export default function SessionCard({ session, onSelect, onDelete, revealedId, o
         <div className={styles.topRow}>
           <div className={styles.nameGroup}>
             <span className={styles.colorDot} style={{ background: color }} />
-            <span className={styles.name} data-testid="session-name">{session.name}</span>
+            <span className={styles.name} data-testid="session-name">
+              {session.name}
+            </span>
           </div>
-          <span className={styles.pidBadge} data-testid="session-pid">PID {session.pid}</span>
+          <span className={styles.pidBadge} data-testid="session-pid">
+            PID {session.pid}
+          </span>
         </div>
 
         {/* Details row */}
@@ -249,7 +268,9 @@ export default function SessionCard({ session, onSelect, onDelete, revealedId, o
             )}
             {git.repoName && <span className={styles.gitBadge}>{git.repoName}</span>}
             {git.status != null && (
-              <span className={`${styles.gitBadge} ${isClean ? styles.statusClean : styles.statusDirty}`}>
+              <span
+                className={`${styles.gitBadge} ${isClean ? styles.statusClean : styles.statusDirty}`}
+              >
                 {isClean ? '✓ clean' : git.status.summary}
               </span>
             )}

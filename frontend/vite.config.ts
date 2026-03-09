@@ -53,7 +53,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../public-react',
+    outDir: '../public',
     emptyOutDir: true,
     sourcemap: false,
   },

@@ -57,7 +57,7 @@ export function TabBar({ inline = false }: TabBarProps) {
   // Determine the split pane's session ID (first non-active tab)
   const splitSecondId =
     splitMode && activeId
-      ? tabOrder.filter((id) => sessions.has(id)).find((id) => id !== activeId) ?? null
+      ? (tabOrder.filter((id) => sessions.has(id)).find((id) => id !== activeId) ?? null)
       : null;
 
   return (

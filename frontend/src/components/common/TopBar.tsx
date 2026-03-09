@@ -8,21 +8,12 @@ interface TopBarProps {
   actions?: ReactNode;
 }
 
-export function TopBar({
-  onMenuClick,
-  showBackButton = true,
-  children,
-  actions,
-}: TopBarProps) {
+export function TopBar({ onMenuClick, showBackButton = true, children, actions }: TopBarProps) {
   return (
     <header className={styles.topBar}>
       <div className={styles.left}>
         {onMenuClick && (
-          <button
-            className={styles.menuBtn}
-            onClick={onMenuClick}
-            aria-label="Open menu"
-          >
+          <button className={styles.menuBtn} onClick={onMenuClick} aria-label="Open menu">
             ☰
           </button>
         )}

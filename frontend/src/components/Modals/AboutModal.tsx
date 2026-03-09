@@ -48,11 +48,7 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
           <Dialog.Description className={styles.description}>
             Terminal in your browser, optimized for mobile.
           </Dialog.Description>
-          <button
-            className={styles.close}
-            onClick={handleClose}
-            aria-label="Close"
-          >
+          <button className={styles.close} onClick={handleClose} aria-label="Close">
             ✕
           </button>
 

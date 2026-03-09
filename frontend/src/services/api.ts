@@ -28,7 +28,10 @@ export async function createSession(
 }
 
 export async function deleteSession(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/api/sessions/${id}`, { method: 'DELETE', credentials: 'same-origin' });
+  const res = await fetch(`${BASE}/api/sessions/${id}`, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+  });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(text || `HTTP ${res.status}`);
@@ -60,7 +63,11 @@ interface ShellsResponse {
   cwd: string;
 }
 
-export async function fetchShells(): Promise<{ shells: ShellInfo[]; defaultShell: string; cwd: string }> {
+export async function fetchShells(): Promise<{
+  shells: ShellInfo[];
+  defaultShell: string;
+  cwd: string;
+}> {
   const res = await fetch(`${BASE}/api/shells`, { credentials: 'same-origin' });
   const data = await handleResponse<ShellsResponse>(res);
   return { shells: data.shells, defaultShell: data.default, cwd: data.cwd };
@@ -74,7 +81,9 @@ export interface BrowseDirsResponse {
 export async function browseDirectory(dir: string): Promise<BrowseDirsResponse> {
   // Trailing slash tells backend to list contents (not prefix-filter)
   const q = dir.endsWith('/') || dir.endsWith('\\') ? dir : dir + '/';
-  const res = await fetch(`${BASE}/api/dirs?q=${encodeURIComponent(q)}`, { credentials: 'same-origin' });
+  const res = await fetch(`${BASE}/api/dirs?q=${encodeURIComponent(q)}`, {
+    credentials: 'same-origin',
+  });
   return handleResponse<BrowseDirsResponse>(res);
 }
 
@@ -137,12 +146,7 @@ export function uploadImage(
   contentType: string,
   onProgress?: (pct: number) => void,
 ): Promise<{ path: string }> {
-  return xhrUpload(
-    `${BASE}/api/upload`,
-    blob,
-    { 'Content-Type': contentType },
-    onProgress,
-  );
+  return xhrUpload(`${BASE}/api/upload`, blob, { 'Content-Type': contentType }, onProgress);
 }
 
 export async function checkAuth(): Promise<{ authenticated: boolean }> {
@@ -180,7 +184,9 @@ export async function checkUpdate(force = false): Promise<{
   latest: string;
 } | null> {
   try {
-    const res = await fetch(`${BASE}/api/update-check${force ? '?force=true' : ''}`, { credentials: 'same-origin' });
+    const res = await fetch(`${BASE}/api/update-check${force ? '?force=true' : ''}`, {
+      credentials: 'same-origin',
+    });
     if (!res.ok) return null;
     return res.json();
   } catch {

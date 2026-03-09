@@ -10,7 +10,9 @@ export default function SearchBar() {
   const [query, setQuery] = useState('');
   const [regex, setRegex] = useState(false);
   const [hasResults, setHasResults] = useState<boolean | null>(null);
-  const [matchCount, setMatchCount] = useState<{ resultIndex: number; resultCount: number } | null>(null);
+  const [matchCount, setMatchCount] = useState<{ resultIndex: number; resultCount: number } | null>(
+    null,
+  );
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -31,9 +33,11 @@ export default function SearchBar() {
     if (!open) return;
     const addon = getAddon();
     if (!addon) return;
-    const disposable = addon.onDidChangeResults((e: { resultIndex: number; resultCount: number }) => {
-      setMatchCount(e);
-    });
+    const disposable = addon.onDidChangeResults(
+      (e: { resultIndex: number; resultCount: number }) => {
+        setMatchCount(e);
+      },
+    );
     return () => disposable.dispose();
   }, [open, getAddon]);
 
@@ -46,9 +50,7 @@ export default function SearchBar() {
       }
       const opts = { regex, caseSensitive: false, incremental: true };
       const found =
-        direction === 'next'
-          ? addon.findNext(term, opts)
-          : addon.findPrevious(term, opts);
+        direction === 'next' ? addon.findNext(term, opts) : addon.findPrevious(term, opts);
       setHasResults(found);
     },
     [getAddon, regex],
@@ -136,7 +138,12 @@ export default function SearchBar() {
               : 'No results'}
         </span>
       )}
-      <button className={styles.btn} onClick={handleClose} title="Close (Esc)" data-testid="search-close">
+      <button
+        className={styles.btn}
+        onClick={handleClose}
+        title="Close (Esc)"
+        data-testid="search-close"
+      >
         ✕
       </button>
     </div>

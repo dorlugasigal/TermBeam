@@ -293,8 +293,7 @@ export default function TouchBar() {
   const getKeyClassName = (def: KeyDef): string => {
     const classes = [styles.keyBtn];
     const isModActive =
-      (def.modifier === 'ctrl' && ctrlActive) ||
-      (def.modifier === 'shift' && shiftActive);
+      (def.modifier === 'ctrl' && ctrlActive) || (def.modifier === 'shift' && shiftActive);
 
     if (def.type === 'special') classes.push(styles.special);
     if (def.type === 'modifier') classes.push(styles.modifier);
@@ -334,12 +333,13 @@ export default function TouchBar() {
 
   // When keyboard is open, extend the touchbar downward to fill the gap
   // between the key buttons and the keyboard (no floating look)
-  const touchBarStyle: React.CSSProperties = keyboardHeight > 0
-    ? {
-        height: `${80 + keyboardHeight}px`,
-        paddingBottom: `${keyboardHeight}px`,
-      }
-    : {};
+  const touchBarStyle: React.CSSProperties =
+    keyboardHeight > 0
+      ? {
+          height: `${80 + keyboardHeight}px`,
+          paddingBottom: `${keyboardHeight}px`,
+        }
+      : {};
 
   // In tight landscape, hide the touchbar when the keyboard is open to
   // maximize terminal space. The on-screen keyboard already provides keys.

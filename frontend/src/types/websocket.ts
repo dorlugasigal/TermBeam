@@ -40,8 +40,4 @@ export interface WSErrorMessage {
   message: string;
 }
 
-export type WSServerMessage =
-  | WSOutputMessage
-  | WSAttachedMessage
-  | WSExitMessage
-  | WSErrorMessage;
+export type WSServerMessage = WSOutputMessage | WSAttachedMessage | WSExitMessage | WSErrorMessage;

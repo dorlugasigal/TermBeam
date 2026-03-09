@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import LoginPage from '@/components/common/LoginPage';
+import LoginPage from '@/components/LoginPage/LoginPage';
 import SessionsHub from '@/components/SessionsHub/SessionsHub';
 import { TerminalApp } from '@/components/TerminalApp/TerminalApp';
 

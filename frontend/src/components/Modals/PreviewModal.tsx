@@ -56,11 +56,7 @@ export function PreviewModal() {
           <Dialog.Description className={styles.description}>
             Preview a service running on localhost
           </Dialog.Description>
-          <button
-            className={styles.close}
-            onClick={handleClose}
-            aria-label="Close"
-          >
+          <button className={styles.close} onClick={handleClose} aria-label="Close">
             ✕
           </button>
 
@@ -78,17 +74,11 @@ export function PreviewModal() {
               data-testid="preview-port-input"
             />
             {hint && (
-              <div style={{ fontSize: '0.8rem', color: 'var(--accent)', marginTop: 4 }}>
-                {hint}
-              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--accent)', marginTop: 4 }}>{hint}</div>
             )}
 
             <div className={styles.actions}>
-              <button
-                type="button"
-                className={styles.cancelBtn}
-                onClick={handleClose}
-              >
+              <button type="button" className={styles.cancelBtn} onClick={handleClose}>
                 Cancel
               </button>
               <button

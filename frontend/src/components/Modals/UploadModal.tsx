@@ -98,9 +98,7 @@ export function UploadModal() {
     }
     setUploading(false);
     if (uploaded > 0) {
-      toast.success(
-        `${uploaded} file(s) uploaded${dir ? ` to ${dir}` : ''}`,
-      );
+      toast.success(`${uploaded} file(s) uploaded${dir ? ` to ${dir}` : ''}`);
     }
     if (failed > 0) {
       toast.error(`${failed} file(s) failed to upload`);
@@ -114,11 +112,7 @@ export function UploadModal() {
         <Dialog.Overlay className={styles.overlay} />
         <Dialog.Content className={styles.content}>
           <Dialog.Title className={styles.title}>Upload Files</Dialog.Title>
-          <button
-            className={styles.close}
-            onClick={handleClose}
-            aria-label="Close"
-          >
+          <button className={styles.close} onClick={handleClose} aria-label="Close">
             ✕
           </button>
 

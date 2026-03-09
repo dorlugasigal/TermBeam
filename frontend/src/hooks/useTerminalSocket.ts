@@ -346,7 +346,8 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
       if (document.hidden || !mountedRef.current) return;
       const ws = wsRef.current;
       // Skip if already connected or a connection attempt is in progress
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING))
+        return;
       // Cancel pending backoff timer and reconnect immediately
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current);

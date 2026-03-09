@@ -73,19 +73,13 @@ export function FolderBrowser({ currentDir = '/', onSelect, onCancel }: FolderBr
           {dirs.map((fullPath) => {
             const name = fullPath.split(/[/\\]/).pop() || fullPath;
             return (
-              <button
-                key={fullPath}
-                className={styles.entry}
-                onClick={() => load(fullPath)}
-              >
+              <button key={fullPath} className={styles.entry} onClick={() => load(fullPath)}>
                 <span className={styles.entryIcon}>📁</span>
                 <span className={styles.entryName}>{name}</span>
               </button>
             );
           })}
-          {dirs.length === 0 && (
-            <div className={styles.loading}>Empty directory</div>
-          )}
+          {dirs.length === 0 && <div className={styles.loading}>Empty directory</div>}
         </div>
       )}
 
