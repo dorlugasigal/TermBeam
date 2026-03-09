@@ -306,13 +306,20 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     };
   }, []);
 
-  // Scroll to bottom when mobile keyboard opens
+  // Fit and scroll when mobile keyboard opens/closes.
+  // Calls fit() immediately so the terminal buffer matches the new container
+  // size without waiting for the debounced ResizeObserver (which would leave
+  // the terminal blank for ~80ms).
   const { keyboardOpen } = useMobileKeyboard();
   useEffect(() => {
-    if (keyboardOpen && terminal) {
-      terminal.scrollToBottom();
+    if (terminal) {
+      fit();
+      terminal.refresh(0, terminal.rows - 1);
+      if (keyboardOpen) {
+        terminal.scrollToBottom();
+      }
     }
-  }, [keyboardOpen, terminal]);
+  }, [keyboardOpen, terminal, fit]);
 
   // Image paste: intercept paste events with image data, upload, and send path to terminal
   useEffect(() => {
