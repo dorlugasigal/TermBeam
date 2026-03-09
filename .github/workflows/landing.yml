@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - landing/**
+      - packages/landing/**
   workflow_dispatch:
 
 permissions:
@@ -27,11 +27,11 @@ jobs:
           node-version: 22
 
       - name: Build
-        run: cd landing && npm ci && npm run build
+        run: cd packages/landing && npm ci && npm run build
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy landing/dist --project-name=termbeam
+          command: pages deploy packages/landing/dist --project-name=termbeam
