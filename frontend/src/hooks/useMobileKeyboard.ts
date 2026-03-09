@@ -36,9 +36,11 @@ export function useMobileKeyboard(): MobileKeyboardState {
 
     // On orientation change, the viewport height changes without a keyboard
     // event. Reset the baseline so the diff calculation stays correct.
+    let orientationTimer: ReturnType<typeof setTimeout> | undefined;
     function onOrientationChange() {
       // Short delay — browsers need a frame to settle the new viewport size
-      setTimeout(() => {
+      clearTimeout(orientationTimer);
+      orientationTimer = setTimeout(() => {
         baseHeightRef.current = vv!.height;
         setState({ keyboardOpen: false, keyboardHeight: 0 });
       }, 200);
@@ -54,6 +56,7 @@ export function useMobileKeyboard(): MobileKeyboardState {
     window.addEventListener('orientationchange', onOrientationChange);
 
     return () => {
+      clearTimeout(orientationTimer);
       vv.removeEventListener('resize', onResize);
       if (orientation) {
         orientation.removeEventListener('change', onOrientationChange);

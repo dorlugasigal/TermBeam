@@ -161,7 +161,6 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
         }
         ws.send(JSON.stringify({ type: 'attach', sessionId }));
         reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
-        setReconnecting(false);
 
         // Start keepalive pings
         keepaliveTimerRef.current = setInterval(() => {
@@ -189,6 +188,7 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
         switch (msg.type) {
           case 'attached': {
             setConnected(true);
+            setReconnecting(false);
             onConnected?.();
             if (msg.scrollback) {
               terminal.write(stripOscSequences(msg.scrollback));
@@ -256,6 +256,7 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
                   activityStart.delete(sessionId);
 
                   if (
+                    isNotificationsEnabled() &&
                     document.hidden &&
                     duration >= MIN_ACTIVITY_DURATION &&
                     !notifiedForBurst.has(sessionId)
@@ -321,16 +322,15 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
     function handleVisibilityReconnect() {
       if (document.hidden || !mountedRef.current) return;
       const ws = wsRef.current;
-      const isOpen = ws && ws.readyState === WebSocket.OPEN;
-      if (!isOpen) {
-        // Cancel pending backoff timer and reconnect immediately
-        if (reconnectTimerRef.current) {
-          clearTimeout(reconnectTimerRef.current);
-          reconnectTimerRef.current = null;
-        }
-        reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
-        connect();
+      // Skip if already connected or a connection attempt is in progress
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+      // Cancel pending backoff timer and reconnect immediately
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
       }
+      reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
+      connect();
     }
     document.addEventListener('visibilitychange', handleVisibilityReconnect);
 
