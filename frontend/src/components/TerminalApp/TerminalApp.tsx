@@ -275,6 +275,7 @@ export function TerminalApp() {
     <div
       className={styles.layout}
       data-testid="terminal-app"
+      data-keyboard-open={keyboardOpen || undefined}
       style={{ '--keyboard-height': `${keyboardHeight}px` } as React.CSSProperties}
     >
       {/* ── Top bar ── */}

@@ -95,7 +95,7 @@ export default function TouchBar() {
   const repeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const { keyboardHeight } = useMobileKeyboard();
+  const { keyboardOpen, keyboardHeight } = useMobileKeyboard();
 
   const clearRepeat = useCallback(() => {
     if (repeatTimerRef.current) {
@@ -340,6 +340,14 @@ export default function TouchBar() {
         paddingBottom: `${keyboardHeight}px`,
       }
     : {};
+
+  // In tight landscape, hide the touchbar when the keyboard is open to
+  // maximize terminal space. The on-screen keyboard already provides keys.
+  const isLandscapeTight =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+
+  if (keyboardOpen && isLandscapeTight) return null;
 
   return (
     <div className={styles.touchBar} style={touchBarStyle}>
