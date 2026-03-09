@@ -24,15 +24,28 @@ termbeam/
 │   ├── prompts.js          # Terminal prompt primitives (color, ask, choose, confirm)
 │   ├── shells.js            # Shell detection (cross-platform)
 │   ├── logger.js            # Structured logger with levels
+│   ├── update-check.js      # npm update checking & version comparison
 │   └── version.js           # Smart version detection
-├── public/
-│   ├── index.html           # Session manager (mobile UI)
-│   ├── terminal.html        # Terminal view (xterm.js, search, notifications, command palette)
-│   ├── css/                 # Stylesheets
-│   ├── js/                  # Client-side JavaScript modules
-│   ├── sw.js                # Service worker (PWA caching)
+├── frontend/                   # React 19 + Vite + TypeScript SPA
+│   ├── src/
+│   │   ├── App.tsx             # Root component
+│   │   ├── main.tsx            # Entry point
+│   │   ├── components/         # UI components
+│   │   ├── hooks/              # Custom React hooks
+│   │   ├── services/           # API & WebSocket clients
+│   │   ├── stores/             # Zustand state stores
+│   │   ├── styles/             # CSS stylesheets
+│   │   ├── themes/             # Terminal themes
+│   │   ├── types/              # TypeScript type definitions
+│   │   └── sw.ts               # Service worker source
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── tsconfig.json
+├── public-react/               # Vite build output (served by Express)
+├── public/                     # Shared static assets
+│   ├── icons/               # PWA icons
 │   ├── manifest.json        # Web app manifest
-│   └── icons/               # PWA icons
+│   └── sw.js                # Legacy service worker fallback
 ├── test/
 │   ├── auth.test.js
 │   ├── cli.test.js
@@ -123,13 +136,19 @@ Runs a step-by-step terminal wizard (in an alternate screen buffer) that walks t
 
 Provides ANSI color helpers (`green`, `yellow`, `red`, `cyan`, `bold`, `dim`) and interactive prompt functions (`ask`, `choose`, `confirm`, `createRL`). Extracted from `service.js` so both the service install wizard and the interactive setup wizard can share the same prompt primitives.
 
+### `update-check.js` — Update Checker
+
+Checks the npm registry for newer versions of TermBeam. Fetches the latest published version from `registry.npmjs.org`, compares it against the running version using semver comparison (`isNewerVersion`), and caches the result for 24 hours in `~/.termbeam/update-check.json` to avoid repeated network requests. Includes `sanitizeVersion()` to strip ANSI escape sequences and control characters from registry responses (terminal injection protection). Also provides `detectInstallMethod()` which inspects environment variables to determine whether TermBeam was installed via npm, npx, yarn, or pnpm, returning the appropriate upgrade command.
+
 ### `version.js` — Version Detection
 
 Smart version detection with two paths: npm installs use the `package.json` version as-is, while local development derives the version from git tags. On a clean tag it shows `1.11.0`; when ahead of a tag or with uncommitted changes it shows `1.11.0-dev (v1.11.0-3-gabcdef1)`. Falls back to `package.json` when no semver tag exists.
 
-### Client-Side Features (`terminal.html`)
+### Frontend — React SPA
 
-The terminal page includes several client-side features that run entirely in the browser:
+The frontend is a React 19 single-page application built with Vite and TypeScript, located in `frontend/`. It builds to `public-react/`, which Express serves as the primary static directory. The `public/` directory contains only shared PWA assets (icons, manifest, service worker) and is served as a secondary static layer. Key dependencies include `@xterm/xterm` (npm package, not CDN), Zustand for state management, Radix UI for dialogs, `@dnd-kit` for drag-and-drop, and Sonner for toast notifications.
+
+The terminal page includes several client-side features:
 
 - **Terminal search** — <kbd>Ctrl+F</kbd> / <kbd>Cmd+F</kbd> opens a search bar overlay powered by the xterm.js `SearchAddon`. Supports regex matching with next/previous navigation.
 - **Command completion notifications** — uses the browser Notification API to alert when a command finishes in a background tab. Toggled via a bell icon; preference stored in `localStorage` (`termbeam-notifications`).

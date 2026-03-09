@@ -30,7 +30,7 @@ npx termbeam
 
 Scan the QR code with your phone. Done.
 
-You get a full terminal with a touch keyboard bar (Ctrl, Tab, arrows, Esc), multi-session tabs, split view, file upload, 12 themes — all designed for mobile from the ground up.
+You get a full terminal with a touch keyboard bar (Ctrl, Tab, arrows, Esc), multi-session tabs, split view, file upload, 30 themes — all designed for mobile from the ground up.
 
 !!! tip "No install on the client"
 TermBeam runs in any browser. Your phone doesn't need an app, SSH keys, or any configuration. The built-in DevTunnel means it works over the internet automatically — no port forwarding needed.

@@ -38,7 +38,7 @@ Built for developers who need quick remote terminal access without the hassle of
 - **Command palette** — <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd> for quick access to all actions
 - **File upload** — send files from your phone to the session's working directory via the command palette
 - **Command completion notifications** — browser alerts when commands finish in background tabs
-- **12 color themes** (dark, light, monokai, nord, dracula…) with adjustable font size
+- **30 color themes** (dark, light, monokai, nord, dracula…) with adjustable font size
 - **Port preview** — reverse-proxy a local web server through TermBeam
 - **Share & refresh** actions for easy link sharing and PWA cache updates
 

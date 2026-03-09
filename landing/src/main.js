@@ -31,7 +31,7 @@ const qrLines = [
 
 const infoLines = [
   '',
-  '  Beam your terminal to any device 📡  <span class="out-dim">v1.10.0</span>',
+  '  Beam your terminal to any device 📡  <span class="out-dim">v1.12.1</span>',
   '',
   '  Shell:    <span class="out-white">zsh</span>',
   '  Session:  <span class="out-white">termbeam</span>',

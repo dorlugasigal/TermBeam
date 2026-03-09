@@ -87,7 +87,7 @@ Font size can be adjusted via the **command palette** (Increase / Decrease font 
 
 ## Themes
 
-TermBeam includes 12 color themes: Dark, Light, Monokai, Solarized Dark, Solarized Light, Nord, Dracula, GitHub Dark, One Dark, Catppuccin, Gruvbox, and Night Owl. Change the theme from the palette icon in the toolbar — your choice is saved in the browser.
+TermBeam includes 30 color themes: Dark, Light, Monokai, Solarized Dark, Solarized Light, Nord, Dracula, GitHub Dark, One Dark, Catppuccin, Gruvbox, Night Owl, Tokyo Night, Rosé Pine, Kanagawa, Everforest, Ayu Dark, Matrix, Cyberpunk, Sunset Glow, Synthwave, Aurora, Retro Amber, Deep Ocean, Neon Noir, Frost Byte, Vice City, Radical, Material Ocean, and Sakura. Change the theme from the palette icon in the toolbar — your choice is saved in the browser.
 
 ---
 

@@ -10,6 +10,14 @@ All API endpoints (except `/login`, `/api/auth`, and `/api/version`) require aut
 !!! note
     Bearer authentication accepts the raw password in the `Authorization: Bearer <password>` header, not a session token.
 
+**Bearer auth failure (401):**
+
+```json
+{ "error": "unauthorized" }
+```
+
+Returned when the `Authorization: Bearer` token does not match the server password, or when an API request has no valid authentication. Bearer auth is also rate-limited to 5 attempts per minute per IP (returns 429).
+
 ### Authentication
 
 #### `POST /api/auth`
@@ -437,7 +445,7 @@ Requires authentication (cookie or Bearer token).
 **Response (502):**
 
 ```json
-{ "error": "Bad gateway: <error message>" }
+{ "error": "Bad gateway: upstream server is not responding" }
 ```
 
 Returned when the upstream service is unreachable or the connection is refused.

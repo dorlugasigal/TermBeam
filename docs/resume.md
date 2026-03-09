@@ -63,7 +63,7 @@ Press **Ctrl+B** to detach from a session. This disconnects your terminal client
 
 ### Scrollback
 
-When you attach to a session, the existing scrollback buffer (up to 200 KB) is replayed automatically. You'll see the terminal output as if you'd been connected the whole time.
+When you attach to a session, the existing scrollback buffer (up to 500 KB) is replayed automatically. You'll see the terminal output as if you'd been connected the whole time.
 
 ## `termbeam list`
 

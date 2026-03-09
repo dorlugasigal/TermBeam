@@ -56,11 +56,10 @@ Or start directly with defaults:
      Shell:    /bin/zsh
      Session:  a1b2c3d4
      Auth:     🔒 password
-     Bind:     0.0.0.0 (LAN accessible)
+     Bind:     127.0.0.1 (localhost only)
 
      Public:   https://abc123.devtunnels.ms
      Local:    http://localhost:3456
-     LAN:      http://192.168.1.42:3456
 
      █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
      █ (QR code here) █
@@ -70,7 +69,7 @@ Or start directly with defaults:
      Password: xK9mP2vL8nQ4wR7j
    ```
 
-3. **On your phone:** Scan the QR code or type the LAN URL
+3. **On your phone:** Scan the QR code or open the Public URL
 4. **Enter the password** shown in the terminal output
 5. You're connected! 🎉
 

@@ -74,7 +74,7 @@ termbeam -i                     # interactive setup wizard
 - **Command palette** (Ctrl+K / Cmd+K) for quick access to all actions
 - **File upload** — send files from your phone to the session's working directory
 - **Completion notifications** — browser alerts when background commands finish
-- **12 color themes** with adjustable font size
+- **30 color themes** with adjustable font size
 - **Port preview** — reverse-proxy a local web server through TermBeam
 - **Image paste** from clipboard
 
