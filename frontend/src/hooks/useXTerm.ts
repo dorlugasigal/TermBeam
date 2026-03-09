@@ -174,19 +174,27 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     // ResizeObserver for container size changes.
     // Guard against 0-dimension containers (display:none on an ancestor)
     // to prevent fit() from resizing the terminal to minimum dimensions.
+    // Debounced to prevent resize loops: rapid container changes (e.g.
+    // keyboard open/close, orientation change) can trigger fit → sendResize
+    // → SIGWINCH → output → layout shift → ResizeObserver again.
+    let roTimer: ReturnType<typeof setTimeout> | undefined;
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry || entry.contentRect.width === 0 || entry.contentRect.height === 0) return;
-      try {
-        fitRef.current?.fit();
-      } catch {
-        // ignore
-      }
+      clearTimeout(roTimer);
+      roTimer = setTimeout(() => {
+        try {
+          fitRef.current?.fit();
+        } catch {
+          // ignore
+        }
+      }, 80);
     });
     observer.observe(container);
 
     return () => {
       disposed = true;
+      clearTimeout(roTimer);
       initRo?.disconnect();
       observer.disconnect();
       term.dispose();

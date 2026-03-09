@@ -95,11 +95,15 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
     }
   }, []);
 
+  const lastSentDimsRef = useRef<{ cols: number; rows: number } | null>(null);
+
   const sendResize = useCallback((cols: number, rows: number) => {
     const ws = wsRef.current;
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'resize', cols, rows }));
-    }
+    if (ws?.readyState !== WebSocket.OPEN) return;
+    const last = lastSentDimsRef.current;
+    if (last && last.cols === cols && last.rows === rows) return;
+    lastSentDimsRef.current = { cols, rows };
+    ws.send(JSON.stringify({ type: 'resize', cols, rows }));
   }, []);
 
   useEffect(() => {

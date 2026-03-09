@@ -373,7 +373,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   const showDisconnectedOverlay = showReconnectOverlay && (!reconnecting || reconnectGraceExpired);
 
   return (
-    <div ref={paneRef} className={styles.pane} data-testid="terminal-pane" onClick={handlePaneClick} onTouchStart={handlePaneClick} {...((visible ?? active) ? { 'data-visible': 'true' } : {})}>
+    <div ref={paneRef} className={styles.pane} data-testid="terminal-pane" onClick={handlePaneClick} {...((visible ?? active) ? { 'data-visible': 'true' } : {})}>
       <div ref={terminalRef} className={styles.terminalContainer} />
 
       {showScrollBtn && (
