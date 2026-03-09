@@ -223,6 +223,7 @@ describe('SessionManager', () => {
 
     mockProcess._callbacks.onData('\x1b[?1049h');
     assert.strictEqual(session.inAltScreen, true);
+    assert.strictEqual(session.altScreenMode, '1049');
   });
 
   it('should track inAltScreen when alt screen exit sequence is received', () => {
@@ -259,15 +260,19 @@ describe('SessionManager', () => {
 
     mockProcess._callbacks.onData('\x1b[?1047h');
     assert.strictEqual(session.inAltScreen, true);
+    assert.strictEqual(session.altScreenMode, '1047');
 
     mockProcess._callbacks.onData('\x1b[?1047l');
     assert.strictEqual(session.inAltScreen, false);
+    assert.strictEqual(session.altScreenMode, undefined);
 
     mockProcess._callbacks.onData('\x1b[?47h');
     assert.strictEqual(session.inAltScreen, true);
+    assert.strictEqual(session.altScreenMode, '47');
 
     mockProcess._callbacks.onData('\x1b[?47l');
     assert.strictEqual(session.inAltScreen, false);
+    assert.strictEqual(session.altScreenMode, undefined);
   });
 
   it('should not throw when pty.kill() errors during shutdown', () => {

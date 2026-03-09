@@ -159,7 +159,8 @@ function setupWebSocket(wss, { auth, sessions }) {
             // stripped by sanitizeForReplay), re-enter alt-screen so xterm.js
             // uses the correct buffer before SIGWINCH triggers the app to repaint.
             if (session.inAltScreen) {
-              ws.send(JSON.stringify({ type: 'output', data: '\x1b[?1049h' }));
+              const mode = session.altScreenMode || '1049';
+              ws.send(JSON.stringify({ type: 'output', data: `\x1b[?${mode}h` }));
               ws._needsRedraw = true;
             }
           }
@@ -205,7 +206,31 @@ function setupWebSocket(wss, { auth, sessions }) {
                 // stripped), re-enter alt-screen so xterm.js uses the correct
                 // buffer before SIGWINCH triggers the TUI to repaint.
                 if (attached.inAltScreen) {
-                  ws.send(JSON.stringify({ type: 'output', data: '\x1b[?1049h' }));
+                  const mode = attached.altScreenMode || '1049';
+                  ws.send(JSON.stringify({ type: 'output', data: `\x1b[?${mode}h` }));
+                  // Force SIGWINCH so the TUI repaints into the alt buffer
+                  recalcPtySize(attached);
+                  const targetCols = attached._lastCols || cols;
+                  const targetRows = attached._lastRows || rows;
+                  try {
+                    const small = Math.min(500, targetCols === 1 ? 2 : targetCols - 1);
+                    attached.pty.resize(small, targetRows);
+                    attached._lastCols = small;
+                  } catch {
+                    // ignore — PTY may have exited
+                  }
+                  if (attached._resizeBounceTimer) {
+                    clearTimeout(attached._resizeBounceTimer);
+                  }
+                  attached._resizeBounceTimer = setTimeout(() => {
+                    attached._resizeBounceTimer = null;
+                    try {
+                      attached.pty.resize(targetCols, targetRows);
+                      attached._lastCols = targetCols;
+                    } catch {
+                      // ignore — PTY may have exited
+                    }
+                  }, 50);
                 }
               }
             } else {
@@ -240,6 +265,11 @@ function setupWebSocket(wss, { auth, sessions }) {
                   }
                 }, 50);
               } else {
+                // Cancel any pending bounce timer from a prior redraw
+                if (attached._resizeBounceTimer) {
+                  clearTimeout(attached._resizeBounceTimer);
+                  attached._resizeBounceTimer = null;
+                }
                 recalcPtySize(attached);
               }
             }

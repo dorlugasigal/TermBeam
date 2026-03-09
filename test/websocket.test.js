@@ -386,6 +386,7 @@ describe('WebSocket', () => {
     it('should send alt screen enter after replay when session is in alt screen', () => {
       const session = createMockSession('s1', { hasHadClient: true, scrollbackBuf: 'some output' });
       session.inAltScreen = true;
+      session.altScreenMode = '1049';
       sessions._add(session);
 
       const ws = createMockWs();
@@ -397,6 +398,20 @@ describe('WebSocket', () => {
       const altIdx = ws._sent.findIndex((m) => m.type === 'output' && m.data === '\x1b[?1049h');
       assert.ok(altIdx > replayIdx, 'alt-screen enter should come after replay');
       assert.strictEqual(ws._needsRedraw, true, 'should flag client for redraw');
+    });
+
+    it('should use matching alt-screen mode on reconnect (1047)', () => {
+      const session = createMockSession('s1', { hasHadClient: true, scrollbackBuf: 'data' });
+      session.inAltScreen = true;
+      session.altScreenMode = '1047';
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      const altMsg = ws._sent.find((m) => m.type === 'output' && m.data === '\x1b[?1047h');
+      assert.ok(altMsg, 'should use mode 1047 for alt-screen enter');
     });
 
     it('should not send alt screen enter when session is not in alt screen', () => {
