@@ -216,10 +216,11 @@ export default function TouchBar() {
       flash(def.label);
       sendInput(data);
 
-      // Only refocus on desktop (precise pointer) — on touch devices,
-      // refocusing opens the virtual keyboard which is disruptive when
-      // the user is explicitly using the touch bar for input.
-      if (window.matchMedia?.('(pointer: fine)')?.matches) {
+      // Refocus terminal after sending key. On mobile, only refocus when
+      // the virtual keyboard is already open (avoids popping it up when
+      // the user is deliberately using just the touch bar).
+      const mobileKeyboardOpen = keyboardHeight > 0;
+      if (window.matchMedia?.('(pointer: fine)')?.matches || mobileKeyboardOpen) {
         refocusTerminal();
       }
 
