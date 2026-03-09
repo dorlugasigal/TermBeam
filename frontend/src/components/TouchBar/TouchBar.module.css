@@ -82,3 +82,16 @@
   background: var(--accent, #0078d4) !important;
   color: #fff !important;
 }
+
+/* Landscape on short screens: single compact row */
+@media (orientation: landscape) and (max-height: 500px) {
+  .touchBar {
+    height: calc(44px + env(safe-area-inset-bottom, 0px));
+    padding: 4px 4px;
+    padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  }
+  .keyBtn {
+    height: 28px;
+    font-size: 12px;
+  }
+}
