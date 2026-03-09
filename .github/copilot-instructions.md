@@ -4,8 +4,8 @@
 
 ```bash
 npm test                              # run all tests (output buffered until done)
-node --test test/*.test.js            # run all tests with streaming output (preferred for dev/CI agents)
-node --test test/auth.test.js         # run a single test file
+node --test test/server test/cli test/utils test/integration.test.js  # run all tests with streaming output (preferred for dev/CI agents)
+node --test test/server/auth.test.js  # run a single test file
 npm run test:coverage                 # tests + coverage (c8, 92% threshold)
 npm run lint                          # syntax-check with node --check
 npm run format                        # format with Prettier
@@ -13,26 +13,26 @@ npm run dev                           # start with auto-generated password
 npm start                             # start with defaults
 ```
 
-> **Agent note:** Prefer `node --test test/*.test.js` over `npm test` when you need streaming output. The `npm test` script wraps `node --test` in `execFileSync` which buffers all output until completion — this makes it look like tests are hanging when they're actually running fine. The direct command gives real-time feedback.
+> **Agent note:** Prefer `node --test test/server test/cli test/utils test/integration.test.js` over `npm test` when you need streaming output. The `npm test` script wraps `node --test` in `execFileSync` which buffers all output until completion — this makes it look like tests are hanging when they're actually running fine. The direct command gives real-time feedback.
 
 Pre-commit hooks (Husky + lint-staged) auto-format and syntax-check staged files.
 
 ### Testing Best Practices
 
-**Suite overview:** 530+ tests, ~17s total. Tests run in parallel child processes via Node's built-in test runner. Most files run in <1s; `integration.test.js` (~17s) and `service.test.js` (~9s) are the slow outliers.
+**Suite overview:** 575+ tests, ~17s total. Tests run in parallel child processes via Node's built-in test runner. Most files run in <1s; `integration.test.js` (~17s) and `test/cli/service.test.js` (~9s) are the slow outliers.
 
 **Slow tests and why:**
 
 - `integration.test.js` — uses real PTY servers, has polling loops and a 7s sleep for git cache invalidation
-- `service.test.js` — heavy `require.cache` manipulation and `process.exit` mocking
+- `test/cli/service.test.js` — heavy `require.cache` manipulation and `process.exit` mocking
 
 **Test isolation rules (critical for reliability):**
 
 - **`process.exit` mocks** — always restore in `afterEach`, never inline. Failing to restore breaks subsequent tests.
 - **`console.log`/`console.error` mocks** — same rule: restore in `afterEach`.
-- **`service.test.js`** — uses `loadServiceWithMocks()` pattern; always call `.restore()` in `afterEach`.
-- **`sessions.test.js`** — manipulates `require.cache` for node-pty mocking; clear cache between tests.
-- **`resume.test.js`** — uses `TERMBEAM_CONFIG_DIR` env var pointing to a temp directory for isolation.
+- **`test/cli/service.test.js`** — uses `loadServiceWithMocks()` pattern; always call `.restore()` in `afterEach`.
+- **`test/server/sessions.test.js`** — manipulates `require.cache` for node-pty mocking; clear cache between tests.
+- **`test/cli/resume.test.js`** — uses `TERMBEAM_CONFIG_DIR` env var pointing to a temp directory for isolation.
 - **WebSocket connections** — close in `finally` blocks or `after()` hooks to prevent connection leaks.
 
 **Port isolation:** Integration tests use port `0` (OS-assigned random port) to avoid conflicts. Never hardcode ports in tests.
@@ -49,33 +49,40 @@ E2E tests live in `test/e2e-*.test.js` and are excluded from `npm test`. See `pl
 
 TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over HTTP + WebSocket, with a mobile-optimized browser UI.
 
-**Server flow:** `bin/termbeam.js` → `src/server.js` (orchestrator) creates an Express app + WebSocket server, wiring together:
+**Server flow:** `bin/termbeam.js` → `src/server/index.js` (orchestrator) creates an Express app + WebSocket server, wiring together modules from `src/server/`, `src/cli/`, `src/tunnel/`, and `src/utils/`.
 
-- `cli.js` — parses CLI flags and env vars into a config object
+**`src/server/`** — HTTP/WS server core:
+
+- `index.js` — orchestrator: creates Express app + WebSocket server
+- `routes.js` — Express routes for API (`/api/sessions`, `/api/auth`) and pages (`/terminal`, `/login`)
 - `auth.js` — password auth, token cookies, rate limiting, login page
 - `sessions.js` — `SessionManager` class wrapping `node-pty` lifecycle (create/list/delete/shutdown), sessions stored in a `Map`, clients tracked per session in a `Set`
-- `routes.js` — Express routes for API (`/api/sessions`, `/api/auth`) and pages (`/terminal`, `/login`)
 - `websocket.js` — handles WebSocket messages (`attach`, `input`, `resize`, `output`, `exit`)
-- `tunnel.js` — optional DevTunnel integration for public URLs
-- `devtunnel-install.js` — DevTunnel CLI installer (cross-platform helper)
 - `preview.js` — local preview proxy for forwarding requests to a port
-- `logger.js` — structured logger with levels (error/warn/info/debug)
-- `shells.js` — cross-platform shell detection
-- `version.js` — detects version from package.json
-- `git.js` — git metadata and status parsing
+
+**`src/cli/`** — CLI subcommands & tools:
+
+- `index.js` — parses CLI flags and env vars into a config object
+- `client.js` — WebSocket terminal client: raw mode stdin/stdout piping, Ctrl+B detach, resize (SIGWINCH), scrollback replay. Used by `resume.js`.
+- `resume.js` — `termbeam resume [name]`: connects to a running server via WebSocket, lists sessions, auto-selects or interactive chooser, delegates to `client.js`. Also handles `termbeam list` (read-only list).
+- `service.js` — `termbeam service <action>`: PM2-based background service management
 - `interactive.js` — interactive CLI setup wizard
 - `prompts.js` — reusable CLI prompt utilities
 
-**CLI subcommands** dispatched in `bin/termbeam.js` before loading the server:
+**`src/tunnel/`** — DevTunnel integration:
 
-- `resume.js` — `termbeam resume [name]`: connects to a running server via WebSocket, lists sessions, auto-selects or interactive chooser, delegates to `client.js`. Also handles `termbeam list` (read-only list).
-- `client.js` — WebSocket terminal client: raw mode stdin/stdout piping, Ctrl+B detach, resize (SIGWINCH), scrollback replay. Used by `resume.js`.
-- `service.js` — `termbeam service <action>`: PM2-based background service management
+- `index.js` — optional DevTunnel integration for public URLs
+- `install.js` — DevTunnel CLI installer (cross-platform helper)
 
-**Frontend:** Two vanilla HTML/JS files in `public/` using xterm.js via CDN:
+**`src/utils/`** — Shared utilities:
 
-- `index.html` — session manager (list, create, connect)
-- `terminal.html` — terminal UI with touch bar, multi-tab sessions, split view
+- `logger.js` — structured logger with levels (error/warn/info/debug)
+- `shells.js` — cross-platform shell detection
+- `git.js` — git metadata and status parsing
+- `version.js` — detects version from package.json
+- `update-check.js` — npm update checking
+
+**Frontend:** React SPA in `src/frontend/` built with Vite + TypeScript. Builds to `public/` (gitignored build artifact). Uses xterm.js, Zustand for state, and Radix UI for accessible components. Components organized into: CommandPalette, FolderBrowser, LoginPage, Modals, Overlays, SearchBar, SessionsHub, SidePanel, TabBar, TerminalApp, TerminalPane, TouchBar, and common reusable components (TopBar, ThemePicker, UpdateBanner).
 
 **WebSocket protocol:** JSON messages over `/ws`. Client sends `attach`, `input`, `resize`; server sends `output`, `attached`, `exit`, `error`. Auth is validated at WebSocket upgrade or first message.
 
@@ -85,15 +92,16 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 
 - **CommonJS modules** — all source uses `require`/`module.exports`
 - **Node.js built-in test runner** — `node:test` (describe/it) + `node:assert`, no external test framework
-- **Test file naming:** `test/<module>.test.js`, one test file per source module
-- **Mocking pattern:** Mock `node-pty` by manipulating `require.cache` before requiring the module under test; clear cache between tests when testing modules that read `process.argv` (see `test/sessions.test.js`)
+- **Test file naming:** `test/<category>/<module>.test.js`, tests mirror `src/` subdirectory structure (e.g. `test/server/`, `test/cli/`, `test/utils/`)
+- **Mocking pattern:** Mock `node-pty` by manipulating `require.cache` before requiring the module under test; clear cache between tests when testing modules that read `process.argv` (see `test/server/sessions.test.js`)
 - **Conventional Commits** — `feat/fix/docs/refactor/test/chore/perf` with optional scope, e.g. `feat(auth): add OAuth2 support`
 - **Minimal dependencies** — prefer built-in Node.js APIs over npm packages
-- **One responsibility per file** — each `src/*.js` module owns a single concern
+- **One responsibility per file** — modules organized in `src/server/`, `src/cli/`, `src/tunnel/`, `src/utils/`, each owning a single concern
 - **Prettier formatting** — single quotes, trailing commas, 100 char width, semicolons (`.prettierrc`)
 - **Cross-platform support** — must work on Windows, macOS, and Linux; CI tests on Ubuntu + Windows with Node 20, 22, 24
 - **PTY session cleanup** — `pty.kill()` is async; the `onExit` callback removes the session from the Map
-- **Coverage exclusion** — `src/tunnel.js` and `src/devtunnel-install.js` are excluded from coverage (requires external DevTunnel CLI)
+- **Coverage exclusion** — `src/tunnel/` directory is excluded from coverage (requires external DevTunnel CLI)
+- **Build artifact** — `public/` is a gitignored build artifact; run `npm run build:frontend` to regenerate from `src/frontend/`
 - **Connection config** — server writes `~/.termbeam/connection.json` on start (port, host, password) for `termbeam resume` auto-discovery; removed on shutdown
 
 ## Environment Variables
@@ -124,25 +132,25 @@ Changes to `docs/` or `mkdocs.yml` pushed to `main` auto-deploy to GitHub Pages.
 ## CI and Publishing
 
 - Release workflow: `.github/workflows/release.yml` bumps version, updates `CHANGELOG.md`, tags, and publishes to npm.
-- `prepublishOnly` runs `npm test` before publish.
+- `prepublishOnly` runs `npm run build:frontend && npm test` before publish.
 - `postinstall` fixes `node-pty` prebuild permissions (spawn-helper).
-- Landing site (`landing/`) deploys via `.github/workflows/landing.yml`.
+- Landing site (`packages/landing/`) deploys via `.github/workflows/landing.yml`.
 - Docs deploy via `.github/workflows/pages.yml`.
 
 **IMPORTANT:** When asked to create a PR, open a PR, push to main, publish, release, or submit changes, **always use the `publish` skill**. It orchestrates the full workflow: local tests, lint, coverage, docs check, commit, push (or PR flow with proper branch naming), CI verification, and release. Do not manually run `gh pr create` or `git push origin main` — the skill handles all of this with the correct conventions.
 
 ## Demo Video
 
-The demo video lives in `demo-video/` and is built with Remotion 4 + TypeScript + React, using the remotion agent skill "npx skills add remotion-dev/skills".
+The demo video lives in `packages/demo-video/` and is built with Remotion 4 + TypeScript + React, using the remotion agent skill "npx skills add remotion-dev/skills".
 
-**Structure:** `demo-video/src/TermBeamDemo.tsx` is the main composition (3840×2160, 30fps). It sequences scenes via `<Sequence>` components: Intro → TitleCards → CliTerminal → PhoneScene → Outro. Each scene is a separate component in `demo-video/src/`.
+**Structure:** `packages/demo-video/src/TermBeamDemo.tsx` is the main composition (3840×2160, 30fps). It sequences scenes via `<Sequence>` components: Intro → TitleCards → CliTerminal → PhoneScene → Outro. Each scene is a separate component in `packages/demo-video/src/`.
 
-**Editing:** To preview changes, run `npm run dev` inside `demo-video/` to open Remotion Studio. Timing constants (frame durations) are at the top of `TermBeamDemo.tsx`. The design is authored at 1080p and scaled 2× to 4K.
+**Editing:** To preview changes, run `npm run dev` inside `packages/demo-video/` to open Remotion Studio. Timing constants (frame durations) are at the top of `TermBeamDemo.tsx`. The design is authored at 1080p and scaled 2× to 4K.
 
 **Rendering:**
 
 ```bash
-cd demo-video
+cd packages/demo-video
 
 # Highest quality under 10 MB (tune CRF — lower = better quality, larger file):
 npx remotion render TermBeamDemo "out/TermBeam-Demo-4K.mp4" --image-format png --crf 18
@@ -165,4 +173,4 @@ These are intentional design choices — not bugs:
 - **Session IDs are 128-bit random** (`crypto.randomBytes(16)`) — unguessable, but not secret (visible in URLs). Auth tokens protect access, not session IDs.
 - **WebSocket origin validation** — cross-origin connections are rejected (close code 1008) unless one side is localhost, preventing malicious websites from connecting to a local instance.
 - **Security headers** — X-Frame-Options: DENY, CSP, no-store cache, nosniff, no-referrer on all responses.
-- **Shell path validation** — only shells detected by `src/shells.js` are accepted; arbitrary paths are rejected.
+- **Shell path validation** — only shells detected by `src/utils/shells.js` are accepted; arbitrary paths are rejected.
