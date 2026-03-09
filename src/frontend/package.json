@@ -28,6 +28,9 @@
     "sonner": "^2.0.3",
     "zustand": "^5.0.3"
   },
+  "overrides": {
+    "serialize-javascript": "^7.0.3"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
