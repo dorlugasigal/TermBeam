@@ -7,9 +7,11 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm pkg delete scripts.prepare && npm ci --omit=dev
+COPY src/frontend/package.json src/frontend/package-lock.json src/frontend/
+RUN cd src/frontend && npm ci
 COPY bin/ bin/
 COPY src/ src/
-COPY public/ public/
+RUN cd src/frontend && npm run build
 
 EXPOSE 3456
 CMD ["node", "bin/termbeam.js", "--no-tunnel", "--no-password"]

@@ -10,4 +10,7 @@ junit.xml
 .vscode/
 public-react/
 frontend/node_modules/
+
+# Build output from src/frontend/ (rebuilt by prepublishOnly)
+public/
 *.tsbuildinfo
