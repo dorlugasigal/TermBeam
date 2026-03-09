@@ -96,14 +96,33 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
   }, []);
 
   const lastSentDimsRef = useRef<{ cols: number; rows: number } | null>(null);
+  const lastResizeTimeRef = useRef(0);
+  const resizeTrailingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const RESIZE_THROTTLE_MS = 300;
 
   const sendResize = useCallback((cols: number, rows: number) => {
-    const ws = wsRef.current;
-    if (ws?.readyState !== WebSocket.OPEN) return;
-    const last = lastSentDimsRef.current;
-    if (last && last.cols === cols && last.rows === rows) return;
-    lastSentDimsRef.current = { cols, rows };
-    ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+    const doSend = () => {
+      const ws = wsRef.current;
+      if (ws?.readyState !== WebSocket.OPEN) return;
+      const last = lastSentDimsRef.current;
+      if (last && last.cols === cols && last.rows === rows) return;
+      lastSentDimsRef.current = { cols, rows };
+      lastResizeTimeRef.current = Date.now();
+      ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+    };
+
+    if (resizeTrailingRef.current) clearTimeout(resizeTrailingRef.current);
+
+    const elapsed = Date.now() - lastResizeTimeRef.current;
+    if (elapsed >= RESIZE_THROTTLE_MS) {
+      doSend();
+    } else {
+      // Buffer trailing send to ensure final dimensions are always applied
+      resizeTrailingRef.current = setTimeout(() => {
+        resizeTrailingRef.current = null;
+        doSend();
+      }, RESIZE_THROTTLE_MS - elapsed);
+    }
   }, []);
 
   useEffect(() => {

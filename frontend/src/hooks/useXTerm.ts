@@ -114,8 +114,15 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       }
       // Remove after xterm's internal async init completes
       setTimeout(() => window.removeEventListener('error', suppressXtermError), 50);
-      // GPU-accelerated canvas renderer for sharper text
-      if (!navigator.webdriver) {
+      // GPU-accelerated canvas renderer for sharper text.
+      // Skip on small touchscreen devices — the DOM renderer is flicker-free
+      // and fast enough for mobile-sized terminals (fewer cells to render).
+      // The CanvasAddon's 2D canvas clear→redraw cycle causes visible flicker
+      // on mobile GPUs during rapid output (e.g. TUI apps redrawing).
+      const isMobileDevice =
+        ('ontouchstart' in window || navigator.maxTouchPoints > 0) &&
+        window.innerWidth < 768;
+      if (!navigator.webdriver && !isMobileDevice) {
         try {
           const canvas = new CanvasAddon();
           term.loadAddon(canvas);
@@ -178,9 +185,18 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     // keyboard open/close, orientation change) can trigger fit → sendResize
     // → SIGWINCH → output → layout shift → ResizeObserver again.
     let roTimer: ReturnType<typeof setTimeout> | undefined;
+    let prevRoWidth = 0;
+    let prevRoHeight = 0;
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry || entry.contentRect.width === 0 || entry.contentRect.height === 0) return;
+      // Skip if container dimensions haven't changed meaningfully (±1px
+      // tolerance avoids sub-pixel oscillations from CSS calc rounding).
+      const w = Math.round(entry.contentRect.width);
+      const h = Math.round(entry.contentRect.height);
+      if (Math.abs(w - prevRoWidth) <= 1 && Math.abs(h - prevRoHeight) <= 1) return;
+      prevRoWidth = w;
+      prevRoHeight = h;
       clearTimeout(roTimer);
       roTimer = setTimeout(() => {
         try {
@@ -188,7 +204,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
         } catch {
           // ignore
         }
-      }, 80);
+      }, 150);
     });
     observer.observe(container);
 
