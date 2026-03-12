@@ -99,34 +99,35 @@ export default function TouchBar() {
   const setShiftActive = useUIStore((s) => s.setTouchShift);
   const [flashKey, setFlashKey] = React.useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [micLocked, setMicLocked] = useState(false);
   const recognitionRef = useRef<InstanceType<typeof SpeechRecognitionAPI> | null>(null);
   const repeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const micTouchStartY = useRef<number | null>(null);
   const { keyboardOpen, keyboardHeight } = useMobileKeyboard();
 
-  const toggleMic = useCallback(() => {
-    if (isRecording) {
-      recognitionRef.current?.stop();
-      return;
-    }
+  const MIC_LOCK_SWIPE_THRESHOLD = 40;
 
+  const startMic = useCallback(() => {
+    if (isRecording) return;
     if (!SpeechRecognitionAPI) {
       toast.error('Speech recognition not supported');
       return;
     }
 
     const recognition = new SpeechRecognitionAPI();
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = false;
     recognition.lang = navigator.language || 'en-US';
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
-      const transcript = event?.results?.[0]?.[0]?.transcript;
-      if (transcript) {
-        sendInput(transcript);
-        refocusTerminal();
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event?.results?.[i]?.[0]?.transcript;
+        if (transcript) {
+          sendInput(transcript);
+        }
       }
     };
 
@@ -137,22 +138,36 @@ export default function TouchBar() {
         toast.error(`Speech error: ${event.error}`);
       }
       setIsRecording(false);
+      setMicLocked(false);
     };
 
     recognition.onend = () => {
       setIsRecording(false);
+      setMicLocked(false);
       recognitionRef.current = null;
+      refocusTerminal();
     };
 
     try {
       recognition.start();
       recognitionRef.current = recognition;
       setIsRecording(true);
+      setMicLocked(false);
     } catch {
       toast.error('Failed to start speech recognition');
       setIsRecording(false);
     }
   }, [isRecording]);
+
+  const stopMic = useCallback(() => {
+    if (micLocked) return;
+    recognitionRef.current?.stop();
+  }, [micLocked]);
+
+  const forceStopMic = useCallback(() => {
+    setMicLocked(false);
+    recognitionRef.current?.stop();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -419,11 +434,52 @@ export default function TouchBar() {
         {ROW2.map(renderKey)}
         {SpeechRecognitionAPI && (
           <button
-            className={`${styles.keyBtn} ${styles.special} ${isRecording ? styles.recording : ''}`}
+            className={`${styles.keyBtn} ${styles.special} ${styles.micBtn} ${isRecording ? styles.recording : ''} ${micLocked ? styles.micLocked : ''}`}
             data-testid="mic-btn"
-            onClick={toggleMic}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              if (micLocked) {
+                forceStopMic();
+              } else {
+                startMic();
+              }
+            }}
+            onMouseUp={() => {
+              if (!micLocked) stopMic();
+            }}
+            onMouseLeave={() => {
+              if (!micLocked) stopMic();
+            }}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              if (micLocked) {
+                forceStopMic();
+              } else {
+                micTouchStartY.current = e.touches[0]?.clientY ?? null;
+                startMic();
+              }
+            }}
+            onTouchMove={(e) => {
+              if (!isRecording || micLocked || micTouchStartY.current === null) return;
+              const currentY = e.touches[0]?.clientY;
+              if (currentY === undefined) return;
+              const dy = micTouchStartY.current - currentY;
+              if (dy > MIC_LOCK_SWIPE_THRESHOLD) {
+                setMicLocked(true);
+                micTouchStartY.current = null;
+              }
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              micTouchStartY.current = null;
+              if (!micLocked) stopMic();
+            }}
+            onTouchCancel={() => {
+              micTouchStartY.current = null;
+              if (!micLocked) stopMic();
+            }}
           >
-            {isRecording ? '⏹' : '🎤'}
+            {micLocked ? '🔒' : isRecording ? '⏹' : '🎤'}
           </button>
         )}
       </div>
