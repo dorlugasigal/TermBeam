@@ -347,6 +347,11 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   // See also: pointer-events:none CSS on .xterm-screen children to prevent
   // touch "escape" when the finger crosses DOM-rendered text span boundaries
   // (known xterm.js issue https://github.com/xtermjs/xterm.js/issues/3613).
+  //
+  // Alt-screen handling: TUI apps (Copilot CLI, vim, tmux) use the alternate
+  // screen buffer which has no scrollback. In this mode we convert touch scroll
+  // deltas into arrow key sequences (matching xterm's built-in wheel behavior)
+  // so the app receives Up/Down input instead of a no-op viewport scroll.
   useEffect(() => {
     if (!terminal) return;
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -365,6 +370,22 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     let velocity = 0;
     let coastRaf = 0;
     let tracking = false;
+    function isAltScreen(): boolean {
+      return terminal!.buffer.active.type === 'alternate';
+    }
+
+    // Dispatch a synthetic wheel event so xterm.js handles it natively —
+    // it sends mouse wheel sequences when mouse tracking is on (TUI apps)
+    // or arrow keys when it's off (less, man, etc.)
+    function emitWheel(dy: number) {
+      const wheelEvt = new WheelEvent('wheel', {
+        deltaY: dy,
+        deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+        bubbles: true,
+        cancelable: true,
+      });
+      vp.dispatchEvent(wheelEvt);
+    }
 
     function onTouchStart(e: TouchEvent) {
       if (e.touches.length !== 1) return;
@@ -391,11 +412,15 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
       const dy = lastY - y;
 
       if (Math.abs(dy) >= 1) {
-        if (dt > 0) {
-          velocity = dy / dt;
+        if (isAltScreen()) {
+          emitWheel(dy);
+        } else {
+          if (dt > 0) {
+            velocity = dy / dt;
+          }
+          vp.scrollTop += dy;
+          wasAtBottomRef.current = false;
         }
-        vp.scrollTop += dy;
-        wasAtBottomRef.current = false;
         lastY = y;
         lastTime = now;
       }
@@ -411,7 +436,8 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     function onTouchEnd() {
       if (!tracking) return;
       tracking = false;
-      if (Math.abs(velocity) > 0.15) {
+      // Momentum coasting only for normal buffer — flooding wheel events would be jarring
+      if (!isAltScreen() && Math.abs(velocity) > 0.15) {
         coastRaf = requestAnimationFrame(coast);
       }
     }
