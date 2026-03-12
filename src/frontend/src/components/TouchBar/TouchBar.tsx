@@ -121,14 +121,12 @@ export default function TouchBar() {
     recognition.interimResults = false;
     recognition.lang = navigator.language || 'en-US';
 
-    recognition.onresult = (event: { results: SpeechRecognitionResultList }) => {
-      const last = event.results[event.results.length - 1];
-      if (last?.isFinal) {
-        const transcript = last[0]?.transcript;
-        if (transcript) {
-          sendInput(transcript);
-          refocusTerminal();
-        }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      const transcript = event?.results?.[0]?.[0]?.transcript;
+      if (transcript) {
+        sendInput(transcript);
+        refocusTerminal();
       }
     };
 
