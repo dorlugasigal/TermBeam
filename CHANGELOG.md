@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.13.0] - 2026-03-12
+
+- fix(frontend): add safe-area-inset-top to SessionsHub for PWA mode
+- fix(touchbar): float lock hint chevron above mic button
+- feat(touchbar): professional mic icons and lock hint
+- feat(touchbar): bigger circle, swipe-up to lock mic recording
+- fix(touchbar): fix arrow alignment with CSS Grid and simplify mic handler
+- feat(frontend): add speech-to-text mic button to TouchBar
+- fix(frontend): enable touch scrolling in alt-screen mode (TUI apps)
+
 ## [1.12.5] - 2026-03-09
 
 - chore(ci): bump github/codeql-action from 3.32.5 to 4.32.6 (#137)
