@@ -487,7 +487,7 @@ export default function TouchBar() {
             ) : isRecording ? (
               <>
                 <span className={styles.micDot} />
-                <svg className={styles.lockHint} width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <svg className={styles.lockHint} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="18 15 12 9 6 15" />
                 </svg>
               </>

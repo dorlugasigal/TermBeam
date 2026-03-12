@@ -117,8 +117,12 @@
 }
 
 .lockHint {
-  opacity: 0.6;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  opacity: 0.7;
   animation: lockHintBounce 1.2s ease-in-out infinite;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.4));
 }
 
 @keyframes micDotBlink {
@@ -134,12 +138,12 @@
 @keyframes lockHintBounce {
   0%,
   100% {
-    transform: translateY(0);
+    transform: translateX(-50%) translateY(0);
     opacity: 0.5;
   }
   50% {
-    transform: translateY(-2px);
-    opacity: 0.9;
+    transform: translateX(-50%) translateY(-4px);
+    opacity: 1;
   }
 }
 
