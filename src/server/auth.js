@@ -294,6 +294,7 @@ function createAuth(password) {
   // Periodically clean up expired tokens and stale rate-limit entries
   const cleanupInterval = setInterval(
     () => {
+      log.debug('Token cleanup: removing expired auth and share tokens');
       const now = Date.now();
       for (const [token, expiry] of tokens) {
         if (now > expiry) tokens.delete(token);
@@ -339,6 +340,7 @@ function createAuth(password) {
   function generateToken() {
     const token = crypto.randomBytes(32).toString('hex');
     tokens.set(token, Date.now() + 24 * 60 * 60 * 1000);
+    log.debug('Auth token generated (24h expiry)');
     return token;
   }
 

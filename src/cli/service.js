@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const log = require('../utils/logger');
 const {
   color,
   green,
@@ -24,6 +25,7 @@ const DEFAULT_SERVICE_NAME = 'termbeam';
 // ── PM2 Detection ────────────────────────────────────────────────────────────
 
 function findPm2() {
+  log.debug('Searching for PM2...');
   try {
     const cmd = os.platform() === 'win32' ? 'where' : 'which';
     const result = execFileSync(cmd, ['pm2'], {
@@ -38,6 +40,7 @@ function findPm2() {
 }
 
 function installPm2Global() {
+  log.info('Installing PM2 globally');
   console.log(yellow('\nInstalling PM2 globally...'));
   try {
     execFileSync('npm', ['install', '-g', 'pm2'], {
@@ -90,6 +93,7 @@ function buildArgs(config) {
 }
 
 function generateEcosystem(config) {
+  log.debug('Generating ecosystem config');
   const entry = require.resolve('../../bin/termbeam.js');
   const args = buildArgs(config);
   const env = {};
@@ -121,6 +125,7 @@ function writeEcosystem(content) {
 // ── PM2 Commands ─────────────────────────────────────────────────────────────
 
 function pm2Exec(args, opts = {}) {
+  log.debug(`PM2 command: pm2 ${args.join(' ')}`);
   try {
     return execFileSync('pm2', args, {
       encoding: 'utf8',
@@ -130,6 +135,7 @@ function pm2Exec(args, opts = {}) {
     });
   } catch (err) {
     if (opts.silent) return null;
+    log.error(`PM2 command failed: ${err.message}`);
     console.error(red(`✗ PM2 command failed: pm2 ${args.join(' ')}`));
     if (err.stderr) console.error(dim(err.stderr.trim()));
     return null;
@@ -139,6 +145,7 @@ function pm2Exec(args, opts = {}) {
 // ── Actions ──────────────────────────────────────────────────────────────────
 
 async function actionInstall() {
+  log.info('Starting service installation');
   console.log(dim('\nChecking PM2...\n'));
 
   // Step 1: Check PM2
@@ -411,6 +418,7 @@ async function actionInstall() {
   }
 
   pm2Exec(['save'], { inherit: true });
+  log.info('Service started successfully');
   console.log(green('\n✓ TermBeam is now running as a PM2 service!'));
 
   // Run pm2 startup if chosen during wizard
@@ -511,6 +519,7 @@ async function actionUninstall() {
     console.log(dim(`Removed ${ECOSYSTEM_FILE}`));
   }
 
+  log.info('Service stopped');
   console.log(green(`\n✓ TermBeam service "${name}" removed.\n`));
 }
 
@@ -545,6 +554,7 @@ function actionRestart() {
     process.exit(1);
   }
   pm2Exec(['restart', DEFAULT_SERVICE_NAME], { inherit: true });
+  log.info('Service restarted');
   console.log(green('\n✓ TermBeam service restarted.\n'));
 }
 

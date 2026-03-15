@@ -15,17 +15,20 @@ function getCachedGitInfo(sessionId, pid, originalCwd) {
   const now = Date.now();
   const cached = _gitCache.get(sessionId);
   if (cached && now - cached.ts < GIT_CACHE_TTL) {
+    log.debug(`Git cache hit for session ${sessionId}`);
     return { cwd: cached.cwd, git: cached.git };
   }
 
   // Always refresh asynchronously to avoid blocking the event loop.
   // Return stale data if available, or null on first call.
+  log.debug(`Git cache miss for session ${sessionId}, scheduling refresh`);
   scheduleGitRefresh(sessionId, pid, originalCwd);
   if (cached) return { cwd: cached.cwd, git: cached.git };
   return { cwd: originalCwd, git: null };
 }
 
 function scheduleGitRefresh(sessionId, pid, originalCwd) {
+  log.debug(`Scheduling git refresh for session ${sessionId}`);
   // Mark as refreshing to prevent duplicate refreshes
   const cached = _gitCache.get(sessionId);
   if (cached && cached._refreshing) return;
@@ -61,6 +64,7 @@ function scheduleGitRefresh(sessionId, pid, originalCwd) {
     }
     const git = getGitInfo(liveCwd);
     _gitCache.set(sessionId, { cwd: liveCwd, git, ts: Date.now() });
+    log.debug(`Git refresh complete for session ${sessionId} (cwd=${liveCwd})`);
   });
 }
 
@@ -97,14 +101,17 @@ class SessionManager {
       /[;&|`$(){}\[\]!#~]/.test(shell) ||
       (!path.isAbsolute(shell) && !shell.match(/^[a-zA-Z0-9._-]+(\.exe)?$/))
     ) {
+      log.warn(`Invalid shell rejected: ${shell}`);
       throw new Error('Invalid shell');
     }
 
     // Defense-in-depth: validate args and initialCommand types
     if (!Array.isArray(args) || !args.every((a) => typeof a === 'string')) {
+      log.warn(`Invalid args rejected: ${JSON.stringify(args)}`);
       throw new Error('args must be an array of strings');
     }
     if (initialCommand !== null && typeof initialCommand !== 'string') {
+      log.warn(`Invalid initialCommand rejected: ${typeof initialCommand}`);
       throw new Error('initialCommand must be a string');
     }
 
@@ -112,6 +119,7 @@ class SessionManager {
     if (!color) {
       color = SESSION_COLORS[this.sessions.size % SESSION_COLORS.length];
     }
+    log.debug(`Spawning PTY: shell=${shell}, args=${JSON.stringify(args)}, cwd=${cwd}`);
     const ptyProcess = pty.spawn(shell, args, {
       name: 'xterm-256color',
       cols,
@@ -122,6 +130,7 @@ class SessionManager {
 
     // Send initial command once the shell is ready
     if (initialCommand) {
+      log.debug(`Scheduling initialCommand for session ${id}: ${initialCommand}`);
       setTimeout(() => ptyProcess.write(initialCommand + '\r'), 300);
     }
 
@@ -177,6 +186,7 @@ class SessionManager {
       }
       // High/low water scrollback cap: trim to 500k chars when buffer exceeds 1,000,000 chars
       if (session.scrollbackBuf.length > 1000000) {
+        log.debug(`Trimming scrollback buffer from ${session.scrollbackBuf.length} to 500k chars`);
         let buf = session.scrollbackBuf.slice(-500000);
         // Advance to first newline to avoid starting mid-line
         const nlIdx = buf.indexOf('\n');
@@ -211,8 +221,18 @@ class SessionManager {
   update(id, fields) {
     const s = this.sessions.get(id);
     if (!s) return false;
-    if (fields.color !== undefined) s.color = fields.color;
-    if (fields.name !== undefined) s.name = fields.name;
+    const changes = [];
+    if (fields.color !== undefined) {
+      s.color = fields.color;
+      changes.push(`color=${fields.color}`);
+    }
+    if (fields.name !== undefined) {
+      s.name = fields.name;
+      changes.push(`name=${fields.name}`);
+    }
+    if (changes.length > 0) {
+      log.debug(`Session ${id} updated: ${changes.join(', ')}`);
+    }
     return true;
   }
 
@@ -242,15 +262,17 @@ class SessionManager {
         git,
       });
     }
+    log.debug(`Listing ${list.length} session(s)`);
     return list;
   }
 
   shutdown() {
+    log.info(`Shutting down ${this.sessions.size} session(s)`);
     for (const [_id, s] of this.sessions) {
       try {
         s.pty.kill();
-      } catch {
-        /* ignore */
+      } catch (err) {
+        log.warn(`Failed to kill session ${_id}: ${err.message}`);
       }
     }
     this.sessions.clear();

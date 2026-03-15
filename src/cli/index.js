@@ -223,6 +223,7 @@ function getDefaultShell() {
 }
 
 function parseArgs() {
+  log.debug('Parsing CLI arguments');
   let port = parseInt(process.env.PORT || '3456', 10);
   let host = '127.0.0.1';
 
@@ -318,6 +319,7 @@ function parseArgs() {
 
   const validLogLevels = ['error', 'warn', 'info', 'debug'];
   if (!validLogLevels.includes(logLevel)) {
+    log.error(`Invalid log level: ${logLevel}`);
     console.error(`Error: --log-level must be one of: ${validLogLevels.join(', ')}\n`);
     process.exit(1);
   }
@@ -334,6 +336,7 @@ function parseArgs() {
   if (publicTunnel && !useTunnel) {
     const rd = '\x1b[31m';
     const rs = '\x1b[0m';
+    log.error('--public requires a tunnel');
     console.error(
       `${rd}Error: --public requires a tunnel. Remove --no-tunnel or remove --public.${rs}`,
     );
@@ -344,6 +347,7 @@ function parseArgs() {
   if (publicTunnel && !password) {
     const rd = '\x1b[31m';
     const rs = '\x1b[0m';
+    log.error('Public tunnels require password authentication');
     console.error(
       `${rd}Error: Public tunnels require password authentication. Remove --no-password or remove --public.${rs}`,
     );
@@ -356,7 +360,7 @@ function parseArgs() {
   const { getVersion } = require('../utils/version');
   const version = getVersion();
 
-  return {
+  const config = {
     port,
     host,
     password,
@@ -372,6 +376,12 @@ function parseArgs() {
     interactive,
     force,
   };
+
+  log.debug(
+    `Config: port=${port}, host=${host}, shell=${shell}, tunnel=${useTunnel}, persisted=${persistedTunnel}, public=${publicTunnel}`,
+  );
+
+  return config;
 }
 
 module.exports = { parseArgs, printHelp, isKnownShell, getWindowsAncestors };

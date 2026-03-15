@@ -26,6 +26,7 @@ function createPreviewProxy() {
   function proxyRequest(req, res) {
     const port = Number(req.params.port);
     if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      log.warn(`Preview proxy: invalid port ${req.params.port} rejected`);
       return res
         .status(400)
         .json({ error: 'Invalid port: must be an integer between 1 and 65535' });
@@ -87,6 +88,7 @@ function createPreviewProxy() {
     });
 
     proxyReq.setTimeout(PROXY_TIMEOUT, () => {
+      log.warn(`Preview proxy: request to port ${port} timed out after ${PROXY_TIMEOUT}ms`);
       proxyReq.destroy();
       if (!res.headersSent) {
         res.status(504).json({ error: 'Gateway timeout: upstream server did not respond in time' });

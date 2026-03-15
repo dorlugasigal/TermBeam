@@ -1,5 +1,6 @@
 const path = require('path');
 const { execSync } = require('child_process');
+const log = require('./logger');
 
 function getVersion() {
   const pkg = require(path.join(__dirname, '..', '..', 'package.json'));
@@ -7,7 +8,10 @@ function getVersion() {
 
   // If installed via npm (global or npx), use the package version as-is
   if (process.env.npm_package_version || isInstalledGlobally()) {
-    return base;
+    log.debug('Version source: npm_package_version');
+    const version = base;
+    log.debug(`Resolved version: ${version}`);
+    return version;
   }
 
   // Running from source — git tags are the version source of truth.
@@ -27,20 +31,33 @@ function getVersion() {
       const dirty = tagMatch[4];
 
       // Exactly on a clean tag — return the tag version
-      if (!commits && !dirty) return gitVersion;
+      if (!commits && !dirty) {
+        log.debug('Version source: git describe');
+        const version = gitVersion;
+        log.debug(`Resolved version: ${version}`);
+        return version;
+      }
 
       // Build a combined semver-style dev string
       let ver = `${gitVersion}-dev`;
       if (commits) ver += `.${commits}`;
       const meta = [hash ? `g${hash}` : null, dirty ? 'dirty' : null].filter(Boolean).join('.');
       if (meta) ver += `+${meta}`;
+      log.debug('Version source: git describe');
+      log.debug(`Resolved version: ${ver}`);
       return ver;
     }
 
     // No semver tag found (e.g. bare commit hash) — fall back to package.json
-    return `${base}-dev+${gitDesc}`;
+    log.debug('Version source: package.json fallback');
+    const version = `${base}-dev+${gitDesc}`;
+    log.debug(`Resolved version: ${version}`);
+    return version;
   } catch {
-    return `${base}-dev`;
+    log.debug('Version source: package.json fallback');
+    const version = `${base}-dev`;
+    log.debug(`Resolved version: ${version}`);
+    return version;
   }
 }
 

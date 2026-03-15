@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const log = require('../utils/logger');
 const {
   green,
   yellow,
@@ -15,6 +16,7 @@ const {
 // ── Interactive Setup Wizard ─────────────────────────────────────────────────
 
 async function runInteractiveSetup(baseConfig) {
+  log.info('Interactive setup started');
   // Enter alternate screen buffer for a clean wizard (like vim/htop)
   process.stdout.write('\x1b[?1049h');
   const exitAltScreen = () => process.stdout.write('\x1b[?1049l');
@@ -97,6 +99,7 @@ async function runInteractiveSetup(baseConfig) {
     passwordMode = 'none';
     config.password = null;
   }
+  log.debug(`Password mode selected: ${passwordMode}`);
   decisions.push({
     label: 'Password',
     value: config.password === null ? yellow('disabled') : '••••••••',
@@ -107,6 +110,7 @@ async function runInteractiveSetup(baseConfig) {
   const portStr = await ask(rl, 'Port:', String(config.port));
   const portNum = parseInt(portStr, 10);
   config.port = portNum >= 1 && portNum <= 65535 ? portNum : 3456;
+  log.debug(`Port selected: ${config.port}`);
   decisions.push({ label: 'Port', value: String(config.port) });
 
   // Step 3: Access mode
@@ -190,6 +194,7 @@ async function runInteractiveSetup(baseConfig) {
     : config.publicTunnel
       ? 'DevTunnel (public)'
       : 'DevTunnel (private)';
+  log.debug(`Access mode selected: ${accessLabel}`);
   decisions.push({ label: 'Access', value: accessLabel });
 
   // Step 4: Log level
@@ -259,10 +264,12 @@ async function runInteractiveSetup(baseConfig) {
   process.removeListener('exit', exitAltScreen);
 
   if (!proceed) {
+    log.info('Interactive setup cancelled');
     console.log(dim('Cancelled.'));
     process.exit(0);
   }
 
+  log.info('Interactive setup completed');
   return config;
 }
 

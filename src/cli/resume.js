@@ -2,6 +2,7 @@ const http = require('http');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const log = require('../utils/logger');
 const { createTerminalClient } = require('./client');
 const { bold, dim, red, yellow, choose, createRL, ask } = require('./prompts');
 
@@ -11,6 +12,7 @@ const CONNECTION_FILE = path.join(CONFIG_DIR, 'connection.json');
 // ── Connection config ────────────────────────────────────────────────────────
 
 function readConnectionConfig() {
+  log.debug('Reading connection config');
   try {
     return JSON.parse(fs.readFileSync(CONNECTION_FILE, 'utf8'));
   } catch {
@@ -19,6 +21,7 @@ function readConnectionConfig() {
 }
 
 function writeConnectionConfig({ port, host, password }) {
+  log.debug('Writing connection config');
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
   fs.writeFileSync(CONNECTION_FILE, JSON.stringify({ port, host, password }, null, 2) + '\n', {
     mode: 0o600,
@@ -34,6 +37,7 @@ function writeConnectionConfig({ port, host, password }) {
 }
 
 function removeConnectionConfig() {
+  log.debug('Removing connection config');
   try {
     fs.unlinkSync(CONNECTION_FILE);
   } catch {
@@ -99,6 +103,7 @@ function httpRequest(urlStr, options = {}) {
       method: options.method || 'GET',
       headers: { ...options.headers },
     };
+    log.debug(`HTTP ${reqOpts.method} ${url.hostname}:${url.port}${url.pathname}`);
 
     const req = http.request(reqOpts, (res) => {
       let body = '';
@@ -117,6 +122,7 @@ async function fetchSessions(baseUrl, password) {
 
   const res = await httpRequest(`${baseUrl}/api/sessions`, { headers });
   if (res.status === 401) {
+    log.warn('Session fetch unauthorized');
     throw new Error('unauthorized');
   }
   if (res.status >= 400) {
@@ -284,6 +290,7 @@ async function resume(args) {
   const detachKey = opts.detachKey || '\x02';
 
   try {
+    log.info(`Connecting to session: ${session.name || session.id}`);
     const { reason } = await createTerminalClient({
       url: wsUrl,
       password,
@@ -302,12 +309,14 @@ async function resume(args) {
       console.log(dim(`  Disconnected from ${bold(session.name)}.`));
     }
   } catch (err) {
+    log.error(`Connection failed: ${err.message}`);
     console.error(red(`  Connection failed: ${err.message}`));
     process.exit(1);
   }
 }
 
 async function list() {
+  log.info('Listing sessions');
   const saved = readConnectionConfig();
   const host = (saved && saved.host) || 'localhost';
   const port = (saved && saved.port) || 3456;

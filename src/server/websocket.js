@@ -54,6 +54,7 @@ function recalcPtySize(session) {
   if (minCols === session._lastCols && minRows === session._lastRows) return;
   session._lastCols = minCols;
   session._lastRows = minRows;
+  log.debug(`PTY resized to ${minCols}×${minRows}`);
   session.pty.resize(minCols, minRows);
 }
 
@@ -177,6 +178,7 @@ function setupWebSocket(wss, { auth, sessions }) {
         } else if (msg.type === 'resize') {
           const cols = Math.floor(msg.cols);
           const rows = Math.floor(msg.rows);
+          log.debug(`Client resize request: ${cols}×${rows}`);
           if (cols > 0 && cols <= 500 && rows > 0 && rows <= 200) {
             ws._dims = { cols, rows };
             ws._lastActivity = Date.now();

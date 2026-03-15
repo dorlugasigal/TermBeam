@@ -83,12 +83,14 @@ function setupRoutes(app, { auth, sessions, config, state }) {
 
   // Version API
   app.get('/api/version', (_req, res) => {
+    log.debug('Version requested');
     const { getVersion } = require('../utils/version');
     res.json({ version: getVersion() });
   });
 
   // Update check API
   app.get('/api/update-check', apiRateLimit, auth.middleware, async (req, res) => {
+    log.debug('Update check requested');
     const { checkForUpdate, detectInstallMethod } = require('../utils/update-check');
     const force = req.query.force === 'true';
 
@@ -97,7 +99,8 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       const installInfo = detectInstallMethod();
       state.updateInfo = { ...info, ...installInfo };
       res.json(state.updateInfo);
-    } catch {
+    } catch (err) {
+      log.warn(`Update check failed: ${err.message}`);
       const installInfo = detectInstallMethod();
       const fallback = {
         current: config.version,
@@ -144,6 +147,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
 
   // Share token — generates a temporary share token for the share button
   app.get('/api/share-token', auth.middleware, (req, res) => {
+    log.debug('Share token requested');
     if (!auth.password) return res.status(404).json({ error: 'auth disabled' });
     const shareToken = auth.generateShareToken();
     const base = (state && state.shareBaseUrl) || `${req.protocol}://${req.get('host')}`;
@@ -152,6 +156,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
 
   // Session API
   app.get('/api/sessions', apiRateLimit, auth.middleware, (_req, res) => {
+    log.debug('Sessions list requested');
     res.json(sessions.list());
   });
 
@@ -163,6 +168,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       const availableShells = detectShells();
       const isValid = availableShells.some((s) => s.path === shell || s.cmd === shell);
       if (!isValid) {
+        log.warn(`Session creation failed: invalid shell "${shell}"`);
         return res.status(400).json({ error: 'Invalid shell' });
       }
     }
@@ -170,6 +176,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     // Validate args field — must be an array of strings
     if (shellArgs !== undefined) {
       if (!Array.isArray(shellArgs) || !shellArgs.every((a) => typeof a === 'string')) {
+        log.warn('Session creation failed: args must be an array of strings');
         return res.status(400).json({ error: 'args must be an array of strings' });
       }
     }
@@ -177,6 +184,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     // Validate initialCommand field — must be a string
     if (initialCommand !== undefined && initialCommand !== null) {
       if (typeof initialCommand !== 'string') {
+        log.warn('Session creation failed: initialCommand must be a string');
         return res.status(400).json({ error: 'initialCommand must be a string' });
       }
     }
@@ -184,13 +192,16 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     // Validate cwd field
     if (cwd) {
       if (!path.isAbsolute(cwd)) {
+        log.warn(`Session creation failed: cwd must be an absolute path (got "${cwd}")`);
         return res.status(400).json({ error: 'cwd must be an absolute path' });
       }
       try {
         if (!fs.statSync(cwd).isDirectory()) {
+          log.warn(`Session creation failed: cwd is not a directory (${cwd})`);
           return res.status(400).json({ error: 'cwd is not a directory' });
         }
       } catch {
+        log.warn(`Session creation failed: cwd does not exist (${cwd})`);
         return res.status(400).json({ error: 'cwd does not exist' });
       }
     }
@@ -216,6 +227,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
 
   // Available shells
   app.get('/api/shells', auth.middleware, (_req, res) => {
+    log.debug('Available shells requested');
     const shells = detectShells();
     const ds = config.defaultShell;
     const match = shells.find((s) => s.cmd === ds || s.path === ds || s.name === ds);
@@ -223,6 +235,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
   });
 
   app.get('/api/sessions/:id/detect-port', auth.middleware, (req, res) => {
+    log.debug(`Port detection requested for session ${req.params.id}`);
     const session = sessions.get(req.params.id);
     if (!session) return res.status(404).json({ error: 'not found' });
 
@@ -236,6 +249,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     }
 
     if (lastPort !== null) {
+      log.debug(`Port detected for session ${req.params.id}: ${lastPort}`);
       res.json({ detected: true, port: lastPort });
     } else {
       res.json({ detected: false });
@@ -244,8 +258,10 @@ function setupRoutes(app, { auth, sessions, config, state }) {
 
   app.delete('/api/sessions/:id', auth.middleware, (req, res) => {
     if (sessions.delete(req.params.id)) {
+      log.info(`Session deleted: ${req.params.id}`);
       res.status(204).end();
     } else {
+      log.warn(`Session delete failed: not found (${req.params.id})`);
       res.status(404).json({ error: 'not found' });
     }
   });
@@ -256,14 +272,17 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     if (color !== undefined) updates.color = color;
     if (name !== undefined) updates.name = name;
     if (sessions.update(req.params.id, updates)) {
+      log.info(`Session updated: ${req.params.id}`);
       res.json({ ok: true });
     } else {
+      log.warn(`Session update failed: not found (${req.params.id})`);
       res.status(404).json({ error: 'not found' });
     }
   });
 
   // Image upload
   app.post('/api/upload', auth.middleware, (req, res) => {
+    log.debug('Image upload started');
     const contentType = req.headers['content-type'] || '';
     if (!contentType.startsWith('image/')) {
       log.warn(`Upload rejected: invalid content-type "${contentType}"`);
@@ -334,6 +353,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
 
   // General file upload to a session's working directory
   app.post('/api/sessions/:id/upload', apiRateLimit, auth.middleware, (req, res) => {
+    log.debug(`File upload started for session ${req.params.id}`);
     const session = sessions.get(req.params.id);
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
@@ -440,6 +460,7 @@ function setupRoutes(app, { auth, sessions, config, state }) {
 
   // Directory listing for folder browser
   app.get('/api/dirs', apiRateLimit, auth.middleware, (req, res) => {
+    log.debug(`Directory listing requested: ${req.query.q || config.cwd}`);
     const query = req.query.q || config.cwd + path.sep;
     const endsWithSep = query.endsWith('/') || query.endsWith('\\');
     const dir = path.resolve(endsWithSep ? query : path.dirname(query));
@@ -453,13 +474,15 @@ function setupRoutes(app, { auth, sessions, config, state }) {
         .slice(0, 50)
         .map((e) => path.join(dir, e.name));
       res.json({ base: dir, dirs });
-    } catch {
+    } catch (err) {
+      log.warn(`Directory listing failed: ${err.message}`);
       res.json({ base: dir, dirs: [] });
     }
   });
 }
 
 function cleanupUploadedFiles() {
+  log.debug(`Cleaning up ${uploadedFiles.size} uploaded files`);
   for (const [_id, filepath] of uploadedFiles) {
     try {
       if (fs.existsSync(filepath)) {

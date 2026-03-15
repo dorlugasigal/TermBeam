@@ -3,6 +3,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const log = require('./logger');
 
 const PACKAGE_NAME = 'termbeam';
 const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
@@ -114,9 +115,11 @@ function sanitizeVersion(v) {
 function fetchLatestVersion(registryUrl) {
   const url = registryUrl || REGISTRY_URL;
   const client = url.startsWith('https') ? https : http;
+  log.debug('Fetching latest version from npm registry');
   return new Promise((resolve) => {
     const req = client.get(url, { timeout: REQUEST_TIMEOUT_MS }, (res) => {
       if (res.statusCode !== 200) {
+        log.warn(`Registry returned HTTP ${res.statusCode}`);
         res.resume();
         resolve(null);
         return;
@@ -154,8 +157,12 @@ function fetchLatestVersion(registryUrl) {
     });
     // Unref so a pending update check can't delay process exit
     req.on('socket', (socket) => socket.unref());
-    req.on('error', () => resolve(null));
+    req.on('error', (err) => {
+      log.debug(`Network error checking updates: ${err.message}`);
+      resolve(null);
+    });
     req.on('timeout', () => {
+      log.warn('Update check timed out');
       req.destroy();
       resolve(null);
     });
@@ -170,6 +177,7 @@ function fetchLatestVersion(registryUrl) {
  * @returns {Promise<{current: string, latest: string|null, updateAvailable: boolean}>}
  */
 async function checkForUpdate({ currentVersion, force = false } = {}) {
+  log.debug(`Update check: current=${currentVersion}`);
   if (!currentVersion) {
     return { current: 'unknown', latest: null, updateAvailable: false };
   }
@@ -180,6 +188,7 @@ async function checkForUpdate({ currentVersion, force = false } = {}) {
     if (cache && Date.now() - cache.checkedAt < CACHE_TTL_MS) {
       const cachedLatest = typeof cache.latest === 'string' ? sanitizeVersion(cache.latest) : null;
       if (cachedLatest && /^\d+\.\d+\.\d+$/.test(cachedLatest)) {
+        log.debug('Using cached update check result');
         return {
           current: currentVersion,
           latest: cachedLatest,
@@ -198,10 +207,17 @@ async function checkForUpdate({ currentVersion, force = false } = {}) {
   // Cache the result
   writeCache(latest);
 
+  const updateAvailable = isNewerVersion(currentVersion, latest);
+  log.debug(
+    updateAvailable
+      ? `Update available: ${currentVersion} → ${latest}`
+      : `Already on latest version: ${currentVersion}`,
+  );
+
   return {
     current: currentVersion,
     latest,
-    updateAvailable: isNewerVersion(currentVersion, latest),
+    updateAvailable,
   };
 }
 
@@ -212,19 +228,23 @@ async function checkForUpdate({ currentVersion, force = false } = {}) {
 function detectInstallMethod() {
   // npx / npm exec — npm sets npm_command=exec
   if (process.env.npm_command === 'exec') {
+    log.debug('Install method: npx');
     return { method: 'npx', command: 'npx termbeam@latest' };
   }
 
   // Detect package manager from npm_execpath (set during npm/yarn/pnpm lifecycle)
   const execPath = process.env.npm_execpath || '';
   if (execPath.includes('yarn')) {
+    log.debug('Install method: yarn');
     return { method: 'yarn', command: 'yarn global add termbeam@latest' };
   }
   if (execPath.includes('pnpm')) {
+    log.debug('Install method: pnpm');
     return { method: 'pnpm', command: 'pnpm add -g termbeam@latest' };
   }
 
   // Default: npm global install
+  log.debug('Install method: npm');
   return { method: 'npm', command: 'npm install -g termbeam@latest' };
 }
 

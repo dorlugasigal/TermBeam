@@ -1,4 +1,5 @@
 const WebSocket = require('ws');
+const log = require('../utils/logger');
 
 const DETACH_KEY = '\x02'; // Ctrl+B
 
@@ -23,6 +24,7 @@ function createTerminalClient({
   detachLabel = 'Ctrl+B',
 }) {
   return new Promise((resolve, reject) => {
+    log.debug(`Connecting to ${url}`);
     const ws = new WebSocket(url);
     let cleaned = false;
     let bannerTimer = null;
@@ -68,6 +70,7 @@ function createTerminalClient({
     }
 
     ws.on('open', () => {
+      log.debug('WebSocket opened, sending auth');
       if (password) {
         ws.send(JSON.stringify({ type: 'auth', password }));
       } else {
@@ -89,6 +92,7 @@ function createTerminalClient({
       }
 
       if (msg.type === 'attached') {
+        log.info(`Attached to session ${sessionId}`);
         // Set terminal title to show we're attached
         process.stdout.write(`\x1b]0;[termbeam] ${sessionName} — ${detachLabel} to detach\x07`);
 
@@ -113,6 +117,7 @@ function createTerminalClient({
       }
 
       if (msg.type === 'error') {
+        log.error(`Server error: ${msg.message}`);
         cleanup(`error: ${msg.message}`);
         return;
       }
@@ -120,6 +125,7 @@ function createTerminalClient({
 
     ws.on('error', (err) => {
       if (!cleaned) {
+        log.warn('WebSocket error');
         cleaned = true;
         resetTerminal();
         reject(err);
@@ -127,12 +133,14 @@ function createTerminalClient({
     });
 
     ws.on('close', () => {
+      log.info('WebSocket connection closed');
       cleanup('connection closed');
     });
   });
 }
 
 function enterRawMode(ws, detachKey, cleanup, refs) {
+  log.debug('Entering raw mode');
   if (process.stdin.isTTY) {
     process.stdin.setRawMode(true);
   }
@@ -141,6 +149,7 @@ function enterRawMode(ws, detachKey, cleanup, refs) {
   refs.onData = (data) => {
     const str = data.toString();
     if (str === detachKey) {
+      log.info('User detached (Ctrl+B)');
       cleanup('detached');
       return;
     }

@@ -1,5 +1,6 @@
 const { execSync } = require('child_process');
 const path = require('path');
+const log = require('./logger');
 
 function git(cmd, cwd) {
   return execSync(`git ${cmd}`, { cwd, stdio: 'pipe', timeout: 3000 }).toString().trim();
@@ -9,6 +10,7 @@ function getGitInfo(cwd) {
   try {
     git('rev-parse --is-inside-work-tree', cwd);
   } catch {
+    log.debug(`Not a git repository: ${cwd}`);
     return null;
   }
 
@@ -59,6 +61,7 @@ function getGitInfo(cwd) {
     /* ignore */
   }
 
+  log.debug(`Git info resolved for ${cwd}`);
   return result;
 }
 
