@@ -130,6 +130,38 @@
   display: none;
 }
 
+/* ── Connection lost banner ── */
+.connectionBanner {
+  position: fixed;
+  top: calc(40px + env(safe-area-inset-top, 0px));
+  left: 0;
+  right: 0;
+  z-index: 59;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 16px;
+  background: var(--danger, #f14c4c);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.connectionBannerBtn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+  border-radius: 4px;
+  padding: 2px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.connectionBannerBtn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 @media (max-width: 640px) {
   .desktopOnly {
     display: none !important;
@@ -142,6 +174,9 @@
   }
   .statusText {
     display: none;
+  }
+  .connectionBanner {
+    top: calc(32px + env(safe-area-inset-top, 0px));
   }
 }
 

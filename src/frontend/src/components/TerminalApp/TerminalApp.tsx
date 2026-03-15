@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { fetchSessions } from '@/services/api';
+import { fetchSessions, checkAuth } from '@/services/api';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -19,6 +19,8 @@ import type { Session } from '@/types';
 import styles from './TerminalApp.module.css';
 
 const POLL_INTERVAL = 3000;
+const MAX_CONSECUTIVE_FAILURES = 5;
+
 function getSessionIdFromUrl(): string | null {
   const params = new URLSearchParams(window.location.search);
   return params.get('session') || params.get('id');
@@ -41,6 +43,8 @@ export function TerminalApp() {
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const initializedRef = useRef(false);
+  const pollFailuresRef = useRef(0);
+  const [connectionLost, setConnectionLost] = useState(false);
 
   useWakeLock();
 
@@ -157,7 +161,10 @@ export function TerminalApp() {
           window.location.replace('/');
         }
       } catch {
-        // Will retry via polling
+        // Polling will retry, but check if auth is the problem
+        checkAuth().then(({ authenticated }) => {
+          if (!authenticated) window.location.replace('/login');
+        });
       }
     }
 
@@ -169,6 +176,8 @@ export function TerminalApp() {
     pollRef.current = setInterval(async () => {
       try {
         const list: Session[] = await fetchSessions();
+        pollFailuresRef.current = 0;
+        setConnectionLost(false);
         const store = useSessionStore.getState();
         const serverIds = new Set(list.map((s) => s.id));
 
@@ -212,7 +221,14 @@ export function TerminalApp() {
           }
         }
       } catch {
-        // Network error
+        pollFailuresRef.current++;
+        if (pollFailuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
+          setConnectionLost(true);
+          // Check if auth expired — redirect to login if so
+          checkAuth().then(({ authenticated }) => {
+            if (!authenticated) window.location.replace('/login');
+          });
+        }
       }
     }, POLL_INTERVAL);
     return () => {
@@ -389,6 +405,19 @@ export function TerminalApp() {
           </button>
         </div>
       </div>
+
+      {/* ── Connection lost banner ── */}
+      {connectionLost && (
+        <div className={styles.connectionBanner} data-testid="connection-banner">
+          <span>Connection lost — reconnecting…</span>
+          <button
+            onClick={() => window.location.reload()}
+            className={styles.connectionBannerBtn}
+          >
+            Reload
+          </button>
+        </div>
+      )}
 
       {/* ── Search bar ── */}
       <SearchBar />

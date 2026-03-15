@@ -60,6 +60,19 @@ export function useAuth(): UseAuthReturn {
     };
   }, []);
 
+  // Re-check auth when returning from background (e.g. mobile tab switch after hours idle).
+  // Catches expired tokens / stale DevTunnel sessions that would otherwise show a white screen.
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.hidden || authenticated !== true) return;
+      checkAuth().then(({ authenticated: isAuth }) => {
+        if (!isAuth) setAuthenticated(false);
+      });
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [authenticated]);
+
   const login = useCallback(async (password: string): Promise<boolean> => {
     setLoading(true);
     try {
