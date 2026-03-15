@@ -1,0 +1,1 @@
+mkdocs-material==9.7.4 --hash=sha256:6549ad95e4d130ed5099759dfa76ea34c593eefdb9c18c97273605518e99cfbf
