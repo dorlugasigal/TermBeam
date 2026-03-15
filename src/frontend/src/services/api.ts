@@ -168,17 +168,21 @@ export function uploadImage(
   return xhrUpload(`${BASE}/api/upload`, blob, { 'Content-Type': contentType }, onProgress);
 }
 
-export async function checkAuth(): Promise<{ authenticated: boolean }> {
+export async function checkAuth(): Promise<{
+  authenticated: boolean;
+  serverReachable: boolean;
+}> {
   try {
     const res = await fetchWithTimeout(`${BASE}/api/sessions`, { credentials: 'same-origin' });
-    if (res.status === 401) return { authenticated: false };
-    if (res.status === 429) return { authenticated: false };
+    if (res.status === 401) return { authenticated: false, serverReachable: true };
+    if (res.status === 429) return { authenticated: false, serverReachable: true };
     // Validate response is JSON — DevTunnel auth expiry can return 200 with HTML
     const ct = res.headers.get('content-type') || '';
-    if (!ct.includes('application/json')) return { authenticated: false };
-    return { authenticated: true };
+    if (!ct.includes('application/json'))
+      return { authenticated: false, serverReachable: false };
+    return { authenticated: true, serverReachable: true };
   } catch {
-    return { authenticated: false };
+    return { authenticated: false, serverReachable: false };
   }
 }
 

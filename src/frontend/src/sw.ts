@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { CacheFirst, NetworkOnly } from 'workbox-strategies';
+import { registerRoute, NavigationRoute } from 'workbox-routing';
+import { CacheFirst, NetworkFirst, NetworkOnly } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 
 declare let self: ServiceWorkerGlobalScope;
@@ -9,6 +9,18 @@ declare let self: ServiceWorkerGlobalScope;
 // Precache all Vite-built assets
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
+
+// Navigation requests (HTML documents) use NetworkFirst so that external auth
+// redirects (e.g. DevTunnel Microsoft login) pass through to the browser
+// instead of being short-circuited by the precache.
+registerRoute(
+  new NavigationRoute(
+    new NetworkFirst({
+      cacheName: 'termbeam-navigation',
+      networkTimeoutSeconds: 5,
+    }),
+  ),
+);
 
 // Cache-first for CDN fonts (NerdFont)
 registerRoute(
