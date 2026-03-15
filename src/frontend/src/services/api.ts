@@ -17,11 +17,6 @@ function fetchWithTimeout(
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
-  if (res.status === 401) {
-    // Auth expired — redirect to login
-    window.location.replace('/login');
-    throw new Error('Unauthorized');
-  }
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(text || `HTTP ${res.status}`);

@@ -223,7 +223,6 @@ function getDefaultShell() {
 }
 
 function parseArgs() {
-  log.debug('Parsing CLI arguments');
   let port = parseInt(process.env.PORT || '3456', 10);
   let host = '127.0.0.1';
 
@@ -242,6 +241,7 @@ function parseArgs() {
     }
   }
   log.setLevel(logLevel);
+  log.debug('Parsing CLI arguments');
 
   const defaultShell = getDefaultShell();
   const cwd = process.env.TERMBEAM_CWD || process.env.PTY_CWD || process.cwd();

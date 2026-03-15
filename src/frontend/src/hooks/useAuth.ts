@@ -50,10 +50,9 @@ export function useAuth(): UseAuthReturn {
         const { authenticated: isAuth, serverReachable } = await checkAuth();
         if (!cancelled) {
           if (!isAuth && !serverReachable) {
-            // Server unreachable (tunnel stale / external auth expired).
-            // Hard reload bypasses the SW cache so the browser can follow
-            // external auth redirects (e.g. DevTunnel Microsoft login).
-            window.location.reload();
+            // Server unreachable — show login page so user sees something
+            // (a full reload could loop if the server is genuinely down)
+            setAuthenticated(false);
             return;
           }
           setAuthenticated(isAuth);
@@ -74,13 +73,8 @@ export function useAuth(): UseAuthReturn {
   useEffect(() => {
     function handleVisibility() {
       if (document.hidden || authenticated !== true) return;
-      checkAuth().then(({ authenticated: isAuth, serverReachable }) => {
-        if (!isAuth && !serverReachable) {
-          // Server unreachable — hard reload to handle external auth redirects
-          window.location.reload();
-        } else if (!isAuth) {
-          setAuthenticated(false);
-        }
+      checkAuth().then(({ authenticated: isAuth }) => {
+        if (!isAuth) setAuthenticated(false);
       });
     }
     document.addEventListener('visibilitychange', handleVisibility);

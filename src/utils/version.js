@@ -8,7 +8,9 @@ function getVersion() {
 
   // If installed via npm (global or npx), use the package version as-is
   if (process.env.npm_package_version || isInstalledGlobally()) {
-    log.debug('Version source: npm_package_version');
+    log.debug(
+      `Version source: ${process.env.npm_package_version ? 'npm_package_version' : 'global install'}`,
+    );
     const version = base;
     log.debug(`Resolved version: ${version}`);
     return version;

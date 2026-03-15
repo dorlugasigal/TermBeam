@@ -162,9 +162,8 @@ export function TerminalApp() {
         }
       } catch {
         // Polling will retry, but check if auth is the problem
-        checkAuth().then(({ authenticated, serverReachable }) => {
-          if (!authenticated && serverReachable) window.location.replace('/login');
-          if (!serverReachable) window.location.reload();
+        checkAuth().then(({ authenticated }) => {
+          if (!authenticated) window.location.replace('/login');
         });
       }
     }
@@ -225,10 +224,9 @@ export function TerminalApp() {
         pollFailuresRef.current++;
         if (pollFailuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
           setConnectionLost(true);
-          // Check if auth expired — redirect to login or reload for external auth
-          checkAuth().then(({ authenticated, serverReachable }) => {
-            if (!authenticated && serverReachable) window.location.replace('/login');
-            if (!serverReachable) window.location.reload();
+          // Check if auth expired — redirect to login if so
+          checkAuth().then(({ authenticated }) => {
+            if (!authenticated) window.location.replace('/login');
           });
         }
       }

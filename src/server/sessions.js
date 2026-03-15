@@ -119,7 +119,7 @@ class SessionManager {
     if (!color) {
       color = SESSION_COLORS[this.sessions.size % SESSION_COLORS.length];
     }
-    log.debug(`Spawning PTY: shell=${shell}, args=${JSON.stringify(args)}, cwd=${cwd}`);
+    log.debug(`Spawning PTY: shell=${shell}, args=[${args.length} items], cwd=${cwd}`);
     const ptyProcess = pty.spawn(shell, args, {
       name: 'xterm-256color',
       cols,
@@ -130,7 +130,7 @@ class SessionManager {
 
     // Send initial command once the shell is ready
     if (initialCommand) {
-      log.debug(`Scheduling initialCommand for session ${id}: ${initialCommand}`);
+      log.debug(`Scheduling initialCommand for session ${id} (${initialCommand.length} chars)`);
       setTimeout(() => ptyProcess.write(initialCommand + '\r'), 300);
     }
 

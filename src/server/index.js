@@ -324,6 +324,7 @@ module.exports = { createTermBeamServer, getLocalIP };
 // Auto-start when run directly (e.g. `node src/server.js`)
 if (require.main === module) {
   const instance = createTermBeamServer();
+  const log = require('../utils/logger');
 
   process.on('SIGINT', () => {
     log.info('Received SIGINT signal');
