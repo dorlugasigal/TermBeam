@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.13.2] - 2026-03-16
+
+- fix(auth): prevent white page in no-password mode after idle
+- chore(deps): bump lint-staged from 16.3.2 to 16.4.0 (#144)
+- chore(ci): bump github/codeql-action from 4.32.6 to 4.33.0 (#145)
+- chore(ci): bump softprops/action-gh-release from 2.5.0 to 2.6.1 (#143)
+- fix(ci): include all transitive deps in pinned requirements
+- fix(ci): improve OpenSSF Scorecard token-permissions and pinned-dependencies
+
 ## [1.13.1] - 2026-03-15
 
 - fix(security): resolve flatted DoS vulnerability and update publish skill
