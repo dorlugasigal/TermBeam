@@ -21,7 +21,7 @@ function normalizeSessionParam() {
 }
 
 export default function App() {
-  const { authenticated, login, loading } = useAuth();
+  const { authenticated, passwordRequired, login, loading } = useAuth();
   const [path, setPath] = useState(getPath);
 
   useEffect(() => {
@@ -53,6 +53,43 @@ export default function App() {
   }
 
   if (!authenticated) {
+    // No-password mode: server is unreachable — show reconnecting UI instead of login
+    if (!passwordRequired) {
+      return (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100vh',
+            gap: '16px',
+            background: 'var(--bg)',
+            color: 'var(--text)',
+          }}
+        >
+          <div className="spinner" />
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+            Reconnecting to server…
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: '8px',
+              padding: '8px 20px',
+              background: 'var(--accent)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '13px',
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
     return <LoginPage onLogin={login} loading={loading} />;
   }
 

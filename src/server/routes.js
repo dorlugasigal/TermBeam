@@ -88,6 +88,11 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     res.json({ version: getVersion() });
   });
 
+  // Public config — no auth required
+  app.get('/api/config', (_req, res) => {
+    res.json({ passwordRequired: !!auth.password });
+  });
+
   // Update check API
   app.get('/api/update-check', apiRateLimit, auth.middleware, async (req, res) => {
     log.debug('Update check requested');

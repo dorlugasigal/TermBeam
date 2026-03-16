@@ -181,6 +181,25 @@ export async function checkAuth(): Promise<{
   }
 }
 
+export async function getConfig(): Promise<{ passwordRequired: boolean }> {
+  try {
+    const res = await fetchWithTimeout(`${BASE}/api/config`, { credentials: 'same-origin' });
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      // Server unreachable or tunnel returning HTML — use cached value
+      const cached = localStorage.getItem('tb:passwordRequired');
+      return { passwordRequired: cached !== 'false' };
+    }
+    const data = (await res.json()) as { passwordRequired: boolean };
+    localStorage.setItem('tb:passwordRequired', String(data.passwordRequired));
+    return data;
+  } catch {
+    // Network error — fall back to cached value
+    const cached = localStorage.getItem('tb:passwordRequired');
+    return { passwordRequired: cached !== 'false' };
+  }
+}
+
 export async function login(password: string): Promise<{ ok: boolean }> {
   const res = await fetchWithTimeout(`${BASE}/api/auth`, {
     method: 'POST',

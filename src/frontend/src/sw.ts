@@ -3,6 +3,7 @@ import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
 import { CacheFirst, NetworkFirst, NetworkOnly } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
+import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
 declare let self: ServiceWorkerGlobalScope;
 
@@ -13,11 +14,14 @@ cleanupOutdatedCaches();
 // Navigation requests (HTML documents) use NetworkFirst so that external auth
 // redirects (e.g. DevTunnel Microsoft login) pass through to the browser
 // instead of being short-circuited by the precache.
+// CacheableResponsePlugin ensures only 200 OK responses are cached — prevents
+// stale DevTunnel auth pages or error HTML from polluting the navigation cache.
 registerRoute(
   new NavigationRoute(
     new NetworkFirst({
       cacheName: 'termbeam-navigation',
       networkTimeoutSeconds: 5,
+      plugins: [new CacheableResponsePlugin({ statuses: [200] })],
     }),
   ),
 );

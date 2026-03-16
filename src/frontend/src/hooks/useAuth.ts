@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { checkAuth, login as apiLogin, logout as apiLogout } from '@/services/api';
+import { checkAuth, getConfig, login as apiLogin, logout as apiLogout } from '@/services/api';
 
 interface UseAuthReturn {
   authenticated: boolean | null;
+  passwordRequired: boolean;
   login: (password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   loading: boolean;
@@ -10,12 +11,24 @@ interface UseAuthReturn {
 
 export function useAuth(): UseAuthReturn {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [passwordRequired, setPasswordRequired] = useState(true);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function init() {
+      // Determine if password is required (uses localStorage cache when server unreachable)
+      const config = await getConfig();
+      if (cancelled) return;
+      setPasswordRequired(config.passwordRequired);
+
+      // No-password mode: skip auth checks entirely — always grant access
+      if (!config.passwordRequired) {
+        setAuthenticated(true);
+        return;
+      }
+
       // Check for one-time-token in URL
       const params = new URLSearchParams(window.location.search);
       const ott = params.get('ott');
@@ -50,8 +63,6 @@ export function useAuth(): UseAuthReturn {
         const { authenticated: isAuth, serverReachable } = await checkAuth();
         if (!cancelled) {
           if (!isAuth && !serverReachable) {
-            // Server unreachable — show login page so user sees something
-            // (a full reload could loop if the server is genuinely down)
             setAuthenticated(false);
             return;
           }
@@ -69,17 +80,41 @@ export function useAuth(): UseAuthReturn {
   }, []);
 
   // Re-check auth when returning from background (e.g. mobile tab switch after hours idle).
-  // Catches expired tokens / stale DevTunnel sessions that would otherwise show a white screen.
   useEffect(() => {
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
     function handleVisibility() {
-      if (document.hidden || authenticated !== true) return;
+      if (document.hidden) return;
+
+      if (!passwordRequired) {
+        // No-password mode: server is always "authenticated", but verify reachability.
+        // If unreachable, keep authenticated=true — the terminal/sessions hub will
+        // show its own connection banner. Once reachable again, everything auto-recovers.
+        checkAuth().then(({ serverReachable }) => {
+          if (!serverReachable && retryTimer === null) {
+            // Schedule a silent retry in case tunnel just needs a moment
+            retryTimer = setTimeout(() => {
+              retryTimer = null;
+              checkAuth(); // fire-and-forget; UI stays on terminal
+            }, 5000);
+          }
+        });
+        return;
+      }
+
+      // Password mode: if we were authenticated and now we're not, show login
+      if (authenticated !== true) return;
       checkAuth().then(({ authenticated: isAuth }) => {
         if (!isAuth) setAuthenticated(false);
       });
     }
+
     document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [authenticated]);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (retryTimer !== null) clearTimeout(retryTimer);
+    };
+  }, [authenticated, passwordRequired]);
 
   const login = useCallback(async (password: string): Promise<boolean> => {
     setLoading(true);
@@ -88,7 +123,6 @@ export function useAuth(): UseAuthReturn {
       setAuthenticated(ok);
       return ok;
     } catch (err) {
-      // Re-throw so caller can distinguish 429 from other errors
       throw err;
     } finally {
       setLoading(false);
@@ -100,5 +134,5 @@ export function useAuth(): UseAuthReturn {
     setAuthenticated(false);
   }, []);
 
-  return { authenticated, login, logout, loading };
+  return { authenticated, passwordRequired, login, logout, loading };
 }

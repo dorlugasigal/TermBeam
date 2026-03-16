@@ -4,7 +4,7 @@ TermBeam exposes a REST API and WebSocket interface.
 
 ## REST API
 
-All API endpoints (except `/login`, `/api/auth`, and `/api/version`) require authentication via cookie or Bearer token.
+All API endpoints (except `/login`, `/api/auth`, `/api/version`, and `/api/config`) require authentication via cookie or Bearer token.
 
 <!-- prettier-ignore -->
 !!! note
@@ -280,6 +280,20 @@ Get the server version.
 ```json
 { "version": "1.0.0" }
 ```
+
+#### `GET /api/config`
+
+Get public server configuration. No authentication required.
+
+**Response:**
+
+```json
+{ "passwordRequired": true }
+```
+
+| Field              | Type    | Description                                    |
+| ------------------ | ------- | ---------------------------------------------- |
+| `passwordRequired` | boolean | Whether the server requires password to access |
 
 #### `GET /api/update-check`
 
