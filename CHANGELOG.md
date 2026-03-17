@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.13.5] - 2026-03-17
+
+- fix(auth): detect tunnel auth expiry and reload PWA
+
 ## [1.13.4] - 2026-03-17
 
 - fix(auth): simplify auth flow — remove localStorage caching
