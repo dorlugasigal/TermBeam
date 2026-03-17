@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.13.3] - 2026-03-17
+
+- chore(release): v1.13.2 [skip ci]
+- fix(service): boot persistence and SW auth reliability
+
 ## [1.13.2] - 2026-03-17
 
 - fix(service): boot persistence and SW auth reliability
