@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.13.4] - 2026-03-17
+
+- fix(auth): simplify auth flow — remove localStorage caching
+
 ## [1.13.3] - 2026-03-17
 
 - chore(release): v1.13.2 [skip ci]
