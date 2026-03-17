@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
-import { CacheFirst, NetworkFirst, NetworkOnly } from 'workbox-strategies';
+import { CacheFirst, NetworkFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
@@ -40,8 +40,13 @@ registerRoute(
   }),
 );
 
-// Network-only for API calls — never cache auth or session data
-registerRoute(({ url }) => url.pathname.startsWith('/api/'), new NetworkOnly());
+// Network-only for API calls — never cache auth or session data.
+// Use a fetch event listener instead of registerRoute to avoid workbox
+// wrapping the fetch in a Response handler that can throw "no-response"
+// when the network request fails (e.g. during SW activation race).
+// By not registering a route, unmatched /api/ requests fall through to
+// the browser's native fetch — more resilient than SW interception.
+// (Previously used: registerRoute(({url}) => url.pathname.startsWith('/api/'), new NetworkOnly()));
 
 // Skip waiting and claim clients immediately
 self.addEventListener('install', () => {

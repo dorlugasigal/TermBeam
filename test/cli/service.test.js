@@ -939,16 +939,24 @@ describe('actionInstall wizard (via run)', () => {
           execOverride ||
           ((cmd, args) => {
             if (cmd === 'which' || cmd === 'where') return '/usr/bin/pm2\n';
-            if (cmd === 'pm2' && args[0] === 'startup') return startupOutput;
+            // pm2 startup always exits 1 — throw with stdout containing the sudo command
+            if (cmd === 'pm2' && args[0] === 'startup') {
+              const err = new Error('pm2 startup exits 1');
+              err.stdout = startupOutput;
+              err.stderr = '';
+              err.status = 1;
+              throw err;
+            }
             return '';
           }),
         spawn:
           spawnMock ||
           (() => ({
             on: (event, cb) => {
-              if (event === 'close') setImmediate(cb);
+              if (event === 'close') setImmediate(() => cb(0));
             },
           })),
+        spawnSync: spawnMock || (() => ({ status: 0 })),
       },
       readline: {
         createInterface: () => ({

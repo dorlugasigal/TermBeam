@@ -424,19 +424,62 @@ async function actionInstall() {
   // Run pm2 startup if chosen during wizard
   if (config.startup) {
     console.log('');
-    // pm2 startup outputs a sudo command to copy/paste — capture it and run it
-    const startupOutput = pm2Exec(['startup'], { silent: true }) || '';
+    // pm2 startup outputs a sudo command to copy/paste — but it always exits 1
+    // (since the startup hook isn't installed yet). Extract stdout from the error.
+    let startupOutput = '';
+    try {
+      startupOutput = execFileSync('pm2', ['startup'], {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        timeout: 15000,
+      });
+    } catch (err) {
+      // pm2 startup exits 1 by design — the sudo command is in stdout
+      startupOutput = (err.stdout || '') + (err.stderr || '');
+    }
     const sudoMatch = startupOutput.match(/^(sudo .+)$/m);
     if (sudoMatch) {
       console.log(dim('Setting up boot persistence (may ask for your password)...\n'));
-      const { spawn } = require('child_process');
-      const child = spawn('sh', ['-c', sudoMatch[1]], { stdio: 'inherit' });
-      await new Promise((resolve) => child.on('close', resolve));
-      pm2Exec(['save'], { inherit: true });
-      console.log(green('✓ TermBeam will start automatically on boot.'));
+      const { spawnSync } = require('child_process');
+      // pm2 outputs: sudo env PATH=$PATH:/extra /path/to/pm2 startup <init> -u <user> --hp <home>
+      // We can't use sh -c because $PATH may contain spaces (e.g. "Visual Studio Code.app").
+      // Instead, parse the structured command and pass PATH via env to avoid shell expansion.
+      const envMatch = sudoMatch[1].match(
+        /^sudo\s+env\s+PATH=\$PATH:([\S]+)\s+(\S+)\s+startup\s+(.+)$/,
+      );
+      let result;
+      if (envMatch) {
+        const extraPath = envMatch[1]; // e.g. /opt/homebrew/.../bin
+        const pm2Bin = envMatch[2]; // e.g. /opt/homebrew/.../pm2
+        const restArgs = envMatch[3].split(/\s+/); // e.g. ['launchd', '-u', 'user', '--hp', '/home']
+        const fullPath = (process.env.PATH || '') + ':' + extraPath;
+        result = spawnSync('sudo', ['env', `PATH=${fullPath}`, pm2Bin, 'startup', ...restArgs], {
+          stdio: 'inherit',
+        });
+      } else {
+        // Fallback: try running via sh with quoted PATH
+        const resolved = sudoMatch[1].replace(/\$PATH/g, `'${process.env.PATH || ''}'`);
+        result = spawnSync('sh', ['-c', resolved], { stdio: 'inherit' });
+      }
+      const code = result.status;
+      if (code === 0) {
+        pm2Exec(['save'], { inherit: true });
+        console.log(green('✓ TermBeam will start automatically on boot.'));
+      } else {
+        console.error(red('\n✗ Failed to set up boot persistence.'));
+        console.log(yellow("  TermBeam is running, but won't auto-start after a reboot."));
+        console.log(yellow('  To fix this, run the following command manually:\n'));
+        console.log(`  ${cyan(sudoMatch[1])}`);
+        console.log(yellow('\n  Then run:'));
+        console.log(`  ${cyan('pm2 save')}\n`);
+      }
     } else {
-      // Fallback: just show what pm2 said
-      console.log(startupOutput);
+      console.error(red('✗ Could not determine boot persistence command.'));
+      console.log(yellow("  TermBeam is running, but won't auto-start after a reboot."));
+      console.log(yellow('  To fix this, run:\n'));
+      console.log(`  ${cyan('pm2 startup')}`);
+      console.log(dim('  …then run the sudo command it outputs, followed by:'));
+      console.log(`  ${cyan('pm2 save')}\n`);
     }
   }
 

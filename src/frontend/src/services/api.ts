@@ -186,17 +186,19 @@ export async function getConfig(): Promise<{ passwordRequired: boolean }> {
     const res = await fetchWithTimeout(`${BASE}/api/config`, { credentials: 'same-origin' });
     const ct = res.headers.get('content-type') || '';
     if (!ct.includes('application/json')) {
-      // Server unreachable or tunnel returning HTML — use cached value
+      // Non-JSON response (e.g. DevTunnel auth HTML) — use cached value if available.
+      // Default to passwordRequired=true (safe: shows login rather than bypassing auth).
       const cached = localStorage.getItem('tb:passwordRequired');
-      return { passwordRequired: cached !== 'false' };
+      return { passwordRequired: cached === null ? true : cached !== 'false' };
     }
     const data = (await res.json()) as { passwordRequired: boolean };
     localStorage.setItem('tb:passwordRequired', String(data.passwordRequired));
     return data;
   } catch {
-    // Network error — fall back to cached value
-    const cached = localStorage.getItem('tb:passwordRequired');
-    return { passwordRequired: cached !== 'false' };
+    // Network error — server may be starting up, SW race, or genuinely down.
+    // Always default to passwordRequired=true (safe default) to prevent a stale
+    // no-password cache from bypassing auth on a password-protected server.
+    return { passwordRequired: true };
   }
 }
 
