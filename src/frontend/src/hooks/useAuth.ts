@@ -18,23 +18,11 @@ export function useAuth(): UseAuthReturn {
     let cancelled = false;
 
     async function init() {
-      // Determine if password is required (uses localStorage cache when server unreachable)
-      const config = await getConfig();
-      if (cancelled) return;
-      setPasswordRequired(config.passwordRequired);
-
-      // No-password mode: skip auth checks entirely — always grant access
-      if (!config.passwordRequired) {
-        setAuthenticated(true);
-        return;
-      }
-
-      // Check for one-time-token in URL
+      // Check for one-time-token in URL first
       const params = new URLSearchParams(window.location.search);
       const ott = params.get('ott');
 
       if (ott) {
-        // Remove ott from URL without reload
         params.delete('ott');
         const search = params.toString();
         const newUrl =
@@ -59,17 +47,37 @@ export function useAuth(): UseAuthReturn {
         }
       }
 
-      try {
-        const { authenticated: isAuth, serverReachable } = await checkAuth();
-        if (!cancelled) {
-          if (!isAuth && !serverReachable) {
-            setAuthenticated(false);
-            return;
-          }
-          setAuthenticated(isAuth);
-        }
-      } catch {
-        if (!cancelled) setAuthenticated(false);
+      // Primary check: can we reach the server and are we authenticated?
+      const { authenticated: isAuth, serverReachable } = await checkAuth();
+      if (cancelled) return;
+
+      if (isAuth) {
+        setAuthenticated(true);
+        return;
+      }
+
+      // Not authenticated — but is a password even required?
+      // If server is reachable and returned 401, password is required.
+      // If server is unreachable (tunnel stale, network down), check /api/config.
+      if (serverReachable) {
+        // Server responded with 401 — password is required
+        setPasswordRequired(true);
+        setAuthenticated(false);
+        return;
+      }
+
+      // Server unreachable — check if password is configured.
+      // /api/config has no auth middleware, so it works even without a token.
+      const config = await getConfig();
+      if (cancelled) return;
+      setPasswordRequired(config.passwordRequired);
+
+      if (!config.passwordRequired) {
+        // No password mode + server unreachable (tunnel flaky) — grant access.
+        // The terminal/sessions hub will show its own connection banner.
+        setAuthenticated(true);
+      } else {
+        setAuthenticated(false);
       }
     }
 
@@ -81,24 +89,12 @@ export function useAuth(): UseAuthReturn {
 
   // Re-check auth when returning from background (e.g. mobile tab switch after hours idle).
   useEffect(() => {
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
-
     function handleVisibility() {
       if (document.hidden) return;
 
       if (!passwordRequired) {
-        // No-password mode: server is always "authenticated", but verify reachability.
-        // If unreachable, keep authenticated=true — the terminal/sessions hub will
-        // show its own connection banner. Once reachable again, everything auto-recovers.
-        checkAuth().then(({ serverReachable }) => {
-          if (!serverReachable && retryTimer === null) {
-            // Schedule a silent retry in case tunnel just needs a moment
-            retryTimer = setTimeout(() => {
-              retryTimer = null;
-              checkAuth(); // fire-and-forget; UI stays on terminal
-            }, 5000);
-          }
-        });
+        // No-password mode: never flip to unauthenticated — the terminal handles
+        // connection issues with its own reconnect banner.
         return;
       }
 
@@ -110,10 +106,7 @@ export function useAuth(): UseAuthReturn {
     }
 
     document.addEventListener('visibilitychange', handleVisibility);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      if (retryTimer !== null) clearTimeout(retryTimer);
-    };
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [authenticated, passwordRequired]);
 
   const login = useCallback(async (password: string): Promise<boolean> => {

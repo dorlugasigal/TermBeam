@@ -186,18 +186,11 @@ export async function getConfig(): Promise<{ passwordRequired: boolean }> {
     const res = await fetchWithTimeout(`${BASE}/api/config`, { credentials: 'same-origin' });
     const ct = res.headers.get('content-type') || '';
     if (!ct.includes('application/json')) {
-      // Non-JSON response (e.g. DevTunnel auth HTML) — use cached value if available.
-      // Default to passwordRequired=true (safe: shows login rather than bypassing auth).
-      const cached = localStorage.getItem('tb:passwordRequired');
-      return { passwordRequired: cached === null ? true : cached !== 'false' };
+      // Non-JSON response (DevTunnel auth page, etc.) — assume password required (safe default)
+      return { passwordRequired: true };
     }
-    const data = (await res.json()) as { passwordRequired: boolean };
-    localStorage.setItem('tb:passwordRequired', String(data.passwordRequired));
-    return data;
+    return (await res.json()) as { passwordRequired: boolean };
   } catch {
-    // Network error — server may be starting up, SW race, or genuinely down.
-    // Always default to passwordRequired=true (safe default) to prevent a stale
-    // no-password cache from bypassing auth on a password-protected server.
     return { passwordRequired: true };
   }
 }
