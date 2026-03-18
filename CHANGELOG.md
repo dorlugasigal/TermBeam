@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.14.3] - 2026-03-18
+
+- fix(pwa): allow Safari to cache icons for home screen display
+
 ## [1.14.2] - 2026-03-18
 
 - fix(pwa): add 180x180 apple-touch-icon for Safari iOS home screen
