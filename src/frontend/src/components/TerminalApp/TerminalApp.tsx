@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { fetchSessions, checkAuth } from '@/services/api';
+import { fetchSessions, checkAuth, clearServiceWorkerCaches } from '@/services/api';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -161,9 +161,10 @@ export function TerminalApp() {
           window.location.replace('/');
         }
       } catch {
-        // Polling will retry, but check if auth is the problem
-        checkAuth().then(({ authenticated }) => {
-          if (!authenticated) window.location.replace('/login');
+        checkAuth().then(({ authenticated, serverReachable }) => {
+          if (!authenticated && serverReachable) window.location.replace('/login');
+        }).catch(() => {
+          // Network error — don't redirect, polling will retry
         });
       }
     }
@@ -176,6 +177,7 @@ export function TerminalApp() {
     pollRef.current = setInterval(async () => {
       try {
         const list: Session[] = await fetchSessions();
+        if (pollFailuresRef.current > 0) clearServiceWorkerCaches();
         pollFailuresRef.current = 0;
         setConnectionLost(false);
         const store = useSessionStore.getState();
@@ -224,9 +226,10 @@ export function TerminalApp() {
         pollFailuresRef.current++;
         if (pollFailuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
           setConnectionLost(true);
-          // Check if auth expired — redirect to login if so
-          checkAuth().then(({ authenticated }) => {
-            if (!authenticated) window.location.replace('/login');
+          checkAuth().then(({ authenticated, serverReachable }) => {
+            if (!authenticated && serverReachable) window.location.replace('/login');
+          }).catch(() => {
+            // Network error — keep showing connection lost banner
           });
         }
       }

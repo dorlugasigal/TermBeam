@@ -117,9 +117,15 @@ export function useAuth(): UseAuthReturn {
 
       // Password mode: if we were authenticated and now we're not, show login
       if (authenticated !== true) return;
-      checkAuth().then(({ authenticated: isAuth }) => {
-        if (!isAuth) setAuthenticated(false);
-      });
+      checkAuth()
+        .then(({ authenticated: isAuth, serverReachable }) => {
+          // Only treat as auth loss if the server explicitly returned 401.
+          // Network timeouts (serverReachable=false) should not flip auth state.
+          if (!isAuth && serverReachable) setAuthenticated(false);
+        })
+        .catch(() => {
+          // Network error — don't change auth state
+        });
     }
 
     document.addEventListener('visibilitychange', handleVisibility);

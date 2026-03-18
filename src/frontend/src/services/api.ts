@@ -268,3 +268,10 @@ export function getShareUrl(): Promise<string> {
     })
     .catch(() => window.location.href);
 }
+
+/** Ask the service worker to purge non-precache caches (e.g. stale navigation HTML). */
+export function clearServiceWorkerCaches(): void {
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHES' });
+  }
+}
