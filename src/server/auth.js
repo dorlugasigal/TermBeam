@@ -9,6 +9,10 @@ const LOGIN_HTML = `<!DOCTYPE html>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1e1e1e" />
+  <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
   <title>TermBeam — Login</title>
   <style>
     :root { --bg:#1e1e1e; --surface:#252526; --border:#3c3c3c; --border-subtle:#474747;
