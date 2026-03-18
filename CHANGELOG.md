@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.14.7] - 2026-03-18
+
+- fix(pwa): serve icons from landing page to bypass DevTunnel auth
+
 ## [1.14.6] - 2026-03-18
 
 - Revert "feat(tunnel): make tunnel public by default for PWA compatibility"
