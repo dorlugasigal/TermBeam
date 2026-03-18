@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.13.6] - 2026-03-18
+
+- fix(pwa): prevent stale login page after idle on no-password servers
+
 ## [1.13.5] - 2026-03-17
 
 - fix(auth): detect tunnel auth expiry and reload PWA
