@@ -118,6 +118,8 @@ curl -H "Authorization: Bearer YOUR_PASSWORD" http://localhost:3456/api/sessions
 
 - **macOS:** `xcode-select --install`
 - **Ubuntu / Debian:** `sudo apt install build-essential python3`
+- **Fedora / RHEL:** `sudo dnf groupinstall "Development Tools"`
+- **Alpine (Docker):** `apk add build-base python3`
 - **Windows (Admin PowerShell):** `npm install --global windows-build-tools`
 
 Ensure your Node.js version is 20 or higher — older versions are not supported.

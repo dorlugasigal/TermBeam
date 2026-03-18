@@ -1,8 +1,27 @@
 const crypto = require('crypto');
 const path = require('path');
 const { exec } = require('child_process');
-const pty = require('node-pty');
 const log = require('../utils/logger');
+
+let pty;
+try {
+  pty = require('node-pty');
+} catch (err) {
+  const isLinux = process.platform === 'linux';
+  console.error('\n  ❌ Failed to load node-pty — terminal sessions require this native module.\n');
+  console.error(`  Error: ${err.message.split('\n')[0]}\n`);
+  if (isLinux) {
+    console.error('  On Linux (including WSL/devbox), you need build tools to compile node-pty:');
+    console.error('    Ubuntu/Debian:  sudo apt-get install -y build-essential python3');
+    console.error('    Fedora/RHEL:    sudo dnf groupinstall "Development Tools"');
+    console.error('    Alpine:         apk add build-base python3\n');
+    console.error('  Then rebuild:     npm rebuild node-pty');
+    console.error('                    (or reinstall: npm i -g termbeam)\n');
+  } else {
+    console.error('  Try rebuilding:   npm rebuild node-pty\n');
+  }
+  process.exit(1);
+}
 const { getGitInfo } = require('../utils/git');
 
 // Cache git info per session to avoid blocking the event loop on every list() call.

@@ -172,7 +172,7 @@ termbeam --persisted-tunnel --password mysecret
 Requirements:
 
 - `devtunnel` CLI — TermBeam will offer to install it automatically if not found
-- Login is handled automatically — if not already logged in, TermBeam will launch `devtunnel user login` for you
+- Login is handled automatically — if not already logged in, TermBeam will attempt browser login first, then fall back to device code flow if the browser is unavailable (useful in WSL or headless environments)
 
 ---
 

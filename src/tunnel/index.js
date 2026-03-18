@@ -14,6 +14,59 @@ let devtunnelCmd = 'devtunnel';
 
 const SAFE_ID_RE = /^[a-zA-Z0-9._-]+$/;
 
+const DEVICE_CODE_INITIAL_TIMEOUT = 15000;
+const DEVICE_CODE_AUTH_TIMEOUT = 120000;
+
+function deviceCodeLogin(cmd) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(cmd, ['user', 'login', '-d'], {
+      stdio: ['inherit', 'pipe', 'pipe'],
+    });
+
+    let gotOutput = false;
+
+    const initialTimer = setTimeout(() => {
+      if (!gotOutput) {
+        proc.kill();
+        reject(
+          new Error(
+            'Device code flow produced no output — devtunnel may not work in this environment.\n' +
+              '  Try logging in manually first: devtunnel user login',
+          ),
+        );
+      }
+    }, DEVICE_CODE_INITIAL_TIMEOUT);
+
+    const overallTimer = setTimeout(() => {
+      proc.kill();
+      reject(new Error('Device code login timed out — authentication was not completed in time.'));
+    }, DEVICE_CODE_AUTH_TIMEOUT);
+
+    proc.stdout.on('data', (data) => {
+      gotOutput = true;
+      process.stdout.write(data);
+    });
+
+    proc.stderr.on('data', (data) => {
+      gotOutput = true;
+      process.stderr.write(data);
+    });
+
+    proc.on('close', (code) => {
+      clearTimeout(initialTimer);
+      clearTimeout(overallTimer);
+      if (code === 0) resolve();
+      else reject(new Error(`Device code login exited with code ${code}`));
+    });
+
+    proc.on('error', (err) => {
+      clearTimeout(initialTimer);
+      clearTimeout(overallTimer);
+      reject(err);
+    });
+  });
+}
+
 function findDevtunnel() {
   // Try devtunnel directly
   try {
@@ -123,7 +176,7 @@ async function startTunnel(port, options = {}) {
         log.info('Browser login failed or unavailable, falling back to device code flow...');
         log.info('A code will be displayed — open the URL on any device to authenticate.');
         try {
-          execFileSync(devtunnelCmd, ['user', 'login', '-d'], { stdio: 'inherit' });
+          await deviceCodeLogin(devtunnelCmd);
         } catch (_loginErr) {
           log.error('');
           log.error('  DevTunnel login failed. To use tunnels, run:');
