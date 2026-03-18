@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.14.0] - 2026-03-18
+
+- feat(cli): add --json flag to termbeam list command
+
 ## [1.13.6] - 2026-03-18
 
 - fix(pwa): prevent stale login page after idle on no-password servers
