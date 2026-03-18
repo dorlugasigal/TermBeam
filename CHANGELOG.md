@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.14.4] - 2026-03-18
+
+- fix(pwa): add icon/manifest tags to login page and fix maskable purpose
+
 ## [1.14.3] - 2026-03-18
 
 - fix(pwa): allow Safari to cache icons for home screen display
