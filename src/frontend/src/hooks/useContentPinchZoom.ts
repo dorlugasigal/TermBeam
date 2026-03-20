@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 
 /**
  * Pinch-to-zoom hook that applies CSS transform: scale() on a target element.
- * Works inside containers with touch-action: none by handling touch events directly.
+ * Uses transform-origin: 0 0 so the scaled content always starts at the top-left
+ * and the container's native scroll handles panning in all directions.
  */
 export function useContentPinchZoom(
   containerRef: React.RefObject<HTMLDivElement | null>,
@@ -13,14 +14,31 @@ export function useContentPinchZoom(
   const startDistRef = useRef(0);
   const startScaleRef = useRef(1);
 
+  const applyScale = useCallback(
+    (newScale: number) => {
+      const target = targetRef.current;
+      if (!target) return;
+      if (newScale <= 1) {
+        target.style.transform = '';
+        target.style.transformOrigin = '';
+        target.style.width = '';
+        target.style.minHeight = '';
+      } else {
+        target.style.transformOrigin = '0 0';
+        target.style.transform = `scale(${newScale})`;
+        // Expand the element's layout size so the container can scroll to see all content
+        target.style.width = `${100 / newScale}%`;
+        target.style.minHeight = `${newScale * 100}%`;
+      }
+    },
+    [targetRef],
+  );
+
   const resetZoom = useCallback(() => {
     scaleRef.current = 1;
     setScale(1);
-    if (targetRef.current) {
-      targetRef.current.style.transform = '';
-      targetRef.current.style.transformOrigin = '';
-    }
-  }, [targetRef]);
+    applyScale(1);
+  }, [applyScale]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -45,24 +63,17 @@ export function useContentPinchZoom(
     function onTouchMove(e: TouchEvent) {
       const t0 = e.touches[0];
       const t1 = e.touches[1];
-      if (e.touches.length === 2 && t0 && t1 && container) {
+      if (e.touches.length === 2 && t0 && t1) {
         e.preventDefault();
         const dist = getDistance(t0, t1);
+        // Min 1x (no zoom out below 100%), max 5x
         const newScale = Math.min(
           5,
-          Math.max(0.5, startScaleRef.current * (dist / startDistRef.current)),
+          Math.max(1, startScaleRef.current * (dist / startDistRef.current)),
         );
         scaleRef.current = newScale;
         setScale(newScale);
-
-        const target = targetRef.current;
-        if (target) {
-          const rect = container.getBoundingClientRect();
-          const midX = (t0.clientX + t1.clientX) / 2 - rect.left + container.scrollLeft;
-          const midY = (t0.clientY + t1.clientY) / 2 - rect.top + container.scrollTop;
-          target.style.transformOrigin = `${midX}px ${midY}px`;
-          target.style.transform = `scale(${newScale})`;
-        }
+        applyScale(newScale);
       }
     }
 
@@ -70,14 +81,10 @@ export function useContentPinchZoom(
       if (e.touches.length < 2 && startDistRef.current > 0) {
         startDistRef.current = 0;
         // Snap back to 1x if close
-        if (Math.abs(scaleRef.current - 1) < 0.1) {
+        if (scaleRef.current < 1.05) {
           scaleRef.current = 1;
           setScale(1);
-          const target = targetRef.current;
-          if (target) {
-            target.style.transform = '';
-            target.style.transformOrigin = '';
-          }
+          applyScale(1);
         }
       }
     }
@@ -91,7 +98,7 @@ export function useContentPinchZoom(
       container.removeEventListener('touchmove', onTouchMove);
       container.removeEventListener('touchend', onTouchEnd);
     };
-  }, [containerRef, targetRef]);
+  }, [containerRef, targetRef, applyScale]);
 
   return { scale, resetZoom };
 }
