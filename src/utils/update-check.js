@@ -73,6 +73,8 @@ function normalizeVersion(version) {
 /**
  * Compare two semver version strings (e.g. "1.10.2" vs "1.11.0").
  * Returns true if `latest` is newer than `current`.
+ * Pre-release versions (e.g. "1.15.3-rc.1") are considered older than
+ * the same stable version ("1.15.3"), so an update will be offered.
  * Returns false if either version cannot be parsed.
  */
 function isNewerVersion(current, latest) {
@@ -83,7 +85,23 @@ function isNewerVersion(current, latest) {
     if (lat[i] > cur[i]) return true;
     if (lat[i] < cur[i]) return false;
   }
+  // Same base version — if current is a pre-release but latest is stable,
+  // the stable release is newer (e.g. 1.15.3-rc.1 → 1.15.3)
+  if (isPreRelease(current) && !isPreRelease(latest)) return true;
   return false;
+}
+
+/**
+ * Check if a version string contains pre-release metadata (e.g. "-rc.1", "-dev.5").
+ */
+function isPreRelease(version) {
+  if (typeof version !== 'string') return false;
+  let v = version.trim();
+  if (v[0] === 'v' || v[0] === 'V') v = v.slice(1);
+  // Strip build metadata first (+foo)
+  const plusIdx = v.indexOf('+');
+  if (plusIdx !== -1) v = v.slice(0, plusIdx);
+  return v.includes('-');
 }
 
 /**
@@ -337,6 +355,7 @@ function isRunningUnderPm2() {
 module.exports = {
   checkForUpdate,
   isNewerVersion,
+  isPreRelease,
   normalizeVersion,
   fetchLatestVersion,
   readCache,

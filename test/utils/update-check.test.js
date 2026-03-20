@@ -103,9 +103,33 @@ describe('update-check', () => {
       assert.equal(isNewerVersion('1.0', '1.0.1'), true);
     });
 
-    it('should handle prerelease versions', () => {
+    it('should treat pre-release as older than same stable version', () => {
       const { isNewerVersion } = require('../../src/utils/update-check');
-      assert.equal(isNewerVersion('1.0.0-beta.1', '1.0.0'), false);
+      // 1.0.0-beta.1 is a pre-release of 1.0.0 — stable 1.0.0 is newer
+      assert.equal(isNewerVersion('1.0.0-beta.1', '1.0.0'), true);
+    });
+
+    it('should treat pre-release as older than newer stable version', () => {
+      const { isNewerVersion } = require('../../src/utils/update-check');
+      assert.equal(isNewerVersion('1.0.0-rc.1', '1.0.1'), true);
+    });
+
+    it('should not show update for pre-release when latest is older stable', () => {
+      const { isNewerVersion } = require('../../src/utils/update-check');
+      // Running 2.0.0-rc.1, latest stable is 1.9.0 — no update
+      assert.equal(isNewerVersion('2.0.0-rc.1', '1.9.0'), false);
+    });
+
+    it('should not treat dev builds as needing update to same base', () => {
+      const { isNewerVersion } = require('../../src/utils/update-check');
+      // Dev builds from git (e.g. 1.15.2-dev.5+gabcdef) — latest is same base
+      assert.equal(isNewerVersion('1.15.2-dev.5+gabcdef', '1.15.2'), true);
+    });
+
+    it('should not show update between two pre-releases of same version', () => {
+      const { isNewerVersion } = require('../../src/utils/update-check');
+      // Both are pre-releases — latest is also pre-release, no update
+      assert.equal(isNewerVersion('1.0.0-rc.1', '1.0.0-rc.2'), false);
     });
 
     it('should return false for unparseable input', () => {
