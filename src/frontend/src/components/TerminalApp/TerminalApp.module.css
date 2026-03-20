@@ -248,7 +248,6 @@
   align-items: center;
   justify-content: center;
   animation: downloadFadeIn 0.2s ease-out;
-  touch-action: pan-x pan-y pinch-zoom;
 }
 
 .downloadPanel {

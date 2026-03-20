@@ -5,6 +5,7 @@ import remarkGemoji from 'remark-gemoji';
 import rehypeRaw from 'rehype-raw';
 import mermaid from 'mermaid';
 import { fetchFileContent } from '@/services/api';
+import { useContentPinchZoom } from '@/hooks/useContentPinchZoom';
 import styles from './MarkdownViewer.module.css';
 
 interface MarkdownViewerProps {
@@ -81,6 +82,10 @@ export function MarkdownViewer({
       .finally(() => setLoading(false));
   }, [sessionId, filePath]);
 
+  const contentRef = useRef<HTMLDivElement>(null);
+  const markdownRef = useRef<HTMLDivElement>(null);
+  const { scale, resetZoom } = useContentPinchZoom(contentRef, markdownRef);
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -88,15 +93,20 @@ export function MarkdownViewer({
           ←
         </button>
         <span className={styles.fileName}>📄 {fileName}</span>
+        {scale !== 1 && (
+          <button className={styles.zoomReset} onClick={resetZoom} title="Reset zoom">
+            {Math.round(scale * 100)}%
+          </button>
+        )}
       </div>
-      <div className={styles.content}>
+      <div className={styles.content} ref={contentRef}>
         {loading ? (
           <div className={styles.loading}>Loading…</div>
         ) : error ? (
           <div className={styles.error}>{error}</div>
         ) : (
           // eslint-disable-next-line jsx-a11y/click-events-have-key-events
-          <div className={styles.markdown}>
+          <div className={styles.markdown} ref={markdownRef}>
             <Markdown
               remarkPlugins={[remarkGfm, remarkGemoji]}
               rehypePlugins={[rehypeRaw]}
