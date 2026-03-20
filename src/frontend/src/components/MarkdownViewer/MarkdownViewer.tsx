@@ -105,8 +105,11 @@ export function MarkdownViewer({
         ) : error ? (
           <div className={styles.error}>{error}</div>
         ) : (
-          // eslint-disable-next-line jsx-a11y/click-events-have-key-events
-          <div className={styles.markdown} ref={markdownRef}>
+          <div
+            className={styles.zoomWrapper}
+            style={scale > 1 ? { width: `${scale * 100}%`, height: `${scale * 100}%` } : undefined}
+          >
+            <div className={styles.markdown} ref={markdownRef}>
             <Markdown
               remarkPlugins={[remarkGfm, remarkGemoji]}
               rehypePlugins={[rehypeRaw]}
@@ -168,6 +171,7 @@ export function MarkdownViewer({
             >
               {content}
             </Markdown>
+          </div>
           </div>
         )}
       </div>

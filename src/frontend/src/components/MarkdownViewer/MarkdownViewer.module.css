@@ -97,6 +97,11 @@
 }
 
 /* Markdown content styles */
+.zoomWrapper {
+  display: inline-block;
+  min-width: 100%;
+}
+
 .markdown {
   padding: 16px 20px;
   font-size: 0.88rem;

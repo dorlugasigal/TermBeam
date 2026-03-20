@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 /**
- * Pinch-to-zoom hook that applies CSS transform: scale() on a target element.
- * Uses transform-origin: 0 0 so the scaled content always starts at the top-left
- * and the container's native scroll handles panning in all directions.
+ * Pinch-to-zoom hook — true visual zoom (like a magnifying glass).
+ * Scales the target element via CSS transform and wraps it in a scrollable
+ * area so the user can pan around the zoomed content.
  */
 export function useContentPinchZoom(
   containerRef: React.RefObject<HTMLDivElement | null>,
@@ -13,25 +13,25 @@ export function useContentPinchZoom(
   const scaleRef = useRef(1);
   const startDistRef = useRef(0);
   const startScaleRef = useRef(1);
+  const isPinchingRef = useRef(false);
 
   const applyScale = useCallback(
-    (newScale: number) => {
+    (s: number) => {
       const target = targetRef.current;
-      if (!target) return;
-      if (newScale <= 1) {
+      const container = containerRef.current;
+      if (!target || !container) return;
+
+      if (s <= 1) {
         target.style.transform = '';
         target.style.transformOrigin = '';
-        target.style.width = '';
-        target.style.minHeight = '';
+        container.style.overflow = '';
       } else {
         target.style.transformOrigin = '0 0';
-        target.style.transform = `scale(${newScale})`;
-        // Expand the element's layout size so the container can scroll to see all content
-        target.style.width = `${100 / newScale}%`;
-        target.style.minHeight = `${newScale * 100}%`;
+        target.style.transform = `scale(${s})`;
+        container.style.overflow = 'scroll';
       }
     },
-    [targetRef],
+    [targetRef, containerRef],
   );
 
   const resetZoom = useCallback(() => {
@@ -55,6 +55,7 @@ export function useContentPinchZoom(
       const t1 = e.touches[1];
       if (e.touches.length === 2 && t0 && t1) {
         e.preventDefault();
+        isPinchingRef.current = true;
         startDistRef.current = getDistance(t0, t1);
         startScaleRef.current = scaleRef.current;
       }
@@ -63,10 +64,9 @@ export function useContentPinchZoom(
     function onTouchMove(e: TouchEvent) {
       const t0 = e.touches[0];
       const t1 = e.touches[1];
-      if (e.touches.length === 2 && t0 && t1) {
+      if (e.touches.length === 2 && t0 && t1 && isPinchingRef.current) {
         e.preventDefault();
         const dist = getDistance(t0, t1);
-        // Min 1x (no zoom out below 100%), max 5x
         const newScale = Math.min(
           5,
           Math.max(1, startScaleRef.current * (dist / startDistRef.current)),
@@ -78,9 +78,9 @@ export function useContentPinchZoom(
     }
 
     function onTouchEnd(e: TouchEvent) {
-      if (e.touches.length < 2 && startDistRef.current > 0) {
+      if (e.touches.length < 2 && isPinchingRef.current) {
+        isPinchingRef.current = false;
         startDistRef.current = 0;
-        // Snap back to 1x if close
         if (scaleRef.current < 1.05) {
           scaleRef.current = 1;
           setScale(1);
