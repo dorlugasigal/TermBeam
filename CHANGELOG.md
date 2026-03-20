@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.15.0] - 2026-03-20
+
+- test: add coverage for file endpoint security features
+- fix: address PR review comments — security, a11y, docs
+- feat(download): add confirmation dialog and progress bar
+- fix(markdown): attach pinch listeners to container, read refs lazily
+- perf(markdown): smooth pinch-zoom with RAF, fix center tracking
+- fix(markdown): zoom centers on pinch midpoint
+- fix(markdown): true bitmap-style pinch-to-zoom
+- fix(markdown): use CSS zoom for pinch-to-zoom
+- fix(markdown): true visual zoom with proper scroll panning
+- fix(markdown): clamp zoom min to 100%, fix pan scrolling
+- fix(markdown): implement JS-based pinch-to-zoom
+- feat(markdown): add emoji shortcodes and pinch-to-zoom
+- feat: upgrade markdown viewer with images, mermaid, HTML, and links
+- fix: remove path traversal restriction, enable parent directory navigation
+- feat(ui): split markdown viewer into separate tool in CommandPalette
+- fix(ui): move download button into CommandPalette side toolbar
+- fix(ui): add disabled styling for download toolbar button
+- feat(ui): add download button to top bar toolbar
+- fix: rename button to Download File
+- fix: update docs to match renamed Downloads button
+- fix: rename Files button to Downloads in side panel
+- docs: add file browser, download, and markdown viewer documentation
+- feat: add markdown file viewer in file browser
+
 ## [1.14.7] - 2026-03-18
 
 - fix(pwa): serve icons from landing page to bypass DevTunnel auth
