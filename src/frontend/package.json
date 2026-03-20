@@ -28,6 +28,7 @@
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
     "rehype-raw": "^7.0.0",
+    "remark-gemoji": "^8.0.0",
     "remark-gfm": "^4.0.1",
     "sonner": "^2.0.3",
     "workbox-cacheable-response": "^7.4.0",

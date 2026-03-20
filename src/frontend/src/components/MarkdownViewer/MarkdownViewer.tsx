@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkGemoji from 'remark-gemoji';
 import rehypeRaw from 'rehype-raw';
 import mermaid from 'mermaid';
 import { fetchFileContent } from '@/services/api';
@@ -97,7 +98,7 @@ export function MarkdownViewer({
           // eslint-disable-next-line jsx-a11y/click-events-have-key-events
           <div className={styles.markdown}>
             <Markdown
-              remarkPlugins={[remarkGfm]}
+              remarkPlugins={[remarkGfm, remarkGemoji]}
               rehypePlugins={[rehypeRaw]}
               components={{
                 img: ({ src, alt, ...props }) => {
