@@ -143,6 +143,27 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
         if (startTarget && terminalRef.current?.contains(startTarget)) {
           if (!active) setActiveId(sessionId);
           terminal.focus();
+          terminal.textarea?.focus(); // xterm.js #789 workaround
+
+          // Forward tap as synthetic mouse events so xterm.js can report
+          // click coordinates to TUI apps (gh, vim, fzf, etc.) that have
+          // enabled mouse tracking mode. When no app has mouse mode active,
+          // xterm.js ignores the mouse event — no side effects.
+          const xtermEl = terminal.element;
+          if (xtermEl) {
+            const mouseOpts: MouseEventInit = {
+              clientX: startX,
+              clientY: startY,
+              button: 0,
+              buttons: 1,
+              bubbles: true,
+              cancelable: true,
+            };
+            xtermEl.dispatchEvent(new MouseEvent('mousedown', mouseOpts));
+            xtermEl.dispatchEvent(
+              new MouseEvent('mouseup', { ...mouseOpts, buttons: 0 }),
+            );
+          }
         }
       }
     };
@@ -214,6 +235,62 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     }
     prevOverlayRef.current = anyOverlayOpen;
   }, [anyOverlayOpen, active, terminal]);
+
+  // xterm.js bug workaround (#789): TUI apps that enable mouse tracking
+  // (bubbletea, vim, htop) can cause xterm.js to lose its internal focus
+  // state. When the app exits (alt-screen → normal), the terminal appears
+  // focused but the hidden <textarea> that captures keystrokes has lost
+  // focus, making it impossible to type. Detect this transition and
+  // forcefully restore focus.
+  const wasAltScreenRef = useRef(false);
+  useEffect(() => {
+    if (!terminal || !active) return;
+
+    const disposable = terminal.buffer.onBufferChange((buf) => {
+      const isAlt = buf.type === 'alternate';
+      if (wasAltScreenRef.current && !isAlt) {
+        // TUI app just exited alt-screen — force focus restoration
+        requestAnimationFrame(() => {
+          terminal.focus();
+          terminal.textarea?.focus();
+        });
+      }
+      wasAltScreenRef.current = isAlt;
+    });
+
+    return () => disposable.dispose();
+  }, [terminal, active]);
+
+  // Mobile focus guard: when the terminal textarea loses focus unexpectedly
+  // (e.g. PTY resize reflow after another client disconnects, or xterm.js
+  // mouse-mode bug #789), immediately re-focus it. Mobile browsers block
+  // programmatic .focus() from timers/callbacks, but within a blur event
+  // handler we get a brief window where re-focusing still works.
+  // Only active when the pane is focused and no overlay is stealing focus.
+  useEffect(() => {
+    if (!terminal || !active) return;
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (!isTouchDevice) return;
+    const ta = terminal.textarea;
+    if (!ta) return;
+
+    const onBlur = () => {
+      // Don't fight legitimate blurs (overlay open, pane inactive, etc.)
+      const { commandPaletteOpen, searchBarOpen, sidePanelOpen, copyOverlayOpen } =
+        useUIStore.getState();
+      if (commandPaletteOpen || searchBarOpen || sidePanelOpen || copyOverlayOpen) return;
+
+      // Re-focus immediately within the blur event context
+      requestAnimationFrame(() => {
+        if (document.activeElement !== ta) {
+          ta.focus();
+        }
+      });
+    };
+
+    ta.addEventListener('blur', onBlur);
+    return () => ta.removeEventListener('blur', onBlur);
+  }, [terminal, active]);
 
   // Track scroll position for scroll-to-bottom button.
   // Throttle to avoid excessive React re-renders during rapid output.
@@ -389,14 +466,23 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
       vp.dispatchEvent(wheelEvt);
     }
 
+    // Use a "lazy claim" pattern: don't preventDefault on touchstart so that
+    // taps can still synthesise mouse events for TUI apps. Only claim the
+    // gesture once actual movement is detected in touchmove.
+    const SCROLL_CLAIM_PX = 4;
+    let startY = 0;
+    let claimed = false;
+
     function onTouchStart(e: TouchEvent) {
       if (e.touches.length !== 1) return;
       cancelAnimationFrame(coastRaf);
       tracking = true;
-      lastY = e.touches[0]!.clientY;
+      claimed = false;
+      startY = e.touches[0]!.clientY;
+      lastY = startY;
       lastTime = performance.now();
       velocity = 0;
-      e.preventDefault();
+      // Don't preventDefault here — allow taps to reach xterm.js mouse handler
       e.stopPropagation();
     }
 
@@ -405,10 +491,18 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
         tracking = false;
         return;
       }
+
+      const y = e.touches[0]!.clientY;
+
+      // Claim the gesture once movement exceeds threshold
+      if (!claimed) {
+        if (Math.abs(y - startY) < SCROLL_CLAIM_PX) return;
+        claimed = true;
+      }
+
       e.stopPropagation();
       e.preventDefault();
 
-      const y = e.touches[0]!.clientY;
       const now = performance.now();
       const dt = now - lastTime;
       const dy = lastY - y;
@@ -438,8 +532,8 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     function onTouchEnd() {
       if (!tracking) return;
       tracking = false;
-      // Momentum coasting only for normal buffer — flooding wheel events would be jarring
-      if (!isAltScreen() && Math.abs(velocity) > 0.15) {
+      // Momentum coasting only for claimed scrolls in normal buffer
+      if (claimed && !isAltScreen() && Math.abs(velocity) > 0.15) {
         coastRaf = requestAnimationFrame(coast);
       }
     }
@@ -541,7 +635,11 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
 
   const handlePaneClick = useCallback(() => {
     if (!active) setActiveId(sessionId);
+    // Belt-and-suspenders: focus both the terminal and its internal textarea.
+    // xterm.js bug #789 can leave the textarea unfocused after mouse-mode TUI
+    // interactions, making terminal.focus() alone insufficient.
     terminal?.focus();
+    terminal?.textarea?.focus();
   }, [terminal, active, sessionId, setActiveId]);
 
   const showReconnectOverlay = !connected && !exited && hadConnectedRef.current;
