@@ -234,3 +234,65 @@
 .markdown del {
   color: var(--text-muted);
 }
+
+/* Mermaid diagrams */
+.mermaid {
+  display: flex;
+  justify-content: center;
+  margin: 1em 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Inline HTML support — ensure nested elements render properly */
+.markdown details {
+  margin: 0.5em 0;
+  padding: 0.5em 1em;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.markdown summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.markdown kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 0.8em;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.markdown sup,
+.markdown sub {
+  font-size: 0.75em;
+}
+
+.markdown figure {
+  margin: 1em 0;
+  text-align: center;
+}
+
+.markdown figcaption {
+  font-size: 0.8em;
+  color: var(--text-muted);
+  margin-top: 0.5em;
+}
+
+.markdown video,
+.markdown iframe {
+  max-width: 100%;
+  border-radius: 6px;
+}

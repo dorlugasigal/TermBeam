@@ -529,6 +529,32 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     res.sendFile(filePath);
   });
 
+  // Serve a file inline (for images in markdown viewer, etc.)
+  app.get('/api/sessions/:id/file-raw', apiRateLimit, auth.middleware, (req, res) => {
+    const session = sessions.sessions.get(req.params.id);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    const file = req.query.file;
+    if (!file) return res.status(400).json({ error: 'Missing file parameter' });
+
+    const rootDir = path.resolve(session.cwd);
+    const filePath = path.resolve(rootDir, file);
+
+    try {
+      const stat = fs.statSync(filePath);
+      if (!stat.isFile()) {
+        return res.status(400).json({ error: 'Not a regular file' });
+      }
+      if (stat.size > 20 * 1024 * 1024) {
+        return res.status(413).json({ error: 'File too large (max 20 MB)' });
+      }
+    } catch (err) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    res.sendFile(filePath);
+  });
+
   // Read file content as text (for markdown viewer, etc.)
   app.get('/api/sessions/:id/file-content', apiRateLimit, auth.middleware, (req, res) => {
     const session = sessions.sessions.get(req.params.id);

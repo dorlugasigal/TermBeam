@@ -90,6 +90,7 @@ export function MarkdownBrowser({ sessionId, rootDir, onClose }: MarkdownBrowser
         filePath={viewingFile.path}
         fileName={viewingFile.name}
         onClose={() => setViewingFile(null)}
+        onNavigate={(path, name) => setViewingFile({ path, name })}
       />
     );
   }

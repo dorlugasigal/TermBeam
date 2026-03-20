@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import mermaid from 'mermaid';
 import { fetchFileContent } from '@/services/api';
 import styles from './MarkdownViewer.module.css';
 
@@ -9,9 +11,62 @@ interface MarkdownViewerProps {
   filePath: string;
   fileName: string;
   onClose: () => void;
+  onNavigate?: (filePath: string, fileName: string) => void;
 }
 
-export function MarkdownViewer({ sessionId, filePath, fileName, onClose }: MarkdownViewerProps) {
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  securityLevel: 'loose',
+});
+
+let mermaidCounter = 0;
+
+function MermaidBlock({ code }: { code: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const id = `mermaid-${++mermaidCounter}`;
+    mermaid
+      .render(id, code)
+      .then(({ svg }) => {
+        if (ref.current) ref.current.innerHTML = svg;
+      })
+      .catch(() => {
+        if (ref.current) {
+          ref.current.textContent = code;
+          ref.current.style.whiteSpace = 'pre';
+        }
+      });
+  }, [code]);
+
+  return <div ref={ref} className={styles.mermaid} />;
+}
+
+function resolveRelativePath(base: string, relative: string): string {
+  if (relative.startsWith('/')) return relative;
+  const baseDir = base.substring(0, base.lastIndexOf('/'));
+  const parts = (baseDir + '/' + relative).split('/');
+  const resolved: string[] = [];
+  for (const part of parts) {
+    if (part === '..') resolved.pop();
+    else if (part !== '.' && part !== '') resolved.push(part);
+  }
+  return '/' + resolved.join('/');
+}
+
+function isExternalUrl(src: string): boolean {
+  return /^https?:\/\/|^data:|^blob:/i.test(src);
+}
+
+export function MarkdownViewer({
+  sessionId,
+  filePath,
+  fileName,
+  onClose,
+  onNavigate,
+}: MarkdownViewerProps) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,8 +94,69 @@ export function MarkdownViewer({ sessionId, filePath, fileName, onClose }: Markd
         ) : error ? (
           <div className={styles.error}>{error}</div>
         ) : (
+          // eslint-disable-next-line jsx-a11y/click-events-have-key-events
           <div className={styles.markdown}>
-            <Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown>
+            <Markdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeRaw]}
+              components={{
+                img: ({ src, alt, ...props }) => {
+                  if (!src || isExternalUrl(src)) {
+                    return <img src={src} alt={alt} {...props} />;
+                  }
+                  const resolved = resolveRelativePath(filePath, src);
+                  const url = `/api/sessions/${sessionId}/file-raw?file=${encodeURIComponent(resolved)}`;
+                  return <img src={url} alt={alt} {...props} />;
+                },
+                a: ({ href, children, ...props }) => {
+                  const h = href || '';
+                  const mdTarget = h ? h.split('#')[0] || '' : '';
+                  if (h && !isExternalUrl(h) && /\.(md|markdown)$/i.test(mdTarget)) {
+                    return (
+                      <a
+                        href={h}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const resolved = resolveRelativePath(filePath, mdTarget);
+                          const name = resolved.split('/').pop() || resolved;
+                          if (onNavigate) onNavigate(resolved, name);
+                        }}
+                        {...props}
+                      >
+                        {children}
+                      </a>
+                    );
+                  }
+                  return (
+                    <a href={href} {...props}>
+                      {children}
+                    </a>
+                  );
+                },
+                code: ({ className, children, ...props }) => {
+                  const match = /language-mermaid/i.exec(className || '');
+                  if (match) {
+                    return <MermaidBlock code={String(children).trim()} />;
+                  }
+                  // Check if this is a block-level code (inside <pre>)
+                  const isInline = !className;
+                  if (isInline) {
+                    return (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    );
+                  }
+                  return (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+              }}
+            >
+              {content}
+            </Markdown>
           </div>
         )}
       </div>
