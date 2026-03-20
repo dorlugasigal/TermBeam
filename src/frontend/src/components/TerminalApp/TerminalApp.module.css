@@ -69,6 +69,16 @@
   color: var(--text);
 }
 
+.barBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.barBtn:disabled:hover {
+  background: none;
+  color: var(--text-dim);
+}
+
 .barBtnWithLabel {
   width: auto;
   padding: 0 10px;
