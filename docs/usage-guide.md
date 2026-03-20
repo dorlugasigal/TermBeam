@@ -52,7 +52,7 @@ Once you've [started TermBeam](getting-started.md) and connected from your devic
 The file browser lets you browse and download files from a session's working directory directly in the browser — useful for pulling logs, configs, or build artifacts to your phone or laptop.
 
 1. Open the **side panel** (hamburger menu or swipe from left)
-2. Tap **⬇️ Downloads** in the footer — the panel switches to show the active session's files
+2. Tap **⬇️ Download File** in the footer — the panel switches to show the active session's files
 3. Navigate into subdirectories by tapping folder entries
 4. Tap the **⬇️** button next to any file to download it
 5. Use the **breadcrumb bar** at the top to jump back to parent directories
