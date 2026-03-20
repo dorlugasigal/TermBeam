@@ -7,6 +7,13 @@ const { createTermBeamServer } = require('../../src/server');
 
 // --- Helpers ---
 
+// On Windows, node-pty ConPTY holds directory locks briefly after shutdown.
+// Use async rm with retries to avoid EBUSY failures in test cleanup.
+async function safeCleanup(dir) {
+  if (!dir) return;
+  await fs.promises.rm(dir, { recursive: true, force: true, maxRetries: 4, retryDelay: 250 });
+}
+
 const baseConfig = {
   port: 0,
   host: '127.0.0.1',
@@ -1333,9 +1340,9 @@ describe('Routes', () => {
     let inst;
     let tmpDir;
 
-    after(() => {
+    after(async () => {
       inst?.shutdown();
-      if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+      await safeCleanup(tmpDir);
     });
 
     async function setup() {
@@ -1449,7 +1456,7 @@ describe('Routes', () => {
         assert.strictEqual(res.statusCode, 401);
       } finally {
         pwInst.shutdown();
-        fs.rmSync(pwTmpDir, { recursive: true, force: true });
+        await safeCleanup(pwTmpDir);
       }
     });
 
@@ -1485,9 +1492,9 @@ describe('Routes', () => {
     let inst;
     let tmpDir;
 
-    after(() => {
+    after(async () => {
       inst?.shutdown();
-      if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+      await safeCleanup(tmpDir);
     });
 
     async function setup() {
@@ -1577,7 +1584,7 @@ describe('Routes', () => {
         assert.strictEqual(res.statusCode, 401);
       } finally {
         pwInst.shutdown();
-        fs.rmSync(pwTmpDir, { recursive: true, force: true });
+        await safeCleanup(pwTmpDir);
       }
     });
 
@@ -1603,9 +1610,9 @@ describe('Routes', () => {
     let inst;
     let tmpDir;
 
-    after(() => {
+    after(async () => {
       inst?.shutdown();
-      if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+      await safeCleanup(tmpDir);
     });
 
     async function setup() {
@@ -1712,7 +1719,7 @@ describe('Routes', () => {
         assert.strictEqual(res.statusCode, 401);
       } finally {
         pwInst.shutdown();
-        fs.rmSync(pwTmpDir, { recursive: true, force: true });
+        await safeCleanup(pwTmpDir);
       }
     });
 
@@ -1738,9 +1745,9 @@ describe('Routes', () => {
     let inst;
     let tmpDir;
 
-    after(() => {
+    after(async () => {
       inst?.shutdown();
-      if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+      await safeCleanup(tmpDir);
     });
 
     async function setup() {
@@ -1786,9 +1793,9 @@ describe('Routes', () => {
   describe('Query param type validation', () => {
     let inst;
     let tmpDir;
-    after(() => {
+    after(async () => {
       inst?.shutdown();
-      if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+      await safeCleanup(tmpDir);
     });
 
     async function setup() {
@@ -1855,9 +1862,9 @@ describe('Routes', () => {
   describe('Symlink rejection', () => {
     let inst;
     let tmpDir;
-    after(() => {
+    after(async () => {
       inst?.shutdown();
-      if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+      await safeCleanup(tmpDir);
     });
 
     async function setup() {
@@ -1927,9 +1934,9 @@ describe('Routes', () => {
   describe('/files truncated flag', () => {
     let inst;
     let tmpDir;
-    after(() => {
+    after(async () => {
       inst?.shutdown();
-      if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+      await safeCleanup(tmpDir);
     });
 
     async function setup() {
@@ -1975,9 +1982,9 @@ describe('Routes', () => {
   describe('GET /api/sessions/:id/file-raw', () => {
     let inst;
     let tmpDir;
-    after(() => {
+    after(async () => {
       inst?.shutdown();
-      if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+      await safeCleanup(tmpDir);
     });
 
     async function setup() {
@@ -2059,9 +2066,9 @@ describe('Routes', () => {
   describe('/files generic error message', () => {
     let inst;
     let tmpDir;
-    after(() => {
+    after(async () => {
       inst?.shutdown();
-      if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+      await safeCleanup(tmpDir);
     });
 
     async function setup() {
