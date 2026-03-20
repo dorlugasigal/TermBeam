@@ -130,14 +130,16 @@ function setupRoutes(app, { auth, sessions, config, state }) {
         .json({ error: 'Update already attempted recently. Try again in a few minutes.' }),
   });
 
-  app.post('/api/update', updateTriggerLimit, auth.middleware, async (req, res) => {
+  app.post('/api/update', auth.middleware, updateTriggerLimit, async (req, res) => {
     const { detectInstallMethod } = require('../utils/update-check');
-    const { getUpdateState, executeUpdate } = require('../utils/update-executor');
+    const { getUpdateState, executeUpdate, resetState } = require('../utils/update-executor');
 
     const currentState = getUpdateState();
     if (currentState.status !== 'idle' && currentState.status !== 'failed') {
       return res.status(409).json({ error: 'Update already in progress', state: currentState });
     }
+    // Reset state if retrying after a failure
+    if (currentState.status === 'failed') resetState();
 
     const installInfo = detectInstallMethod();
     if (!installInfo.canAutoUpdate) {

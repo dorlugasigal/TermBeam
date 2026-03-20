@@ -281,19 +281,21 @@ function detectInstallMethod() {
     };
   }
 
-  // Docker — check for /.dockerenv or /proc/1/cgroup containing docker
-  if (isRunningInDocker()) {
-    log.debug('Install method: docker');
+  // Development / git clone — not in node_modules and .git exists
+  // Check before Docker: a git checkout running inside a container (CI/devcontainers)
+  // should be treated as source, not Docker
+  if (isRunningFromSource()) {
+    log.debug('Install method: source');
     return {
-      method: 'docker',
-      command: 'docker pull termbeam:latest && docker-compose up -d',
+      method: 'source',
+      command: 'git pull && npm install && npm run build:frontend',
       canAutoUpdate: false,
       restartStrategy: 'none',
     };
   }
 
-  // Development / git clone — not in node_modules and .git exists
-  if (isRunningFromSource()) {
+  // Docker — check for /.dockerenv or /proc/1/cgroup containing docker
+  if (isRunningInDocker()) {
     log.debug('Install method: source');
     return {
       method: 'source',

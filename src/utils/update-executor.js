@@ -89,14 +89,14 @@ async function checkPermissions(method) {
     }
   }
 
-  // Check if npm global prefix is writable (only for npm — yarn/pnpm have different paths)
+  // Check if npm global directory is writable (only for npm — yarn/pnpm have different paths)
   if (cmd === 'npm') {
     try {
-      const prefix = (
-        await execFilePromise('npm', ['config', 'get', 'prefix'], { timeout: VERIFY_TIMEOUT_MS })
+      // Use `npm root -g` for the actual global node_modules path (cross-platform)
+      const globalRoot = (
+        await execFilePromise('npm', ['root', '-g'], { timeout: VERIFY_TIMEOUT_MS })
       ).stdout.trim();
-      const libDir = path.join(prefix, 'lib', 'node_modules');
-      await fs.promises.access(libDir, fs.constants.W_OK);
+      await fs.promises.access(globalRoot, fs.constants.W_OK);
     } catch {
       return {
         canUpdate: false,
@@ -130,7 +130,7 @@ async function executeUpdate({
   onProgress,
   performRestart,
 }) {
-  if (updateState.status !== 'idle') {
+  if (updateState.status !== 'idle' && updateState.status !== 'failed') {
     return { ...updateState, error: 'Update already in progress' };
   }
 

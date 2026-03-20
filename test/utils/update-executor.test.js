@@ -96,7 +96,6 @@ describe('update-executor', () => {
 
   describe('executeUpdate', () => {
     it('should reject if already updating', async () => {
-      // We need to manipulate the internal state
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const mod = require('../../src/utils/update-executor');
       // Start a fake update that won't resolve
@@ -109,9 +108,23 @@ describe('update-executor', () => {
         performRestart: () => neverResolve,
       });
 
-      // Try to start another one immediately — state should be non-idle
+      // State should now reflect an in-progress update
       const state = mod.getUpdateState();
       assert.notEqual(state.status, 'idle');
+
+      // A second update attempt while one is in progress should return an error
+      const result = await mod.executeUpdate({
+        currentVersion: '1.0.0',
+        command: 'echo noop2',
+        method: 'npm',
+        restartStrategy: 'exit',
+        performRestart: () => neverResolve,
+      });
+      assert.ok(result.error, 'second call should return an error');
+      assert.ok(
+        /already/i.test(result.error),
+        `expected "already in progress", got: ${result.error}`,
+      );
     });
   });
 });

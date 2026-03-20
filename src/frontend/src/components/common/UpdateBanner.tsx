@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { checkUpdate, triggerUpdate, type UpdateState } from '@/services/api';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { checkUpdate, triggerUpdate, getUpdateStatus, type UpdateState } from '@/services/api';
 import styles from './UpdateBanner.module.css';
 
 type BannerState =
@@ -21,23 +21,28 @@ export default function UpdateBanner() {
   const [state, setState] = useState<BannerState>({ kind: 'hidden' });
   const [dismissed, setDismissed] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
+  // Persist the update command across state transitions so it's available in error states
+  const commandRef = useRef('');
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     checkUpdate().then((result) => {
       if (result?.updateAvailable) {
+        const cmd = result.command ?? 'npm install -g termbeam@latest';
+        commandRef.current = cmd;
         setState({
           kind: 'available',
           current: result.current,
           latest: result.latest,
           canAutoUpdate: result.canAutoUpdate ?? false,
           method: result.method ?? 'npm',
-          command: result.command ?? 'npm install -g termbeam@latest',
+          command: cmd,
         });
       }
     });
   }, []);
 
-  // Listen for WebSocket update-progress events
+  // Listen for WebSocket update-progress events (empty deps — attach once)
   useEffect(() => {
     function handleWsMessage(event: MessageEvent) {
       try {
@@ -62,7 +67,7 @@ export default function UpdateBanner() {
           setState({
             kind: 'failed',
             error: s.error || 'Unknown error',
-            command: (state as { command?: string }).command || '',
+            command: commandRef.current,
           });
         }
       } catch {
@@ -70,11 +75,59 @@ export default function UpdateBanner() {
       }
     }
 
-    // Attach to all existing WebSocket connections via a global event
     window.addEventListener('termbeam:ws-message', handleWsMessage as EventListener);
     return () =>
       window.removeEventListener('termbeam:ws-message', handleWsMessage as EventListener);
-  }, [state]);
+  }, []);
+
+  // Poll fallback: when update is in progress, poll /api/update/status every 2s
+  // in case WS events aren't reaching us (e.g., SessionsHub with no terminal WS)
+  useEffect(() => {
+    const isUpdating = state.kind === 'updating' || state.kind === 'restarting';
+    if (isUpdating && !pollRef.current) {
+      pollRef.current = setInterval(async () => {
+        const status = await getUpdateStatus();
+        if (!status) return;
+        if (status.status === 'complete') {
+          setState({ kind: 'success', toVersion: status.toVersion || '?' });
+        } else if (status.status === 'failed') {
+          setState({
+            kind: 'failed',
+            error: status.error || 'Unknown error',
+            command: commandRef.current,
+          });
+        } else if (status.status === 'restarting') {
+          setState({
+            kind: 'restarting',
+            toVersion: status.toVersion || '?',
+            restartStrategy: status.restartStrategy || 'exit',
+          });
+        } else if (
+          status.status === 'installing' ||
+          status.status === 'checking-permissions' ||
+          status.status === 'verifying'
+        ) {
+          setState({ kind: 'updating', phase: status.phase || 'Updating...' });
+        }
+      }, 2000);
+    } else if (!isUpdating && pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [state.kind]);
+
+  // Auto-dismiss success banner after 5 seconds
+  useEffect(() => {
+    if (state.kind !== 'success') return;
+    const timer = setTimeout(() => setDismissed(true), 5000);
+    return () => clearTimeout(timer);
+  }, [state.kind]);
 
   const handleUpdateNow = useCallback(async () => {
     setState({ kind: 'updating', phase: 'Starting update...' });
@@ -84,31 +137,59 @@ export default function UpdateBanner() {
         setState({
           kind: 'failed',
           error: result.error,
-          command: result.command || '',
+          command: result.command || commandRef.current,
         });
       }
-      // If successful, WS events will drive the state from here
+      // If successful, WS events (or poll fallback) will drive the state from here
     } catch (err) {
       setState({
         kind: 'failed',
         error: err instanceof Error ? err.message : 'Update request failed',
-        command: '',
+        command: commandRef.current,
       });
     }
   }, []);
 
-  const handleCopyCommand = useCallback((command: string) => {
-    navigator.clipboard.writeText(command).then(() => {
+  const handleCopyCommand = useCallback(async (command: string) => {
+    const showCopiedFeedback = () => {
       setShowCopied(true);
       setTimeout(() => setShowCopied(false), 2000);
-    });
+    };
+
+    try {
+      if (
+        typeof navigator !== 'undefined' &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === 'function'
+      ) {
+        await navigator.clipboard.writeText(command);
+        showCopiedFeedback();
+        return;
+      }
+    } catch {
+      // Ignore and try the fallback below.
+    }
+
+    // Fallback for environments without navigator.clipboard support.
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = command;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'absolute';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      showCopiedFeedback();
+    } catch {
+      // Copy failed silently — nothing we can do
+    }
   }, []);
 
   if (state.kind === 'hidden' || dismissed) return null;
 
   if (state.kind === 'success') {
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => setDismissed(true), 5000);
     return (
       <div className={`${styles.banner} ${styles.success}`}>
         <span className={styles.text}>✓ Updated to v{state.toVersion}</span>

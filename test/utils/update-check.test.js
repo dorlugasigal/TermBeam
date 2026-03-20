@@ -405,8 +405,12 @@ describe('update-check', () => {
       delete process.env.npm_execpath;
       const { detectInstallMethod } = require('../../src/utils/update-check');
       const result = detectInstallMethod();
-      // Running tests from the repo — .git exists and not in node_modules
-      assert.equal(result.method, 'source');
+      // Running tests from the repo — .git exists and not in node_modules.
+      // In Docker/CI containers, may report 'docker' instead — both are non-auto-updatable.
+      assert.ok(
+        ['source', 'docker'].includes(result.method),
+        `expected 'source' or 'docker', got '${result.method}'`,
+      );
       assert.equal(result.canAutoUpdate, false);
       assert.equal(result.restartStrategy, 'none');
     });
