@@ -1,12 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
-import { browseFiles, downloadFile } from '@/services/api';
+import { browseFiles } from '@/services/api';
 import type { FileEntry } from '@/services/api';
-import styles from './FileBrowser.module.css';
+import { MarkdownViewer } from '@/components/MarkdownViewer/MarkdownViewer';
+import styles from './MarkdownBrowser.module.css';
 
-interface FileBrowserProps {
+interface MarkdownBrowserProps {
   sessionId: string;
   rootDir: string;
   onClose: () => void;
+}
+
+function isMarkdownFile(name: string): boolean {
+  return /\.(md|markdown)$/i.test(name);
 }
 
 function formatSize(bytes: number): string {
@@ -17,11 +22,12 @@ function formatSize(bytes: number): string {
   return `${size < 10 ? size.toFixed(1) : Math.round(size)} ${units[i]}`;
 }
 
-export function FileBrowser({ sessionId, rootDir, onClose }: FileBrowserProps) {
+export function MarkdownBrowser({ sessionId, rootDir, onClose }: MarkdownBrowserProps) {
   const [dir, setDir] = useState(rootDir);
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [viewingFile, setViewingFile] = useState<{ path: string; name: string } | null>(null);
 
   const load = useCallback(
     async (path: string) => {
@@ -30,7 +36,11 @@ export function FileBrowser({ sessionId, rootDir, onClose }: FileBrowserProps) {
       try {
         const result = await browseFiles(sessionId, path);
         setDir(result.base);
-        const sorted = [...result.entries].sort((a, b) => {
+        // Filter: only directories and markdown files
+        const filtered = result.entries.filter(
+          (e) => e.type === 'directory' || isMarkdownFile(e.name),
+        );
+        const sorted = [...filtered].sort((a, b) => {
           if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
           return a.name.localeCompare(b.name);
         });
@@ -77,13 +87,22 @@ export function FileBrowser({ sessionId, rootDir, onClose }: FileBrowserProps) {
       const target =
         (normalizedDir.endsWith('/') ? normalizedDir : normalizedDir + '/') + entry.name;
       load(target);
+    } else {
+      const filePath =
+        (normalizedDir.endsWith('/') ? normalizedDir : normalizedDir + '/') + entry.name;
+      setViewingFile({ path: filePath, name: entry.name });
     }
   }
 
-  function handleDownload(entry: FileEntry) {
-    const filePath =
-      (normalizedDir.endsWith('/') ? normalizedDir : normalizedDir + '/') + entry.name;
-    downloadFile(sessionId, filePath);
+  if (viewingFile) {
+    return (
+      <MarkdownViewer
+        sessionId={sessionId}
+        filePath={viewingFile.path}
+        fileName={viewingFile.name}
+        onClose={() => setViewingFile(null)}
+      />
+    );
   }
 
   return (
@@ -92,7 +111,7 @@ export function FileBrowser({ sessionId, rootDir, onClose }: FileBrowserProps) {
         <button className={styles.backBtn} onClick={onClose} title="Close">
           ←
         </button>
-        <span className={styles.headerTitle}>Download File</span>
+        <span className={styles.headerTitle}>View Markdown</span>
       </div>
 
       <div className={styles.breadcrumb}>
@@ -132,31 +151,24 @@ export function FileBrowser({ sessionId, rootDir, onClose }: FileBrowserProps) {
           )}
 
           {entries.map((entry) => (
-            <div key={entry.name} className={styles.entry}>
-              <span className={styles.entryIcon}>{entry.type === 'directory' ? '📁' : '📄'}</span>
-              <span
-                className={styles.entryName}
-                onClick={() => handleEntryClick(entry)}
-                style={entry.type === 'directory' ? { cursor: 'pointer' } : undefined}
-              >
-                {entry.name}
+            <button
+              key={entry.name}
+              className={styles.entry}
+              onClick={() => handleEntryClick(entry)}
+            >
+              <span className={styles.entryIcon}>
+                {entry.type === 'directory' ? '📁' : '📝'}
               </span>
+              <span className={styles.entryName}>{entry.name}</span>
               {entry.type === 'file' && (
-                <>
-                  <span className={styles.entryMeta}>{formatSize(entry.size)}</span>
-                  <button
-                    className={styles.downloadBtn}
-                    onClick={() => handleDownload(entry)}
-                    title={`Download ${entry.name}`}
-                  >
-                    ⬇️
-                  </button>
-                </>
+                <span className={styles.entryMeta}>{formatSize(entry.size)}</span>
               )}
-            </div>
+            </button>
           ))}
 
-          {entries.length === 0 && <div className={styles.empty}>Empty directory</div>}
+          {entries.length === 0 && (
+            <div className={styles.empty}>No markdown files in this directory</div>
+          )}
         </div>
       )}
     </div>

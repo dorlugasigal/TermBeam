@@ -12,6 +12,7 @@ import SearchBar from '@/components/SearchBar/SearchBar';
 import CommandPalette from '@/components/CommandPalette/CommandPalette';
 import { SidePanel } from '@/components/SidePanel/SidePanel';
 import { FileBrowser } from '@/components/FileBrowser/FileBrowser';
+import { MarkdownBrowser } from '@/components/MarkdownBrowser/MarkdownBrowser';
 import NewSessionModal from '@/components/SessionsHub/NewSessionModal';
 import { UploadModal } from '@/components/Modals/UploadModal';
 import { PreviewModal } from '@/components/Modals/PreviewModal';
@@ -43,6 +44,8 @@ export function TerminalApp() {
   const fontSize = useUIStore((s) => s.fontSize);
   const showDownload = useUIStore((s) => s.downloadModalOpen);
   const closeDownloadModal = useUIStore((s) => s.closeDownloadModal);
+  const showMarkdown = useUIStore((s) => s.markdownModalOpen);
+  const closeMarkdownModal = useUIStore((s) => s.closeMarkdownModal);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const initializedRef = useRef(false);
@@ -259,6 +262,11 @@ export function TerminalApp() {
           closeDownloadModal();
           return;
         }
+        if (showMarkdown) {
+          e.preventDefault();
+          closeMarkdownModal();
+          return;
+        }
         const state = useUIStore.getState();
         if (state.commandPaletteOpen) {
           e.preventDefault();
@@ -271,7 +279,7 @@ export function TerminalApp() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [toggleCommandPalette, openSearchBar, closeCommandPalette, closeSearchBar, showDownload]);
+  }, [toggleCommandPalette, openSearchBar, closeCommandPalette, closeSearchBar, showDownload, showMarkdown, closeDownloadModal, closeMarkdownModal]);
 
   const activeSession = activeId ? sessions.get(activeId) : null;
 
@@ -477,6 +485,19 @@ export function TerminalApp() {
               sessionId={activeId}
               rootDir={activeSession.cwd}
               onClose={closeDownloadModal}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Markdown browser overlay ── */}
+      {showMarkdown && activeId && activeSession?.cwd && (
+        <div className={styles.downloadOverlay} onClick={closeMarkdownModal}>
+          <div className={styles.downloadPanel} onClick={(e) => e.stopPropagation()}>
+            <MarkdownBrowser
+              sessionId={activeId}
+              rootDir={activeSession.cwd}
+              onClose={closeMarkdownModal}
             />
           </div>
         </div>

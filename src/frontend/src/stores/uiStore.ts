@@ -26,6 +26,7 @@ interface UIState {
   uploadModalOpen: boolean;
   previewModalOpen: boolean;
   downloadModalOpen: boolean;
+  markdownModalOpen: boolean;
   selectModeActive: boolean;
   copyOverlayOpen: boolean;
   fontSize: number;
@@ -47,6 +48,8 @@ interface UIState {
   closePreviewModal: () => void;
   openDownloadModal: () => void;
   closeDownloadModal: () => void;
+  openMarkdownModal: () => void;
+  closeMarkdownModal: () => void;
   setSelectMode: (active: boolean) => void;
   openCopyOverlay: () => void;
   closeCopyOverlay: () => void;
@@ -63,6 +66,7 @@ export const useUIStore = create<UIState>((set) => ({
   uploadModalOpen: false,
   previewModalOpen: false,
   downloadModalOpen: false,
+  markdownModalOpen: false,
   selectModeActive: false,
   copyOverlayOpen: false,
   fontSize: loadFontSize(),
@@ -84,6 +88,8 @@ export const useUIStore = create<UIState>((set) => ({
   closePreviewModal: () => set({ previewModalOpen: false }),
   openDownloadModal: () => set({ downloadModalOpen: true }),
   closeDownloadModal: () => set({ downloadModalOpen: false }),
+  openMarkdownModal: () => set({ markdownModalOpen: true }),
+  closeMarkdownModal: () => set({ markdownModalOpen: false }),
   setSelectMode: (active) => set({ selectModeActive: active }),
   openCopyOverlay: () => set({ copyOverlayOpen: true }),
   closeCopyOverlay: () => set({ copyOverlayOpen: false }),

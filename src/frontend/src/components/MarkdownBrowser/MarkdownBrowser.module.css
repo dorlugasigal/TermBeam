@@ -144,26 +144,6 @@
   white-space: nowrap;
 }
 
-.downloadBtn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  flex-shrink: 0;
-  transition:
-    background 0.15s,
-    color 0.15s;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.downloadBtn:hover {
-  background: var(--accent);
-  color: var(--bg);
-}
-
 .loading {
   display: flex;
   align-items: center;

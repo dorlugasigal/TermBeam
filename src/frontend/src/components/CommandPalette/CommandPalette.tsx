@@ -56,6 +56,22 @@ const iconDownload = (
   </svg>
 );
 
+const iconMarkdown = (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="1" y="3" width="14" height="10" rx="2" />
+    <polyline points="4 9 5.5 7 7 9" />
+    <line x1="9" y1="9" x2="9" y2="7" />
+    <polyline points="9 7 10.5 8.5 12 7" />
+  </svg>
+);
+
 const iconCloseTab = (
   <svg
     viewBox="0 0 16 16"
@@ -457,6 +473,12 @@ export default function CommandPalette() {
           label: 'Download file',
           icon: iconDownload,
           action: () => run(() => useUIStore.getState().openDownloadModal()),
+        },
+        {
+          id: 'markdown',
+          label: 'View markdown',
+          icon: iconMarkdown,
+          action: () => run(() => useUIStore.getState().openMarkdownModal()),
         },
         {
           id: 'close-tab',
