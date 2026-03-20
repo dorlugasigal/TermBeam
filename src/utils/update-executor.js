@@ -73,20 +73,11 @@ function resetState() {
 async function checkPermissions(method) {
   const cmd = method === 'yarn' ? 'yarn' : method === 'pnpm' ? 'pnpm' : 'npm';
 
-  // Check if the package manager is on PATH
+  // Check if the package manager is available by running it directly
   try {
-    await execFilePromise('which', [cmd], { timeout: VERIFY_TIMEOUT_MS });
+    await execFilePromise(cmd, ['--version'], { timeout: VERIFY_TIMEOUT_MS });
   } catch {
-    // Try 'where' on Windows
-    if (os.platform() === 'win32') {
-      try {
-        await execFilePromise('where', [cmd], { timeout: VERIFY_TIMEOUT_MS });
-      } catch {
-        return { canUpdate: false, reason: `${cmd} not found on PATH` };
-      }
-    } else {
-      return { canUpdate: false, reason: `${cmd} not found on PATH` };
-    }
+    return { canUpdate: false, reason: `${cmd} not found on PATH` };
   }
 
   // Check if npm global directory is writable (only for npm — yarn/pnpm have different paths)
@@ -115,7 +106,9 @@ async function checkPermissions(method) {
  *
  * @param {object} options
  * @param {string} options.currentVersion - Version before update
- * @param {string} options.command - The install command (e.g. "npm install -g termbeam@latest")
+ * @param {string} options.installCmd - The executable to run (e.g. "npm")
+ * @param {string[]} options.installArgs - Arguments for the install command
+ * @param {string} options.command - Display string for the full command
  * @param {string} options.method - Package manager (npm/yarn/pnpm)
  * @param {string} options.restartStrategy - 'pm2' or 'exit'
  * @param {(state: UpdateState) => void} [options.onProgress] - Progress callback
@@ -124,6 +117,8 @@ async function checkPermissions(method) {
  */
 async function executeUpdate({
   currentVersion,
+  installCmd,
+  installArgs,
   command,
   method,
   restartStrategy,
@@ -167,9 +162,6 @@ async function executeUpdate({
 
     // Step 2: Install
     notify({ status: 'installing', phase: 'Installing update...', progress: '' });
-    const parts = command.split(' ');
-    const installCmd = parts[0];
-    const installArgs = parts.slice(1);
 
     log.info(`Executing update: ${command}`);
 

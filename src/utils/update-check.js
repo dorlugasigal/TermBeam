@@ -251,6 +251,8 @@ function detectInstallMethod() {
     return {
       method: 'npx',
       command: 'npx termbeam@latest',
+      installCmd: 'npx',
+      installArgs: ['termbeam@latest'],
       canAutoUpdate: false,
       restartStrategy: 'none',
     };
@@ -267,6 +269,8 @@ function detectInstallMethod() {
     return {
       method: 'yarn',
       command: 'yarn global add termbeam@latest',
+      installCmd: 'yarn',
+      installArgs: ['global', 'add', 'termbeam@latest'],
       canAutoUpdate: true,
       restartStrategy: isPm2 ? 'pm2' : 'exit',
     };
@@ -276,6 +280,8 @@ function detectInstallMethod() {
     return {
       method: 'pnpm',
       command: 'pnpm add -g termbeam@latest',
+      installCmd: 'pnpm',
+      installArgs: ['add', '-g', 'termbeam@latest'],
       canAutoUpdate: true,
       restartStrategy: isPm2 ? 'pm2' : 'exit',
     };
@@ -289,6 +295,8 @@ function detectInstallMethod() {
     return {
       method: 'source',
       command: 'git pull && npm install && npm run build:frontend',
+      installCmd: null,
+      installArgs: null,
       canAutoUpdate: false,
       restartStrategy: 'none',
     };
@@ -296,10 +304,12 @@ function detectInstallMethod() {
 
   // Docker — check for /.dockerenv or /proc/1/cgroup containing docker
   if (isRunningInDocker()) {
-    log.debug('Install method: source');
+    log.debug('Install method: docker');
     return {
-      method: 'source',
-      command: 'git pull && npm install && npm run build:frontend',
+      method: 'docker',
+      command: 'docker pull termbeam:latest && docker-compose up -d',
+      installCmd: null,
+      installArgs: null,
       canAutoUpdate: false,
       restartStrategy: 'none',
     };
@@ -310,6 +320,8 @@ function detectInstallMethod() {
   return {
     method: 'npm',
     command: 'npm install -g termbeam@latest',
+    installCmd: 'npm',
+    installArgs: ['install', '-g', 'termbeam@latest'],
     canAutoUpdate: true,
     restartStrategy: isPm2 ? 'pm2' : 'exit',
   };

@@ -98,11 +98,13 @@ describe('update-executor', () => {
     it('should reject if already updating', async () => {
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const mod = require('../../src/utils/update-executor');
-      // Start a fake update that won't resolve
+      // Start a fake update that won't resolve — use node -e for cross-platform compat
       const neverResolve = new Promise(() => {});
       mod.executeUpdate({
         currentVersion: '1.0.0',
-        command: 'echo noop',
+        installCmd: process.execPath,
+        installArgs: ['-e', 'process.exit(0)'],
+        command: 'node -e "process.exit(0)"',
         method: 'npm',
         restartStrategy: 'exit',
         performRestart: () => neverResolve,
@@ -115,7 +117,9 @@ describe('update-executor', () => {
       // A second update attempt while one is in progress should return an error
       const result = await mod.executeUpdate({
         currentVersion: '1.0.0',
-        command: 'echo noop2',
+        installCmd: process.execPath,
+        installArgs: ['-e', 'process.exit(0)'],
+        command: 'node -e "process.exit(0)"',
         method: 'npm',
         restartStrategy: 'exit',
         performRestart: () => neverResolve,

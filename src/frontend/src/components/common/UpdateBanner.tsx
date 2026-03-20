@@ -24,6 +24,14 @@ export default function UpdateBanner() {
   // Persist the update command across state transitions so it's available in error states
   const commandRef = useRef('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up copied timer on unmount
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     checkUpdate().then((result) => {
@@ -153,7 +161,8 @@ export default function UpdateBanner() {
   const handleCopyCommand = useCallback(async (command: string) => {
     const showCopiedFeedback = () => {
       setShowCopied(true);
-      setTimeout(() => setShowCopied(false), 2000);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setShowCopied(false), 2000);
     };
 
     try {

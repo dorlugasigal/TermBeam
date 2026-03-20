@@ -221,6 +221,8 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     // Execute update in background (don't await in request handler)
     executeUpdate({
       currentVersion: config.version,
+      installCmd: installInfo.installCmd,
+      installArgs: installInfo.installArgs,
       command: installInfo.command,
       method: installInfo.method,
       restartStrategy: installInfo.restartStrategy,
