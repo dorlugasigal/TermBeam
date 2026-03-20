@@ -93,7 +93,7 @@ export function MarkdownViewer({
           ←
         </button>
         <span className={styles.fileName}>📄 {fileName}</span>
-        {scale !== 1 && (
+        {Math.round(scale * 100) !== 100 && (
           <button className={styles.zoomReset} onClick={resetZoom} title="Reset zoom">
             {Math.round(scale * 100)}%
           </button>
@@ -105,11 +105,7 @@ export function MarkdownViewer({
         ) : error ? (
           <div className={styles.error}>{error}</div>
         ) : (
-          <div
-            className={styles.zoomWrapper}
-            style={scale > 1 ? { width: `${scale * 100}%`, height: `${scale * 100}%` } : undefined}
-          >
-            <div className={styles.markdown} ref={markdownRef}>
+          <div className={styles.markdown} ref={markdownRef}>
             <Markdown
               remarkPlugins={[remarkGfm, remarkGemoji]}
               rehypePlugins={[rehypeRaw]}
@@ -171,7 +167,6 @@ export function MarkdownViewer({
             >
               {content}
             </Markdown>
-          </div>
           </div>
         )}
       </div>

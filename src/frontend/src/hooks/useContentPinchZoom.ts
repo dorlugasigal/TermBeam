@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 /**
- * Pinch-to-zoom hook — true visual zoom (like a magnifying glass).
- * Scales the target element via CSS transform and wraps it in a scrollable
- * area so the user can pan around the zoomed content.
+ * Pinch-to-zoom using CSS `zoom` property.
+ * Unlike transform: scale(), CSS zoom reflowed content so scrolling works naturally.
  */
 export function useContentPinchZoom(
   containerRef: React.RefObject<HTMLDivElement | null>,
@@ -15,30 +14,14 @@ export function useContentPinchZoom(
   const startScaleRef = useRef(1);
   const isPinchingRef = useRef(false);
 
-  const applyScale = useCallback(
-    (s: number) => {
-      const target = targetRef.current;
-      const container = containerRef.current;
-      if (!target || !container) return;
-
-      if (s <= 1) {
-        target.style.transform = '';
-        target.style.transformOrigin = '';
-        container.style.overflow = '';
-      } else {
-        target.style.transformOrigin = '0 0';
-        target.style.transform = `scale(${s})`;
-        container.style.overflow = 'scroll';
-      }
-    },
-    [targetRef, containerRef],
-  );
-
   const resetZoom = useCallback(() => {
     scaleRef.current = 1;
     setScale(1);
-    applyScale(1);
-  }, [applyScale]);
+    const target = targetRef.current;
+    if (target) {
+      target.style.zoom = '';
+    }
+  }, [targetRef]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -67,13 +50,14 @@ export function useContentPinchZoom(
       if (e.touches.length === 2 && t0 && t1 && isPinchingRef.current) {
         e.preventDefault();
         const dist = getDistance(t0, t1);
-        const newScale = Math.min(
-          5,
-          Math.max(1, startScaleRef.current * (dist / startDistRef.current)),
-        );
+        const raw = startScaleRef.current * (dist / startDistRef.current);
+        const newScale = Math.min(5, Math.max(0.5, raw));
         scaleRef.current = newScale;
         setScale(newScale);
-        applyScale(newScale);
+        const target = targetRef.current;
+        if (target) {
+          target.style.zoom = `${newScale}`;
+        }
       }
     }
 
@@ -81,10 +65,14 @@ export function useContentPinchZoom(
       if (e.touches.length < 2 && isPinchingRef.current) {
         isPinchingRef.current = false;
         startDistRef.current = 0;
-        if (scaleRef.current < 1.05) {
+        // Snap to 1x if close
+        if (Math.abs(scaleRef.current - 1) < 0.08) {
           scaleRef.current = 1;
           setScale(1);
-          applyScale(1);
+          const target = targetRef.current;
+          if (target) {
+            target.style.zoom = '';
+          }
         }
       }
     }
@@ -98,7 +86,7 @@ export function useContentPinchZoom(
       container.removeEventListener('touchmove', onTouchMove);
       container.removeEventListener('touchend', onTouchEnd);
     };
-  }, [containerRef, targetRef, applyScale]);
+  }, [containerRef, targetRef]);
 
   return { scale, resetZoom };
 }
