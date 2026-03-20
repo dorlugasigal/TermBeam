@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { browseFiles, downloadFile } from '@/services/api';
+import { browseFiles, downloadFileWithProgress } from '@/services/api';
 import type { FileEntry } from '@/services/api';
 import styles from './FileBrowser.module.css';
 
@@ -22,6 +22,9 @@ export function FileBrowser({ sessionId, rootDir, onClose }: FileBrowserProps) {
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [confirm, setConfirm] = useState<FileEntry | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const load = useCallback(
     async (path: string) => {
@@ -69,10 +72,25 @@ export function FileBrowser({ sessionId, rootDir, onClose }: FileBrowserProps) {
     }
   }
 
-  function handleDownload(entry: FileEntry) {
+  function handleDownloadClick(entry: FileEntry) {
+    setConfirm(entry);
+  }
+
+  async function handleConfirmDownload() {
+    if (!confirm) return;
     const filePath =
-      (normalizedDir.endsWith('/') ? normalizedDir : normalizedDir + '/') + entry.name;
-    downloadFile(sessionId, filePath);
+      (normalizedDir.endsWith('/') ? normalizedDir : normalizedDir + '/') + confirm.name;
+    setDownloading(true);
+    setProgress(0);
+    try {
+      await downloadFileWithProgress(sessionId, filePath, (pct) => setProgress(pct));
+    } catch {
+      // Error is handled silently — the user sees it didn't complete
+    } finally {
+      setDownloading(false);
+      setConfirm(null);
+      setProgress(0);
+    }
   }
 
   return (
@@ -135,7 +153,7 @@ export function FileBrowser({ sessionId, rootDir, onClose }: FileBrowserProps) {
                   <span className={styles.entryMeta}>{formatSize(entry.size)}</span>
                   <button
                     className={styles.downloadBtn}
-                    onClick={() => handleDownload(entry)}
+                    onClick={() => handleDownloadClick(entry)}
                     title={`Download ${entry.name}`}
                   >
                     ⬇️
@@ -146,6 +164,32 @@ export function FileBrowser({ sessionId, rootDir, onClose }: FileBrowserProps) {
           ))}
 
           {entries.length === 0 && <div className={styles.empty}>Empty directory</div>}
+        </div>
+      )}
+
+      {/* Download confirmation bar */}
+      {confirm && (
+        <div className={styles.confirmBar}>
+          {downloading ? (
+            <div className={styles.progressWrapper}>
+              <div className={styles.progressBar} style={{ width: `${progress}%` }} />
+              <span className={styles.progressLabel}>Downloading… {progress}%</span>
+            </div>
+          ) : (
+            <>
+              <span className={styles.confirmText}>
+                Download <strong>{confirm.name}</strong> ({formatSize(confirm.size)})?
+              </span>
+              <div className={styles.confirmActions}>
+                <button className={styles.confirmCancel} onClick={() => setConfirm(null)}>
+                  Cancel
+                </button>
+                <button className={styles.confirmOk} onClick={handleConfirmDownload}>
+                  Download
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

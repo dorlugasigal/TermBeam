@@ -312,6 +312,48 @@ export function downloadFile(sessionId: string, filePath: string): void {
   document.body.removeChild(a);
 }
 
+export function downloadFileWithProgress(
+  sessionId: string,
+  filePath: string,
+  onProgress?: (pct: number) => void,
+): Promise<void> {
+  const url = `${BASE}/api/sessions/${sessionId}/download?file=${encodeURIComponent(filePath)}`;
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', url);
+    xhr.responseType = 'blob';
+    xhr.withCredentials = true;
+
+    xhr.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const blob = xhr.response as Blob;
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        const disposition = xhr.getResponseHeader('Content-Disposition');
+        const match = disposition?.match(/filename="(.+?)"/);
+        a.download = match?.[1] ?? filePath.split('/').pop() ?? 'download';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+        resolve();
+      } else {
+        reject(new Error(`Download failed: HTTP ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.send();
+  });
+}
+
 /** Ask the service worker to purge non-precache caches (e.g. stale navigation HTML). */
 export function clearServiceWorkerCaches(): void {
   if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {

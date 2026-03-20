@@ -189,3 +189,85 @@
   font-size: 0.85rem;
   font-style: italic;
 }
+
+/* ── Download confirmation bar ── */
+.confirmBar {
+  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+
+.confirmText {
+  font-size: 0.8rem;
+  color: var(--text);
+  display: block;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.confirmCancel,
+.confirmOk {
+  border: none;
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.confirmCancel {
+  background: var(--border);
+  color: var(--text);
+}
+
+.confirmCancel:hover {
+  background: var(--text-muted);
+}
+
+.confirmOk {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.confirmOk:hover {
+  opacity: 0.85;
+}
+
+.progressWrapper {
+  position: relative;
+  height: 24px;
+  background: var(--bg);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progressBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 6px;
+  transition: width 0.15s ease;
+}
+
+.progressLabel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text);
+  z-index: 1;
+}
