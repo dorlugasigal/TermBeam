@@ -226,9 +226,58 @@ export async function checkUpdate(force = false): Promise<{
   updateAvailable: boolean;
   current: string;
   latest: string;
+  method?: string;
+  command?: string;
+  canAutoUpdate?: boolean;
+  restartStrategy?: 'pm2' | 'exit' | 'none';
 } | null> {
   try {
     const res = await fetchWithTimeout(`${BASE}/api/update-check${force ? '?force=true' : ''}`, {
+      credentials: 'same-origin',
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export interface UpdateState {
+  status:
+    | 'idle'
+    | 'checking-permissions'
+    | 'installing'
+    | 'verifying'
+    | 'restarting'
+    | 'complete'
+    | 'failed';
+  phase: string | null;
+  progress: string | null;
+  error: string | null;
+  fromVersion: string | null;
+  toVersion: string | null;
+  startedAt: number | null;
+  restartStrategy: string | null;
+}
+
+export async function triggerUpdate(): Promise<{
+  status: string;
+  method?: string;
+  error?: string;
+  command?: string;
+  canAutoUpdate?: boolean;
+}> {
+  const res = await fetchWithTimeout(`${BASE}/api/update`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    timeout: 30_000,
+  });
+  return res.json();
+}
+
+export async function getUpdateStatus(): Promise<UpdateState | null> {
+  try {
+    const res = await fetchWithTimeout(`${BASE}/api/update/status`, {
       credentials: 'same-origin',
     });
     if (!res.ok) return null;

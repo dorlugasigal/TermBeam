@@ -307,6 +307,11 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
             }
             break;
           }
+          case 'update-progress': {
+            // Forward update progress events to the UpdateBanner via a custom DOM event
+            window.dispatchEvent(new MessageEvent('termbeam:ws-message', { data: event.data }));
+            break;
+          }
         }
       };
 

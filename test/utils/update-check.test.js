@@ -352,6 +352,8 @@ describe('update-check', () => {
       const result = detectInstallMethod();
       assert.equal(result.method, 'npx');
       assert.ok(result.command.includes('npx'));
+      assert.equal(result.canAutoUpdate, false);
+      assert.equal(result.restartStrategy, 'none');
     });
 
     it('should detect yarn via npm_execpath', () => {
@@ -361,6 +363,7 @@ describe('update-check', () => {
       const result = detectInstallMethod();
       assert.equal(result.method, 'yarn');
       assert.ok(result.command.includes('yarn'));
+      assert.equal(result.canAutoUpdate, true);
     });
 
     it('should detect pnpm via npm_execpath', () => {
@@ -370,15 +373,61 @@ describe('update-check', () => {
       const result = detectInstallMethod();
       assert.equal(result.method, 'pnpm');
       assert.ok(result.command.includes('pnpm'));
+      assert.equal(result.canAutoUpdate, true);
     });
 
-    it('should default to npm', () => {
+    it('should detect source when running from git repo', () => {
       delete process.env.npm_command;
       delete process.env.npm_execpath;
       const { detectInstallMethod } = require('../../src/utils/update-check');
       const result = detectInstallMethod();
-      assert.equal(result.method, 'npm');
-      assert.ok(result.command.includes('npm install'));
+      // Running tests from the repo — .git exists and not in node_modules
+      assert.equal(result.method, 'source');
+      assert.equal(result.canAutoUpdate, false);
+      assert.equal(result.restartStrategy, 'none');
+    });
+
+    it('should return canAutoUpdate and restartStrategy fields', () => {
+      process.env.npm_command = 'exec';
+      const { detectInstallMethod } = require('../../src/utils/update-check');
+      const result = detectInstallMethod();
+      assert.ok('canAutoUpdate' in result, 'should have canAutoUpdate field');
+      assert.ok('restartStrategy' in result, 'should have restartStrategy field');
+    });
+
+    it('isRunningFromSource should return true for repo directory', () => {
+      const { isRunningFromSource } = require('../../src/utils/update-check');
+      // Tests run from the repo, so this should be true
+      assert.equal(isRunningFromSource(), true);
+    });
+
+    it('isRunningUnderPm2 should return false when no PM2 env vars', () => {
+      const origPm2Home = process.env.PM2_HOME;
+      const origPmId = process.env.pm_id;
+      const origPm2Usage = process.env.PM2_USAGE;
+      delete process.env.PM2_HOME;
+      delete process.env.pm_id;
+      delete process.env.PM2_USAGE;
+      try {
+        const { isRunningUnderPm2 } = require('../../src/utils/update-check');
+        assert.equal(isRunningUnderPm2(), false);
+      } finally {
+        if (origPm2Home !== undefined) process.env.PM2_HOME = origPm2Home;
+        if (origPmId !== undefined) process.env.pm_id = origPmId;
+        if (origPm2Usage !== undefined) process.env.PM2_USAGE = origPm2Usage;
+      }
+    });
+
+    it('isRunningUnderPm2 should return true when PM2_HOME is set', () => {
+      const orig = process.env.PM2_HOME;
+      process.env.PM2_HOME = '/home/user/.pm2';
+      try {
+        const { isRunningUnderPm2 } = require('../../src/utils/update-check');
+        assert.equal(isRunningUnderPm2(), true);
+      } finally {
+        if (orig !== undefined) process.env.PM2_HOME = orig;
+        else delete process.env.PM2_HOME;
+      }
     });
   });
 });

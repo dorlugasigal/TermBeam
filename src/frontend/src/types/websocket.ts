@@ -40,4 +40,20 @@ export interface WSErrorMessage {
   message: string;
 }
 
-export type WSServerMessage = WSOutputMessage | WSAttachedMessage | WSExitMessage | WSErrorMessage;
+export interface WSUpdateProgressMessage {
+  type: 'update-progress';
+  status: string;
+  phase?: string;
+  progress?: string;
+  error?: string;
+  fromVersion?: string;
+  toVersion?: string;
+  restartStrategy?: string;
+}
+
+export type WSServerMessage =
+  | WSOutputMessage
+  | WSAttachedMessage
+  | WSExitMessage
+  | WSErrorMessage
+  | WSUpdateProgressMessage;

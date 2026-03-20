@@ -77,7 +77,7 @@ function createTermBeamServer(overrides = {}) {
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 1 * 1024 * 1024 });
 
-  const state = { shareBaseUrl: null, updateInfo: null };
+  const state = { shareBaseUrl: null, updateInfo: null, wss };
   app.use('/preview', auth.middleware, createPreviewProxy());
   setupRoutes(app, { auth, sessions, config, state });
   setupWebSocket(wss, { auth, sessions });
@@ -278,6 +278,18 @@ function createTermBeamServer(overrides = {}) {
           `${_dm}    termbeam resume      Attach to a session (or: termbeam attach)${rs}`,
         );
         console.log('');
+
+        // Show post-update success message if this is the first start after an update
+        const { readUpdateResult, clearUpdateResult } = require('../utils/update-executor');
+        const updateResult = readUpdateResult();
+        if (updateResult) {
+          const gn2 = '\x1b[38;5;114m';
+          console.log(
+            `  ${gn2}✓ Successfully updated from v${updateResult.fromVersion} to v${updateResult.toVersion}${rs}`,
+          );
+          console.log('');
+          clearUpdateResult();
+        }
 
         // Non-blocking update check — runs after banner, never delays startup.
         // Skip under the Node test runner and CI to avoid network requests in tests.

@@ -29,7 +29,8 @@ termbeam/
 │   │   ├── shells.js            # Shell detection (cross-platform)
 │   │   ├── git.js               # Git repo detection & status
 │   │   ├── version.js           # Smart version detection
-│   │   └── update-check.js      # npm update checking
+│   │   ├── update-check.js      # npm update checking & install method detection
+│   │   └── update-executor.js   # In-app update engine (state machine, permissions)
 │   └── frontend/                # React 19 + Vite + TypeScript SPA
 │       ├── src/
 │       │   ├── App.tsx          # Root component
