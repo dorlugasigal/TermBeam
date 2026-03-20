@@ -1434,19 +1434,6 @@ describe('Routes', () => {
       assert.strictEqual(data.error, 'Session not found');
     });
 
-    it('should return 403 for path traversal attempt', async () => {
-      await setup();
-      const res = await httpRequest({
-        hostname: '127.0.0.1',
-        port: inst.port,
-        path: `/api/sessions/${inst.defaultId}/files?dir=../../etc`,
-        method: 'GET',
-      });
-      assert.strictEqual(res.statusCode, 403);
-      const data = JSON.parse(res.data);
-      assert.strictEqual(data.error, 'Path outside session directory');
-    });
-
     it('should return 401 without auth token when password is set', async () => {
       // Start a separate password-protected server
       const pwTmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'tb-files-pw-'));
@@ -1547,19 +1534,6 @@ describe('Routes', () => {
       assert.strictEqual(res.statusCode, 400);
       const data = JSON.parse(res.data);
       assert.strictEqual(data.error, 'Missing file parameter');
-    });
-
-    it('should return 403 for path traversal attempt', async () => {
-      await setup();
-      const res = await httpRequest({
-        hostname: '127.0.0.1',
-        port: inst.port,
-        path: `/api/sessions/${inst.defaultId}/download?file=../../etc/passwd`,
-        method: 'GET',
-      });
-      assert.strictEqual(res.statusCode, 403);
-      const data = JSON.parse(res.data);
-      assert.strictEqual(data.error, 'Path outside session directory');
     });
 
     it('should return 404 for non-existent file', async () => {
@@ -1695,19 +1669,6 @@ describe('Routes', () => {
       assert.strictEqual(res.statusCode, 400);
       const data = JSON.parse(res.data);
       assert.strictEqual(data.error, 'Missing file parameter');
-    });
-
-    it('should return 403 for path traversal attempt', async () => {
-      await setup();
-      const res = await httpRequest({
-        hostname: '127.0.0.1',
-        port: inst.port,
-        path: `/api/sessions/${inst.defaultId}/file-content?file=../../etc/passwd`,
-        method: 'GET',
-      });
-      assert.strictEqual(res.statusCode, 403);
-      const data = JSON.parse(res.data);
-      assert.strictEqual(data.error, 'Path outside session directory');
     });
 
     it('should return 404 for non-existent file', async () => {

@@ -48,28 +48,17 @@ export function FileBrowser({ sessionId, rootDir, onClose }: FileBrowserProps) {
     load(rootDir);
   }, [rootDir, load]);
 
-  const normalizedRoot = rootDir.replace(/\/+$/, '');
   const normalizedDir = dir.replace(/\/+$/, '');
-  const relativePath = normalizedDir.startsWith(normalizedRoot)
-    ? normalizedDir.slice(normalizedRoot.length)
-    : '';
-  const relSegments = relativePath.split('/').filter(Boolean);
-  const isAtRoot = relSegments.length === 0;
-  const rootName = normalizedRoot.split('/').pop() || normalizedRoot;
+  const segments = normalizedDir.split('/').filter(Boolean);
 
   function navigateToBreadcrumb(index: number) {
-    if (index < 0) {
-      load(rootDir);
-    } else {
-      const path = normalizedRoot + '/' + relSegments.slice(0, index + 1).join('/');
-      load(path);
-    }
+    const path = '/' + segments.slice(0, index + 1).join('/');
+    load(path);
   }
 
   function navigateUp() {
-    if (isAtRoot) return;
-    const parent = normalizedRoot + '/' + relSegments.slice(0, -1).join('/');
-    load(parent || rootDir);
+    const parent = normalizedDir.split('/').slice(0, -1).join('/') || '/';
+    load(parent);
   }
 
   function handleEntryClick(entry: FileEntry) {
@@ -97,13 +86,13 @@ export function FileBrowser({ sessionId, rootDir, onClose }: FileBrowserProps) {
 
       <div className={styles.breadcrumb}>
         <button
-          className={isAtRoot ? styles.breadcrumbCurrent : styles.breadcrumbSegment}
-          onClick={() => navigateToBreadcrumb(-1)}
+          className={segments.length === 0 ? styles.breadcrumbCurrent : styles.breadcrumbSegment}
+          onClick={() => load('/')}
         >
-          📁 {rootName}
+          /
         </button>
-        {relSegments.map((seg, i) => {
-          const isLast = i === relSegments.length - 1;
+        {segments.map((seg, i) => {
+          const isLast = i === segments.length - 1;
           return (
             <span key={i}>
               <span className={styles.breadcrumbSep}>/</span>
@@ -124,7 +113,7 @@ export function FileBrowser({ sessionId, rootDir, onClose }: FileBrowserProps) {
         <div className={styles.error}>{error}</div>
       ) : (
         <div className={styles.list}>
-          {!isAtRoot && (
+          {normalizedDir !== '/' && (
             <button className={styles.entry} onClick={navigateUp}>
               <span className={styles.entryIcon}>📁</span>
               <span className={styles.entryName}>..</span>

@@ -471,11 +471,6 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     const rootDir = path.resolve(session.cwd);
     const dir = path.resolve(rootDir, req.query.dir || '.');
 
-    // Path traversal check
-    if (dir !== rootDir && !dir.startsWith(rootDir + path.sep)) {
-      return res.status(403).json({ error: 'Path outside session directory' });
-    }
-
     try {
       const dirents = fs.readdirSync(dir, { withFileTypes: true });
       const entries = dirents
@@ -518,11 +513,6 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     const rootDir = path.resolve(session.cwd);
     const filePath = path.resolve(rootDir, file);
 
-    // Path traversal check
-    if (filePath !== rootDir && !filePath.startsWith(rootDir + path.sep)) {
-      return res.status(403).json({ error: 'Path outside session directory' });
-    }
-
     try {
       const stat = fs.statSync(filePath);
       if (!stat.isFile()) {
@@ -549,11 +539,6 @@ function setupRoutes(app, { auth, sessions, config, state }) {
 
     const rootDir = path.resolve(session.cwd);
     const filePath = path.resolve(rootDir, file);
-
-    // Path traversal check
-    if (filePath !== rootDir && !filePath.startsWith(rootDir + path.sep)) {
-      return res.status(403).json({ error: 'Path outside session directory' });
-    }
 
     try {
       const stat = fs.statSync(filePath);
