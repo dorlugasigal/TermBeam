@@ -3,6 +3,8 @@ import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { SearchAddon } from '@xterm/addon-search';
 
+export type SplitMode = 'off' | 'vertical' | 'horizontal';
+
 export interface ManagedSession {
   id: string;
   name: string;
@@ -41,7 +43,7 @@ interface SessionState {
   sessions: Map<string, ManagedSession>;
   activeId: string | null;
   tabOrder: string[];
-  splitMode: boolean;
+  splitMode: SplitMode;
   deletedIds: Set<string>;
 
   addSession: (session: ManagedSession) => void;
@@ -50,7 +52,7 @@ interface SessionState {
   updateSession: (id: string, updates: Partial<ManagedSession>) => void;
   setTabOrder: (order: string[]) => void;
   toggleSplit: () => void;
-  setSplit: (on: boolean) => void;
+  setSplit: (mode: SplitMode) => void;
   markUnread: (id: string) => void;
   clearUnread: (id: string) => void;
   isDeleted: (id: string) => boolean;
@@ -77,7 +79,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   sessions: new Map(),
   activeId: null,
   tabOrder: loadTabOrder(),
-  splitMode: false,
+  splitMode: 'off' as SplitMode,
   deletedIds: new Set(),
 
   addSession: (session) =>
@@ -142,8 +144,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set({ tabOrder: order });
   },
 
-  toggleSplit: () => set((state) => ({ splitMode: !state.splitMode })),
-  setSplit: (on) => set({ splitMode: on }),
+  toggleSplit: () =>
+    set((state) => {
+      const cycle: SplitMode[] = ['off', 'vertical', 'horizontal'];
+      const next = cycle[(cycle.indexOf(state.splitMode) + 1) % cycle.length];
+      return { splitMode: next };
+    }),
+  setSplit: (mode) => set({ splitMode: mode }),
 
   markUnread: (id) =>
     set((state) => {

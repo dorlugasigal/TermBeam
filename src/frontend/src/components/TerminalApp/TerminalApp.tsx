@@ -287,14 +287,15 @@ export function TerminalApp() {
   const uniqueTabOrder = [...new Set(tabOrder)].filter((id) => sessions.has(id));
 
   // Determine which sessions to render in split mode
+  const isSplit = splitMode !== 'off';
   const splitIds: string[] = [];
-  if (splitMode && uniqueTabOrder.length >= 2 && activeId) {
+  if (isSplit && uniqueTabOrder.length >= 2 && activeId) {
     splitIds.push(activeId);
     const other = uniqueTabOrder.find((id) => id !== activeId);
     if (other) splitIds.push(other);
   }
 
-  const visibleIds = splitMode && splitIds.length === 2 ? splitIds : activeId ? [activeId] : [];
+  const visibleIds = isSplit && splitIds.length === 2 ? splitIds : activeId ? [activeId] : [];
 
   // Status text: empty when connected (matches old UI), only show on disconnect/exit
   const statusText = activeSession
@@ -442,7 +443,9 @@ export function TerminalApp() {
       <SearchBar />
 
       {/* ── Terminal area ── */}
-      <div className={`${styles.terminalArea} ${splitMode ? styles.split : ''}`}>
+      <div
+        className={`${styles.terminalArea} ${isSplit ? styles.split : ''} ${splitMode === 'horizontal' ? styles.splitHorizontal : ''}`}
+      >
         {uniqueTabOrder.map((id) => {
           const isVisible = visibleIds.includes(id);
           const isActive = id === activeId;
@@ -450,7 +453,7 @@ export function TerminalApp() {
           return (
             <div
               key={id}
-              className={`${styles.paneWrapper} ${isVisible ? styles.visible : ''}`}
+              className={`${styles.paneWrapper} ${isVisible ? styles.visible : ''} ${isSplit && isVisible && isActive ? styles.paneFocused : ''} ${isSplit && isVisible && !isActive ? styles.paneUnfocused : ''}`}
               onClick={() => {
                 if (!isActive) setActiveId(id);
               }}

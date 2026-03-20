@@ -105,8 +105,12 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   // terminal still opens the soft keyboard. The listener is scoped to the
   // pane and checks that the tap target is inside the terminal container —
   // tapping UI buttons (e.g. scroll-to-bottom) won't trigger focus.
+  // In split view, both panes are visible — register on any visible pane so
+  // tapping the unfocused pane activates it and moves keyboard focus there.
+  const setActiveId = useSessionStore((s) => s.setActiveId);
+  const isVisible = visible ?? active;
   useEffect(() => {
-    if (!terminal || !active) return;
+    if (!terminal || !isVisible) return;
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     if (!isTouchDevice) return;
 
@@ -137,6 +141,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
         // resolve to the terminal behind them and incorrectly open the
         // mobile keyboard.
         if (startTarget && terminalRef.current?.contains(startTarget)) {
+          if (!active) setActiveId(sessionId);
           terminal.focus();
         }
       }
@@ -148,7 +153,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
       el.removeEventListener('touchstart', onTouchStart, { capture: true });
       el.removeEventListener('touchend', onTouchEnd, { capture: true });
     };
-  }, [terminal, active]);
+  }, [terminal, isVisible, active, sessionId, setActiveId]);
 
   // Keep refs in sync with latest WS functions
   useEffect(() => {
@@ -535,8 +540,9 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   }, [terminal, reconnect]);
 
   const handlePaneClick = useCallback(() => {
+    if (!active) setActiveId(sessionId);
     terminal?.focus();
-  }, [terminal]);
+  }, [terminal, active, sessionId, setActiveId]);
 
   const showReconnectOverlay = !connected && !exited && hadConnectedRef.current;
   const showReconnectingIndicator = showReconnectOverlay && reconnecting && !reconnectGraceExpired;
