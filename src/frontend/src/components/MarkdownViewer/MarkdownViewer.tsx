@@ -49,15 +49,15 @@ function MermaidBlock({ code }: { code: string }) {
 }
 
 function resolveRelativePath(base: string, relative: string): string {
-  if (relative.startsWith('/')) return relative;
+  if (relative.startsWith('/')) return relative.slice(1);
   const baseDir = base.substring(0, base.lastIndexOf('/'));
-  const parts = (baseDir + '/' + relative).split('/');
+  const parts = (baseDir ? baseDir + '/' + relative : relative).split('/');
   const resolved: string[] = [];
   for (const part of parts) {
     if (part === '..') resolved.pop();
     else if (part !== '.' && part !== '') resolved.push(part);
   }
-  return '/' + resolved.join('/');
+  return resolved.join('/');
 }
 
 function isExternalUrl(src: string): boolean {
