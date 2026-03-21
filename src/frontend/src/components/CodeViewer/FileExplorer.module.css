@@ -11,9 +11,9 @@
 .node {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
-  padding: 4px 12px;
+  padding: 3px 12px;
   border: none;
   background: transparent;
   color: var(--text);
@@ -34,11 +34,22 @@
   color: var(--accent);
 }
 
-.icon {
+.chevron {
   flex-shrink: 0;
-  width: 1em;
-  font-size: 0.7em;
+  width: 0.8em;
+  font-size: 0.75em;
   text-align: center;
+  color: var(--text-dim, #888);
+}
+
+.fileIcon {
+  flex-shrink: 0;
+  width: 1.5em;
+  font-size: 0.8em;
+  text-align: center;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1;
 }
 
 .name {
