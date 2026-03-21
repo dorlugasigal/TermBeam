@@ -741,8 +741,10 @@ test.describe('Top Bar — Side Panel (mobile viewport)', () => {
     await runCommand(page, `echo ${marker1}`);
     await waitForTerminalOutput(page, marker1);
 
-    // Create a second session via modal
-    await page.locator('button[title="New tab"]').click();
+    // Create a second session via side panel (mobile — top bar + New is hidden)
+    await page.locator('[aria-label="Toggle panel"]').click();
+    await expect(page.locator('[data-testid="side-panel"]')).toBeVisible();
+    await page.getByRole('button', { name: '+ New Session' }).click();
     await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible();
     await page.locator('[data-testid="ns-name"]').fill('Second');
     await page.locator('[data-testid="ns-create"]').click();
