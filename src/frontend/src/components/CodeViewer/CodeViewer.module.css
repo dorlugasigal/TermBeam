@@ -65,6 +65,30 @@
   background: var(--bg);
 }
 
+.toolBtn {
+  background: none;
+  border: none;
+  color: var(--text-dim, #888);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.toolBtn:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.toolBtnActive {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb, 130, 120, 255), 0.12);
+}
+
 .body {
   display: flex;
   flex: 1;

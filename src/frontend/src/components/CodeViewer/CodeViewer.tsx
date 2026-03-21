@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { useCodeViewerStore } from '@/stores/codeViewerStore';
 import { fetchFileTree, fetchFileContent } from '@/services/api';
 import { detectLanguage } from './CodePanel';
@@ -7,8 +7,17 @@ import FileTabs from './FileTabs';
 import CodePanel from './CodePanel';
 import styles from './CodeViewer.module.css';
 
+const MarkdownViewer = lazy(() =>
+  import('../MarkdownViewer/MarkdownViewer').then((m) => ({ default: m.MarkdownViewer })),
+);
+
 interface CodeViewerProps {
   sessionId: string;
+}
+
+function isMarkdownFile(path: string): boolean {
+  const ext = path.split('.').pop()?.toLowerCase() || '';
+  return ext === 'md' || ext === 'mdx' || ext === 'markdown';
 }
 
 export default function CodeViewer({ sessionId }: CodeViewerProps) {
@@ -32,6 +41,12 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
   const [treeError, setTreeError] = useState<string | null>(null);
   const [fileLoading, setFileLoading] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [mdPreview, setMdPreview] = useState(false);
+
+  // Reset markdown preview when switching files
+  useEffect(() => {
+    setMdPreview(false);
+  }, [activeFilePath]);
 
   // Load file tree on mount
   useEffect(() => {
@@ -93,10 +108,11 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
   );
 
   const activeFile = activeFilePath ? openFiles.get(activeFilePath) : undefined;
+  const showMdToggle = activeFilePath && isMarkdownFile(activeFilePath);
 
   return (
     <div className={styles.page}>
-      {/* Custom top bar: hamburger | tabs | close */}
+      {/* Custom top bar: hamburger | tabs | md preview toggle | close */}
       <header className={styles.topBar}>
         <button
           className={styles.menuBtn}
@@ -114,6 +130,16 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
             onClose={closeFile}
           />
         </div>
+
+        {showMdToggle && (
+          <button
+            className={`${styles.toolBtn} ${mdPreview ? styles.toolBtnActive : ''}`}
+            onClick={() => setMdPreview((p) => !p)}
+            title={mdPreview ? 'Show source' : 'Preview markdown'}
+          >
+            {mdPreview ? '</>' : '👁'}
+          </button>
+        )}
 
         <a href="/terminal" className={styles.backLink} title="Back to terminal">
           ✕
@@ -152,13 +178,24 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
           {fileLoading && <div className={styles.loading}>Loading file…</div>}
 
           {!fileLoading && !fileError && activeFile ? (
-            <CodePanel
-              content={activeFile.content}
-              language={activeFile.language}
-              fileName={activeFile.path}
-              scrollTop={activeFile.scrollTop}
-              onScroll={handleScroll}
-            />
+            mdPreview && isMarkdownFile(activeFile.path) ? (
+              <Suspense fallback={<div className={styles.loading}>Loading preview…</div>}>
+                <MarkdownViewer
+                  sessionId={sessionId}
+                  filePath={activeFile.path}
+                  fileName={activeFile.path.split('/').pop() || activeFile.path}
+                  onClose={() => setMdPreview(false)}
+                />
+              </Suspense>
+            ) : (
+              <CodePanel
+                content={activeFile.content}
+                language={activeFile.language}
+                fileName={activeFile.path}
+                scrollTop={activeFile.scrollTop}
+                onScroll={handleScroll}
+              />
+            )
           ) : (
             !fileLoading &&
             !fileError &&

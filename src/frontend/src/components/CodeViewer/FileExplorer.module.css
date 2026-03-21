@@ -44,12 +44,9 @@
 
 .fileIcon {
   flex-shrink: 0;
-  width: 1.5em;
-  font-size: 0.8em;
-  text-align: center;
-  font-weight: 700;
-  font-style: normal;
-  line-height: 1;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 .name {
