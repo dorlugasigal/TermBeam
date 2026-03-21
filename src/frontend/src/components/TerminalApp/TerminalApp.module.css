@@ -169,9 +169,8 @@
   .mobileOnly {
     display: flex !important;
   }
-  .sessionName {
-    max-width: 30vw;
-  }
+  .sessionName,
+  .statusDot,
   .statusText {
     display: none;
   }
