@@ -5,7 +5,6 @@ import { detectLanguage } from './CodePanel';
 import FileExplorer from './FileExplorer';
 import FileTabs from './FileTabs';
 import CodePanel from './CodePanel';
-import { TopBar } from '../common/TopBar';
 import styles from './CodeViewer.module.css';
 
 interface CodeViewerProps {
@@ -61,7 +60,6 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
 
   const handleFileSelect = useCallback(
     async (filePath: string) => {
-      // If already open, just activate it
       if (openFiles.has(filePath)) {
         setActiveFile(filePath);
         setSidebarOpen(false);
@@ -98,28 +96,29 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
 
   return (
     <div className={styles.page}>
-      <TopBar
-        onMenuClick={toggleSidebar}
-        showBackButton
-        actions={
-          <button
-            onClick={toggleSidebar}
-            title={sidebarOpen ? 'Hide explorer' : 'Show explorer'}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text)',
-              cursor: 'pointer',
-              fontSize: '1.1rem',
-              padding: '4px 8px',
-            }}
-          >
-            {sidebarOpen ? '✕' : '📁'}
-          </button>
-        }
-      >
-        Code Viewer
-      </TopBar>
+      {/* Custom top bar: hamburger | tabs | close */}
+      <header className={styles.topBar}>
+        <button
+          className={styles.menuBtn}
+          onClick={toggleSidebar}
+          aria-label={sidebarOpen ? 'Close explorer' : 'Open explorer'}
+        >
+          ☰
+        </button>
+
+        <div className={styles.tabsWrapper}>
+          <FileTabs
+            files={openFiles}
+            activeFilePath={activeFilePath}
+            onSelect={setActiveFile}
+            onClose={closeFile}
+          />
+        </div>
+
+        <a href="/" className={styles.backLink} title="Back to terminal">
+          ✕
+        </a>
+      </header>
 
       <div className={styles.body}>
         {/* Mobile overlay */}
@@ -146,13 +145,6 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
 
         {/* Main content */}
         <div className={styles.main}>
-          <FileTabs
-            files={openFiles}
-            activeFilePath={activeFilePath}
-            onSelect={setActiveFile}
-            onClose={closeFile}
-          />
-
           {treeError && <div className={styles.error}>{treeError}</div>}
 
           {fileError && <div className={styles.error}>{fileError}</div>}

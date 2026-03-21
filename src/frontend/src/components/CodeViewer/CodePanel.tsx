@@ -153,22 +153,22 @@ export default function CodePanel({
 
   const resolvedLang = language || detectLanguage(fileName);
 
-  const highlighted = useMemo(() => {
-    if (!content || isBinary(content)) return '';
+  // Highlight the full content, then split into per-line HTML
+  const highlightedLines = useMemo(() => {
+    if (!content || isBinary(content)) return [];
+    let html: string;
     try {
       if (resolvedLang && hljs.getLanguage(resolvedLang)) {
-        return hljs.highlight(content, { language: resolvedLang }).value;
+        html = hljs.highlight(content, { language: resolvedLang }).value;
+      } else {
+        html = hljs.highlightAuto(content).value;
       }
-      return hljs.highlightAuto(content).value;
     } catch {
-      return content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      html = content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
+    // Split highlighted HTML by newlines — preserves open spans across lines
+    return html.split('\n');
   }, [content, resolvedLang]);
-
-  const lines = useMemo(() => {
-    if (!content || isBinary(content)) return [];
-    return content.split('\n');
-  }, [content]);
 
   // Restore scroll position
   useEffect(() => {
@@ -208,14 +208,17 @@ export default function CodePanel({
       ref={containerRef}
       style={fontSize !== BASE_FONT_SIZE ? { fontSize: `${fontSize}px` } : undefined}
     >
-      <div className={styles.gutter}>
-        {lines.map((_, i) => (
-          <div key={i} className={styles.lineNumber}>
-            {i + 1}
+      <div className={styles.table}>
+        {highlightedLines.map((lineHtml, i) => (
+          <div key={i} className={styles.row}>
+            <span className={styles.lineNumber}>{i + 1}</span>
+            <span
+              className={styles.lineContent}
+              dangerouslySetInnerHTML={{ __html: lineHtml || ' ' }}
+            />
           </div>
         ))}
       </div>
-      <code className={styles.code} dangerouslySetInnerHTML={{ __html: highlighted }} />
     </div>
   );
 }

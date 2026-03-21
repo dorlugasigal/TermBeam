@@ -8,39 +8,53 @@
   line-height: 1.5;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x pan-y;
+  min-height: 0;
 }
 
-.gutter {
+.table {
+  display: table;
+  min-width: 100%;
+}
+
+.row {
+  display: table-row;
+}
+
+.lineNumber {
+  display: table-cell;
   position: sticky;
   left: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 12px 0;
+  padding: 0 12px 0 16px;
+  min-width: 3ch;
   text-align: right;
   user-select: none;
   color: var(--text-dim, #666);
   background: var(--bg);
   border-right: 1px solid var(--border);
   z-index: 1;
-  flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.lineNumber {
-  padding: 0 12px 0 16px;
-  min-width: 3ch;
-}
-
-.code {
-  flex: 1;
-  padding: 12px 16px;
-  overflow-x: auto;
+.lineContent {
+  display: table-cell;
+  padding: 0 16px;
   white-space: pre;
   tab-size: 4;
   color: var(--text);
 }
 
+.table .row:first-child .lineNumber,
+.table .row:first-child .lineContent {
+  padding-top: 12px;
+}
+
+.table .row:last-child .lineNumber,
+.table .row:last-child .lineContent {
+  padding-bottom: 12px;
+}
+
 /* Override highlight.js background to use our theme */
-.code :global(.hljs) {
+.lineContent :global(.hljs) {
   background: transparent !important;
   padding: 0 !important;
   color: inherit;
@@ -57,44 +71,44 @@
 
 /* ── Syntax highlighting colors — theme-aware ── */
 
-.code :global(.hljs-keyword),
-.code :global(.hljs-selector-tag),
-.code :global(.hljs-built_in) {
+.lineContent :global(.hljs-keyword),
+.lineContent :global(.hljs-selector-tag),
+.lineContent :global(.hljs-built_in) {
   color: var(--syntax-keyword, #c678dd);
 }
 
-.code :global(.hljs-string),
-.code :global(.hljs-attr) {
+.lineContent :global(.hljs-string),
+.lineContent :global(.hljs-attr) {
   color: var(--syntax-string, #98c379);
 }
 
-.code :global(.hljs-number),
-.code :global(.hljs-literal) {
+.lineContent :global(.hljs-number),
+.lineContent :global(.hljs-literal) {
   color: var(--syntax-number, #d19a66);
 }
 
-.code :global(.hljs-comment),
-.code :global(.hljs-doctag) {
+.lineContent :global(.hljs-comment),
+.lineContent :global(.hljs-doctag) {
   color: var(--syntax-comment, #7f848e);
   font-style: italic;
 }
 
-.code :global(.hljs-function),
-.code :global(.hljs-title) {
+.lineContent :global(.hljs-function),
+.lineContent :global(.hljs-title) {
   color: var(--syntax-function, #61afef);
 }
 
-.code :global(.hljs-variable),
-.code :global(.hljs-template-variable) {
+.lineContent :global(.hljs-variable),
+.lineContent :global(.hljs-template-variable) {
   color: var(--syntax-variable, #e06c75);
 }
 
-.code :global(.hljs-type),
-.code :global(.hljs-class) {
+.lineContent :global(.hljs-type),
+.lineContent :global(.hljs-class) {
   color: var(--syntax-type, #e5c07b);
 }
 
-.code :global(.hljs-meta),
-.code :global(.hljs-tag) {
+.lineContent :global(.hljs-meta),
+.lineContent :global(.hljs-tag) {
   color: var(--syntax-meta, #abb2bf);
 }
