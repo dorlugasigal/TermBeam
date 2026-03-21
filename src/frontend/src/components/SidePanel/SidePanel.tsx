@@ -294,6 +294,18 @@ export function SidePanel() {
                 <button
                   className={styles.footerBtn}
                   onClick={() => {
+                    if (activeId) window.location.href = `/code/${activeId}`;
+                  }}
+                  disabled={!activeId}
+                  title={!activeId ? 'Select a session first' : 'Browse files with syntax highlighting'}
+                >
+                  📄 View Code
+                </button>
+              </div>
+              <div className={styles.footerRow}>
+                <button
+                  className={styles.footerBtn}
+                  onClick={() => {
                     openNewSessionModal();
                     animateClose();
                   }}
