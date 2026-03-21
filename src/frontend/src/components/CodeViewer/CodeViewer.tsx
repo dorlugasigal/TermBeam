@@ -98,7 +98,28 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
 
   return (
     <div className={styles.page}>
-      <TopBar onMenuClick={toggleSidebar}>Code Viewer</TopBar>
+      <TopBar
+        onMenuClick={toggleSidebar}
+        showBackButton
+        actions={
+          <button
+            onClick={toggleSidebar}
+            title={sidebarOpen ? 'Hide explorer' : 'Show explorer'}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text)',
+              cursor: 'pointer',
+              fontSize: '1.1rem',
+              padding: '4px 8px',
+            }}
+          >
+            {sidebarOpen ? '✕' : '📁'}
+          </button>
+        }
+      >
+        Code Viewer
+      </TopBar>
 
       <div className={styles.body}>
         {/* Mobile overlay */}

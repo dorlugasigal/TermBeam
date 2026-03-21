@@ -1,4 +1,5 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
+import { usePinch } from '@use-gesture/react';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -126,6 +127,30 @@ export default function CodePanel({
   const containerRef = useRef<HTMLDivElement>(null);
   const isRestoringScroll = useRef(false);
 
+  const BASE_FONT_SIZE = 13;
+  const MIN_FONT_SIZE = 9;
+  const MAX_FONT_SIZE = 24;
+
+  const [fontSize, setFontSize] = useState(BASE_FONT_SIZE);
+
+  const clampFontSize = useCallback(
+    (scale: number) =>
+      Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Math.round(BASE_FONT_SIZE * scale * 10) / 10)),
+    [],
+  );
+
+  usePinch(
+    ({ offset: [scale] }) => {
+      setFontSize(clampFontSize(scale));
+    },
+    {
+      target: containerRef,
+      scaleBounds: { min: MIN_FONT_SIZE / BASE_FONT_SIZE, max: MAX_FONT_SIZE / BASE_FONT_SIZE },
+      from: () => [fontSize / BASE_FONT_SIZE, 0],
+      eventOptions: { passive: false },
+    },
+  );
+
   const resolvedLang = language || detectLanguage(fileName);
 
   const highlighted = useMemo(() => {
@@ -178,7 +203,11 @@ export default function CodePanel({
   }
 
   return (
-    <div className={styles.container} ref={containerRef}>
+    <div
+      className={styles.container}
+      ref={containerRef}
+      style={fontSize !== BASE_FONT_SIZE ? { fontSize: `${fontSize}px` } : undefined}
+    >
       <div className={styles.gutter}>
         {lines.map((_, i) => (
           <div key={i} className={styles.lineNumber}>

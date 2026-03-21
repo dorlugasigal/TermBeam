@@ -77,7 +77,6 @@ function BranchIcon() {
 export function SidePanel() {
   const isOpen = useUIStore((s) => s.sidePanelOpen);
   const closeSidePanel = useUIStore((s) => s.closeSidePanel);
-  const openNewSessionModal = useUIStore((s) => s.openNewSessionModal);
 
   const sessions = useSessionStore((s) => s.sessions);
   const activeId = useSessionStore((s) => s.activeId);
@@ -274,30 +273,7 @@ export function SidePanel() {
               })}
             </div>
 
-            {/* Footer */}
-            <div className={styles.footer}>
-              <div className={styles.footerRow}>
-                <button
-                  className={styles.footerBtn}
-                  onClick={() => {
-                    if (activeId) window.location.href = `/code/${activeId}`;
-                  }}
-                  disabled={!activeId}
-                  title={!activeId ? 'Select a session first' : 'Browse files with syntax highlighting'}
-                >
-                  📄 View Code
-                </button>
-                <button
-                  className={styles.footerBtn}
-                  onClick={() => {
-                    openNewSessionModal();
-                    animateClose();
-                  }}
-                >
-                  + New Session
-                </button>
-              </div>
-            </div>
+
           </>
         )}
       </div>

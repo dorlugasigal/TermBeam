@@ -1,5 +1,6 @@
 .tabBar {
   display: flex;
+  justify-content: flex-start;
   overflow-x: auto;
   background: var(--bg-secondary, var(--bg));
   border-bottom: 1px solid var(--border);

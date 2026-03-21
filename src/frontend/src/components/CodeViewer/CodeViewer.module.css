@@ -5,6 +5,7 @@
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .body {
@@ -78,7 +79,7 @@
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
-    top: 44px;
+    top: calc(44px + env(safe-area-inset-top, 0px));
     left: 0;
     bottom: 0;
     z-index: 50;
@@ -95,7 +96,7 @@
   .overlay {
     position: fixed;
     inset: 0;
-    top: 44px;
+    top: calc(44px + env(safe-area-inset-top, 0px));
     background: rgba(0, 0, 0, 0.4);
     z-index: 49;
   }
