@@ -43,6 +43,10 @@
 }
 
 .closeBtn {
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
   font-size: 0.7rem;
   opacity: 0.5;
   padding: 2px 4px;

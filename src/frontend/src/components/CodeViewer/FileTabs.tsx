@@ -32,16 +32,17 @@ export default function FileTabs({ files, activeFilePath, onSelect, onClose }: F
           title={path}
         >
           <span className={styles.tabName}>{getDisplayName(path, paths)}</span>
-          <span
+          <button
+            type="button"
             className={styles.closeBtn}
             onClick={(e) => {
               e.stopPropagation();
               onClose(path);
             }}
-            aria-label={`Close ${path}`}
+            aria-label={`Close ${getDisplayName(path, paths)}`}
           >
             ✕
-          </span>
+          </button>
         </button>
       ))}
     </div>

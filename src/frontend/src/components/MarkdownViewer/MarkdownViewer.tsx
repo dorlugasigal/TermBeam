@@ -49,7 +49,9 @@ function MermaidBlock({ code }: { code: string }) {
 }
 
 function resolveRelativePath(base: string, relative: string): string {
+  // Absolute relative paths — return as-is (stripping leading / for session-relative use)
   if (relative.startsWith('/')) return relative.slice(1);
+  const isAbsoluteBase = base.startsWith('/');
   const baseDir = base.substring(0, base.lastIndexOf('/'));
   const parts = (baseDir ? baseDir + '/' + relative : relative).split('/');
   const resolved: string[] = [];
@@ -57,7 +59,7 @@ function resolveRelativePath(base: string, relative: string): string {
     if (part === '..') resolved.pop();
     else if (part !== '.' && part !== '') resolved.push(part);
   }
-  return resolved.join('/');
+  return (isAbsoluteBase ? '/' : '') + resolved.join('/');
 }
 
 function isExternalUrl(src: string): boolean {

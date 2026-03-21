@@ -69,7 +69,7 @@ function createTermBeamServer(overrides = {}) {
     res.setHeader('Cache-Control', isPwaAsset ? 'public, max-age=86400' : 'no-store');
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https:; connect-src 'self' ws: wss: https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net",
+      "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://img.shields.io https://github.com https://raw.githubusercontent.com https://avatars.githubusercontent.com https://api.securityscorecards.dev https://termbeam.pages.dev; connect-src 'self' ws: wss: https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net",
     );
     next();
   });

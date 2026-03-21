@@ -537,7 +537,15 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       'build',
     ]);
 
-    const depth = Math.min(Math.max(parseInt(req.query.depth, 10) || 3, 1), MAX_DEPTH);
+    let depth = 3;
+    if (typeof req.query.depth !== 'undefined') {
+      const parsedDepth = parseInt(req.query.depth, 10);
+      if (Number.isNaN(parsedDepth)) {
+        return res.status(400).json({ error: 'Invalid depth' });
+      }
+      depth = parsedDepth;
+    }
+    depth = Math.min(Math.max(depth, 1), MAX_DEPTH);
     const rootDir = path.resolve(session.cwd);
     let totalEntries = 0;
 
@@ -577,7 +585,12 @@ function setupRoutes(app, { auth, sessions, config, state }) {
 
         if (isDir) {
           const children = currentDepth < depth ? buildTree(fullPath, currentDepth + 1) : [];
-          entries.push({ name: e.name, type: 'directory', path: relativePath, children });
+          entries.push({
+            name: e.name,
+            type: 'directory',
+            path: relativePath.replace(/\\/g, '/'),
+            children,
+          });
         } else {
           let size = 0;
           try {
@@ -585,7 +598,12 @@ function setupRoutes(app, { auth, sessions, config, state }) {
           } catch {
             // ignore stat errors
           }
-          entries.push({ name: e.name, type: 'file', path: relativePath, size });
+          entries.push({
+            name: e.name,
+            type: 'file',
+            path: relativePath.replace(/\\/g, '/'),
+            size,
+          });
         }
       }
 

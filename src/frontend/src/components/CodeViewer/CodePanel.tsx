@@ -153,21 +153,19 @@ export default function CodePanel({
 
   const resolvedLang = language || detectLanguage(fileName);
 
-  // Highlight the full content, then split into per-line HTML
   const highlightedLines = useMemo(() => {
     if (!content || isBinary(content)) return [];
-    let html: string;
-    try {
-      if (resolvedLang && hljs.getLanguage(resolvedLang)) {
-        html = hljs.highlight(content, { language: resolvedLang }).value;
-      } else {
-        html = hljs.highlightAuto(content).value;
+    const lines = content.split('\n');
+    return lines.map((line) => {
+      try {
+        if (resolvedLang && hljs.getLanguage(resolvedLang)) {
+          return hljs.highlight(line, { language: resolvedLang, ignoreIllegals: true }).value;
+        }
+        return hljs.highlightAuto(line).value;
+      } catch {
+        return line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       }
-    } catch {
-      html = content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-    // Split highlighted HTML by newlines — preserves open spans across lines
-    return html.split('\n');
+    });
   }, [content, resolvedLang]);
 
   // Restore scroll position
