@@ -169,7 +169,6 @@
     display: flex !important;
   }
   .sessionName,
-  .statusDot,
   .statusText {
     display: none;
   }
