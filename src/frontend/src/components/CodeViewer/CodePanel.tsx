@@ -1,0 +1,192 @@
+import { useEffect, useRef, useMemo } from 'react';
+import hljs from 'highlight.js/lib/core';
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import python from 'highlight.js/lib/languages/python';
+import json from 'highlight.js/lib/languages/json';
+import cssLang from 'highlight.js/lib/languages/css';
+import xml from 'highlight.js/lib/languages/xml';
+import bash from 'highlight.js/lib/languages/bash';
+import markdown from 'highlight.js/lib/languages/markdown';
+import yaml from 'highlight.js/lib/languages/yaml';
+import sql from 'highlight.js/lib/languages/sql';
+import rust from 'highlight.js/lib/languages/rust';
+import go from 'highlight.js/lib/languages/go';
+import java from 'highlight.js/lib/languages/java';
+import csharp from 'highlight.js/lib/languages/csharp';
+import cpp from 'highlight.js/lib/languages/cpp';
+import dockerfile from 'highlight.js/lib/languages/dockerfile';
+import ini from 'highlight.js/lib/languages/ini';
+import diff from 'highlight.js/lib/languages/diff';
+import styles from './CodePanel.module.css';
+
+hljs.registerLanguage('javascript', javascript);
+hljs.registerLanguage('typescript', typescript);
+hljs.registerLanguage('python', python);
+hljs.registerLanguage('json', json);
+hljs.registerLanguage('css', cssLang);
+hljs.registerLanguage('xml', xml);
+hljs.registerLanguage('bash', bash);
+hljs.registerLanguage('markdown', markdown);
+hljs.registerLanguage('yaml', yaml);
+hljs.registerLanguage('sql', sql);
+hljs.registerLanguage('rust', rust);
+hljs.registerLanguage('go', go);
+hljs.registerLanguage('java', java);
+hljs.registerLanguage('csharp', csharp);
+hljs.registerLanguage('cpp', cpp);
+hljs.registerLanguage('dockerfile', dockerfile);
+hljs.registerLanguage('ini', ini);
+hljs.registerLanguage('diff', diff);
+
+// Aliases
+hljs.registerLanguage('js', javascript);
+hljs.registerLanguage('ts', typescript);
+hljs.registerLanguage('py', python);
+hljs.registerLanguage('sh', bash);
+hljs.registerLanguage('html', xml);
+hljs.registerLanguage('htm', xml);
+hljs.registerLanguage('yml', yaml);
+
+export function detectLanguage(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  const map: Record<string, string> = {
+    js: 'javascript',
+    jsx: 'javascript',
+    mjs: 'javascript',
+    cjs: 'javascript',
+    ts: 'typescript',
+    tsx: 'typescript',
+    mts: 'typescript',
+    py: 'python',
+    pyw: 'python',
+    json: 'json',
+    jsonc: 'json',
+    css: 'css',
+    scss: 'css',
+    less: 'css',
+    html: 'xml',
+    htm: 'xml',
+    xml: 'xml',
+    svg: 'xml',
+    sh: 'bash',
+    bash: 'bash',
+    zsh: 'bash',
+    fish: 'bash',
+    md: 'markdown',
+    mdx: 'markdown',
+    yml: 'yaml',
+    yaml: 'yaml',
+    sql: 'sql',
+    rs: 'rust',
+    go: 'go',
+    java: 'java',
+    cs: 'csharp',
+    cpp: 'cpp',
+    cc: 'cpp',
+    cxx: 'cpp',
+    c: 'cpp',
+    h: 'cpp',
+    hpp: 'cpp',
+    dockerfile: 'dockerfile',
+    ini: 'ini',
+    toml: 'ini',
+    cfg: 'ini',
+    diff: 'diff',
+    patch: 'diff',
+  };
+
+  const fullName = fileName.toLowerCase();
+  if (fullName === 'dockerfile' || fullName.startsWith('dockerfile.')) return 'dockerfile';
+  if (fullName === 'makefile' || fullName === 'gnumakefile') return 'bash';
+  if (fullName === '.env' || fullName.startsWith('.env.')) return 'ini';
+
+  return map[ext] || '';
+}
+
+interface CodePanelProps {
+  content: string;
+  language: string;
+  fileName: string;
+  scrollTop?: number;
+  onScroll?: (scrollTop: number) => void;
+}
+
+function isBinary(content: string): boolean {
+  return content.includes('\0');
+}
+
+export default function CodePanel({
+  content,
+  language,
+  fileName,
+  scrollTop,
+  onScroll,
+}: CodePanelProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isRestoringScroll = useRef(false);
+
+  const resolvedLang = language || detectLanguage(fileName);
+
+  const highlighted = useMemo(() => {
+    if (!content || isBinary(content)) return '';
+    try {
+      if (resolvedLang && hljs.getLanguage(resolvedLang)) {
+        return hljs.highlight(content, { language: resolvedLang }).value;
+      }
+      return hljs.highlightAuto(content).value;
+    } catch {
+      return content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+  }, [content, resolvedLang]);
+
+  const lines = useMemo(() => {
+    if (!content || isBinary(content)) return [];
+    return content.split('\n');
+  }, [content]);
+
+  // Restore scroll position
+  useEffect(() => {
+    if (containerRef.current && scrollTop != null && scrollTop > 0) {
+      isRestoringScroll.current = true;
+      containerRef.current.scrollTop = scrollTop;
+      requestAnimationFrame(() => {
+        isRestoringScroll.current = false;
+      });
+    }
+  }, [scrollTop, fileName]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !onScroll) return;
+
+    const handleScroll = () => {
+      if (!isRestoringScroll.current) {
+        onScroll(el.scrollTop);
+      }
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [onScroll]);
+
+  if (isBinary(content)) {
+    return <div className={styles.empty}>Binary file — cannot display</div>;
+  }
+
+  if (!content) {
+    return <div className={styles.empty}>Empty file</div>;
+  }
+
+  return (
+    <div className={styles.container} ref={containerRef}>
+      <div className={styles.gutter}>
+        {lines.map((_, i) => (
+          <div key={i} className={styles.lineNumber}>
+            {i + 1}
+          </div>
+        ))}
+      </div>
+      <code className={styles.code} dangerouslySetInnerHTML={{ __html: highlighted }} />
+    </div>
+  );
+}

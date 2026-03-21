@@ -1,4 +1,5 @@
 import type { Session, CreateSessionRequest } from '@/types';
+import type { FileTreeNode } from '@/stores/codeViewerStore';
 
 const BASE = '';
 const DEFAULT_TIMEOUT = 10_000;
@@ -300,6 +301,16 @@ export async function fetchFileContent(
     { credentials: 'same-origin' },
   );
   return handleResponse<{ content: string; name: string; size: number }>(res);
+}
+
+export async function fetchFileTree(
+  sessionId: string,
+  depth = 3,
+): Promise<{ root: string; tree: FileTreeNode[] }> {
+  const res = await fetchWithTimeout(`${BASE}/api/sessions/${sessionId}/file-tree?depth=${depth}`, {
+    credentials: 'same-origin',
+  });
+  return handleResponse<{ root: string; tree: FileTreeNode[] }>(res);
 }
 
 export function downloadFile(sessionId: string, filePath: string): void {

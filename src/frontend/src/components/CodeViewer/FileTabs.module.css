@@ -1,0 +1,58 @@
+.tabBar {
+  display: flex;
+  overflow-x: auto;
+  background: var(--bg-secondary, var(--bg));
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  scrollbar-width: thin;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim, #888);
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    color 0.15s;
+  flex-shrink: 0;
+}
+
+.tab:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+  color: var(--text);
+}
+
+.active {
+  background: var(--bg);
+  color: var(--text);
+  border-bottom: 2px solid var(--accent);
+}
+
+.tabName {
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.78rem;
+}
+
+.closeBtn {
+  font-size: 0.7rem;
+  opacity: 0.5;
+  padding: 2px 4px;
+  border-radius: 3px;
+  line-height: 1;
+  transition:
+    opacity 0.15s,
+    background 0.15s;
+}
+
+.closeBtn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}

@@ -1,0 +1,56 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-width: 0;
+  scrollbar-width: thin;
+}
+
+.node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+
+.node:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+}
+
+.active {
+  background: var(--accent-dim, rgba(var(--accent-rgb, 130, 120, 255), 0.15));
+  color: var(--accent);
+}
+
+.icon {
+  flex-shrink: 0;
+  width: 1em;
+  font-size: 0.7em;
+  text-align: center;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loading,
+.empty {
+  padding: 24px 16px;
+  color: var(--text-dim, #888);
+  font-size: 0.85rem;
+  text-align: center;
+  font-style: italic;
+}

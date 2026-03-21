@@ -149,6 +149,9 @@ function setupRoutes(app, { auth, sessions, config, state }) {
   app.get('/terminal', pageRateLimit, autoLogin, auth.middleware, (_req, res) =>
     res.sendFile('index.html', { root: PUBLIC_DIR }),
   );
+  app.get('/code/:sessionId', pageRateLimit, autoLogin, auth.middleware, (_req, res) =>
+    res.sendFile('index.html', { root: PUBLIC_DIR }),
+  );
 
   // Share token — generates a temporary share token for the share button
   app.get('/api/share-token', auth.middleware, (req, res) => {
@@ -514,6 +517,87 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     } catch (err) {
       log.warn(`File browse failed: ${err.message}`);
       res.status(500).json({ error: 'Failed to read directory' });
+    }
+  });
+
+  // Recursive file tree for a session's CWD
+  app.get('/api/sessions/:id/file-tree', apiRateLimit, auth.middleware, (req, res) => {
+    const session = sessions.get(req.params.id);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    const MAX_DEPTH = 5;
+    const MAX_ENTRIES = 2000;
+    const EXCLUDED = new Set([
+      'node_modules',
+      '.git',
+      '__pycache__',
+      'coverage',
+      '.next',
+      'dist',
+      'build',
+    ]);
+
+    const depth = Math.min(Math.max(parseInt(req.query.depth, 10) || 3, 1), MAX_DEPTH);
+    const rootDir = path.resolve(session.cwd);
+    let totalEntries = 0;
+
+    function buildTree(dir, currentDepth) {
+      let dirents;
+      try {
+        dirents = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return [];
+      }
+
+      const entries = [];
+      const filtered = dirents
+        .filter((e) => {
+          if (e.name.startsWith('.')) return false;
+          if (EXCLUDED.has(e.name)) return false;
+          try {
+            return !fs.lstatSync(path.join(dir, e.name)).isSymbolicLink();
+          } catch {
+            return false;
+          }
+        })
+        .sort((a, b) => {
+          const aDir = a.isDirectory();
+          const bDir = b.isDirectory();
+          if (aDir !== bDir) return aDir ? -1 : 1;
+          return a.name.localeCompare(b.name);
+        });
+
+      for (const e of filtered) {
+        if (totalEntries >= MAX_ENTRIES) break;
+        totalEntries++;
+
+        const fullPath = path.join(dir, e.name);
+        const relativePath = path.relative(rootDir, fullPath);
+        const isDir = e.isDirectory();
+
+        if (isDir) {
+          const children = currentDepth < depth ? buildTree(fullPath, currentDepth + 1) : [];
+          entries.push({ name: e.name, type: 'directory', path: relativePath, children });
+        } else {
+          let size = 0;
+          try {
+            size = fs.statSync(fullPath).size;
+          } catch {
+            // ignore stat errors
+          }
+          entries.push({ name: e.name, type: 'file', path: relativePath, size });
+        }
+      }
+
+      return entries;
+    }
+
+    try {
+      const tree = buildTree(rootDir, 1);
+      res.json({ root: rootDir, tree });
+    } catch (err) {
+      log.warn(`File tree failed: ${err.message}`);
+      res.status(500).json({ error: 'Failed to build file tree' });
     }
   });
 
