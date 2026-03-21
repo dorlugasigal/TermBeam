@@ -135,7 +135,10 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
           aria-label="Search files"
           title="Search files"
         >
-          🔍
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
         </button>
 
         <div className={styles.tabsWrapper}>
@@ -153,7 +156,17 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
             onClick={() => setMdPreview((p) => !p)}
             title={mdPreview ? 'Show source' : 'Preview markdown'}
           >
-            {mdPreview ? '</>' : '👁'}
+            {mdPreview ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            )}
           </button>
         )}
 
