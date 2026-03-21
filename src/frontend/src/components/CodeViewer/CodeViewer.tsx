@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
+import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import { useCodeViewerStore } from '@/stores/codeViewerStore';
 import { fetchFileTree, fetchFileContent } from '@/services/api';
 import { detectLanguage } from './CodePanel';
-import FileExplorer from './FileExplorer';
+import FileExplorer, { type FileExplorerHandle } from './FileExplorer';
 import FileTabs from './FileTabs';
 import CodePanel from './CodePanel';
 import styles from './CodeViewer.module.css';
@@ -42,6 +42,13 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
   const [fileLoading, setFileLoading] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [mdPreview, setMdPreview] = useState(false);
+  const explorerRef = useRef<FileExplorerHandle>(null);
+
+  const handleSearchClick = useCallback(() => {
+    if (!sidebarOpen) setSidebarOpen(true);
+    // Small delay to let sidebar open before focusing
+    setTimeout(() => explorerRef.current?.focusSearch(), 50);
+  }, [sidebarOpen, setSidebarOpen]);
 
   // Reset markdown preview when switching files
   useEffect(() => {
@@ -122,6 +129,15 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
           ☰
         </button>
 
+        <button
+          className={styles.toolBtn}
+          onClick={handleSearchClick}
+          aria-label="Search files"
+          title="Search files"
+        >
+          🔍
+        </button>
+
         <div className={styles.tabsWrapper}>
           <FileTabs
             files={openFiles}
@@ -160,6 +176,7 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
         <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
           <div className={styles.sidebarHeader}>Explorer</div>
           <FileExplorer
+            ref={explorerRef}
             tree={fileTree}
             expandedDirs={expandedDirs}
             activeFilePath={activeFilePath}
@@ -185,6 +202,11 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
                   filePath={activeFile.path}
                   fileName={activeFile.path.split('/').pop() || activeFile.path}
                   onClose={() => setMdPreview(false)}
+                  hideHeader
+                  onNavigate={(newPath) => {
+                    handleFileSelect(newPath);
+                    setMdPreview(true);
+                  }}
                 />
               </Suspense>
             ) : (
