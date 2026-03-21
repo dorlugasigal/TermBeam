@@ -257,6 +257,21 @@ const iconBell = (
   </svg>
 );
 
+const iconCode = (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="5 4 1 8 5 12" />
+    <polyline points="11 4 15 8 11 12" />
+    <line x1="9" y1="2" x2="7" y2="14" />
+  </svg>
+);
+
 const iconRefresh = (
   <svg
     viewBox="0 0 16 16"
@@ -601,6 +616,16 @@ export default function CommandPalette() {
           label: 'Preview port',
           icon: iconPreview,
           action: () => run(() => useUIStore.getState().openPreviewModal()),
+        },
+        {
+          id: 'view-code',
+          label: 'View code',
+          icon: iconCode,
+          action: () =>
+            run(() => {
+              const { activeId } = useSessionStore.getState();
+              if (activeId) window.location.href = `/code/${activeId}`;
+            }),
         },
       ],
     },

@@ -280,20 +280,6 @@ export function SidePanel() {
                 <button
                   className={styles.footerBtn}
                   onClick={() => {
-                    if (activeId && activeSession?.cwd) setShowFiles(true);
-                  }}
-                  disabled={!activeId || !activeSession?.cwd}
-                  title={
-                    !activeId || !activeSession?.cwd
-                      ? 'Select a session first'
-                      : 'Download a file from session'
-                  }
-                >
-                  ⬇️ Download File
-                </button>
-                <button
-                  className={styles.footerBtn}
-                  onClick={() => {
                     if (activeId) window.location.href = `/code/${activeId}`;
                   }}
                   disabled={!activeId}
@@ -301,8 +287,6 @@ export function SidePanel() {
                 >
                   📄 View Code
                 </button>
-              </div>
-              <div className={styles.footerRow}>
                 <button
                   className={styles.footerBtn}
                   onClick={() => {
