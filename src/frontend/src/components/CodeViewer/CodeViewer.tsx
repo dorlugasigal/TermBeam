@@ -115,7 +115,7 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
           />
         </div>
 
-        <a href="/" className={styles.backLink} title="Back to terminal">
+        <a href="/terminal" className={styles.backLink} title="Back to terminal">
           ✕
         </a>
       </header>
