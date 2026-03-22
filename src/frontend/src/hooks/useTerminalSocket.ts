@@ -246,10 +246,10 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
             const session = store.sessions.get(sessionId);
 
             // Unread tracking: only mark as unread when the PAGE is hidden
-            // (user is in another app or browser tab). When the user is
-            // looking at TermBeam on a different session tab, they don't
-            // need a dot — they'll see the output when they switch.
-            // This prevents idle shell prompts from triggering false dots.
+            // (user is in another app or browser tab). Within TermBeam,
+            // session switching doesn't produce unread dots — the user
+            // sees output when they switch tabs. This prevents idle shell
+            // prompts from triggering false unread indicators.
             if (document.hidden && store.activeId !== sessionId) {
               const wasAlreadyUnread = session?.hasUnread ?? false;
               store.markUnread(sessionId);

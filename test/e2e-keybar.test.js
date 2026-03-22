@@ -896,38 +896,6 @@ test.describe('Activity Indicators', () => {
     }).toPass({ timeout: 5_000 });
   });
 
-  test('Inactive session tab shows unread dot when it receives output', async ({ page }) => {
-    test.skip(isWindows, 'Multi-session timing unreliable on Windows CI');
-    await setupTerminal(page);
-
-    // Start a delayed echo in the first session
-    await runCommand(page, 'sleep 1 && echo BACKGROUND_OUTPUT');
-
-    // Create a second session and switch to it
-    await page.locator('button[title="New tab"]').click();
-    await expect(page.locator('[data-testid="new-session-modal"]')).toBeVisible();
-    await page.locator('[data-testid="ns-name"]').fill('Second');
-    await page.locator('[data-testid="ns-create"]').click();
-    await expect(page.locator('[data-testid="new-session-modal"]')).not.toBeVisible({
-      timeout: 5_000,
-    });
-
-    // Wait for the first session's output to arrive while we're on the second tab
-    await expect(async () => {
-      const hasUnread = await page.locator('[data-testid="tab-unread"]').count();
-      expect(hasUnread).toBeGreaterThan(0);
-    }).toPass({ timeout: 10_000 });
-
-    // Click the test session tab (nth(1), after auto-created default session)
-    // to clear its unread indicator
-    const testTab = page.locator('[data-testid="session-tab"]').nth(1);
-    await testTab.click();
-    await expect(async () => {
-      const unreadAfter = await testTab.locator('[data-testid="tab-unread"]').count();
-      expect(unreadAfter).toBe(0);
-    }).toPass({ timeout: 5_000 });
-  });
-
   test('Notification toggle exists in command palette', async ({ page }) => {
     await setupTerminal(page);
 
