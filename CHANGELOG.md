@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.17.1] - 2026-03-22
+
+- fix(ui): open code viewer as overlay to preserve terminal connection
+
 ## [1.17.0] - 2026-03-22
 
 - feat(update): in-app update mechanism with two-tier strategy (#150)
