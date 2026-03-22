@@ -738,6 +738,233 @@ Serve a previously uploaded file by its opaque ID. Requires authentication.
 
 ---
 
+### Git
+
+#### `GET /api/sessions/:id/git/status`
+
+Returns parsed git status for a session's working directory.
+
+**Response (200):**
+
+```json
+{
+  "branch": "main",
+  "ahead": 3,
+  "behind": 0,
+  "staged": [{ "path": "src/index.js", "status": "M", "oldPath": null }],
+  "modified": [{ "path": "README.md", "status": "M", "oldPath": null }],
+  "untracked": ["new-file.txt"],
+  "isGitRepo": true
+}
+```
+
+| Field       | Type    | Description                                                             |
+| ----------- | ------- | ----------------------------------------------------------------------- |
+| `branch`    | string  | Current branch name                                                     |
+| `ahead`     | number  | Commits ahead of upstream                                               |
+| `behind`    | number  | Commits behind upstream                                                 |
+| `staged`    | array   | Staged files, each with `path`, `status`, and `oldPath` (for renames)   |
+| `modified`  | array   | Modified files, each with `path`, `status`, and `oldPath` (for renames) |
+| `untracked` | array   | Untracked file paths                                                    |
+| `isGitRepo` | boolean | Whether the session's cwd is inside a git repository                    |
+
+---
+
+#### `GET /api/sessions/:id/git/diff`
+
+Returns file diff for a specific file.
+
+**Query parameters:**
+
+| Parameter   | Type    | Description                                  |
+| ----------- | ------- | -------------------------------------------- |
+| `file`      | string  | File path relative to repo root (required)   |
+| `staged`    | boolean | Show staged changes instead of working tree  |
+| `untracked` | boolean | Treat file as untracked (diff against empty) |
+| `context`   | number  | Number of context lines around changes       |
+
+**Response (200):**
+
+```json
+{
+  "file": "src/index.js",
+  "hunks": [
+    {
+      "header": "@@ -10,6 +10,7 @@",
+      "oldStart": 10,
+      "oldLines": 6,
+      "newStart": 10,
+      "newLines": 7,
+      "lines": [
+        {
+          "type": "context",
+          "content": "const express = require('express');",
+          "oldLine": 10,
+          "newLine": 10
+        },
+        {
+          "type": "add",
+          "content": "const cors = require('cors');",
+          "oldLine": null,
+          "newLine": 11
+        }
+      ]
+    }
+  ],
+  "additions": 1,
+  "deletions": 0,
+  "isBinary": false
+}
+```
+
+| Field       | Type    | Description                                     |
+| ----------- | ------- | ----------------------------------------------- |
+| `file`      | string  | File path                                       |
+| `hunks`     | array   | Diff hunks with header, line ranges, and lines  |
+| `additions` | number  | Total number of added lines                     |
+| `deletions` | number  | Total number of deleted lines                   |
+| `isBinary`  | boolean | Whether the file is binary (no line-level diff) |
+
+Each line in a hunk contains `type` (`"add"`, `"remove"`, or `"context"`), `content`, `oldLine`, and `newLine`.
+
+---
+
+#### `GET /api/sessions/:id/git/blame`
+
+Returns per-line blame information for a file.
+
+**Query parameters:**
+
+| Parameter | Type   | Description                                |
+| --------- | ------ | ------------------------------------------ |
+| `file`    | string | File path relative to repo root (required) |
+
+**Response (200):**
+
+```json
+{
+  "file": "src/index.js",
+  "lines": [
+    {
+      "line": 1,
+      "content": "const express = require('express');",
+      "commit": "a1b2c3d",
+      "author": "Jane Doe",
+      "date": "2025-01-15T10:30:00.000Z",
+      "summary": "Initial commit"
+    }
+  ]
+}
+```
+
+| Field   | Type   | Description            |
+| ------- | ------ | ---------------------- |
+| `file`  | string | File path              |
+| `lines` | array  | Per-line blame entries |
+
+Each line entry contains `line` (number), `content` (string), `commit` (short hash), `author`, `date` (ISO 8601), and `summary` (commit message first line).
+
+---
+
+#### `GET /api/sessions/:id/git/log`
+
+Returns commit log for the repository.
+
+**Query parameters:**
+
+| Parameter | Type   | Description                                     |
+| --------- | ------ | ----------------------------------------------- |
+| `limit`   | number | Max commits to return (default 20, max 100)     |
+| `file`    | string | Filter commits to those touching this file path |
+
+**Response (200):**
+
+```json
+{
+  "commits": [
+    {
+      "hash": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+      "shortHash": "a1b2c3d",
+      "author": "Jane Doe",
+      "email": "jane@example.com",
+      "date": "2025-01-15T10:30:00.000Z",
+      "subject": "feat: add git integration",
+      "body": ""
+    }
+  ]
+}
+```
+
+| Field     | Type  | Description     |
+| --------- | ----- | --------------- |
+| `commits` | array | List of commits |
+
+Each commit contains `hash`, `shortHash`, `author`, `email`, `date` (ISO 8601), `subject`, and `body`.
+
+---
+
+### Push Notifications
+
+#### `GET /api/push/vapid-key`
+
+Returns the VAPID public key needed to create a push subscription on the client.
+
+**Response (200):**
+
+```json
+{ "publicKey": "BNq..." }
+```
+
+| Field       | Type   | Description                        |
+| ----------- | ------ | ---------------------------------- |
+| `publicKey` | string | Base64url-encoded VAPID public key |
+
+---
+
+#### `POST /api/push/subscribe`
+
+Register a Web Push subscription with the server.
+
+**Request:**
+
+```json
+{
+  "subscription": {
+    "endpoint": "https://fcm.googleapis.com/fcm/send/...",
+    "keys": {
+      "p256dh": "BNq...",
+      "auth": "abc..."
+    }
+  }
+}
+```
+
+**Response (200):**
+
+```json
+{ "ok": true }
+```
+
+---
+
+#### `DELETE /api/push/unsubscribe`
+
+Remove a previously registered push subscription.
+
+**Request:**
+
+```json
+{ "endpoint": "https://fcm.googleapis.com/fcm/send/..." }
+```
+
+**Response (200):**
+
+```json
+{ "ok": true }
+```
+
+---
+
 ### Port Preview
 
 #### `GET /preview/:port/*`
@@ -858,6 +1085,25 @@ The server validates resize dimensions: `cols` must be between 1–500 and `rows
 ```json
 { "type": "exit", "code": 0 }
 ```
+
+#### Notification
+
+Sent when a command completes (child process exits). Broadcast in real time to connected clients and replayed on attach for events that occurred while disconnected.
+
+```json
+{
+  "type": "notification",
+  "notificationType": "command-complete",
+  "sessionName": "my-project",
+  "timestamp": 1719849600000
+}
+```
+
+| Field              | Type   | Description                                 |
+| ------------------ | ------ | ------------------------------------------- |
+| `notificationType` | string | Notification kind (`command-complete`)      |
+| `sessionName`      | string | Name of the session where the event fired   |
+| `timestamp`        | number | Unix timestamp (ms) when the event occurred |
 
 #### Error
 

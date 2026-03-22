@@ -1,4 +1,5 @@
 import type { Session, CreateSessionRequest } from '@/types';
+import type { FileTreeNode } from '@/stores/codeViewerStore';
 
 const BASE = '';
 const DEFAULT_TIMEOUT = 10_000;
@@ -351,6 +352,16 @@ export async function fetchFileContent(
   return handleResponse<{ content: string; name: string; size: number }>(res);
 }
 
+export async function fetchFileTree(
+  sessionId: string,
+  depth = 3,
+): Promise<{ root: string; tree: FileTreeNode[] }> {
+  const res = await fetchWithTimeout(`${BASE}/api/sessions/${sessionId}/file-tree?depth=${depth}`, {
+    credentials: 'same-origin',
+  });
+  return handleResponse<{ root: string; tree: FileTreeNode[] }>(res);
+}
+
 export function downloadFile(sessionId: string, filePath: string): void {
   const url = `${BASE}/api/sessions/${sessionId}/download?file=${encodeURIComponent(filePath)}`;
   const a = document.createElement('a');
@@ -403,9 +414,157 @@ export function downloadFileWithProgress(
   });
 }
 
+/* ---------- push notification API ---------- */
+
+export async function fetchVapidKey(): Promise<{ publicKey: string }> {
+  const res = await fetchWithTimeout(`${BASE}/api/push/vapid-key`, {
+    credentials: 'same-origin',
+  });
+  return handleResponse<{ publicKey: string }>(res);
+}
+
+export async function subscribePush(
+  subscription: PushSubscriptionJSON,
+): Promise<{ ok: boolean }> {
+  const res = await fetchWithTimeout(`${BASE}/api/push/subscribe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subscription }),
+    credentials: 'same-origin',
+  });
+  return handleResponse<{ ok: boolean }>(res);
+}
+
+export async function unsubscribePush(endpoint: string): Promise<{ ok: boolean }> {
+  const res = await fetchWithTimeout(`${BASE}/api/push/unsubscribe`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint }),
+    credentials: 'same-origin',
+  });
+  return handleResponse<{ ok: boolean }>(res);
+}
+
 /** Ask the service worker to purge non-precache caches (e.g. stale navigation HTML). */
 export function clearServiceWorkerCaches(): void {
   if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
     navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHES' });
   }
+}
+
+// ── Git API types ──
+
+export interface GitFileChange {
+  path: string;
+  status: string;
+  oldPath: string | null;
+}
+
+export interface GitStatus {
+  branch: string | null;
+  ahead: number;
+  behind: number;
+  staged: GitFileChange[];
+  modified: GitFileChange[];
+  untracked: string[];
+  isGitRepo: boolean;
+}
+
+export interface DiffLine {
+  type: 'add' | 'remove' | 'context';
+  content: string;
+  oldLine: number | null;
+  newLine: number | null;
+}
+
+export interface DiffHunk {
+  header: string;
+  oldStart: number;
+  oldLines: number;
+  newStart: number;
+  newLines: number;
+  lines: DiffLine[];
+}
+
+export interface GitDiff {
+  file: string;
+  hunks: DiffHunk[];
+  additions: number;
+  deletions: number;
+  isBinary: boolean;
+}
+
+export interface BlameLine {
+  line: number;
+  content: string;
+  commit: string | null;
+  author: string;
+  date: string | null;
+  summary: string;
+}
+
+export interface GitBlame {
+  file: string;
+  lines: BlameLine[];
+}
+
+export interface GitCommit {
+  hash: string;
+  shortHash: string;
+  author: string;
+  email: string;
+  date: string;
+  subject: string;
+  body: string;
+}
+
+export interface GitLog {
+  commits: GitCommit[];
+}
+
+// ── Git API functions ──
+
+export async function fetchGitStatus(sessionId: string): Promise<GitStatus> {
+  const res = await fetchWithTimeout(`${BASE}/api/sessions/${sessionId}/git/status`, {
+    credentials: 'same-origin',
+  });
+  return handleResponse<GitStatus>(res);
+}
+
+export async function fetchGitDiff(
+  sessionId: string,
+  file: string,
+  staged = false,
+  untracked = false,
+  context?: number,
+): Promise<GitDiff> {
+  const params = new URLSearchParams({ file });
+  if (staged) params.set('staged', 'true');
+  if (untracked) params.set('untracked', 'true');
+  if (context !== undefined) params.set('context', String(context));
+  const res = await fetchWithTimeout(`${BASE}/api/sessions/${sessionId}/git/diff?${params}`, {
+    credentials: 'same-origin',
+  });
+  return handleResponse<GitDiff>(res);
+}
+
+export async function fetchGitBlame(sessionId: string, file: string): Promise<GitBlame> {
+  const res = await fetchWithTimeout(
+    `${BASE}/api/sessions/${sessionId}/git/blame?file=${encodeURIComponent(file)}`,
+    { credentials: 'same-origin' },
+  );
+  return handleResponse<GitBlame>(res);
+}
+
+export async function fetchGitLog(
+  sessionId: string,
+  limit = 20,
+  file?: string,
+): Promise<GitLog> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (file) params.set('file', file);
+  const res = await fetchWithTimeout(`${BASE}/api/sessions/${sessionId}/git/log?${params}`, {
+    credentials: 'same-origin',
+  });
+  return handleResponse<GitLog>(res);
 }

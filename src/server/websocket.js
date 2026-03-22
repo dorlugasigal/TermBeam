@@ -82,9 +82,21 @@ function setupWebSocket(wss, { auth, sessions }) {
     }
 
     const pingInterval = setInterval(() => {
-      if (ws.readyState === 1) ws.ping();
-    }, 30000);
+      if (ws.readyState === 1) {
+        if (ws._pongPending) {
+          // Previous ping never got a pong — connection is dead
+          ws.terminate();
+          return;
+        }
+        ws._pongPending = true;
+        ws.ping();
+      }
+    }, 15000);
     if (typeof pingInterval.unref === 'function') pingInterval.unref();
+
+    ws.on('pong', () => {
+      ws._pongPending = false;
+    });
 
     let authenticated = !auth.password;
     let attached = null;
@@ -166,6 +178,13 @@ function setupWebSocket(wss, { auth, sessions }) {
             }
           }
           ws.send(JSON.stringify({ type: 'attached', sessionId: msg.sessionId }));
+          // Deliver any command-complete notifications that fired while disconnected
+          if (session.pendingNotifications.length > 0) {
+            for (const n of session.pendingNotifications) {
+              ws.send(JSON.stringify({ type: 'notification', ...n }));
+            }
+            session.pendingNotifications = [];
+          }
           log.info(`Client attached to session ${msg.sessionId}`);
           return;
         }

@@ -34,7 +34,7 @@ function validateMagicBytes(buffer, contentType) {
   return true;
 }
 
-function setupRoutes(app, { auth, sessions, config, state }) {
+function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
   const pageRateLimit = rateLimit({
     windowMs: 1 * 60 * 1000,
     max: 120,
@@ -268,6 +268,9 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     res.sendFile('index.html', { root: PUBLIC_DIR }),
   );
   app.get('/terminal', pageRateLimit, autoLogin, auth.middleware, (_req, res) =>
+    res.sendFile('index.html', { root: PUBLIC_DIR }),
+  );
+  app.get('/code/:sessionId', pageRateLimit, autoLogin, auth.middleware, (_req, res) =>
     res.sendFile('index.html', { root: PUBLIC_DIR }),
   );
 
@@ -638,6 +641,105 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     }
   });
 
+  // Recursive file tree for a session's CWD
+  app.get('/api/sessions/:id/file-tree', apiRateLimit, auth.middleware, (req, res) => {
+    const session = sessions.get(req.params.id);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    const MAX_DEPTH = 5;
+    const MAX_ENTRIES = 2000;
+    const EXCLUDED = new Set([
+      'node_modules',
+      '.git',
+      '__pycache__',
+      'coverage',
+      '.next',
+      'dist',
+      'build',
+    ]);
+
+    let depth = 3;
+    if (typeof req.query.depth !== 'undefined') {
+      const parsedDepth = parseInt(req.query.depth, 10);
+      if (Number.isNaN(parsedDepth)) {
+        return res.status(400).json({ error: 'Invalid depth' });
+      }
+      depth = parsedDepth;
+    }
+    depth = Math.min(Math.max(depth, 1), MAX_DEPTH);
+    const rootDir = path.resolve(session.cwd);
+    let totalEntries = 0;
+
+    function buildTree(dir, currentDepth) {
+      let dirents;
+      try {
+        dirents = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return [];
+      }
+
+      const entries = [];
+      const filtered = dirents
+        .filter((e) => {
+          if (e.name.startsWith('.')) return false;
+          if (EXCLUDED.has(e.name)) return false;
+          try {
+            return !fs.lstatSync(path.join(dir, e.name)).isSymbolicLink();
+          } catch {
+            return false;
+          }
+        })
+        .sort((a, b) => {
+          const aDir = a.isDirectory();
+          const bDir = b.isDirectory();
+          if (aDir !== bDir) return aDir ? -1 : 1;
+          return a.name.localeCompare(b.name);
+        });
+
+      for (const e of filtered) {
+        if (totalEntries >= MAX_ENTRIES) break;
+        totalEntries++;
+
+        const fullPath = path.join(dir, e.name);
+        const relativePath = path.relative(rootDir, fullPath);
+        const isDir = e.isDirectory();
+
+        if (isDir) {
+          const children = currentDepth < depth ? buildTree(fullPath, currentDepth + 1) : [];
+          entries.push({
+            name: e.name,
+            type: 'directory',
+            path: relativePath.replace(/\\/g, '/'),
+            children,
+          });
+        } else {
+          let size = 0;
+          try {
+            size = fs.statSync(fullPath).size;
+          } catch {
+            // ignore stat errors
+          }
+          entries.push({
+            name: e.name,
+            type: 'file',
+            path: relativePath.replace(/\\/g, '/'),
+            size,
+          });
+        }
+      }
+
+      return entries;
+    }
+
+    try {
+      const tree = buildTree(rootDir, 1);
+      res.json({ root: rootDir, tree });
+    } catch (err) {
+      log.warn(`File tree failed: ${err.message}`);
+      res.status(500).json({ error: 'Failed to build file tree' });
+    }
+  });
+
   // Download a file from within a session's CWD
   app.get('/api/sessions/:id/download', apiRateLimit, auth.middleware, (req, res) => {
     const session = sessions.get(req.params.id);
@@ -731,6 +833,95 @@ function setupRoutes(app, { auth, sessions, config, state }) {
     }
   });
 
+  // --- Git change endpoints ---
+
+  const { getDetailedStatus, getFileDiff, getFileBlame, getGitLog } = require('../utils/git');
+
+  function validateFilePath(file) {
+    if (!file || typeof file !== 'string') return false;
+    if (path.isAbsolute(file)) return false;
+    const normalized = path.normalize(file);
+    if (normalized.startsWith('..') || normalized.includes(`..${path.sep}`)) return false;
+    return true;
+  }
+
+  app.get('/api/sessions/:id/git/status', apiRateLimit, auth.middleware, async (req, res) => {
+    const session = sessions.get(req.params.id);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    try {
+      const status = await getDetailedStatus(session.cwd);
+      res.json(status);
+    } catch (err) {
+      log.warn(`Git status failed: ${err.message}`);
+      res.status(500).json({ error: 'Failed to get git status' });
+    }
+  });
+
+  app.get('/api/sessions/:id/git/diff', apiRateLimit, auth.middleware, async (req, res) => {
+    const session = sessions.get(req.params.id);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    const file = req.query.file;
+    if (!validateFilePath(file)) {
+      return res.status(400).json({ error: 'Invalid or missing file parameter' });
+    }
+
+    const staged = req.query.staged === 'true';
+    const untracked = req.query.untracked === 'true';
+    let context;
+    if (req.query.context !== undefined) {
+      const parsed = parseInt(req.query.context, 10);
+      if (Number.isFinite(parsed)) {
+        context = Math.min(Math.max(parsed, 0), 99999);
+      }
+    }
+    try {
+      const diff = await getFileDiff(session.cwd, file, { staged, untracked, context });
+      res.json(diff);
+    } catch (err) {
+      log.warn(`Git diff failed: ${err.message}`);
+      res.status(500).json({ error: 'Failed to get diff' });
+    }
+  });
+
+  app.get('/api/sessions/:id/git/blame', apiRateLimit, auth.middleware, async (req, res) => {
+    const session = sessions.get(req.params.id);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    const file = req.query.file;
+    if (!validateFilePath(file)) {
+      return res.status(400).json({ error: 'Invalid or missing file parameter' });
+    }
+
+    try {
+      const blame = await getFileBlame(session.cwd, file);
+      res.json(blame);
+    } catch (err) {
+      log.warn(`Git blame failed: ${err.message}`);
+      res.status(500).json({ error: 'Failed to get blame' });
+    }
+  });
+
+  app.get('/api/sessions/:id/git/log', apiRateLimit, auth.middleware, async (req, res) => {
+    const session = sessions.get(req.params.id);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const file = req.query.file;
+    if (file && !validateFilePath(file)) {
+      return res.status(400).json({ error: 'Invalid file parameter' });
+    }
+
+    try {
+      const logResult = await getGitLog(session.cwd, { limit, file: file || null });
+      res.json(logResult);
+    } catch (err) {
+      log.warn(`Git log failed: ${err.message}`);
+      res.status(500).json({ error: 'Failed to get git log' });
+    }
+  });
+
   // Directory listing for folder browser
   app.get('/api/dirs', apiRateLimit, auth.middleware, (req, res) => {
     log.debug(`Directory listing requested: ${req.query.q || config.cwd}`);
@@ -752,6 +943,41 @@ function setupRoutes(app, { auth, sessions, config, state }) {
       res.json({ base: dir, dirs: [], truncated: false });
     }
   });
+
+  // --- Push notification endpoints ---
+  if (pushManager) {
+    app.get('/api/push/vapid-key', apiRateLimit, auth.middleware, (_req, res) => {
+      const publicKey = pushManager.getPublicKey();
+      if (!publicKey) {
+        return res.status(503).json({ error: 'Push notifications not configured' });
+      }
+      res.json({ publicKey });
+    });
+
+    app.post('/api/push/subscribe', apiRateLimit, auth.middleware, (req, res) => {
+      const { subscription } = req.body || {};
+      if (
+        !subscription ||
+        !subscription.endpoint ||
+        !subscription.keys ||
+        !subscription.keys.p256dh ||
+        !subscription.keys.auth
+      ) {
+        return res.status(400).json({ error: 'Invalid subscription object' });
+      }
+      pushManager.subscribe(subscription);
+      res.json({ ok: true });
+    });
+
+    app.delete('/api/push/unsubscribe', apiRateLimit, auth.middleware, (req, res) => {
+      const { endpoint } = req.body || {};
+      if (!endpoint) {
+        return res.status(400).json({ error: 'Missing endpoint' });
+      }
+      pushManager.unsubscribe(endpoint);
+      res.json({ ok: true });
+    });
+  }
 }
 
 function cleanupUploadedFiles() {

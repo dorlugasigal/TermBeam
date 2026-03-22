@@ -639,7 +639,7 @@ describe('WebSocket', () => {
         wss._simulateConnection(ws);
 
         assert.ok(intervalCallback, 'setInterval should be called on connection');
-        assert.strictEqual(intervalDelay, 30000, 'ping interval should be 30 seconds');
+        assert.strictEqual(intervalDelay, 15000, 'ping interval should be 15 seconds');
         assert.strictEqual(pingCalled, false, 'ping should not fire immediately');
 
         // Manually invoke the interval callback to verify it calls ws.ping()

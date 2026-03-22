@@ -375,7 +375,7 @@ export function TerminalApp() {
 
         <div className={styles.right}>
           <button
-            className={`${styles.barBtn} ${styles.barBtnWithLabel}`}
+            className={`${styles.barBtn} ${styles.barBtnWithLabel} ${styles.desktopOnly}`}
             data-testid="tab-new-btn"
             onClick={() => {
               if (document.activeElement instanceof HTMLElement) document.activeElement.blur();

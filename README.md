@@ -75,6 +75,8 @@ termbeam -i                     # interactive setup wizard
 - **File upload** — send files from your phone to the session's working directory
 - **File browser & download** — browse files in a session's working directory from the side panel and download them to your device
 - **Markdown viewer** — preview `.md` files rendered with GitHub Flavored Markdown directly in the browser
+- **Git changes view** — view git status, diffs, blame, and commit history in the code viewer. Toggle between Files and Changes tabs, view staged/unstaged diffs with syntax highlighting, and see per-line blame annotations
+- **Push notifications** — get native push notifications on your phone when commands complete, even when the app is in the background. Uses Web Push API with VAPID authentication
 - **Completion notifications** — browser alerts when background commands finish
 - **30 color themes** with adjustable font size
 - **Port preview** — reverse-proxy a local web server through TermBeam

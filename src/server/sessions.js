@@ -101,6 +101,41 @@ const SESSION_COLORS = [
 class SessionManager {
   constructor() {
     this.sessions = new Map();
+    /** @type {((event: {sessionId: string, sessionName: string}) => void)|null} */
+    this.onCommandComplete = null;
+  }
+
+  /** Emit a command-complete notification (push + WS broadcast). */
+  _emitNotification(id, session) {
+    const notification = {
+      notificationType: 'command-complete',
+      sessionName: session.name,
+      timestamp: Date.now(),
+    };
+
+    // Send push notification (works even when app is closed)
+    if (this.onCommandComplete) {
+      this.onCommandComplete({ sessionId: id, sessionName: session.name });
+    }
+
+    // Broadcast to connected WebSocket clients
+    const notifMsg = JSON.stringify({ type: 'notification', ...notification });
+    let delivered = false;
+    for (const ws of session.clients) {
+      if (ws.readyState === 1) {
+        ws.send(notifMsg);
+        delivered = true;
+      }
+    }
+
+    // Only store as pending if no clients received it — prevents
+    // duplicate notification when user taps push and app reconnects
+    if (!delivered) {
+      session.pendingNotifications.push(notification);
+      if (session.pendingNotifications.length > 5) {
+        session.pendingNotifications = session.pendingNotifications.slice(-5);
+      }
+    }
   }
 
   create({
@@ -162,6 +197,7 @@ class SessionManager {
       createdAt: new Date().toISOString(),
       lastActivity: Date.now(),
       clients: new Set(),
+      pendingNotifications: [],
       scrollback: [],
       scrollbackBuf: '',
       hasHadClient: false,
@@ -174,6 +210,36 @@ class SessionManager {
     ptyProcess.onData((data) => {
       session.lastActivity = Date.now();
       session.scrollbackBuf += data;
+
+      // Silence-based notification: only active when the shell has a direct
+      // child process (session._hasDirectChild). This handles interactive
+      // agents (Copilot CLI, Claude Code) that stay running but spawn
+      // subtasks. When subtask output goes silent for 5 seconds after
+      // sustained activity, that's "task completed."
+      if (session._hasDirectChild) {
+        const now = Date.now();
+        if (!session._outputBurstStart) session._outputBurstStart = now;
+        session._outputBytes = (session._outputBytes || 0) + data.length;
+        clearTimeout(session._silenceTimer);
+
+        // Only fire after 5s silence following ≥1s activity with ≥100 bytes
+        const duration = now - session._outputBurstStart;
+        if (duration >= 1000 && session._outputBytes >= 100) {
+          session._silenceTimer = setTimeout(() => {
+            const cooldownOk =
+              !session._lastNotifyTime || Date.now() - session._lastNotifyTime >= 30000;
+            if (cooldownOk) {
+              session._lastNotifyTime = Date.now();
+              log.info(
+                `Command idle in "${session.name}" (${Math.round(duration / 1000)}s activity, ${session._outputBytes} bytes)`,
+              );
+              this._emitNotification(id, session);
+            }
+            session._outputBurstStart = null;
+            session._outputBytes = 0;
+          }, 5000);
+        }
+      }
 
       // Track alt screen mode so reconnecting clients can re-enter it.
       // Carry a small tail between chunks so split escape sequences are detected.
@@ -219,7 +285,83 @@ class SessionManager {
       }
     });
 
+    // Monitor DIRECT child processes of the shell to detect command completion.
+    // Two notification triggers:
+    // 1. Direct child exits (e.g., `sleep 10` finishes, `copilot` quits)
+    // 2. Silence detection (in onData above) fires when output stops for 5s
+    //    while a child IS running (e.g., Copilot CLI agent finishes a task)
+    if (process.platform !== 'win32') {
+      const shellPid = ptyProcess.pid;
+      let prevChildren = new Set();
+      let childCheckCount = 0;
+      const POLL_INTERVAL = 2000;
+      const NOTIFY_COOLDOWN = 30000;
+
+      let pollInFlight = false;
+      const checkChildren = () => {
+        if (pollInFlight) return;
+        if (!this.sessions.has(id)) return;
+        pollInFlight = true;
+
+        const { exec } = require('child_process');
+
+        exec(
+          `ps -ax -o pid=,ppid= | awk -v p=${shellPid} '$2 == p { print $1 }'`,
+          { timeout: 2000 },
+          (err, stdout) => {
+            pollInFlight = false;
+            if (err) return;
+            const currentChildren = new Set(
+              (stdout || '')
+                .trim()
+                .split('\n')
+                .filter(Boolean)
+                .map((s) => s.trim()),
+            );
+            childCheckCount++;
+
+            // Update the flag used by silence detection in onData
+            session._hasDirectChild = currentChildren.size > 0;
+
+            // Skip initial checks — shell startup spawns profile/completion children
+            if (childCheckCount <= 3) {
+              prevChildren = currentChildren;
+              return;
+            }
+
+            // Check if any previously-seen direct child has exited
+            const exited = [...prevChildren].filter((pid) => !currentChildren.has(pid));
+
+            if (exited.length > 0 && prevChildren.size > 0) {
+              // Direct child exited — clear silence timer (prevent double notification)
+              clearTimeout(session._silenceTimer);
+              session._outputBurstStart = null;
+              session._outputBytes = 0;
+
+              const now = Date.now();
+              if (!session._lastNotifyTime || now - session._lastNotifyTime >= NOTIFY_COOLDOWN) {
+                session._lastNotifyTime = now;
+                log.info(
+                  `Command completed in "${session.name}" (PID ${exited.join(',')} exited, ${currentChildren.size} remaining)`,
+                );
+                this._emitNotification(id, session);
+              }
+            }
+
+            prevChildren = currentChildren;
+          },
+        );
+      };
+
+      session._childMonitor = setInterval(checkChildren, POLL_INTERVAL);
+      if (typeof session._childMonitor.unref === 'function') {
+        session._childMonitor.unref();
+      }
+    }
+
     ptyProcess.onExit(({ exitCode }) => {
+      clearInterval(session._childMonitor);
+      clearTimeout(session._silenceTimer);
       log.info(`Session "${name}" (${id}) exited (code ${exitCode})`);
       for (const ws of session.clients) {
         if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'exit', code: exitCode }));
@@ -260,6 +402,7 @@ class SessionManager {
     if (!s) return false;
     log.info(`Session "${s.name}" deleted (id=${id})`);
     _gitCache.delete(id);
+    clearInterval(s._childMonitor);
     s.pty.kill();
     return true;
   }
@@ -289,6 +432,7 @@ class SessionManager {
     log.info(`Shutting down ${this.sessions.size} session(s)`);
     for (const [_id, s] of this.sessions) {
       try {
+        clearInterval(s._childMonitor);
         s.pty.kill();
       } catch (err) {
         log.warn(`Failed to kill session ${_id}: ${err.message}`);

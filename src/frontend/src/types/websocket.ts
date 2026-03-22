@@ -51,9 +51,17 @@ export interface WSUpdateProgressMessage {
   restartStrategy?: string;
 }
 
+export interface WSNotificationMessage {
+  type: 'notification';
+  notificationType: 'command-complete';
+  sessionName: string;
+  timestamp: number;
+}
+
 export type WSServerMessage =
   | WSOutputMessage
   | WSAttachedMessage
   | WSExitMessage
   | WSErrorMessage
-  | WSUpdateProgressMessage;
+  | WSUpdateProgressMessage
+  | WSNotificationMessage;

@@ -1,0 +1,134 @@
+.wrapper {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.container {
+  display: flex;
+  flex: 1;
+  overflow: auto;
+  background: var(--bg);
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
+  min-height: 0;
+}
+
+.blameLoading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 180px;
+  max-width: 240px;
+  padding: 16px 12px;
+  border-right: 1px solid var(--border);
+  color: var(--text-dim, #888);
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+.table {
+  display: table;
+  min-width: 100%;
+}
+
+.row {
+  display: table-row;
+}
+
+.lineNumber {
+  display: table-cell;
+  position: sticky;
+  left: 0;
+  padding: 0 12px 0 16px;
+  min-width: 3ch;
+  text-align: right;
+  user-select: none;
+  color: var(--text-dim, #666);
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  z-index: 1;
+  white-space: nowrap;
+}
+
+.lineContent {
+  display: table-cell;
+  padding: 0 16px;
+  white-space: pre;
+  tab-size: 4;
+  color: var(--text);
+}
+
+.table .row:first-child .lineNumber,
+.table .row:first-child .lineContent {
+  padding-top: 12px;
+}
+
+.table .row:last-child .lineNumber,
+.table .row:last-child .lineContent {
+  padding-bottom: 12px;
+}
+
+/* Override highlight.js background to use our theme */
+.lineContent :global(.hljs) {
+  background: transparent !important;
+  padding: 0 !important;
+  color: inherit;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--text-dim, #888);
+  font-style: italic;
+}
+
+/* ── Syntax highlighting colors — theme-aware ── */
+
+.lineContent :global(.hljs-keyword),
+.lineContent :global(.hljs-selector-tag),
+.lineContent :global(.hljs-built_in) {
+  color: var(--syntax-keyword, #c678dd);
+}
+
+.lineContent :global(.hljs-string),
+.lineContent :global(.hljs-attr) {
+  color: var(--syntax-string, #98c379);
+}
+
+.lineContent :global(.hljs-number),
+.lineContent :global(.hljs-literal) {
+  color: var(--syntax-number, #d19a66);
+}
+
+.lineContent :global(.hljs-comment),
+.lineContent :global(.hljs-doctag) {
+  color: var(--syntax-comment, #7f848e);
+  font-style: italic;
+}
+
+.lineContent :global(.hljs-function),
+.lineContent :global(.hljs-title) {
+  color: var(--syntax-function, #61afef);
+}
+
+.lineContent :global(.hljs-variable),
+.lineContent :global(.hljs-template-variable) {
+  color: var(--syntax-variable, #e06c75);
+}
+
+.lineContent :global(.hljs-type),
+.lineContent :global(.hljs-class) {
+  color: var(--syntax-type, #e5c07b);
+}
+
+.lineContent :global(.hljs-meta),
+.lineContent :global(.hljs-tag) {
+  color: var(--syntax-meta, #abb2bf);
+}

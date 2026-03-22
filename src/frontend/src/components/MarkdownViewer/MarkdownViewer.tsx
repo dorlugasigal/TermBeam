@@ -14,6 +14,8 @@ interface MarkdownViewerProps {
   fileName: string;
   onClose: () => void;
   onNavigate?: (filePath: string, fileName: string) => void;
+  /** Hide the built-in header (useful when embedded in another layout like CodeViewer) */
+  hideHeader?: boolean;
 }
 
 mermaid.initialize({
@@ -47,15 +49,17 @@ function MermaidBlock({ code }: { code: string }) {
 }
 
 function resolveRelativePath(base: string, relative: string): string {
-  if (relative.startsWith('/')) return relative;
+  // Absolute relative paths — return as-is (stripping leading / for session-relative use)
+  if (relative.startsWith('/')) return relative.slice(1);
+  const isAbsoluteBase = base.startsWith('/');
   const baseDir = base.substring(0, base.lastIndexOf('/'));
-  const parts = (baseDir + '/' + relative).split('/');
+  const parts = (baseDir ? baseDir + '/' + relative : relative).split('/');
   const resolved: string[] = [];
   for (const part of parts) {
     if (part === '..') resolved.pop();
     else if (part !== '.' && part !== '') resolved.push(part);
   }
-  return '/' + resolved.join('/');
+  return (isAbsoluteBase ? '/' : '') + resolved.join('/');
 }
 
 function isExternalUrl(src: string): boolean {
@@ -68,6 +72,7 @@ export function MarkdownViewer({
   fileName,
   onClose,
   onNavigate,
+  hideHeader,
 }: MarkdownViewerProps) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
@@ -89,17 +94,19 @@ export function MarkdownViewer({
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <button className={styles.backBtn} onClick={onClose} title="Back to files" aria-label="Back to files">
-          ←
-        </button>
-        <span className={styles.fileName}>📄 {fileName}</span>
-        {Math.round(scale * 100) !== 100 && (
-          <button className={styles.zoomReset} onClick={resetZoom} title="Reset zoom">
-            {Math.round(scale * 100)}%
+      {!hideHeader && (
+        <div className={styles.header}>
+          <button className={styles.backBtn} onClick={onClose} title="Back to files" aria-label="Back to files">
+            ←
           </button>
-        )}
-      </div>
+          <span className={styles.fileName}>📄 {fileName}</span>
+          {Math.round(scale * 100) !== 100 && (
+            <button className={styles.zoomReset} onClick={resetZoom} title="Reset zoom">
+              {Math.round(scale * 100)}%
+            </button>
+          )}
+        </div>
+      )}
       <div className={styles.content} ref={contentRef}>
         {loading ? (
           <div className={styles.loading}>Loading…</div>

@@ -3,9 +3,15 @@ import { useAuth } from '@/hooks/useAuth';
 import LoginPage from '@/components/LoginPage/LoginPage';
 import SessionsHub from '@/components/SessionsHub/SessionsHub';
 import { TerminalApp } from '@/components/TerminalApp/TerminalApp';
+import CodeViewer from '@/components/CodeViewer/CodeViewer';
 
 function getPath() {
   return window.location.pathname;
+}
+
+function getCodeSessionId(): string | null {
+  const match = window.location.pathname.match(/^\/code\/([^/]+)$/);
+  return match?.[1] || null;
 }
 
 /** Normalize ?id= to ?session= so TerminalApp can read it */
@@ -94,6 +100,11 @@ export default function App() {
   }
 
   // Authenticated — route by pathname
+  const codeSessionId = getCodeSessionId();
+  if (codeSessionId) {
+    return <CodeViewer sessionId={codeSessionId} />;
+  }
+
   if (path === '/terminal') {
     return <TerminalApp />;
   }

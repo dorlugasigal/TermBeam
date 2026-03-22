@@ -21,3 +21,9 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+
+// Re-register push subscription with backend on every page load.
+// The server stores subscriptions in memory and loses them on restart.
+import('./services/pushSubscription').then(({ ensurePushSubscription }) => {
+  ensurePushSubscription();
+});

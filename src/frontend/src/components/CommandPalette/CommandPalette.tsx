@@ -6,6 +6,7 @@ import { useThemeStore } from '@/stores/themeStore';
 import { THEMES, type ThemeId } from '@/themes/terminalThemes';
 import { deleteSession, renameSession, fetchVersion, getShareUrl } from '@/services/api';
 import { playNotificationSound, setNotificationsEnabled } from '@/services/audio';
+import { isPushSubscribedSync } from '@/services/pushSubscription';
 import { AboutModal } from '@/components/Modals/AboutModal';
 import styles from './CommandPalette.module.css';
 
@@ -257,6 +258,38 @@ const iconBell = (
   </svg>
 );
 
+const iconCode = (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="5 4 1 8 5 12" />
+    <polyline points="11 4 15 8 11 12" />
+    <line x1="9" y1="2" x2="7" y2="14" />
+  </svg>
+);
+
+const iconGitChanges = (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="4" cy="4" r="2" />
+    <circle cx="4" cy="12" r="2" />
+    <circle cx="12" cy="8" r="2" />
+    <path d="M4 6v4" />
+    <path d="M6 4.5c3 0 4 1.5 4 3.5" />
+  </svg>
+);
+
 const iconRefresh = (
   <svg
     viewBox="0 0 16 16"
@@ -332,6 +365,7 @@ export default function CommandPalette() {
   );
   const [aboutOpen, setAboutOpen] = useState(false);
   const [aboutVersion, setAboutVersion] = useState('');
+  const [pushActive, setPushActive] = useState(() => isPushSubscribedSync());
 
   const themeId = useThemeStore((s) => s.themeId);
   const setTheme = useThemeStore((s) => s.setTheme);
@@ -343,6 +377,10 @@ export default function CommandPalette() {
     if (open) {
       // Force a reflow before adding the open class so the transition fires
       requestAnimationFrame(() => setMounted(true));
+      // Refresh push status when palette opens
+      import('@/services/pushSubscription').then(({ isPushSubscribed }) => {
+        isPushSubscribed().then(setPushActive).catch(() => {});
+      });
     } else {
       setMounted(false);
     }
@@ -452,17 +490,49 @@ export default function CommandPalette() {
     close();
   };
 
-  const handleNotifications = () => {
+  const handleNotifications = async () => {
     const next = !notificationsOn;
     setNotificationsOn(next);
     setNotificationsEnabled(next);
+
     if (next) {
       playNotificationSound();
+
+      // Request notification permission
       if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-        Notification.requestPermission();
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') {
+          setPushActive(false);
+          toast('Notifications enabled (browser permission denied, using in-app only)');
+          close();
+          return;
+        }
       }
+
+      // Try to set up push subscription
+      try {
+        const { initPushSubscription } = await import('@/services/pushSubscription');
+        const success = await initPushSubscription();
+        setPushActive(success);
+        if (success) {
+          toast('Notifications enabled with push support');
+        } else {
+          toast('Notifications enabled (push not available)');
+        }
+      } catch {
+        toast('Notifications enabled (push setup failed, using fallback)');
+      }
+    } else {
+      // Disable: also remove push subscription
+      try {
+        const { removePushSubscription } = await import('@/services/pushSubscription');
+        await removePushSubscription();
+      } catch {
+        // Ignore cleanup errors
+      }
+      setPushActive(false);
+      toast('Notifications disabled');
     }
-    toast(next ? 'Notifications enabled' : 'Notifications disabled');
     close();
   };
 
@@ -602,6 +672,28 @@ export default function CommandPalette() {
           icon: iconPreview,
           action: () => run(() => useUIStore.getState().openPreviewModal()),
         },
+        {
+          id: 'view-code',
+          label: 'View code',
+          icon: iconCode,
+          action: () =>
+            run(() => {
+              const { activeId } = useSessionStore.getState();
+              if (activeId) window.location.href = `/code/${activeId}`;
+            }),
+        },
+        {
+          id: 'git-changes',
+          label: 'Git changes',
+          icon: iconGitChanges,
+          action: () =>
+            run(() => {
+              const { activeId } = useSessionStore.getState();
+              if (activeId) {
+                window.location.href = `/code/${activeId}?view=changes`;
+              }
+            }),
+        },
       ],
     },
     {
@@ -644,7 +736,11 @@ export default function CommandPalette() {
       actions: [
         {
           id: 'notifications',
-          label: `Notifications (${notificationsOn ? 'on' : 'off'})`,
+          label: notificationsOn
+            ? pushActive
+              ? 'Notifications (on) — Push active ✓'
+              : 'Notifications (on) — Push unavailable'
+            : 'Notifications (off)',
           icon: iconBell,
           action: handleNotifications,
         },
