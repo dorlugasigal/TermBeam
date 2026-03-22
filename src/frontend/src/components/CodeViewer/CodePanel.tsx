@@ -19,6 +19,8 @@ import cpp from 'highlight.js/lib/languages/cpp';
 import dockerfile from 'highlight.js/lib/languages/dockerfile';
 import ini from 'highlight.js/lib/languages/ini';
 import diff from 'highlight.js/lib/languages/diff';
+import type { GitBlame } from '@/services/api';
+import BlameGutter from './BlameGutter';
 import styles from './CodePanel.module.css';
 
 hljs.registerLanguage('javascript', javascript);
@@ -111,6 +113,9 @@ interface CodePanelProps {
   fileName: string;
   scrollTop?: number;
   onScroll?: (scrollTop: number) => void;
+  blame?: GitBlame | null;
+  blameEnabled?: boolean;
+  blameLoading?: boolean;
 }
 
 function isBinary(content: string): boolean {
@@ -123,6 +128,9 @@ export default function CodePanel({
   fileName,
   scrollTop,
   onScroll,
+  blame,
+  blameEnabled,
+  blameLoading,
 }: CodePanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isRestoringScroll = useRef(false);
@@ -201,21 +209,27 @@ export default function CodePanel({
   }
 
   return (
-    <div
-      className={styles.container}
-      ref={containerRef}
-      style={fontSize !== BASE_FONT_SIZE ? { fontSize: `${fontSize}px` } : undefined}
-    >
-      <div className={styles.table}>
-        {highlightedLines.map((lineHtml, i) => (
-          <div key={i} className={styles.row}>
-            <span className={styles.lineNumber}>{i + 1}</span>
-            <span
-              className={styles.lineContent}
-              dangerouslySetInnerHTML={{ __html: lineHtml || ' ' }}
-            />
-          </div>
-        ))}
+    <div className={styles.wrapper}>
+      {blameEnabled && blame && <BlameGutter blame={blame} />}
+      {blameEnabled && blameLoading && !blame && (
+        <div className={styles.blameLoading}>Loading blame…</div>
+      )}
+      <div
+        className={styles.container}
+        ref={containerRef}
+        style={fontSize !== BASE_FONT_SIZE ? { fontSize: `${fontSize}px` } : undefined}
+      >
+        <div className={styles.table}>
+          {highlightedLines.map((lineHtml, i) => (
+            <div key={i} className={styles.row}>
+              <span className={styles.lineNumber}>{i + 1}</span>
+              <span
+                className={styles.lineContent}
+                dangerouslySetInnerHTML={{ __html: lineHtml || ' ' }}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

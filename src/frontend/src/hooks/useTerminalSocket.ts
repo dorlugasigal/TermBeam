@@ -26,27 +26,12 @@ export interface UseTerminalSocketReturn {
   ws: WebSocket | null;
 }
 
-const INITIAL_RECONNECT_DELAY = 3000;
+const INITIAL_RECONNECT_DELAY = 500;
 const MAX_RECONNECT_DELAY = 30_000;
-const KEEPALIVE_INTERVAL = 30_000;
-const SILENCE_TIMEOUT = 5000;
-
-// Minimum duration of output activity before a silence triggers a notification.
-// Prevents notifications for trivial/instant commands (e.g. `ls`, single-line output).
-const MIN_ACTIVITY_DURATION = 2000;
+const KEEPALIVE_INTERVAL = 15_000;
 
 // Original document title, saved once for title-bullet indicator
 const originalTitle = document.title;
-
-// Silence timers for command-completion notifications (sessionId → timeout)
-const silenceTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-// Track when the current burst of output activity started per session.
-// Used to avoid notifying for trivial/instant commands.
-const activityStart = new Map<string, number>();
-// Track whether we already notified for the current activity burst,
-// so we don't send repeated notifications during a long build with pauses.
-const notifiedForBurst = new Set<string>();
 
 // Grace period after attach — suppress notification sounds for initial output burst
 const ATTACH_GRACE_MS = 2000;
@@ -57,10 +42,16 @@ function stripOscSequences(data: string): string {
   return data.replace(/\x1b\](?:4|10|11|12);[^\x07\x1b]*(?:\x07|\x1b\\)/g, '');
 }
 
-// Restore document title when the page becomes visible
+// Restore document title and clear app badge when the page becomes visible
 function handleVisibilityChange() {
   if (!document.hidden) {
     document.title = originalTitle;
+    // Clear PWA app badge (iOS/Android home screen)
+    try {
+      navigator.clearAppBadge?.();
+    } catch {
+      // Badge API not supported
+    }
   }
 }
 document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -71,6 +62,9 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
   const reconnectDelayRef = useRef(INITIAL_RECONNECT_DELAY);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keepaliveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const zombieCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const disconnectGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hiddenAtRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
   const connectFnRef = useRef<(() => void) | null>(null);
 
@@ -85,6 +79,14 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
     if (keepaliveTimerRef.current) {
       clearInterval(keepaliveTimerRef.current);
       keepaliveTimerRef.current = null;
+    }
+    if (zombieCheckRef.current) {
+      clearTimeout(zombieCheckRef.current);
+      zombieCheckRef.current = null;
+    }
+    if (disconnectGraceRef.current) {
+      clearTimeout(disconnectGraceRef.current);
+      disconnectGraceRef.current = null;
     }
   }, []);
 
@@ -192,6 +194,12 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
       ws.onmessage = (event) => {
         if (!mountedRef.current || !terminal) return;
 
+        // Cancel any pending zombie check — we got a response, socket is alive
+        if (zombieCheckRef.current) {
+          clearTimeout(zombieCheckRef.current);
+          zombieCheckRef.current = null;
+        }
+
         let msg: WSServerMessage;
         try {
           msg = JSON.parse(event.data as string) as WSServerMessage;
@@ -206,6 +214,12 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
 
         switch (msg.type) {
           case 'attached': {
+            // Cancel disconnect grace timer — we reconnected before it fired,
+            // so the user never sees the red dot or "reconnecting" state
+            if (disconnectGraceRef.current) {
+              clearTimeout(disconnectGraceRef.current);
+              disconnectGraceRef.current = null;
+            }
             setConnected(true);
             setReconnecting(false);
             onConnected?.();
@@ -227,69 +241,53 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
           }
           case 'output': {
             scheduleWrite(msg.data);
+
+            // Skip unread tracking during attach grace period — scrollback
+            // replay shouldn't trigger notifications or blue dots
+            if (attachGrace.has(sessionId)) break;
+
             const store = useSessionStore.getState();
             const session = store.sessions.get(sessionId);
 
-            // Unread tracking + notification sound.
-            // Sound only plays when the PAGE is hidden (user in another app).
-            // Within TermBeam, the visual unread dot on the tab is sufficient.
-            if (store.activeId !== sessionId) {
+            // Unread tracking: only mark as unread when the PAGE is hidden
+            // (user is in another app or browser tab). When the user is
+            // looking at TermBeam on a different session tab, they don't
+            // need a dot — they'll see the output when they switch.
+            // This prevents idle shell prompts from triggering false dots.
+            if (document.hidden && store.activeId !== sessionId) {
               const wasAlreadyUnread = session?.hasUnread ?? false;
               store.markUnread(sessionId);
               if (
-                document.hidden &&
                 !wasAlreadyUnread &&
-                !attachGrace.has(sessionId) &&
                 isNotificationsEnabled()
               ) {
                 playNotificationSound();
               }
             }
-
-            // Title bullet indicator when page is hidden
-            if (document.hidden && isNotificationsEnabled()) {
-              if (!document.title.startsWith('(\u25CF) ')) {
-                document.title = '(\u25CF) ' + originalTitle;
-              }
-            }
-
-            // Activity-based command-completion notification.
-            // Tracks output bursts and only notifies once when a long-running
-            // command goes silent (idle after sustained activity).
-            if (isNotificationsEnabled()) {
-              // Mark start of activity burst if not already tracking
-              if (!activityStart.has(sessionId)) {
-                activityStart.set(sessionId, Date.now());
-                notifiedForBurst.delete(sessionId);
-              }
-
-              const existing = silenceTimers.get(sessionId);
-              if (existing) clearTimeout(existing);
-              silenceTimers.set(
-                sessionId,
-                setTimeout(() => {
-                  silenceTimers.delete(sessionId);
-                  const start = activityStart.get(sessionId);
-                  const duration = start ? Date.now() - start : 0;
-                  // Reset activity tracking — this burst is over
-                  activityStart.delete(sessionId);
-
-                  if (
-                    isNotificationsEnabled() &&
-                    document.hidden &&
-                    duration >= MIN_ACTIVITY_DURATION &&
-                    !notifiedForBurst.has(sessionId)
-                  ) {
-                    notifiedForBurst.add(sessionId);
-                    sendCommandNotification(session?.name ?? sessionId);
-                  }
-                }, SILENCE_TIMEOUT),
-              );
-            }
             break;
           }
           case 'exit': {
             onExit?.(msg.sessionId);
+            break;
+          }
+          case 'notification': {
+            // Server detected a command completed (child process exited).
+            // This arrives via WS on reconnect (pendingNotifications) or
+            // as a real-time message if the WS is still connected.
+            if (isNotificationsEnabled()) {
+              const name = msg.sessionName ?? sessionId;
+              // Only show intrusive notifications when the page is hidden
+              // (user in another app/tab). If the user is looking at TermBeam,
+              // the toast alone is sufficient.
+              if (document.hidden) {
+                playNotificationSound();
+                sendCommandNotification(name);
+                if (!document.title.startsWith('(\u25CF) ')) {
+                  document.title = '(\u25CF) ' + originalTitle;
+                }
+              }
+              toast.info(`Command finished in ${name}`);
+            }
             break;
           }
           case 'error': {
@@ -315,7 +313,6 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
         // replaced this one, ignore the close event from the old socket.
         if (wsRef.current !== ws) return;
 
-        setConnected(false);
         wsRef.current = null;
 
         if (keepaliveTimerRef.current) {
@@ -325,8 +322,16 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
 
         if (!mountedRef.current) return;
 
-        // Exponential backoff reconnect
-        setReconnecting(true);
+        // Delay showing disconnected UI — mobile app switches cause brief
+        // WS disconnects that resolve within ~500ms. A 2s grace period
+        // hides the red dot flicker so the user never notices.
+        disconnectGraceRef.current = setTimeout(() => {
+          disconnectGraceRef.current = null;
+          setConnected(false);
+          setReconnecting(true);
+        }, 2000);
+
+        // Start reconnect immediately (UI update is delayed above)
         const delay = reconnectDelayRef.current;
         reconnectDelayRef.current = Math.min(delay * 2, MAX_RECONNECT_DELAY);
         reconnectTimerRef.current = setTimeout(connect, delay);
@@ -342,19 +347,67 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
 
     // Instant reconnect when the page becomes visible again (e.g. mobile app switch).
     // Bypasses backoff timer so the user doesn't see a "disconnected" overlay.
+    // On mobile, the OS suspends WebSocket connections when the app is backgrounded.
+    // The socket may appear OPEN but actually be dead (zombie socket).
     function handleVisibilityReconnect() {
-      if (document.hidden || !mountedRef.current) return;
-      const ws = wsRef.current;
-      // Skip if already connected or a connection attempt is in progress
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING))
+      if (document.hidden) {
+        hiddenAtRef.current = Date.now();
         return;
-      // Cancel pending backoff timer and reconnect immediately
+      }
+      if (!mountedRef.current) return;
+
+      const hiddenDuration = hiddenAtRef.current ? Date.now() - hiddenAtRef.current : 0;
+      hiddenAtRef.current = null;
+
+      // Cancel any pending backoff timer
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = null;
       }
       reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
-      connect();
+
+      const ws = wsRef.current;
+
+      // No socket at all → reconnect immediately
+      if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+        connect();
+        return;
+      }
+
+      // Long background (>30s) → socket is almost certainly dead, force reconnect
+      if (hiddenDuration > 30000) {
+        ws.onclose = null;
+        ws.close();
+        wsRef.current = null;
+        setConnected(false);
+        connect();
+        return;
+      }
+
+      // Short background — verify with ping + zombie timeout
+      if (ws.readyState === WebSocket.OPEN) {
+        try {
+          ws.send(JSON.stringify({ type: 'ping' }));
+          // Set zombie detection timeout — if no message arrives in 3s, socket is dead
+          zombieCheckRef.current = setTimeout(() => {
+            zombieCheckRef.current = null;
+            const currentWs = wsRef.current;
+            if (currentWs && currentWs === ws) {
+              currentWs.onclose = null;
+              currentWs.close();
+              wsRef.current = null;
+              setConnected(false);
+              connect();
+            }
+          }, 3000);
+        } catch {
+          // Send failed → socket is dead, force reconnect
+          ws.onclose = null;
+          ws.close();
+          wsRef.current = null;
+          connect();
+        }
+      }
     }
     document.addEventListener('visibilitychange', handleVisibilityReconnect);
 
@@ -362,14 +415,6 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
       mountedRef.current = false;
       clearTimers();
       document.removeEventListener('visibilitychange', handleVisibilityReconnect);
-      // Clean up silence timer for this session
-      const timer = silenceTimers.get(sessionId);
-      if (timer) {
-        clearTimeout(timer);
-        silenceTimers.delete(sessionId);
-      }
-      activityStart.delete(sessionId);
-      notifiedForBurst.delete(sessionId);
       bellDisposable.dispose();
       const ws = wsRef.current;
       if (ws) {
@@ -391,6 +436,10 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
     if (keepaliveTimerRef.current) {
       clearInterval(keepaliveTimerRef.current);
       keepaliveTimerRef.current = null;
+    }
+    if (zombieCheckRef.current) {
+      clearTimeout(zombieCheckRef.current);
+      zombieCheckRef.current = null;
     }
     const ws = wsRef.current;
     if (ws) {

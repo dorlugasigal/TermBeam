@@ -75,6 +75,7 @@
     "express-rate-limit": "^8.2.1",
     "node-pty": "^1.1.0",
     "qrcode": "^1.5.4",
+    "web-push": "^3.6.7",
     "ws": "^8.19.0"
   },
   "devDependencies": {

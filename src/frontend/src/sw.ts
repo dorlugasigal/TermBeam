@@ -53,3 +53,69 @@ self.addEventListener('activate', (event) => {
     caches.delete('termbeam-navigation').then(() => self.clients.claim()),
   );
 });
+
+// ---------- Push notification handling ----------
+
+self.addEventListener('push', (event: PushEvent) => {
+  const data = event.data?.json() ?? {
+    title: 'Command finished',
+    body: 'TermBeam',
+  };
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then(async (clientList) => {
+        // Skip if user is actively looking at the app
+        const hasFocused = clientList.some(
+          (c) => c.url.includes(self.location.origin) && (c as WindowClient).focused,
+        );
+        if (hasFocused) return;
+
+        const options: NotificationOptions & { vibrate?: number[]; renotify?: boolean } = {
+          body: data.body || 'A command has completed',
+          icon: '/icons/icon-192.png',
+          badge: '/icons/icon-192.png',
+          tag: 'termbeam-cmd',
+          renotify: true,
+          data: { url: '/' },
+          vibrate: [200, 100, 200],
+        };
+
+        // Set app badge
+        try {
+          await (self.navigator as unknown as { setAppBadge(n: number): Promise<void> }).setAppBadge(1);
+        } catch {
+          // Badge API not supported
+        }
+
+        return self.registration.showNotification(data.title || 'Command finished', options);
+      }),
+  );
+});
+
+self.addEventListener('notificationclick', (event: NotificationEvent) => {
+  event.notification.close();
+
+  // Clear app badge
+  try {
+    (self.navigator as unknown as { clearAppBadge(): Promise<void> }).clearAppBadge();
+  } catch {
+    // Badge API not supported
+  }
+
+  const url = (event.notification.data?.url as string) || '/';
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            return (client as WindowClient).focus();
+          }
+        }
+        return self.clients.openWindow(url);
+      }),
+  );
+});

@@ -101,6 +101,8 @@ const SESSION_COLORS = [
 class SessionManager {
   constructor() {
     this.sessions = new Map();
+    /** @type {((event: {sessionId: string, sessionName: string, duration: number}) => void)|null} */
+    this.onCommandComplete = null;
   }
 
   create({
@@ -162,6 +164,7 @@ class SessionManager {
       createdAt: new Date().toISOString(),
       lastActivity: Date.now(),
       clients: new Set(),
+      pendingNotifications: [],
       scrollback: [],
       scrollbackBuf: '',
       hasHadClient: false,
@@ -219,7 +222,114 @@ class SessionManager {
       }
     });
 
+    // Monitor foreground child processes of the shell to detect command completion.
+    // When the shell has a child process and it exits → command finished.
+    if (process.platform !== 'win32') {
+      const shellPid = ptyProcess.pid;
+      let prevCount = 0;
+      let stableCount = 0; // how many polls the count has been stable
+      let childCheckCount = 0;
+      const POLL_INTERVAL = 2000;
+      const NOTIFY_COOLDOWN = 30000;
+
+      const checkChildren = () => {
+        if (!this.sessions.has(id)) return;
+
+        const { exec } = require('child_process');
+
+        // Count ALL descendant processes (not just direct children).
+        // Interactive tools like Copilot CLI are long-running — they don't
+        // exit when a task completes. Instead, they spawn sub-processes
+        // (bash, node, etc.) for each task. We detect task completion by
+        // watching for a DROP in the total descendant count.
+        exec(
+          `ps -ax -o pid=,ppid= | awk -v root=${shellPid} '{
+            ppid[$1] = $2
+          }
+          END {
+            todo[root] = 1
+            done_flag = 0
+            while (!done_flag) {
+              done_flag = 1
+              for (pid in ppid) {
+                if (ppid[pid] in todo && !(pid in todo)) {
+                  todo[pid] = 1
+                  done_flag = 0
+                }
+              }
+            }
+            n = 0
+            for (pid in todo) n++
+            print n - 1
+          }'`,
+          { timeout: 3000 },
+          (err, stdout) => {
+            const count = err ? 0 : parseInt(stdout.trim(), 10) || 0;
+            childCheckCount++;
+
+            // Skip initial checks — shell startup spawns children
+            if (childCheckCount <= 3) {
+              prevCount = count;
+              return;
+            }
+
+            // Detect a DROP in descendant count (processes exited).
+            // Require the count to be stable for 2 consecutive polls
+            // to avoid false positives from brief process churn.
+            if (count < prevCount) {
+              stableCount++;
+              if (stableCount >= 2) {
+                const now = Date.now();
+                if (!session._lastNotifyTime || now - session._lastNotifyTime >= NOTIFY_COOLDOWN) {
+                  session._lastNotifyTime = now;
+                  const dropped = prevCount - count;
+                  log.info(
+                    `Command completed in "${session.name}" (${dropped} process(es) exited, ${count} remaining)`,
+                  );
+
+                  session.pendingNotifications.push({
+                    type: 'command-complete',
+                    sessionName: session.name,
+                    timestamp: now,
+                  });
+                  if (session.pendingNotifications.length > 5) {
+                    session.pendingNotifications = session.pendingNotifications.slice(-5);
+                  }
+
+                  if (this.onCommandComplete) {
+                    this.onCommandComplete({
+                      sessionId: id,
+                      sessionName: session.name,
+                    });
+                  }
+
+                  const notifMsg = JSON.stringify({
+                    type: 'notification',
+                    ...session.pendingNotifications[session.pendingNotifications.length - 1],
+                  });
+                  for (const ws of session.clients) {
+                    if (ws.readyState === 1) ws.send(notifMsg);
+                  }
+                }
+                stableCount = 0;
+                prevCount = count;
+              }
+            } else {
+              stableCount = 0;
+              prevCount = count;
+            }
+          },
+        );
+      };
+
+      session._childMonitor = setInterval(checkChildren, POLL_INTERVAL);
+      if (typeof session._childMonitor.unref === 'function') {
+        session._childMonitor.unref();
+      }
+    }
+
     ptyProcess.onExit(({ exitCode }) => {
+      clearInterval(session._childMonitor);
       log.info(`Session "${name}" (${id}) exited (code ${exitCode})`);
       for (const ws of session.clients) {
         if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'exit', code: exitCode }));
@@ -260,6 +370,7 @@ class SessionManager {
     if (!s) return false;
     log.info(`Session "${s.name}" deleted (id=${id})`);
     _gitCache.delete(id);
+    clearInterval(s._childMonitor);
     s.pty.kill();
     return true;
   }
@@ -289,6 +400,7 @@ class SessionManager {
     log.info(`Shutting down ${this.sessions.size} session(s)`);
     for (const [_id, s] of this.sessions) {
       try {
+        clearInterval(s._childMonitor);
         s.pty.kill();
       } catch (err) {
         log.warn(`Failed to kill session ${_id}: ${err.message}`);

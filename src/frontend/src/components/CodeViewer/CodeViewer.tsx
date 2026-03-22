@@ -1,10 +1,12 @@
 import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import { useCodeViewerStore } from '@/stores/codeViewerStore';
-import { fetchFileTree, fetchFileContent } from '@/services/api';
+import { fetchFileTree, fetchFileContent, fetchGitBlame } from '@/services/api';
 import { detectLanguage } from './CodePanel';
 import FileExplorer, { type FileExplorerHandle } from './FileExplorer';
 import FileTabs from './FileTabs';
 import CodePanel from './CodePanel';
+import GitChanges from './GitChanges';
+import DiffViewer from './DiffViewer';
 import styles from './CodeViewer.module.css';
 
 const MarkdownViewer = lazy(() =>
@@ -35,6 +37,15 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
     toggleSidebar,
     setSidebarOpen,
     updateScrollTop,
+    viewMode,
+    setViewMode,
+    gitStatus,
+    gitDiff,
+    diffFile,
+    gitBlame,
+    setGitBlame,
+    blameEnabled,
+    toggleBlame,
   } = useCodeViewerStore();
 
   const [treeLoading, setTreeLoading] = useState(true);
@@ -42,18 +53,52 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
   const [fileLoading, setFileLoading] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [mdPreview, setMdPreview] = useState(false);
+  const [blameLoading, setBlameLoading] = useState(false);
   const explorerRef = useRef<FileExplorerHandle>(null);
+
+  // Read ?view=changes from URL on mount to support direct navigation
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('view') === 'changes') {
+      setViewMode('changes');
+      setSidebarOpen(true);
+    }
+  }, [setViewMode, setSidebarOpen]);
 
   const handleSearchClick = useCallback(() => {
     if (!sidebarOpen) setSidebarOpen(true);
+    if (viewMode !== 'files') setViewMode('files');
     // Small delay to let sidebar open before focusing
     setTimeout(() => explorerRef.current?.focusSearch(), 50);
-  }, [sidebarOpen, setSidebarOpen]);
+  }, [sidebarOpen, setSidebarOpen, viewMode, setViewMode]);
 
   // Reset markdown preview when switching files
   useEffect(() => {
     setMdPreview(false);
   }, [activeFilePath]);
+
+  // Load blame when toggled on for current file
+  useEffect(() => {
+    if (!blameEnabled || !activeFilePath) {
+      setGitBlame(null);
+      return;
+    }
+    let cancelled = false;
+    setBlameLoading(true);
+    fetchGitBlame(sessionId, activeFilePath)
+      .then((blame) => {
+        if (!cancelled) setGitBlame(blame);
+      })
+      .catch(() => {
+        if (!cancelled) setGitBlame(null);
+      })
+      .finally(() => {
+        if (!cancelled) setBlameLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [blameEnabled, activeFilePath, sessionId, setGitBlame]);
 
   // Load file tree on mount
   useEffect(() => {
@@ -116,6 +161,11 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
 
   const activeFile = activeFilePath ? openFiles.get(activeFilePath) : undefined;
   const showMdToggle = activeFilePath && isMarkdownFile(activeFilePath);
+  const showBlameToggle = activeFile && viewMode === 'files' && !mdPreview;
+  const showDiff = viewMode === 'changes' && diffFile && gitDiff;
+  const changesCount = gitStatus
+    ? gitStatus.staged.length + gitStatus.modified.length + gitStatus.untracked.length
+    : 0;
 
   return (
     <div className={styles.page}>
@@ -170,6 +220,21 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
           </button>
         )}
 
+        {showBlameToggle && (
+          <button
+            className={`${styles.toolBtn} ${blameEnabled ? styles.toolBtnActive : ''}`}
+            onClick={toggleBlame}
+            title={blameEnabled ? 'Hide blame' : 'Show blame'}
+            aria-label={blameEnabled ? 'Hide blame annotations' : 'Show blame annotations'}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </button>
+        )}
+
         <a href="/terminal" className={styles.backLink} title="Back to terminal">
           ✕
         </a>
@@ -187,16 +252,39 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
 
         {/* Sidebar */}
         <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
-          <div className={styles.sidebarHeader}>Explorer</div>
-          <FileExplorer
-            ref={explorerRef}
-            tree={fileTree}
-            expandedDirs={expandedDirs}
-            activeFilePath={activeFilePath}
-            onFileSelect={handleFileSelect}
-            onToggleDir={toggleDir}
-            loading={treeLoading}
-          />
+          <div className={styles.sidebarHeader}>
+            <button
+              className={`${styles.viewModeTab} ${viewMode === 'files' ? styles.viewModeTabActive : ''}`}
+              onClick={() => setViewMode('files')}
+              aria-label="File explorer"
+            >
+              Files
+            </button>
+            <button
+              className={`${styles.viewModeTab} ${viewMode === 'changes' ? styles.viewModeTabActive : ''}`}
+              onClick={() => setViewMode('changes')}
+              aria-label="Git changes"
+            >
+              Changes
+              {changesCount > 0 && (
+                <span className={styles.changesBadge}>{changesCount}</span>
+              )}
+            </button>
+          </div>
+
+          {viewMode === 'files' ? (
+            <FileExplorer
+              ref={explorerRef}
+              tree={fileTree}
+              expandedDirs={expandedDirs}
+              activeFilePath={activeFilePath}
+              onFileSelect={handleFileSelect}
+              onToggleDir={toggleDir}
+              loading={treeLoading}
+            />
+          ) : (
+            <GitChanges sessionId={sessionId} />
+          )}
         </aside>
 
         {/* Main content */}
@@ -207,7 +295,9 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
 
           {fileLoading && <div className={styles.loading}>Loading file…</div>}
 
-          {!fileLoading && !fileError && activeFile ? (
+          {showDiff ? (
+            <DiffViewer sessionId={sessionId} diff={gitDiff} />
+          ) : !fileLoading && !fileError && activeFile ? (
             mdPreview && isMarkdownFile(activeFile.path) ? (
               <Suspense fallback={<div className={styles.loading}>Loading preview…</div>}>
                 <MarkdownViewer
@@ -229,13 +319,17 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
                 fileName={activeFile.path}
                 scrollTop={activeFile.scrollTop}
                 onScroll={handleScroll}
+                blame={blameEnabled ? gitBlame : null}
+                blameEnabled={blameEnabled}
+                blameLoading={blameLoading}
               />
             )
           ) : (
             !fileLoading &&
             !fileError &&
             !treeError &&
-            !activeFile && <div className={styles.placeholder}>Select a file to view</div>
+            !activeFile &&
+            !showDiff && <div className={styles.placeholder}>Select a file to view</div>
           )}
         </div>
       </div>

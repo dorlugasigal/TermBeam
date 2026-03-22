@@ -108,14 +108,53 @@
 }
 
 .sidebarHeader {
-  padding: 8px 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-dim, #888);
+  display: flex;
+  align-items: center;
+  gap: 0;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+}
+
+.viewModeTab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-dim, #888);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.viewModeTab:hover {
+  color: var(--text);
+}
+
+.viewModeTabActive {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.changesBadge {
+  font-size: 0.65rem;
+  font-weight: 400;
+  background: var(--accent, #61afef);
+  color: #fff;
+  padding: 0 5px;
+  border-radius: 8px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.4;
 }
 
 .main {

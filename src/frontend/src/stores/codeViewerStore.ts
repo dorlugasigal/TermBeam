@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { GitStatus, GitDiff, GitBlame, GitLog } from '@/services/api';
 
 export interface OpenFile {
   path: string;
@@ -24,6 +25,15 @@ interface CodeViewerState {
   fileTree: FileTreeNode[] | null;
   sidebarOpen: boolean;
 
+  // Git state
+  viewMode: 'files' | 'changes';
+  gitStatus: GitStatus | null;
+  gitDiff: GitDiff | null;
+  gitBlame: GitBlame | null;
+  gitLog: GitLog | null;
+  diffFile: string | null;
+  blameEnabled: boolean;
+
   // Actions
   openFile: (file: OpenFile) => void;
   closeFile: (path: string) => void;
@@ -33,6 +43,15 @@ interface CodeViewerState {
   setSidebarOpen: (open: boolean) => void;
   toggleSidebar: () => void;
   updateScrollTop: (path: string, scrollTop: number) => void;
+
+  // Git actions
+  setViewMode: (mode: 'files' | 'changes') => void;
+  setGitStatus: (status: GitStatus | null) => void;
+  setGitDiff: (diff: GitDiff | null) => void;
+  setGitBlame: (blame: GitBlame | null) => void;
+  setGitLog: (log: GitLog | null) => void;
+  setDiffFile: (file: string | null) => void;
+  toggleBlame: () => void;
 }
 
 export const useCodeViewerStore = create<CodeViewerState>((set) => ({
@@ -41,6 +60,15 @@ export const useCodeViewerStore = create<CodeViewerState>((set) => ({
   expandedDirs: new Set(),
   fileTree: null,
   sidebarOpen: true,
+
+  // Git defaults
+  viewMode: 'files',
+  gitStatus: null,
+  gitDiff: null,
+  gitBlame: null,
+  gitLog: null,
+  diffFile: null,
+  blameEnabled: false,
 
   openFile: (file) =>
     set((state) => {
@@ -91,4 +119,13 @@ export const useCodeViewerStore = create<CodeViewerState>((set) => ({
       }
       return state;
     }),
+
+  // Git actions
+  setViewMode: (mode) => set({ viewMode: mode }),
+  setGitStatus: (status) => set({ gitStatus: status }),
+  setGitDiff: (diff) => set({ gitDiff: diff }),
+  setGitBlame: (blame) => set({ gitBlame: blame }),
+  setGitLog: (log) => set({ gitLog: log }),
+  setDiffFile: (file) => set({ diffFile: file }),
+  toggleBlame: () => set((state) => ({ blameEnabled: !state.blameEnabled })),
 }));

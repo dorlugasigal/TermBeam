@@ -13,7 +13,8 @@ termbeam/
 │   │   ├── auth.js              # Authentication & rate limiting
 │   │   ├── websocket.js         # WebSocket connection handling
 │   │   ├── sessions.js          # PTY session management
-│   │   └── preview.js           # Port preview reverse proxy
+│   │   ├── preview.js           # Port preview reverse proxy
+│   │   └── push.js              # Web Push notification manager
 │   ├── cli/                     # CLI subcommands & tools
 │   │   ├── index.js             # Argument parsing & help
 │   │   ├── client.js            # WebSocket terminal client (resume)
@@ -29,19 +30,20 @@ termbeam/
 │   │   ├── shells.js            # Shell detection (cross-platform)
 │   │   ├── git.js               # Git repo detection & status
 │   │   ├── version.js           # Smart version detection
-│   │   └── update-check.js      # npm update checking
+│   │   ├── update-check.js      # npm update checking
+│   │   └── vapid.js             # VAPID key generation & persistence
 │   └── frontend/                # React 19 + Vite + TypeScript SPA
 │       ├── src/
 │       │   ├── App.tsx          # Root component
 │       │   ├── main.tsx         # Entry point
 │       │   ├── components/      # UI components
 │       │   ├── hooks/           # Custom React hooks
-│       │   ├── services/        # API & WebSocket clients
+│       │   ├── services/        # API, WebSocket & push subscription clients
 │       │   ├── stores/          # Zustand state stores
 │       │   ├── styles/          # CSS stylesheets
 │       │   ├── themes/          # Terminal themes
 │       │   ├── types/           # TypeScript type definitions
-│       │   └── sw.ts            # Service worker source
+│       │   └── sw.ts            # Service worker (caching + push notifications)
 │       ├── package.json
 │       ├── vite.config.ts
 │       └── tsconfig.json
@@ -77,7 +79,7 @@ Factory function `createAuth(password)` returns an object with middleware, token
 
 ### `server/sessions.js` — Session Manager
 
-`SessionManager` class wraps the PTY lifecycle. Handles spawning, tracking, listing, updating, and cleaning up terminal sessions. Each session has an auto-assigned color, tracks `lastActivity` timestamps, a `createdAt` timestamp, and supports live updates via the `update()` method. Sessions maintain a scrollback buffer with a high/low-water mark (trimmed back to ~500k characters when it grows beyond 1,000,000 characters) that is sent to newly connecting clients, and track a `clients` Set of active WebSocket connections. Supports an optional `initialCommand` that is written to the PTY shortly after spawn. The `list()` method detects the live working directory of the shell process (via `lsof` on macOS, `/proc` on Linux) and enriches each session with git repository information, using an async cache to avoid blocking the event loop.
+`SessionManager` class wraps the PTY lifecycle. Handles spawning, tracking, listing, updating, and cleaning up terminal sessions. Each session has an auto-assigned color, tracks `lastActivity` timestamps, a `createdAt` timestamp, and supports live updates via the `update()` method. Sessions maintain a scrollback buffer with a high/low-water mark (trimmed back to ~500k characters when it grows beyond 1,000,000 characters) that is sent to newly connecting clients, and track a `clients` Set of active WebSocket connections. Supports an optional `initialCommand` that is written to the PTY shortly after spawn. The `list()` method detects the live working directory of the shell process (via `lsof` on macOS, `/proc` on Linux) and enriches each session with git repository information, using an async cache to avoid blocking the event loop. Includes a process-tree monitor that polls for child process exits every 2 seconds (via `ps` + `awk` to count descendant processes), enabling command-completion detection for push notifications.
 
 ### `utils/git.js` — Git Repository Detection
 
@@ -90,6 +92,10 @@ Registers all Express routes: login page (`GET /login`), auth API, session CRUD 
 ### `server/websocket.js` — WebSocket Handler
 
 Handles real-time communication: validates the Origin header to reject cross-origin connections, WebSocket-level authentication (password or token), session attachment, terminal I/O forwarding, and resize events. When multiple clients are connected to the same session, the PTY is resized to the minimum dimensions across active clients (active within the last 60 seconds). Idle clients are excluded from the size calculation so that a backgrounded phone tab does not constrain the terminal when resuming from a laptop. Sends keepalive pings every 30 seconds to help mobile browsers maintain the WebSocket and to surface broken connections sooner at the transport level.
+
+### `server/push.js` — Push Notification Manager
+
+`PushManager` class for Web Push notifications. Manages VAPID authentication, push subscriptions (in-memory), and notification delivery via the `web-push` npm package. Exposes methods for subscribing/unsubscribing clients and sending notifications when commands complete in a session.
 
 ### `server/preview.js` — Port Preview Proxy
 
@@ -123,6 +129,10 @@ Runs a step-by-step terminal wizard (in an alternate screen buffer) that walks t
 
 Provides ANSI color helpers (`green`, `yellow`, `red`, `cyan`, `bold`, `dim`) and interactive prompt functions (`ask`, `choose`, `confirm`, `createRL`). Extracted from `service.js` so both the service install wizard and the interactive setup wizard can share the same prompt primitives.
 
+### `utils/vapid.js` — VAPID Key Management
+
+Generates and persists VAPID key pairs for Web Push authentication. Keys are stored in `~/.termbeam/vapid.json` and reused across server restarts so that existing push subscriptions remain valid.
+
 ### `utils/update-check.js` — Update Checker
 
 Checks the npm registry for newer versions of TermBeam. Fetches the latest published version from `registry.npmjs.org`, compares it against the running version using semver comparison (`isNewerVersion`), and caches the result for 24 hours in `~/.termbeam/update-check.json` to avoid repeated network requests. Includes `sanitizeVersion()` to strip ANSI escape sequences and control characters from registry responses (terminal injection protection). Also provides `detectInstallMethod()` which inspects environment variables to determine whether TermBeam was installed via npm, npx, yarn, or pnpm, returning the appropriate upgrade command.
@@ -139,6 +149,8 @@ The terminal page includes several client-side features:
 
 - **Terminal search** — <kbd>Ctrl+F</kbd> / <kbd>Cmd+F</kbd> opens a search bar overlay powered by the xterm.js `SearchAddon`. Supports regex matching with next/previous navigation.
 - **Command completion notifications** — uses the browser Notification API to alert when a command finishes in a background tab. Toggled via a bell icon; preference stored in `localStorage` (`termbeam-notifications`).
+- **Push notifications** — native push notifications via the Web Push API, delivered even when the browser tab is closed. The service worker (`sw.ts`) handles push events and uses the Badge API to show unread counts. Push subscription lifecycle (subscribe, unsubscribe, VAPID key mismatch detection) is managed by `services/pushSubscription.ts`.
+- **Git changes view** — `GitChanges/`, `DiffViewer/`, and `BlameGutter/` components in the CodeViewer directory provide a full git integration UI: staged/unstaged diffs with syntax highlighting, per-line blame annotations, and commit history browsing.
 - **Command palette** — <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd> (or the floating ⚙️ button) opens a slide-out tool panel with categorized actions (Session, Search, View, Share, Notifications, System).
 
 ## Data Flow
@@ -158,7 +170,8 @@ Client (Phone Browser)
                     ├─ attach          ├─ spawn shell
                     ├─ input ──────►  ├─ write stdin
                     ├─ resize         ├─ resize terminal
-                    └─ output ◄────── └─ read stdout
+                    ├─ output ◄────── └─ read stdout
+                    └─ notification ──► Push Manager ──► Web Push
 ```
 
 ### `client.js` — WebSocket Terminal Client

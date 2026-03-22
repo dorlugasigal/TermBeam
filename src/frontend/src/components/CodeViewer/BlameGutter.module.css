@@ -1,0 +1,122 @@
+.gutter {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-width: 180px;
+  max-width: 240px;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  user-select: none;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  background: var(--bg);
+}
+
+.line {
+  display: flex;
+  align-items: baseline;
+  padding: 0 8px 0 10px;
+  white-space: nowrap;
+  cursor: default;
+  min-height: 1.5em;
+  position: relative;
+}
+
+.line:first-child {
+  padding-top: 12px;
+}
+
+.line:last-child {
+  padding-bottom: 12px;
+}
+
+.lineEven {
+  composes: line;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.lineOdd {
+  composes: line;
+  background: transparent;
+}
+
+.annotation {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.spacer {
+  /* Empty line — same height as annotated line */
+}
+
+.hash {
+  color: var(--accent, #61afef);
+  font-size: 10px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.hash:hover {
+  text-decoration: underline;
+}
+
+.author {
+  color: var(--text-dim, #888);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+  flex-shrink: 1;
+}
+
+.date {
+  color: var(--text-dim, #666);
+  font-size: 10px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.uncommitted {
+  color: var(--text-dim, #666);
+  font-size: 10px;
+  font-style: italic;
+}
+
+.tooltip {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  margin-left: 8px;
+  z-index: 100;
+  background: var(--surface, #2d2d2d);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  min-width: 200px;
+  max-width: 320px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.tooltipHash {
+  color: var(--accent, #61afef);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.tooltipSubject {
+  color: var(--text);
+  font-size: 0.78rem;
+  margin-bottom: 4px;
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+.tooltipMeta {
+  color: var(--text-dim, #888);
+  font-size: 0.7rem;
+}

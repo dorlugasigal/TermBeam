@@ -1,3 +1,10 @@
+.wrapper {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .container {
   display: flex;
   flex: 1;
@@ -9,6 +16,19 @@
   -webkit-overflow-scrolling: touch;
   touch-action: manipulation;
   min-height: 0;
+}
+
+.blameLoading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 180px;
+  max-width: 240px;
+  padding: 16px 12px;
+  border-right: 1px solid var(--border);
+  color: var(--text-dim, #888);
+  font-size: 0.75rem;
+  font-style: italic;
 }
 
 .table {

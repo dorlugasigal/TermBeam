@@ -17,6 +17,7 @@ const { startTunnel, cleanupTunnel, findDevtunnel } = require('../tunnel');
 const { createPreviewProxy } = require('./preview');
 const { writeConnectionConfig, removeConnectionConfig } = require('../cli/resume');
 const { checkForUpdate, detectInstallMethod } = require('../utils/update-check');
+const { PushManager } = require('./push');
 
 // --- Helpers ---
 function getLocalIP() {
@@ -52,6 +53,20 @@ function createTermBeamServer(overrides = {}) {
   const auth = createAuth(config.password);
   const sessions = new SessionManager();
 
+  // Push notification manager
+  const configDir = process.env.TERMBEAM_CONFIG_DIR || path.join(os.homedir(), '.termbeam');
+  const pushManager = new PushManager(configDir);
+  pushManager.init().catch((err) => {
+    log.warn(`Push notification init failed: ${err.message}`);
+  });
+  sessions.onCommandComplete = ({ sessionId, sessionName }) => {
+    pushManager.notify({
+      title: 'Command finished',
+      body: `Session: ${sessionName}`,
+      tag: `termbeam-cmd-${sessionId}-${Date.now()}`,
+    });
+  };
+
   // --- Express ---
   const app = express();
   app.set('trust proxy', 'loopback');
@@ -79,7 +94,7 @@ function createTermBeamServer(overrides = {}) {
 
   const state = { shareBaseUrl: null, updateInfo: null };
   app.use('/preview', auth.middleware, createPreviewProxy());
-  setupRoutes(app, { auth, sessions, config, state });
+  setupRoutes(app, { auth, sessions, config, state, pushManager });
   setupWebSocket(wss, { auth, sessions });
 
   // --- Lifecycle ---
@@ -319,7 +334,7 @@ function createTermBeamServer(overrides = {}) {
     });
   }
 
-  return { app, server, wss, sessions, config, auth, start, shutdown };
+  return { app, server, wss, sessions, config, auth, pushManager, start, shutdown };
 }
 
 module.exports = { createTermBeamServer, getLocalIP };
