@@ -347,13 +347,20 @@ function isRunningInDocker() {
 
 /**
  * Detect if running from a git source checkout (not installed as a package).
+ * Walks upward from __dirname looking for .git to avoid fragile fixed-depth assumptions.
  */
 function isRunningFromSource() {
   // If __dirname is inside node_modules, it's a package install
   if (__dirname.includes('node_modules')) return false;
   try {
-    const repoRoot = path.join(__dirname, '..', '..');
-    return fs.existsSync(path.join(repoRoot, '.git'));
+    let currentDir = __dirname;
+    for (let i = 0; i < 10; i++) {
+      if (fs.existsSync(path.join(currentDir, '.git'))) return true;
+      const parentDir = path.dirname(currentDir);
+      if (!parentDir || parentDir === currentDir) break;
+      currentDir = parentDir;
+    }
+    return false;
   } catch {
     return false;
   }

@@ -167,6 +167,7 @@ async function executeUpdate({
 
     const { stdout, stderr } = await execFilePromise(installCmd, installArgs, {
       timeout: INSTALL_TIMEOUT_MS,
+      maxBuffer: 10 * 1024 * 1024, // 10 MB — package manager installs can be verbose
       env: { ...process.env, NO_UPDATE_NOTIFIER: '1' },
     });
 

@@ -98,8 +98,9 @@ describe('update-executor', () => {
     it('should reject if already updating', async () => {
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const mod = require('../../src/utils/update-executor');
-      // Start a fake update that won't resolve — use node -e for cross-platform compat
-      const neverResolve = new Promise(() => {});
+      // Start a first update (not awaited). executeUpdate sets status to
+      // 'checking-permissions' synchronously before its first await, so the
+      // second call will always see a non-idle state.
       mod.executeUpdate({
         currentVersion: '1.0.0',
         installCmd: process.execPath,
@@ -107,12 +108,13 @@ describe('update-executor', () => {
         command: 'node -e "process.exit(0)"',
         method: 'npm',
         restartStrategy: 'exit',
-        performRestart: () => neverResolve,
+        performRestart: () => Promise.resolve(),
       });
 
-      // State should now reflect an in-progress update
+      // State should now reflect an in-progress update (set synchronously)
       const state = mod.getUpdateState();
       assert.notEqual(state.status, 'idle');
+      assert.notEqual(state.status, 'failed');
 
       // A second update attempt while one is in progress should return an error
       const result = await mod.executeUpdate({
@@ -122,7 +124,7 @@ describe('update-executor', () => {
         command: 'node -e "process.exit(0)"',
         method: 'npm',
         restartStrategy: 'exit',
-        performRestart: () => neverResolve,
+        performRestart: () => Promise.resolve(),
       });
       assert.ok(result.error, 'second call should return an error');
       assert.ok(

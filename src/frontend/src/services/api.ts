@@ -262,7 +262,7 @@ export interface UpdateState {
 }
 
 export async function triggerUpdate(): Promise<{
-  status: string;
+  status?: string;
   method?: string;
   error?: string;
   command?: string;
@@ -273,7 +273,11 @@ export async function triggerUpdate(): Promise<{
     credentials: 'same-origin',
     timeout: 30_000,
   });
-  return res.json();
+  const data = await res.json();
+  if (!res.ok) {
+    return { error: data.error || `HTTP ${res.status}`, ...data };
+  }
+  return data;
 }
 
 export async function getUpdateStatus(): Promise<UpdateState | null> {
