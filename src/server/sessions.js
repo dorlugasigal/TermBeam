@@ -213,9 +213,9 @@ class SessionManager {
         session._outputBytes = (session._outputBytes || 0) + data.length;
         clearTimeout(session._silenceTimer);
 
-        // Only fire after 8s silence following ≥3s activity with ≥500 bytes
+        // Only fire after 5s silence following ≥1s activity with ≥100 bytes
         const duration = now - session._outputBurstStart;
-        if (duration >= 3000 && session._outputBytes >= 500) {
+        if (duration >= 1000 && session._outputBytes >= 100) {
           session._silenceTimer = setTimeout(() => {
             const cooldownOk =
               !session._lastNotifyTime || Date.now() - session._lastNotifyTime >= 30000;
@@ -228,7 +228,7 @@ class SessionManager {
             }
             session._outputBurstStart = null;
             session._outputBytes = 0;
-          }, 8000);
+          }, 5000);
         }
       }
 
