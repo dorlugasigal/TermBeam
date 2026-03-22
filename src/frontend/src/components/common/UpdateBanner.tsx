@@ -229,7 +229,7 @@ export default function UpdateBanner() {
 
   if (state.kind === 'success') {
     return (
-      <div className={`${styles.banner} ${styles.success}`}>
+      <div className={`${styles.banner} ${styles.success}`} data-update-banner>
         <span className={styles.text}>✓ Updated to v{state.toVersion}</span>
       </div>
     );
@@ -237,7 +237,7 @@ export default function UpdateBanner() {
 
   if (state.kind === 'restarting') {
     return (
-      <div className={`${styles.banner} ${styles.updating}`}>
+      <div className={`${styles.banner} ${styles.updating}`} data-update-banner>
         <span className={styles.spinner}>⟳</span>
         <span className={styles.text}>
           {state.restartStrategy === 'pm2'
@@ -250,7 +250,7 @@ export default function UpdateBanner() {
 
   if (state.kind === 'updating') {
     return (
-      <div className={`${styles.banner} ${styles.updating}`}>
+      <div className={`${styles.banner} ${styles.updating}`} data-update-banner>
         <span className={styles.spinner}>⟳</span>
         <span className={styles.text}>{state.phase}</span>
       </div>
@@ -259,7 +259,7 @@ export default function UpdateBanner() {
 
   if (state.kind === 'failed') {
     return (
-      <div className={`${styles.banner} ${styles.error}`}>
+      <div className={`${styles.banner} ${styles.error}`} data-update-banner>
         <span className={styles.text}>Update failed: {state.error}</span>
         {state.command && (
           <button
@@ -289,7 +289,7 @@ export default function UpdateBanner() {
 
   // state.kind === 'available'
   return (
-    <div className={styles.banner}>
+    <div className={styles.banner} data-update-banner>
       <span className={styles.text}>
         Update available: v{state.current} → v{state.latest}
       </span>

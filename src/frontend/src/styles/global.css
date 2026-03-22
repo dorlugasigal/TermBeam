@@ -81,7 +81,11 @@ textarea:focus {
   background: var(--border-subtle);
 }
 
-/* Ensure toast notifications render above all overlays */
+/* Ensure toast notifications render above all overlays and below PWA status bar */
 [data-sonner-toaster] {
   z-index: 9999 !important;
+}
+
+[data-sonner-toaster][data-y-position='top'] {
+  top: env(safe-area-inset-top, 0px) !important;
 }

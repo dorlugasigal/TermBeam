@@ -6,6 +6,20 @@
   flex-direction: column;
 }
 
+/* When UpdateBanner is visible, it already handles safe-area-inset-top,
+   so remove the duplicate inset from the header and its buttons */
+.page:has([data-update-banner]) .header {
+  padding-top: 20px;
+}
+
+.page:has([data-update-banner]) .headerBtn {
+  top: 16px;
+}
+
+.page:has([data-update-banner]) .themeBtn {
+  top: 16px;
+}
+
 .header {
   position: relative;
   padding: calc(20px + env(safe-area-inset-top, 0px)) 16px 12px;
