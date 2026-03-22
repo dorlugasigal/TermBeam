@@ -593,6 +593,16 @@ Trigger an in-app update. Only works when `canAutoUpdate` is `true` (npm/yarn/pn
 
 Returns HTTP 409 with the current update state.
 
+**Response (rate-limited):**
+
+Returns HTTP 429 when rate limit (1 request per 5 minutes) is exceeded:
+
+```json
+{
+  "error": "Update already attempted recently. Try again in a few minutes."
+}
+```
+
 After triggering, progress is broadcast via WebSocket `update-progress` messages. The server will either restart (PM2) or exit cleanly (non-PM2) once the update is verified.
 
 #### `GET /api/update/status`
