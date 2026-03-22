@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.17.2] - 2026-03-22
+
+- fix(update): enable auto-update for source installs running under PM2
+
 ## [1.17.1] - 2026-03-22
 
 - fix(ui): open code viewer as overlay to preserve terminal connection
