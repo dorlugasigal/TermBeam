@@ -107,25 +107,34 @@ class SessionManager {
 
   /** Emit a command-complete notification (push + WS broadcast). */
   _emitNotification(id, session) {
-    session.pendingNotifications.push({
+    const notification = {
       notificationType: 'command-complete',
       sessionName: session.name,
       timestamp: Date.now(),
-    });
-    if (session.pendingNotifications.length > 5) {
-      session.pendingNotifications = session.pendingNotifications.slice(-5);
-    }
+    };
 
+    // Send push notification (works even when app is closed)
     if (this.onCommandComplete) {
       this.onCommandComplete({ sessionId: id, sessionName: session.name });
     }
 
-    const notifMsg = JSON.stringify({
-      type: 'notification',
-      ...session.pendingNotifications[session.pendingNotifications.length - 1],
-    });
+    // Broadcast to connected WebSocket clients
+    const notifMsg = JSON.stringify({ type: 'notification', ...notification });
+    let delivered = false;
     for (const ws of session.clients) {
-      if (ws.readyState === 1) ws.send(notifMsg);
+      if (ws.readyState === 1) {
+        ws.send(notifMsg);
+        delivered = true;
+      }
+    }
+
+    // Only store as pending if no clients received it — prevents
+    // duplicate notification when user taps push and app reconnects
+    if (!delivered) {
+      session.pendingNotifications.push(notification);
+      if (session.pendingNotifications.length > 5) {
+        session.pendingNotifications = session.pendingNotifications.slice(-5);
+      }
     }
   }
 

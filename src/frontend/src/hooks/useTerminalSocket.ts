@@ -272,20 +272,24 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
           }
           case 'notification': {
             // Server detected a command completed (child process exited).
-            // This arrives via WS on reconnect (pendingNotifications) or
-            // as a real-time message if the WS is still connected.
-            if (isNotificationsEnabled()) {
-              const name = msg.sessionName ?? sessionId;
-              // Only show intrusive notifications when the page is hidden
-              // (user in another app/tab). If the user is looking at TermBeam,
-              // the toast alone is sufficient.
-              if (document.hidden) {
-                playNotificationSound();
-                sendCommandNotification(name);
-                if (!document.title.startsWith('(\u25CF) ')) {
-                  document.title = '(\u25CF) ' + originalTitle;
-                }
+            if (!isNotificationsEnabled()) break;
+
+            const name = msg.sessionName ?? sessionId;
+            const store = useSessionStore.getState();
+            const isViewingThis = !document.hidden && store.activeId === sessionId;
+
+            // User is looking at this session — no notification needed
+            if (isViewingThis) break;
+
+            if (document.hidden) {
+              // App is backgrounded — full notification
+              playNotificationSound();
+              sendCommandNotification(name);
+              if (!document.title.startsWith('(\u25CF) ')) {
+                document.title = '(\u25CF) ' + originalTitle;
               }
+            } else {
+              // User is in TermBeam but on a different session tab — just toast
               toast.info(`Command finished in ${name}`);
             }
             break;
