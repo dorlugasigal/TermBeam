@@ -46,6 +46,7 @@ function installPm2Global() {
     execFileSync('npm', ['install', '-g', 'pm2'], {
       stdio: 'inherit',
       timeout: 120000,
+      shell: os.platform() === 'win32',
     });
     console.log(green('✓ PM2 installed successfully.\n'));
     return true;
@@ -122,6 +123,20 @@ function writeEcosystem(content) {
   fs.writeFileSync(ECOSYSTEM_FILE, content, 'utf8');
 }
 
+function readEcosystemName() {
+  try {
+    const content = fs.readFileSync(ECOSYSTEM_FILE, 'utf8');
+    const json = content.replace(/^module\.exports\s*=\s*/, '').replace(/;\s*$/, '');
+    const eco = JSON.parse(json);
+    if (eco.apps && eco.apps[0] && eco.apps[0].name) {
+      return eco.apps[0].name;
+    }
+  } catch {
+    // ecosystem file missing or malformed
+  }
+  return DEFAULT_SERVICE_NAME;
+}
+
 // ── PM2 Commands ─────────────────────────────────────────────────────────────
 
 function pm2Exec(args, opts = {}) {
@@ -131,6 +146,8 @@ function pm2Exec(args, opts = {}) {
       encoding: 'utf8',
       stdio: opts.inherit ? 'inherit' : ['pipe', 'pipe', 'pipe'],
       timeout: 30000,
+      // Windows npm globals are .cmd wrappers; execFileSync needs shell to resolve them
+      shell: os.platform() === 'win32',
       ...opts,
     });
   } catch (err) {
@@ -225,6 +242,7 @@ async function actionInstall() {
 
   // Service name
   showProgress(0);
+  console.log(dim('  The PM2 process name for this service.\n'));
   config.name = await ask(rl, 'Service name:', DEFAULT_SERVICE_NAME);
   decisions.push({ label: 'Service name', value: config.name });
 
@@ -424,62 +442,108 @@ async function actionInstall() {
   // Run pm2 startup if chosen during wizard
   if (config.startup) {
     console.log('');
-    // pm2 startup outputs a sudo command to copy/paste — but it always exits 1
-    // (since the startup hook isn't installed yet). Extract stdout from the error.
-    let startupOutput = '';
-    try {
-      startupOutput = execFileSync('pm2', ['startup'], {
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        timeout: 15000,
-      });
-    } catch (err) {
-      // pm2 startup exits 1 by design — the sudo command is in stdout
-      startupOutput = (err.stdout || '') + (err.stderr || '');
-    }
-    const sudoMatch = startupOutput.match(/^(sudo .+)$/m);
-    if (sudoMatch) {
-      console.log(dim('Setting up boot persistence (may ask for your password)...\n'));
-      const { spawnSync } = require('child_process');
-      // pm2 outputs: sudo env PATH=$PATH:/extra /path/to/pm2 startup <init> -u <user> --hp <home>
-      // We can't use sh -c because $PATH may contain spaces (e.g. "Visual Studio Code.app").
-      // Instead, parse the structured command and pass PATH via env to avoid shell expansion.
-      const envMatch = sudoMatch[1].match(
-        /^sudo\s+env\s+PATH=\$PATH:([\S]+)\s+(\S+)\s+startup\s+(.+)$/,
+    if (os.platform() === 'win32') {
+      // Windows: pm2 startup doesn't support Windows init systems.
+      // Instead, create a script in the Windows Startup folder that runs pm2 resurrect.
+      const startupDir = path.join(
+        process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+        'Microsoft',
+        'Windows',
+        'Start Menu',
+        'Programs',
+        'Startup',
       );
-      let result;
-      if (envMatch) {
-        const extraPath = envMatch[1]; // e.g. /opt/homebrew/.../bin
-        const pm2Bin = envMatch[2]; // e.g. /opt/homebrew/.../pm2
-        const restArgs = envMatch[3].split(/\s+/); // e.g. ['launchd', '-u', 'user', '--hp', '/home']
-        const fullPath = (process.env.PATH || '') + ':' + extraPath;
-        result = spawnSync('sudo', ['env', `PATH=${fullPath}`, pm2Bin, 'startup', ...restArgs], {
-          stdio: 'inherit',
-        });
-      } else {
-        // Fallback: try running via sh with quoted PATH
-        const resolved = sudoMatch[1].replace(/\$PATH/g, `'${process.env.PATH || ''}'`);
-        result = spawnSync('sh', ['-c', resolved], { stdio: 'inherit' });
-      }
-      const code = result.status;
-      if (code === 0) {
+      const startupScript = path.join(startupDir, 'termbeam-pm2.cmd');
+      try {
+        fs.writeFileSync(startupScript, '@echo off\r\npm2 resurrect\r\n', 'utf8');
         pm2Exec(['save'], { inherit: true });
         console.log(green('✓ TermBeam will start automatically on boot.'));
-      } else {
-        console.error(red('\n✗ Failed to set up boot persistence.'));
+        console.log(dim(`  Startup script: ${startupScript}`));
+      } catch (err) {
+        console.error(red('✗ Failed to create startup script.'));
         console.log(yellow("  TermBeam is running, but won't auto-start after a reboot."));
-        console.log(yellow('  To fix this, run the following command manually:\n'));
-        console.log(`  ${cyan(sudoMatch[1])}`);
+        console.log(yellow('  To fix this manually, create a file at:\n'));
+        console.log(`  ${cyan(startupScript)}`);
+        console.log(yellow('\n  With contents:'));
+        console.log(`  ${cyan('@echo off & pm2 resurrect')}`);
         console.log(yellow('\n  Then run:'));
         console.log(`  ${cyan('pm2 save')}\n`);
       }
     } else {
-      console.error(red('✗ Could not determine boot persistence command.'));
-      console.log(yellow("  TermBeam is running, but won't auto-start after a reboot."));
-      console.log(yellow('  To fix this, run:\n'));
-      console.log(`  ${cyan('pm2 startup')}`);
-      console.log(dim('  …then run the sudo command it outputs, followed by:'));
-      console.log(`  ${cyan('pm2 save')}\n`);
+      // Unix/macOS/WSL: try pm2 startup to set up boot persistence
+      let startupOutput = '';
+      let succeeded = false;
+      let initSystemError = false;
+      try {
+        startupOutput = execFileSync('pm2', ['startup'], {
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+          timeout: 15000,
+        });
+        // Exit 0 means pm2 configured startup directly (e.g. running as root)
+        succeeded = true;
+      } catch (err) {
+        // pm2 startup exits 1 by design — the sudo command is in stdout
+        startupOutput = (err.stdout || '') + (err.stderr || '');
+        if (startupOutput.includes('Init system not found')) {
+          initSystemError = true;
+        }
+      }
+
+      if (succeeded) {
+        // pm2 startup succeeded (typically running as root) — just save
+        pm2Exec(['save'], { inherit: true });
+        console.log(green('✓ TermBeam will start automatically on boot.'));
+      } else if (initSystemError) {
+        // WSL without systemd, or other environments without an init system
+        console.log(yellow('⚠ No init system detected (common in WSL without systemd).'));
+        console.log(yellow("  TermBeam is running, but won't auto-start after a reboot."));
+        console.log(dim('  To enable boot persistence, either:'));
+        console.log(dim('  • Enable systemd in WSL: add [boot] systemd=true to /etc/wsl.conf'));
+        console.log(dim('  • Or add "pm2 resurrect" to your shell profile (~/.bashrc)\n'));
+      } else {
+        const sudoMatch = startupOutput.match(/^(sudo .+)$/m);
+        if (sudoMatch) {
+          console.log(dim('Setting up boot persistence (may ask for your password)...\n'));
+          const { spawnSync } = require('child_process');
+          const envMatch = sudoMatch[1].match(
+            /^sudo\s+env\s+PATH=\$PATH:([\S]+)\s+(\S+)\s+startup\s+(.+)$/,
+          );
+          let result;
+          if (envMatch) {
+            const extraPath = envMatch[1];
+            const pm2Bin = envMatch[2];
+            const restArgs = envMatch[3].split(/\s+/);
+            const fullPath = (process.env.PATH || '') + ':' + extraPath;
+            result = spawnSync(
+              'sudo',
+              ['env', `PATH=${fullPath}`, pm2Bin, 'startup', ...restArgs],
+              { stdio: 'inherit' },
+            );
+          } else {
+            const resolved = sudoMatch[1].replace(/\$PATH/g, `'${process.env.PATH || ''}'`);
+            result = spawnSync('sh', ['-c', resolved], { stdio: 'inherit' });
+          }
+          if (result.status === 0) {
+            pm2Exec(['save'], { inherit: true });
+            console.log(green('✓ TermBeam will start automatically on boot.'));
+          } else {
+            console.error(red('\n✗ Failed to set up boot persistence.'));
+            console.log(yellow("  TermBeam is running, but won't auto-start after a reboot."));
+            console.log(yellow('  To fix this, run the following command manually:\n'));
+            console.log(`  ${cyan(sudoMatch[1])}`);
+            console.log(yellow('\n  Then run:'));
+            console.log(`  ${cyan('pm2 save')}\n`);
+          }
+        } else {
+          console.error(red('✗ Could not determine boot persistence command.'));
+          console.log(yellow("  TermBeam is running, but won't auto-start after a reboot."));
+          console.log(yellow('  To fix this, run:\n'));
+          console.log(`  ${cyan('pm2 startup')}`);
+          console.log(dim('  …then run the sudo command it outputs, followed by:'));
+          console.log(`  ${cyan('pm2 save')}\n`);
+        }
+      }
     }
   }
 
@@ -528,20 +592,22 @@ async function actionUninstall() {
     process.exit(1);
   }
 
-  // Find running termbeam services
+  // Determine service name: prefer ecosystem config, then PM2 process list, then default
+  const ecoName = readEcosystemName();
   const list = pm2Exec(['jlist'], { silent: true });
   let services = [];
   if (list) {
     try {
       services = JSON.parse(list).filter(
-        (p) => p.name === DEFAULT_SERVICE_NAME || p.name.startsWith('termbeam'),
+        (p) =>
+          p.name === ecoName || p.name === DEFAULT_SERVICE_NAME || p.name.startsWith('termbeam'),
       );
     } catch {
       // ignore parse errors
     }
   }
 
-  const name = services.length > 0 ? services[0].name : DEFAULT_SERVICE_NAME;
+  const name = services.length > 0 ? services[0].name : ecoName;
 
   const rl = createRL();
   const sure = await confirm(rl, `Remove TermBeam service "${name}" from PM2?`, true);
@@ -562,6 +628,23 @@ async function actionUninstall() {
     console.log(dim(`Removed ${ECOSYSTEM_FILE}`));
   }
 
+  // Clean up Windows startup script if present
+  if (os.platform() === 'win32') {
+    const startupScript = path.join(
+      process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+      'Microsoft',
+      'Windows',
+      'Start Menu',
+      'Programs',
+      'Startup',
+      'termbeam-pm2.cmd',
+    );
+    if (fs.existsSync(startupScript)) {
+      fs.unlinkSync(startupScript);
+      console.log(dim(`Removed ${startupScript}`));
+    }
+  }
+
   log.info('Service stopped');
   console.log(green(`\n✓ TermBeam service "${name}" removed.\n`));
 }
@@ -572,7 +655,7 @@ function actionStatus() {
     console.error(red('✗ PM2 is not installed. Run: npm install -g pm2'));
     process.exit(1);
   }
-  pm2Exec(['describe', DEFAULT_SERVICE_NAME], { inherit: true });
+  pm2Exec(['describe', readEcosystemName()], { inherit: true });
 }
 
 function actionLogs() {
@@ -582,8 +665,9 @@ function actionLogs() {
     process.exit(1);
   }
   const { spawn } = require('child_process');
-  const child = spawn('pm2', ['logs', DEFAULT_SERVICE_NAME, '--lines', '200'], {
+  const child = spawn('pm2', ['logs', readEcosystemName(), '--lines', '200'], {
     stdio: 'inherit',
+    shell: os.platform() === 'win32',
   });
   child.on('error', (err) => {
     console.error(red(`✗ Failed to stream logs: ${err.message}`));
@@ -596,7 +680,7 @@ function actionRestart() {
     console.error(red('✗ PM2 is not installed. Run: npm install -g pm2'));
     process.exit(1);
   }
-  pm2Exec(['restart', DEFAULT_SERVICE_NAME], { inherit: true });
+  pm2Exec(['restart', readEcosystemName()], { inherit: true });
   log.info('Service restarted');
   console.log(green('\n✓ TermBeam service restarted.\n'));
 }
@@ -651,6 +735,7 @@ module.exports = {
   buildArgs,
   generateEcosystem,
   writeEcosystem,
+  readEcosystemName,
   pm2Exec,
   actionStatus,
   actionRestart,

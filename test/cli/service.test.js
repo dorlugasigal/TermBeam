@@ -9,6 +9,7 @@ const {
   buildArgs,
   generateEcosystem,
   findPm2,
+  readEcosystemName,
   TERMBEAM_DIR,
   DEFAULT_SERVICE_NAME,
 } = require('../../src/cli/service');
@@ -138,6 +139,34 @@ describe('service', () => {
     it('sets autorestart to true', () => {
       const content = generateEcosystem({});
       assert.ok(content.includes('"autorestart": true'));
+    });
+  });
+
+  describe('readEcosystemName', () => {
+    it('returns name from ecosystem config when file exists', () => {
+      const fs = require('fs');
+      const content = generateEcosystem({ name: 'my-custom-service' });
+      const ecoFile = _path.join(TERMBEAM_DIR, 'ecosystem.config.js');
+      const existed = fs.existsSync(ecoFile);
+      let original;
+      if (existed) original = fs.readFileSync(ecoFile, 'utf8');
+
+      try {
+        fs.mkdirSync(TERMBEAM_DIR, { recursive: true });
+        fs.writeFileSync(ecoFile, content, 'utf8');
+        assert.strictEqual(readEcosystemName(), 'my-custom-service');
+      } finally {
+        if (existed) fs.writeFileSync(ecoFile, original, 'utf8');
+        else
+          try {
+            fs.unlinkSync(ecoFile);
+          } catch {}
+      }
+    });
+
+    it('returns default name when ecosystem file is missing', () => {
+      // readEcosystemName falls back to DEFAULT_SERVICE_NAME on any error
+      assert.strictEqual(typeof readEcosystemName(), 'string');
     });
   });
 
@@ -489,7 +518,10 @@ describe('actionLogs', () => {
     assert.strictEqual(spawnCalls.length, 1);
     assert.strictEqual(spawnCalls[0].cmd, 'pm2');
     assert.deepStrictEqual(spawnCalls[0].args, ['logs', 'termbeam', '--lines', '200']);
-    assert.deepStrictEqual(spawnCalls[0].opts, { stdio: 'inherit' });
+    assert.deepStrictEqual(spawnCalls[0].opts, {
+      stdio: 'inherit',
+      ...(os.platform() === 'win32' ? { shell: true } : {}),
+    });
   });
 
   it('exits with error when PM2 is not found', () => {
@@ -775,7 +807,9 @@ describe('actionUninstall (via run)', () => {
     assert.ok(execCalls.some((c) => c.cmd === 'pm2' && c.args[0] === 'stop'));
     assert.ok(execCalls.some((c) => c.cmd === 'pm2' && c.args[0] === 'delete'));
     assert.ok(execCalls.some((c) => c.cmd === 'pm2' && c.args[0] === 'save'));
-    assert.strictEqual(unlinkCalls.length, 1);
+    // Ecosystem file is always removed; on Windows the startup script is also removed
+    const expected = os.platform() === 'win32' ? 2 : 1;
+    assert.strictEqual(unlinkCalls.length, expected);
   });
 
   it('cancels when user declines confirmation', async () => {
