@@ -101,8 +101,32 @@ const SESSION_COLORS = [
 class SessionManager {
   constructor() {
     this.sessions = new Map();
-    /** @type {((event: {sessionId: string, sessionName: string, duration: number}) => void)|null} */
+    /** @type {((event: {sessionId: string, sessionName: string}) => void)|null} */
     this.onCommandComplete = null;
+  }
+
+  /** Emit a command-complete notification (push + WS broadcast). */
+  _emitNotification(id, session) {
+    session.pendingNotifications.push({
+      type: 'command-complete',
+      sessionName: session.name,
+      timestamp: Date.now(),
+    });
+    if (session.pendingNotifications.length > 5) {
+      session.pendingNotifications = session.pendingNotifications.slice(-5);
+    }
+
+    if (this.onCommandComplete) {
+      this.onCommandComplete({ sessionId: id, sessionName: session.name });
+    }
+
+    const notifMsg = JSON.stringify({
+      type: 'notification',
+      ...session.pendingNotifications[session.pendingNotifications.length - 1],
+    });
+    for (const ws of session.clients) {
+      if (ws.readyState === 1) ws.send(notifMsg);
+    }
   }
 
   create({
@@ -178,6 +202,36 @@ class SessionManager {
       session.lastActivity = Date.now();
       session.scrollbackBuf += data;
 
+      // Silence-based notification: only active when the shell has a direct
+      // child process (session._hasDirectChild). This handles interactive
+      // agents (Copilot CLI, Claude Code) that stay running but spawn
+      // subtasks. When subtask output goes silent for 8 seconds after
+      // sustained activity, that's "task completed."
+      if (session._hasDirectChild) {
+        const now = Date.now();
+        if (!session._outputBurstStart) session._outputBurstStart = now;
+        session._outputBytes = (session._outputBytes || 0) + data.length;
+        clearTimeout(session._silenceTimer);
+
+        // Only fire after 8s silence following ≥3s activity with ≥500 bytes
+        const duration = now - session._outputBurstStart;
+        if (duration >= 3000 && session._outputBytes >= 500) {
+          session._silenceTimer = setTimeout(() => {
+            const cooldownOk =
+              !session._lastNotifyTime || Date.now() - session._lastNotifyTime >= 30000;
+            if (cooldownOk) {
+              session._lastNotifyTime = Date.now();
+              log.info(
+                `Command idle in "${session.name}" (${Math.round(duration / 1000)}s activity, ${session._outputBytes} bytes)`,
+              );
+              this._emitNotification(id, session);
+            }
+            session._outputBurstStart = null;
+            session._outputBytes = 0;
+          }, 8000);
+        }
+      }
+
       // Track alt screen mode so reconnecting clients can re-enter it.
       // Carry a small tail between chunks so split escape sequences are detected.
       const scanBuf = session._altScanTail + data;
@@ -223,10 +277,10 @@ class SessionManager {
     });
 
     // Monitor DIRECT child processes of the shell to detect command completion.
-    // Only direct children matter — when `sleep 10` or `copilot` exits, that's
-    // a command completion. Sub-children (MCP servers, build tools) spawned by
-    // those commands are irrelevant — they're children of copilot, not the shell.
-    // Uses `ps` instead of `pgrep` because pgrep -P is unreliable on macOS PTY.
+    // Two notification triggers:
+    // 1. Direct child exits (e.g., `sleep 10` finishes, `copilot` quits)
+    // 2. Silence detection (in onData above) fires when output stops for 8s
+    //    while a child IS running (e.g., Copilot CLI agent finishes a task)
     if (process.platform !== 'win32') {
       const shellPid = ptyProcess.pid;
       let prevChildren = new Set();
@@ -252,6 +306,9 @@ class SessionManager {
             );
             childCheckCount++;
 
+            // Update the flag used by silence detection in onData
+            session._hasDirectChild = currentChildren.size > 0;
+
             // Skip initial checks — shell startup spawns profile/completion children
             if (childCheckCount <= 3) {
               prevChildren = currentChildren;
@@ -262,36 +319,18 @@ class SessionManager {
             const exited = [...prevChildren].filter((pid) => !currentChildren.has(pid));
 
             if (exited.length > 0 && prevChildren.size > 0) {
+              // Direct child exited — clear silence timer (prevent double notification)
+              clearTimeout(session._silenceTimer);
+              session._outputBurstStart = null;
+              session._outputBytes = 0;
+
               const now = Date.now();
               if (!session._lastNotifyTime || now - session._lastNotifyTime >= NOTIFY_COOLDOWN) {
                 session._lastNotifyTime = now;
                 log.info(
                   `Command completed in "${session.name}" (PID ${exited.join(',')} exited, ${currentChildren.size} remaining)`,
                 );
-
-                session.pendingNotifications.push({
-                  type: 'command-complete',
-                  sessionName: session.name,
-                  timestamp: now,
-                });
-                if (session.pendingNotifications.length > 5) {
-                  session.pendingNotifications = session.pendingNotifications.slice(-5);
-                }
-
-                if (this.onCommandComplete) {
-                  this.onCommandComplete({
-                    sessionId: id,
-                    sessionName: session.name,
-                  });
-                }
-
-                const notifMsg = JSON.stringify({
-                  type: 'notification',
-                  ...session.pendingNotifications[session.pendingNotifications.length - 1],
-                });
-                for (const ws of session.clients) {
-                  if (ws.readyState === 1) ws.send(notifMsg);
-                }
+                this._emitNotification(id, session);
               }
             }
 
@@ -308,6 +347,7 @@ class SessionManager {
 
     ptyProcess.onExit(({ exitCode }) => {
       clearInterval(session._childMonitor);
+      clearTimeout(session._silenceTimer);
       log.info(`Session "${name}" (${id}) exited (code ${exitCode})`);
       for (const ws of session.clients) {
         if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'exit', code: exitCode }));

@@ -865,7 +865,7 @@ test.describe('Top Bar — Status', () => {
 // ─── Activity Indicators ────────────────────────────────────────────────────
 
 test.describe('Activity Indicators', () => {
-  test('Tab title shows unread indicator when output arrives in hidden tab', async ({ page }) => {
+  test('Tab title shows unread indicator on command completion notification', async ({ page }) => {
     await setupTerminal(page);
 
     // Simulate tab being hidden
@@ -878,16 +878,17 @@ test.describe('Activity Indicators', () => {
       });
     });
 
-    // Run a command that produces output while "hidden"
-    const marker = `HIDDEN_${Date.now()}`;
-    await runCommand(page, `echo ${marker}`);
-    await waitForTerminalOutput(page, marker);
+    // Run a long-enough command so the process monitor detects child exit.
+    // sleep 3 creates a direct child that exits after 3 seconds.
+    await runCommand(page, 'sleep 3');
 
-    // Title should have unread indicator
+    // Title should show unread indicator after the command completes
+    // and the server sends a notification message (~5-8 seconds total:
+    // 3s sleep + up to 4s for two poll cycles to detect exit)
     await expect(async () => {
       const title = await page.title();
       expect(title).toContain('\u25CF');
-    }).toPass({ timeout: 5_000 });
+    }).toPass({ timeout: 15_000 });
 
     // Simulate returning to tab — title should restore
     await page.evaluate(() => {
