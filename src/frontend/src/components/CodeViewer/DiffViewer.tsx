@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useId } from 'react';
 import { useCodeViewerStore } from '@/stores/codeViewerStore';
 import { fetchGitDiff } from '@/services/api';
 import type { GitDiff } from '@/services/api';
@@ -106,8 +106,13 @@ interface DiffHeaderProps {
 }
 
 function DiffHeader({ diff, staged, fullFile, loading, onToggleStaged, onToggleFullFile }: DiffHeaderProps) {
+  const toggleId = useId();
   // Untracked/new files are entirely additions — no meaningful diff/full or staged toggle
-  const isNewFile = diff.deletions === 0 && diff.hunks.every((h) => h.lines.every((l) => l.type === 'add'));
+  const isNewFile =
+    diff.deletions === 0 &&
+    diff.additions > 0 &&
+    diff.hunks.length > 0 &&
+    diff.hunks.every((h) => h.lines.every((l) => l.type === 'add'));
 
   return (
     <div className={styles.header}>
@@ -133,13 +138,13 @@ function DiffHeader({ diff, staged, fullFile, loading, onToggleStaged, onToggleF
           <div className={styles.stagedToggle}>
             <input
               type="checkbox"
-              id="staged-toggle"
+              id={toggleId}
               checked={staged}
               onChange={onToggleStaged}
               disabled={loading}
               aria-label="Show staged changes"
             />
-            <label htmlFor="staged-toggle">Staged</label>
+            <label htmlFor={toggleId}>Staged</label>
           </div>
         </>
       )}

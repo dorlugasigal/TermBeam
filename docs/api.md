@@ -1022,7 +1022,7 @@ The server validates resize dimensions: `cols` must be between 1–500 and `rows
 
 #### Notification
 
-Sent when a command completes (child process exits) while the client was disconnected. Delivered on reconnect.
+Sent when a command completes (child process exits). Broadcast in real time to connected clients and replayed on attach for events that occurred while disconnected.
 
 ```json
 {

@@ -214,7 +214,7 @@ class SessionManager {
       // Silence-based notification: only active when the shell has a direct
       // child process (session._hasDirectChild). This handles interactive
       // agents (Copilot CLI, Claude Code) that stay running but spawn
-      // subtasks. When subtask output goes silent for 8 seconds after
+      // subtasks. When subtask output goes silent for 5 seconds after
       // sustained activity, that's "task completed."
       if (session._hasDirectChild) {
         const now = Date.now();

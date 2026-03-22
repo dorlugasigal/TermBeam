@@ -60,11 +60,15 @@ function createTermBeamServer(overrides = {}) {
     log.warn(`Push notification init failed: ${err.message}`);
   });
   sessions.onCommandComplete = ({ sessionId, sessionName }) => {
-    pushManager.notify({
-      title: 'Command finished',
-      body: `Session: ${sessionName}`,
-      tag: `termbeam-cmd-${sessionId}-${Date.now()}`,
-    });
+    void pushManager
+      .notify({
+        title: 'Command finished',
+        body: `Session: ${sessionName}`,
+        tag: `termbeam-cmd-${sessionId}-${Date.now()}`,
+      })
+      .catch((err) => {
+        log.warn(`Push notification failed: ${err.message}`);
+      });
   };
 
   // --- Express ---

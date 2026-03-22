@@ -28,6 +28,10 @@ class PushManager {
    * @param {{ endpoint: string, keys: { p256dh: string, auth: string } }} subscription
    */
   subscribe(subscription) {
+    if (!this.vapidKeys) {
+      log.warn('Push subscription rejected — VAPID not initialized');
+      return;
+    }
     this.subscriptions.set(subscription.endpoint, subscription);
     log.info(`Push subscription registered (${this.subscriptions.size} total)`);
   }
@@ -51,6 +55,11 @@ class PushManager {
   async notify(payload) {
     if (this.subscriptions.size === 0) {
       log.debug('Push: no subscriptions registered, skipping notification');
+      return;
+    }
+
+    if (!this.vapidKeys) {
+      log.debug('Push: VAPID not initialized, skipping');
       return;
     }
 

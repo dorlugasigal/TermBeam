@@ -194,11 +194,7 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
       ws.onmessage = (event) => {
         if (!mountedRef.current || !terminal) return;
 
-        // Cancel any pending zombie check — we got a response, socket is alive
-        if (zombieCheckRef.current) {
-          clearTimeout(zombieCheckRef.current);
-          zombieCheckRef.current = null;
-        }
+
 
         let msg: WSServerMessage;
         try {
@@ -388,27 +384,16 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
         return;
       }
 
-      // Short background — verify with ping + zombie timeout
+      // Short background — verify socket is alive with a send attempt
       if (ws.readyState === WebSocket.OPEN) {
         try {
           ws.send(JSON.stringify({ type: 'ping' }));
-          // Set zombie detection timeout — if no message arrives in 3s, socket is dead
-          zombieCheckRef.current = setTimeout(() => {
-            zombieCheckRef.current = null;
-            const currentWs = wsRef.current;
-            if (currentWs && currentWs === ws) {
-              currentWs.onclose = null;
-              currentWs.close();
-              wsRef.current = null;
-              setConnected(false);
-              connect();
-            }
-          }, 3000);
         } catch {
           // Send failed → socket is dead, force reconnect
           ws.onclose = null;
           ws.close();
           wsRef.current = null;
+          setConnected(false);
           connect();
         }
       }
