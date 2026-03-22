@@ -62,7 +62,6 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
   const reconnectDelayRef = useRef(INITIAL_RECONNECT_DELAY);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keepaliveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const zombieCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const disconnectGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hiddenAtRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
@@ -79,10 +78,6 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
     if (keepaliveTimerRef.current) {
       clearInterval(keepaliveTimerRef.current);
       keepaliveTimerRef.current = null;
-    }
-    if (zombieCheckRef.current) {
-      clearTimeout(zombieCheckRef.current);
-      zombieCheckRef.current = null;
     }
     if (disconnectGraceRef.current) {
       clearTimeout(disconnectGraceRef.current);
@@ -193,8 +188,6 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
 
       ws.onmessage = (event) => {
         if (!mountedRef.current || !terminal) return;
-
-
 
         let msg: WSServerMessage;
         try {
@@ -325,6 +318,7 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
         // Delay showing disconnected UI — mobile app switches cause brief
         // WS disconnects that resolve within ~500ms. A 2s grace period
         // hides the red dot flicker so the user never notices.
+        if (disconnectGraceRef.current) clearTimeout(disconnectGraceRef.current);
         disconnectGraceRef.current = setTimeout(() => {
           disconnectGraceRef.current = null;
           setConnected(false);
@@ -425,10 +419,6 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
     if (keepaliveTimerRef.current) {
       clearInterval(keepaliveTimerRef.current);
       keepaliveTimerRef.current = null;
-    }
-    if (zombieCheckRef.current) {
-      clearTimeout(zombieCheckRef.current);
-      zombieCheckRef.current = null;
     }
     const ws = wsRef.current;
     if (ws) {

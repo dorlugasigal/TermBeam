@@ -502,6 +502,7 @@ export default function CommandPalette() {
       if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
         const perm = await Notification.requestPermission();
         if (perm !== 'granted') {
+          setPushActive(false);
           toast('Notifications enabled (browser permission denied, using in-app only)');
           close();
           return;

@@ -288,7 +288,7 @@ class SessionManager {
     // Monitor DIRECT child processes of the shell to detect command completion.
     // Two notification triggers:
     // 1. Direct child exits (e.g., `sleep 10` finishes, `copilot` quits)
-    // 2. Silence detection (in onData above) fires when output stops for 8s
+    // 2. Silence detection (in onData above) fires when output stops for 5s
     //    while a child IS running (e.g., Copilot CLI agent finishes a task)
     if (process.platform !== 'win32') {
       const shellPid = ptyProcess.pid;
