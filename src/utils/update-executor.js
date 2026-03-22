@@ -189,11 +189,14 @@ async function executeUpdate({
     }
 
     const { isNewerVersion } = require('./update-check');
-    if (!isNewerVersion(currentVersion, newVersion)) {
+    if (newVersion === currentVersion) {
+      // Same version reinstalled (cache, registry delay) — treat as success
+      log.info(`Update reinstalled same version (${newVersion})`);
+    } else if (!isNewerVersion(currentVersion, newVersion)) {
       notify({
         status: 'failed',
         phase: 'Verification failed',
-        error: `Version unchanged after update (still ${newVersion})`,
+        error: `Unexpected version after update: ${newVersion} (was ${currentVersion})`,
       });
       return getUpdateState();
     }

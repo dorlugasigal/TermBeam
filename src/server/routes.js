@@ -174,7 +174,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
     const performRestart = async () => {
       if (installInfo.restartStrategy === 'pm2') {
         // PM2 restart — PM2 will bring the process back up
-        const { execFileSync } = require('child_process');
+        const { execFile: execFileCb } = require('child_process');
         const serviceName = process.env.pm_id || 'termbeam';
         broadcastProgress({
           status: 'restarting',
@@ -183,17 +183,15 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
         });
         // Give WS messages time to reach clients
         await new Promise((r) => setTimeout(r, 1000));
-        try {
-          execFileSync('pm2', ['restart', serviceName], {
-            timeout: 10000,
-            stdio: 'ignore',
-          });
-        } catch (err) {
-          log.warn(`PM2 restart failed: ${err.message}`);
-          // Fall back to exit
-          sessions.shutdown();
-          process.exit(0);
-        }
+        // Use async execFile so WS messages can flush before the restart
+        execFileCb('pm2', ['restart', serviceName], { timeout: 10000, stdio: 'ignore' }, (err) => {
+          if (err) {
+            log.warn(`PM2 restart failed: ${err.message}`);
+            // Fall back to exit
+            sessions.shutdown();
+            process.exit(0);
+          }
+        });
       } else {
         // Exit strategy — clean shutdown, user must restart manually
         broadcastProgress({

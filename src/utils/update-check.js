@@ -242,7 +242,8 @@ async function checkForUpdate({ currentVersion, force = false } = {}) {
 /**
  * Detect how TermBeam was installed and return the appropriate update command,
  * whether it can auto-update, and the restart strategy.
- * @returns {{ method: string, command: string, canAutoUpdate: boolean, restartStrategy: 'pm2'|'exit'|'none' }}
+ * @returns {{ method: string, command: string, canAutoUpdate: boolean, restartStrategy: 'pm2'|'exit'|'none', installCmd: string|null, installArgs: string[]|null }}
+ * Note: installCmd/installArgs are internal — stripped before sending to API clients.
  */
 function detectInstallMethod() {
   // npx / npm exec — npm sets npm_command=exec
