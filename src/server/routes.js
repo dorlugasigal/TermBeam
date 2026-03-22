@@ -748,9 +748,13 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
 
     const staged = req.query.staged === 'true';
     const untracked = req.query.untracked === 'true';
-    const context = req.query.context
-      ? Math.min(Math.max(parseInt(req.query.context, 10), 0), 99999)
-      : undefined;
+    let context;
+    if (req.query.context !== undefined) {
+      const parsed = parseInt(req.query.context, 10);
+      if (Number.isFinite(parsed)) {
+        context = Math.min(Math.max(parsed, 0), 99999);
+      }
+    }
     try {
       const diff = await getFileDiff(session.cwd, file, { staged, untracked, context });
       res.json(diff);

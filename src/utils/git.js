@@ -304,12 +304,13 @@ async function getFileDiff(cwd, filePath, options = {}) {
   const { staged = false, untracked = false, context = 3 } = options;
 
   try {
-    // Untracked files: use --no-index to diff against /dev/null
+    // Untracked files: use --no-index to diff against the null device
+    const nullDevice = process.platform === 'win32' ? 'NUL' : '/dev/null';
     if (untracked) {
       const raw = await new Promise((resolve, reject) => {
         require('child_process').execFile(
           'git',
-          ['diff', '--no-index', '--no-color', `--unified=${context}`, '--', '/dev/null', filePath],
+          ['diff', '--no-index', '--no-color', `--unified=${context}`, '--', nullDevice, filePath],
           {
             cwd,
             timeout: GIT_TIMEOUT,

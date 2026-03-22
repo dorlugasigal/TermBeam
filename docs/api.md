@@ -685,8 +685,8 @@ Returns parsed git status for a session's working directory.
   "branch": "main",
   "ahead": 3,
   "behind": 0,
-  "staged": [{ "path": "src/index.js", "status": "modified", "oldPath": null }],
-  "modified": [{ "path": "README.md", "status": "modified", "oldPath": null }],
+  "staged": [{ "path": "src/index.js", "status": "M", "oldPath": null }],
+  "modified": [{ "path": "README.md", "status": "M", "oldPath": null }],
   "untracked": ["new-file.txt"],
   "isGitRepo": true
 }
@@ -759,7 +759,7 @@ Returns file diff for a specific file.
 | `deletions` | number  | Total number of deleted lines                   |
 | `isBinary`  | boolean | Whether the file is binary (no line-level diff) |
 
-Each line in a hunk contains `type` (`"add"`, `"delete"`, or `"context"`), `content`, `oldLine`, and `newLine`.
+Each line in a hunk contains `type` (`"add"`, `"remove"`, or `"context"`), `content`, `oldLine`, and `newLine`.
 
 ---
 

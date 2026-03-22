@@ -108,7 +108,7 @@ class SessionManager {
   /** Emit a command-complete notification (push + WS broadcast). */
   _emitNotification(id, session) {
     session.pendingNotifications.push({
-      type: 'command-complete',
+      notificationType: 'command-complete',
       sessionName: session.name,
       timestamp: Date.now(),
     });
@@ -288,8 +288,11 @@ class SessionManager {
       const POLL_INTERVAL = 2000;
       const NOTIFY_COOLDOWN = 30000;
 
+      let pollInFlight = false;
       const checkChildren = () => {
+        if (pollInFlight) return;
         if (!this.sessions.has(id)) return;
+        pollInFlight = true;
 
         const { exec } = require('child_process');
 
@@ -297,6 +300,8 @@ class SessionManager {
           `ps -ax -o pid=,ppid= | awk -v p=${shellPid} '$2 == p { print $1 }'`,
           { timeout: 2000 },
           (err, stdout) => {
+            pollInFlight = false;
+            if (err) return;
             const currentChildren = new Set(
               (stdout || '')
                 .trim()

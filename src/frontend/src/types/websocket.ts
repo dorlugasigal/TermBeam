@@ -42,6 +42,7 @@ export interface WSErrorMessage {
 
 export interface WSNotificationMessage {
   type: 'notification';
+  notificationType: 'command-complete';
   sessionName: string;
   timestamp: number;
 }

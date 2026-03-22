@@ -57,10 +57,17 @@ self.addEventListener('activate', (event) => {
 // ---------- Push notification handling ----------
 
 self.addEventListener('push', (event: PushEvent) => {
-  const data = event.data?.json() ?? {
+  let data: { title?: string; body?: string } = {
     title: 'Command finished',
     body: 'TermBeam',
   };
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch {
+      // Malformed payload — use defaults
+    }
+  }
 
   event.waitUntil(
     self.clients
