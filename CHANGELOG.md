@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.16.0] - 2026-03-22
+
+- feat(viewer,notifications): git changes view and push notifications (#156)
+- fix: restore +New button (desktop only) and fix E2E tests (#155)
+- feat: built-in code viewer with file explorer, syntax highlighting, and markdown preview (#154)
+
 ## [1.15.2] - 2026-03-20
 
 - fix(focus): tap-to-cursor for TUI apps and mobile focus resilience
