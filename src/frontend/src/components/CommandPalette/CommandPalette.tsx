@@ -679,7 +679,7 @@ export default function CommandPalette() {
           action: () =>
             run(() => {
               const { activeId } = useSessionStore.getState();
-              if (activeId) window.location.href = `/code/${activeId}`;
+              if (activeId) useUIStore.getState().openCodeViewer(activeId);
             }),
         },
         {
@@ -690,7 +690,7 @@ export default function CommandPalette() {
             run(() => {
               const { activeId } = useSessionStore.getState();
               if (activeId) {
-                window.location.href = `/code/${activeId}?view=changes`;
+                useUIStore.getState().openCodeViewer(activeId, 'changes');
               }
             }),
         },

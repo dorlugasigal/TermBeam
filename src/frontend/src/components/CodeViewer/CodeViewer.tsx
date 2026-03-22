@@ -15,6 +15,8 @@ const MarkdownViewer = lazy(() =>
 
 interface CodeViewerProps {
   sessionId: string;
+  onClose?: () => void;
+  initialView?: 'files' | 'changes';
 }
 
 function isMarkdownFile(path: string): boolean {
@@ -22,7 +24,7 @@ function isMarkdownFile(path: string): boolean {
   return ext === 'md' || ext === 'mdx' || ext === 'markdown';
 }
 
-export default function CodeViewer({ sessionId }: CodeViewerProps) {
+export default function CodeViewer({ sessionId, onClose, initialView }: CodeViewerProps) {
   const {
     fileTree,
     setFileTree,
@@ -56,14 +58,19 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
   const [blameLoading, setBlameLoading] = useState(false);
   const explorerRef = useRef<FileExplorerHandle>(null);
 
-  // Read ?view=changes from URL on mount to support direct navigation
+  // Read initial view mode from prop or URL (?view=changes)
   useEffect(() => {
+    if (initialView === 'changes') {
+      setViewMode('changes');
+      setSidebarOpen(true);
+      return;
+    }
     const params = new URLSearchParams(window.location.search);
     if (params.get('view') === 'changes') {
       setViewMode('changes');
       setSidebarOpen(true);
     }
-  }, [setViewMode, setSidebarOpen]);
+  }, [initialView, setViewMode, setSidebarOpen]);
 
   const handleSearchClick = useCallback(() => {
     if (!sidebarOpen) setSidebarOpen(true);
@@ -235,9 +242,20 @@ export default function CodeViewer({ sessionId }: CodeViewerProps) {
           </button>
         )}
 
-        <a href="/terminal" className={styles.backLink} title="Back to terminal">
-          ✕
-        </a>
+        {onClose ? (
+          <button
+            className={styles.backLink}
+            onClick={onClose}
+            title="Back to terminal"
+            aria-label="Close code viewer"
+          >
+            ✕
+          </button>
+        ) : (
+          <a href="/terminal" className={styles.backLink} title="Back to terminal">
+            ✕
+          </a>
+        )}
       </header>
 
       <div className={styles.body}>

@@ -293,3 +293,20 @@
     transform: translateY(0);
   }
 }
+
+/* ── Code viewer fullscreen overlay ── */
+.codeViewerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  animation: codeViewerFadeIn 0.15s ease-out;
+}
+
+@keyframes codeViewerFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

@@ -13,6 +13,7 @@ import CommandPalette from '@/components/CommandPalette/CommandPalette';
 import { SidePanel } from '@/components/SidePanel/SidePanel';
 import { FileBrowser } from '@/components/FileBrowser/FileBrowser';
 import { MarkdownBrowser } from '@/components/MarkdownBrowser/MarkdownBrowser';
+import CodeViewer from '@/components/CodeViewer/CodeViewer';
 import NewSessionModal from '@/components/SessionsHub/NewSessionModal';
 import { UploadModal } from '@/components/Modals/UploadModal';
 import { PreviewModal } from '@/components/Modals/PreviewModal';
@@ -46,6 +47,10 @@ export function TerminalApp() {
   const closeDownloadModal = useUIStore((s) => s.closeDownloadModal);
   const showMarkdown = useUIStore((s) => s.markdownModalOpen);
   const closeMarkdownModal = useUIStore((s) => s.closeMarkdownModal);
+  const codeViewerOpen = useUIStore((s) => s.codeViewerOpen);
+  const codeViewerSessionId = useUIStore((s) => s.codeViewerSessionId);
+  const codeViewerInitialView = useUIStore((s) => s.codeViewerInitialView);
+  const closeCodeViewer = useUIStore((s) => s.closeCodeViewer);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const initializedRef = useRef(false);
@@ -257,6 +262,11 @@ export function TerminalApp() {
         openSearchBar();
       }
       if (e.key === 'Escape') {
+        if (codeViewerOpen) {
+          e.preventDefault();
+          closeCodeViewer();
+          return;
+        }
         if (showDownload) {
           e.preventDefault();
           closeDownloadModal();
@@ -279,7 +289,7 @@ export function TerminalApp() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [toggleCommandPalette, openSearchBar, closeCommandPalette, closeSearchBar, showDownload, showMarkdown, closeDownloadModal, closeMarkdownModal]);
+  }, [toggleCommandPalette, openSearchBar, closeCommandPalette, closeSearchBar, showDownload, showMarkdown, closeDownloadModal, closeMarkdownModal, codeViewerOpen, closeCodeViewer]);
 
   const activeSession = activeId ? sessions.get(activeId) : null;
 
@@ -503,6 +513,17 @@ export function TerminalApp() {
               onClose={closeMarkdownModal}
             />
           </div>
+        </div>
+      )}
+
+      {/* ── Code viewer overlay (fullscreen, terminal stays alive underneath) ── */}
+      {codeViewerOpen && codeViewerSessionId && (
+        <div className={styles.codeViewerOverlay}>
+          <CodeViewer
+            sessionId={codeViewerSessionId}
+            onClose={closeCodeViewer}
+            initialView={codeViewerInitialView}
+          />
         </div>
       )}
     </div>

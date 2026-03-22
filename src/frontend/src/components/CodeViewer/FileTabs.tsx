@@ -29,6 +29,12 @@ export default function FileTabs({ files, activeFilePath, onSelect, onClose }: F
           key={path}
           className={`${styles.tab} ${path === activeFilePath ? styles.active : ''}`}
           onClick={() => onSelect(path)}
+          onMouseDown={(e) => {
+            if (e.button === 1) {
+              e.preventDefault();
+              onClose(path);
+            }
+          }}
           title={path}
         >
           <span className={styles.tabName}>{getDisplayName(path, paths)}</span>
