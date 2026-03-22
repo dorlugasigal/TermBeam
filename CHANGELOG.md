@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.17.3] - 2026-03-22
+
+- fix(test): correct actionLogs spawn opts assertion for cross-platform CI
+- fix(service): Windows and WSL compatibility for PM2 service management
+
 ## [1.17.2] - 2026-03-22
 
 - fix(update): enable auto-update for source installs running under PM2
