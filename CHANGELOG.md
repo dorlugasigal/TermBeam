@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.4] - 2026-03-23
+
+- fix(tunnel): add watchdog for auto-recovery and keep keyboard on tab switch (#161)
+- chore(deps): bump eslint from 10.0.3 to 10.1.0 (#159)
+- chore(deps): bump ws from 8.19.0 to 8.20.0 (#158)
+- chore(ci): bump github/codeql-action from 4.33.0 to 4.34.1 (#157)
+
 ## [1.17.3] - 2026-03-22
 
 - fix(test): correct actionLogs spawn opts assertion for cross-platform CI
