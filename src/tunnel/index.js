@@ -1,4 +1,4 @@
-const { execSync, execFileSync, spawn } = require('child_process');
+const { execSync, execFileSync, execFile, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -20,8 +20,6 @@ let consecutiveFailures = 0;
 let restartAttempts = 0;
 let isRestarting = false;
 let restartTimer = null;
-let lastTunnelPort = null;
-let lastTunnelOptions = null;
 
 const HEALTH_CHECK_INTERVAL = 30_000; // 30s between checks
 const HEALTH_CHECK_GRACE = 2; // 2 consecutive failures before restart
@@ -155,41 +153,60 @@ let isPersisted = false;
 
 function checkTunnelHealth() {
   if (!tunnelId || !tunnelProc || isRestarting) return;
-  try {
-    const out = execFileSync(devtunnelCmd, ['show', tunnelId], {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-      timeout: 10_000,
-    });
-    const match = out.match(/Host connections\s*:\s*(\d+)/i);
-    const hostConns = match ? parseInt(match[1], 10) : -1;
 
-    if (hostConns > 0) {
-      if (consecutiveFailures > 0) {
-        log.info(`Tunnel health restored (${hostConns} host connection(s))`);
+  const abortCtrl = new AbortController();
+  const timer = setTimeout(() => abortCtrl.abort(), 10_000);
+
+  execFile(
+    devtunnelCmd,
+    ['show', tunnelId],
+    { encoding: 'utf-8', signal: abortCtrl.signal },
+    (err, stdout) => {
+      clearTimeout(timer);
+
+      if (err) {
+        consecutiveFailures++;
+        log.warn(
+          `Tunnel health check error: ${err.message} (${consecutiveFailures}/${HEALTH_CHECK_GRACE})`,
+        );
+        if (consecutiveFailures >= HEALTH_CHECK_GRACE) {
+          handleTunnelFailure();
+        }
+        return;
       }
-      consecutiveFailures = 0;
-      return;
-    }
 
-    consecutiveFailures++;
-    log.warn(
-      `Tunnel health check: 0 host connections (${consecutiveFailures}/${HEALTH_CHECK_GRACE})`,
-    );
+      const match = stdout.match(/Host connections\s*:\s*(\d+)/i);
+      if (!match) {
+        consecutiveFailures++;
+        log.warn(
+          `Tunnel health check: could not parse host connections (${consecutiveFailures}/${HEALTH_CHECK_GRACE})`,
+        );
+        if (consecutiveFailures >= HEALTH_CHECK_GRACE) {
+          handleTunnelFailure();
+        }
+        return;
+      }
 
-    if (consecutiveFailures >= HEALTH_CHECK_GRACE) {
-      log.warn('Tunnel connection lost — initiating restart');
-      handleTunnelFailure();
-    }
-  } catch (err) {
-    consecutiveFailures++;
-    log.warn(
-      `Tunnel health check error: ${err.message} (${consecutiveFailures}/${HEALTH_CHECK_GRACE})`,
-    );
-    if (consecutiveFailures >= HEALTH_CHECK_GRACE) {
-      handleTunnelFailure();
-    }
-  }
+      const hostConns = parseInt(match[1], 10);
+      if (hostConns > 0) {
+        if (consecutiveFailures > 0) {
+          log.info(`Tunnel health restored (${hostConns} host connection(s))`);
+        }
+        consecutiveFailures = 0;
+        return;
+      }
+
+      consecutiveFailures++;
+      log.warn(
+        `Tunnel health check: 0 host connections (${consecutiveFailures}/${HEALTH_CHECK_GRACE})`,
+      );
+
+      if (consecutiveFailures >= HEALTH_CHECK_GRACE) {
+        log.warn('Tunnel connection lost — initiating restart');
+        handleTunnelFailure();
+      }
+    },
+  );
 }
 
 function startHealthCheck() {
@@ -299,7 +316,16 @@ function hostTunnel() {
 
   return new Promise((resolve) => {
     let output = '';
-    const timeout = setTimeout(() => resolve(null), 15_000);
+    const timeout = setTimeout(() => {
+      // Kill the process if URL wasn't detected in time
+      try {
+        hostProc.kill('SIGKILL');
+      } catch {
+        /* best effort */
+      }
+      if (tunnelProc === hostProc) tunnelProc = null;
+      resolve(null);
+    }, 15_000);
 
     hostProc.stdout.on('data', (data) => {
       output += data.toString();
@@ -321,8 +347,6 @@ function hostTunnel() {
 }
 
 async function startTunnel(port, options = {}) {
-  lastTunnelPort = port;
-  lastTunnelOptions = options;
   // Check if devtunnel CLI is installed
   let found = findDevtunnel();
   if (!found) {

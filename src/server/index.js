@@ -110,6 +110,7 @@ function createTermBeamServer(overrides = {}) {
     auth.cleanup();
     sessions.shutdown();
     cleanupUploadedFiles();
+    tunnelEvents.removeAllListeners();
     cleanupTunnel();
     removeConnectionConfig();
     for (const client of wss.clients) {
