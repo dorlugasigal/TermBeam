@@ -204,10 +204,10 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   }, [active, sessionId, clearUnread]);
 
   // Fit, refresh, and focus when becoming active.
-  // After a display:none → display:flex transition the canvas may be stale
-  // (render frames dropped while hidden) and fit() can be a no-op if the
-  // dimensions haven't changed. Use requestAnimationFrame to ensure the
-  // browser has completed layout, then force a full re-render.
+  // After a visibility transition the canvas may be stale (render frames
+  // dropped while hidden) and fit() can be a no-op if the dimensions
+  // haven't changed. Use requestAnimationFrame to ensure the browser has
+  // completed layout, then force a full re-render.
   useEffect(() => {
     if (active && terminal) {
       const rafId = requestAnimationFrame(() => {

@@ -197,15 +197,25 @@
 }
 
 .paneWrapper {
-  flex: 1;
-  display: none;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   min-width: 0;
-  flex-direction: column;
+  /* Hidden: stacked behind active pane, invisible but still in DOM.
+     Using position:absolute + visibility:hidden instead of display:none
+     prevents mobile browsers from dismissing the on-screen keyboard
+     when switching tabs (display:none triggers blur → keyboard close). */
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .visible {
-  display: flex;
+  position: relative;
+  flex: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 /* Focus indicator on the active pane in split view */
