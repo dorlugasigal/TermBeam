@@ -112,7 +112,13 @@ Structured logger with configurable levels (`error`, `warn`, `info`, `debug`). U
 
 ### `tunnel/index.js` — DevTunnel
 
-Manages Azure DevTunnel lifecycle: login, create, host, cleanup.
+Manages Azure DevTunnel lifecycle: login, create, host, cleanup. Includes a **watchdog** that keeps the tunnel connection reliable:
+
+- **Health check** — every 30 seconds, runs `devtunnel show` and parses the host connection count.
+- **Zombie detection** — if host connections drop to 0 for two consecutive checks (60s grace), the stale process is killed and a restart is initiated.
+- **Crash detection** — an `exit` handler on the child process triggers immediate restart if the process dies.
+- **Auto-restart** — exponential backoff (1s → 2s → 5s → 10s → 15s → 30s), up to 10 attempts before giving up.
+- **Event emitter** — exports `tunnelEvents` (EventEmitter) with events: `connected`, `disconnected`, `reconnecting`, `failed`. The server subscribes for logging.
 
 ### `tunnel/install.js` — DevTunnel Installer
 

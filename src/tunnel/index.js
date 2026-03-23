@@ -2,6 +2,7 @@ const { execSync, execFileSync, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const EventEmitter = require('events');
 const log = require('../utils/logger');
 const { promptInstall } = require('./install');
 
@@ -11,6 +12,21 @@ const TUNNEL_CONFIG_PATH = path.join(TUNNEL_CONFIG_DIR, 'tunnel.json');
 let tunnelId = null;
 let tunnelProc = null;
 let devtunnelCmd = 'devtunnel';
+
+// --- Watchdog state ---
+const tunnelEvents = new EventEmitter();
+let healthCheckInterval = null;
+let consecutiveFailures = 0;
+let restartAttempts = 0;
+let isRestarting = false;
+let restartTimer = null;
+let lastTunnelPort = null;
+let lastTunnelOptions = null;
+
+const HEALTH_CHECK_INTERVAL = 30_000; // 30s between checks
+const HEALTH_CHECK_GRACE = 2; // 2 consecutive failures before restart
+const MAX_RESTART_ATTEMPTS = 10;
+const BACKOFF_DELAYS = [1000, 2000, 5000, 10_000, 15_000, 30_000]; // then stays at 30s
 
 const SAFE_ID_RE = /^[a-zA-Z0-9._-]+$/;
 
@@ -135,7 +151,178 @@ function isTunnelValid(id) {
 
 let isPersisted = false;
 
+// --- Watchdog: health check & auto-restart ---
+
+function checkTunnelHealth() {
+  if (!tunnelId || !tunnelProc || isRestarting) return;
+  try {
+    const out = execFileSync(devtunnelCmd, ['show', tunnelId], {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 10_000,
+    });
+    const match = out.match(/Host connections\s*:\s*(\d+)/i);
+    const hostConns = match ? parseInt(match[1], 10) : -1;
+
+    if (hostConns > 0) {
+      if (consecutiveFailures > 0) {
+        log.info(`Tunnel health restored (${hostConns} host connection(s))`);
+      }
+      consecutiveFailures = 0;
+      return;
+    }
+
+    consecutiveFailures++;
+    log.warn(
+      `Tunnel health check: 0 host connections (${consecutiveFailures}/${HEALTH_CHECK_GRACE})`,
+    );
+
+    if (consecutiveFailures >= HEALTH_CHECK_GRACE) {
+      log.warn('Tunnel connection lost — initiating restart');
+      handleTunnelFailure();
+    }
+  } catch (err) {
+    consecutiveFailures++;
+    log.warn(
+      `Tunnel health check error: ${err.message} (${consecutiveFailures}/${HEALTH_CHECK_GRACE})`,
+    );
+    if (consecutiveFailures >= HEALTH_CHECK_GRACE) {
+      handleTunnelFailure();
+    }
+  }
+}
+
+function startHealthCheck() {
+  stopHealthCheck();
+  consecutiveFailures = 0;
+  healthCheckInterval = setInterval(checkTunnelHealth, HEALTH_CHECK_INTERVAL);
+  healthCheckInterval.unref();
+}
+
+function stopHealthCheck() {
+  if (healthCheckInterval) {
+    clearInterval(healthCheckInterval);
+    healthCheckInterval = null;
+  }
+}
+
+function handleTunnelFailure() {
+  if (isRestarting) return;
+  stopHealthCheck();
+
+  // Kill the zombie process
+  if (tunnelProc) {
+    try {
+      if (process.platform === 'win32' && tunnelProc.pid) {
+        try {
+          execFileSync('taskkill', ['/pid', String(tunnelProc.pid), '/T', '/F'], {
+            stdio: 'pipe',
+            timeout: 5000,
+          });
+        } catch {
+          /* best effort */
+        }
+      } else {
+        tunnelProc.kill('SIGKILL');
+      }
+    } catch {
+      /* best effort */
+    }
+    tunnelProc = null;
+  }
+
+  tunnelEvents.emit('disconnected');
+  scheduleRestart();
+}
+
+function scheduleRestart() {
+  if (restartAttempts >= MAX_RESTART_ATTEMPTS) {
+    log.error(
+      `Tunnel restart failed after ${MAX_RESTART_ATTEMPTS} attempts — giving up. Tunnel URL is unreachable.`,
+    );
+    tunnelEvents.emit('failed', { attempts: restartAttempts });
+    isRestarting = false;
+    return;
+  }
+
+  isRestarting = true;
+  const delay = BACKOFF_DELAYS[Math.min(restartAttempts, BACKOFF_DELAYS.length - 1)];
+  restartAttempts++;
+
+  log.info(`Restarting tunnel in ${delay}ms (attempt ${restartAttempts}/${MAX_RESTART_ATTEMPTS})`);
+  tunnelEvents.emit('reconnecting', { attempt: restartAttempts, delay });
+
+  restartTimer = setTimeout(async () => {
+    restartTimer = null;
+    try {
+      const result = await hostTunnel();
+      if (result) {
+        log.info('Tunnel reconnected successfully');
+        restartAttempts = 0;
+        isRestarting = false;
+        tunnelEvents.emit('connected', { url: result.url });
+        startHealthCheck();
+      } else {
+        log.warn('Tunnel restart returned no URL');
+        isRestarting = false;
+        scheduleRestart();
+      }
+    } catch (err) {
+      log.error(`Tunnel restart error: ${err.message}`);
+      isRestarting = false;
+      scheduleRestart();
+    }
+  }, delay);
+  restartTimer.unref();
+}
+
+/**
+ * Spawn `devtunnel host` for the current tunnelId and wait for the URL.
+ * Used by both initial start and watchdog restarts.
+ */
+function hostTunnel() {
+  const hostProc = spawn(devtunnelCmd, ['host', tunnelId], {
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  tunnelProc = hostProc;
+
+  // Attach exit handler for crash detection
+  hostProc.on('exit', (code, signal) => {
+    if (tunnelProc !== hostProc) return; // stale reference
+    log.warn(`Tunnel process exited (code=${code}, signal=${signal})`);
+    tunnelProc = null;
+    if (!isRestarting) {
+      tunnelEvents.emit('disconnected');
+      scheduleRestart();
+    }
+  });
+
+  return new Promise((resolve) => {
+    let output = '';
+    const timeout = setTimeout(() => resolve(null), 15_000);
+
+    hostProc.stdout.on('data', (data) => {
+      output += data.toString();
+      const match = output.match(/(https:\/\/[^\s]+devtunnels\.ms[^\s]*)/);
+      if (match) {
+        clearTimeout(timeout);
+        resolve({ url: match[1] });
+      }
+    });
+    hostProc.stderr.on('data', (data) => {
+      output += data.toString();
+    });
+    hostProc.on('error', (err) => {
+      log.error(`Tunnel process error: ${err.message}`);
+      clearTimeout(timeout);
+      resolve(null);
+    });
+  });
+}
+
 async function startTunnel(port, options = {}) {
+  lastTunnelPort = port;
+  lastTunnelOptions = options;
   // Check if devtunnel CLI is installed
   let found = findDevtunnel();
   if (!found) {
@@ -254,32 +441,14 @@ async function startTunnel(port, options = {}) {
       log.info('Tunnel access: private (owner-only via Microsoft login)');
     }
 
-    const hostProc = spawn(devtunnelCmd, ['host', tunnelId], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    tunnelProc = hostProc;
-
-    return new Promise((resolve) => {
-      let output = '';
-      const timeout = setTimeout(() => resolve(null), 15000);
-
-      hostProc.stdout.on('data', (data) => {
-        output += data.toString();
-        const match = output.match(/(https:\/\/[^\s]+devtunnels\.ms[^\s]*)/);
-        if (match) {
-          clearTimeout(timeout);
-          resolve({ url: match[1], mode: tunnelMode, expiry: tunnelExpiry });
-        }
-      });
-      hostProc.stderr.on('data', (data) => {
-        output += data.toString();
-      });
-      hostProc.on('error', (err) => {
-        log.error(`Tunnel process error: ${err.message}`);
-        clearTimeout(timeout);
-        resolve(null);
-      });
-    });
+    const result = await hostTunnel();
+    if (result) {
+      result.mode = tunnelMode;
+      result.expiry = tunnelExpiry;
+      startHealthCheck();
+      tunnelEvents.emit('connected', { url: result.url });
+    }
+    return result;
   } catch (e) {
     log.error(`Tunnel error: ${e.message}`);
     return null;
@@ -287,6 +456,14 @@ async function startTunnel(port, options = {}) {
 }
 
 function cleanupTunnel() {
+  // Stop watchdog first to prevent restart during cleanup
+  stopHealthCheck();
+  isRestarting = true; // prevent exit handler from restarting
+  if (restartTimer) {
+    clearTimeout(restartTimer);
+    restartTimer = null;
+  }
+
   const id = tunnelId;
   if (tunnelProc) {
     try {
@@ -321,6 +498,11 @@ function cleanupTunnel() {
       }
     }
   }
+
+  // Reset watchdog state
+  consecutiveFailures = 0;
+  restartAttempts = 0;
+  isRestarting = false;
 }
 
-module.exports = { startTunnel, cleanupTunnel, findDevtunnel };
+module.exports = { startTunnel, cleanupTunnel, findDevtunnel, tunnelEvents };

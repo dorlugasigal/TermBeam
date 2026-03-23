@@ -13,7 +13,7 @@ const { createAuth } = require('./auth');
 const { SessionManager } = require('./sessions');
 const { setupRoutes, cleanupUploadedFiles } = require('./routes');
 const { setupWebSocket } = require('./websocket');
-const { startTunnel, cleanupTunnel, findDevtunnel } = require('../tunnel');
+const { startTunnel, cleanupTunnel, findDevtunnel, tunnelEvents } = require('../tunnel');
 const { createPreviewProxy } = require('./preview');
 const { writeConnectionConfig, removeConnectionConfig } = require('../cli/resume');
 const { checkForUpdate, detectInstallMethod } = require('../utils/update-check');
@@ -257,6 +257,22 @@ function createTermBeamServer(overrides = {}) {
             log.warn('Tunnel failed to start, falling back to LAN-only');
             console.log('  ⚠️  Tunnel failed to start. Using LAN only.');
           }
+
+          // Tunnel watchdog events
+          tunnelEvents.on('disconnected', () => {
+            log.warn('Tunnel disconnected — watchdog will attempt to reconnect');
+          });
+          tunnelEvents.on('reconnecting', ({ attempt, delay }) => {
+            log.info(`Tunnel reconnecting (attempt ${attempt}, backoff ${delay}ms)`);
+          });
+          tunnelEvents.on('connected', ({ url }) => {
+            log.info(`Tunnel connected: ${url}`);
+          });
+          tunnelEvents.on('failed', ({ attempts }) => {
+            log.error(
+              `Tunnel watchdog gave up after ${attempts} attempts — tunnel URL is unreachable`,
+            );
+          });
         }
 
         console.log(`  Shell:    ${config.shell}`);

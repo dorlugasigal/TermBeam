@@ -37,10 +37,12 @@ require.cache['node-pty'] = {
 };
 
 // ── Mock tunnel module (controllable per-test via tunnelState) ────────────────
+const EventEmitter = require('events');
 const tunnelState = {
   findDevtunnel: () => 'devtunnel',
   startTunnel: async () => null,
   cleanupTunnel: () => {},
+  tunnelEvents: new EventEmitter(),
 };
 
 const tunnelPath = require.resolve('../../src/tunnel');
@@ -52,6 +54,7 @@ require.cache[tunnelPath] = {
     findDevtunnel: (...a) => tunnelState.findDevtunnel(...a),
     startTunnel: (...a) => tunnelState.startTunnel(...a),
     cleanupTunnel: (...a) => tunnelState.cleanupTunnel(...a),
+    tunnelEvents: tunnelState.tunnelEvents,
   },
 };
 
