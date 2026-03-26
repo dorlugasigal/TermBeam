@@ -48,7 +48,11 @@ export default function CodeViewer({ sessionId, onClose, initialView }: CodeView
     setGitBlame,
     blameEnabled,
     toggleBlame,
+    bindSession,
   } = useCodeViewerStore();
+
+  // Bind store to this session — resets all state if session changed
+  bindSession(sessionId);
 
   const [treeLoading, setTreeLoading] = useState(true);
   const [treeError, setTreeError] = useState<string | null>(null);

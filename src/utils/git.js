@@ -132,6 +132,32 @@ const MAX_DIFF_BUFFER = 1024 * 1024; // 1 MB
 const MAX_BLAME_BUFFER = 2 * 1024 * 1024; // 2 MB
 const MAX_LOG_BUFFER = 1024 * 1024; // 1 MB
 
+// git status --porcelain returns paths relative to the repo root, so
+// commands that accept those paths (diff, blame, log --follow) must also
+// run from the repo root.  Cache per-cwd to avoid repeated rev-parse calls.
+const gitRootCache = new Map();
+
+async function getGitRoot(cwd) {
+  if (gitRootCache.has(cwd)) return gitRootCache.get(cwd);
+  try {
+    const root = await new Promise((resolve, reject) => {
+      require('child_process').execFile(
+        'git',
+        ['rev-parse', '--show-toplevel'],
+        { cwd, timeout: GIT_TIMEOUT },
+        (err, stdout) => {
+          if (err) return reject(err);
+          resolve(stdout.trim());
+        },
+      );
+    });
+    gitRootCache.set(cwd, root);
+    return root;
+  } catch {
+    return cwd; // fallback to session cwd
+  }
+}
+
 async function gitAsync(args, cwd, options = {}) {
   return new Promise((resolve, reject) => {
     require('child_process').execFile(
@@ -302,6 +328,8 @@ async function parseDiffOutput(raw, filePath) {
 
 async function getFileDiff(cwd, filePath, options = {}) {
   const { staged = false, untracked = false, context = 3 } = options;
+  // git status returns paths relative to the repo root, so run diff from there
+  const root = await getGitRoot(cwd);
 
   try {
     // Untracked files: use --no-index to diff against the null device
@@ -312,7 +340,7 @@ async function getFileDiff(cwd, filePath, options = {}) {
           'git',
           ['diff', '--no-index', '--no-color', `--unified=${context}`, '--', nullDevice, filePath],
           {
-            cwd,
+            cwd: root,
             timeout: GIT_TIMEOUT,
             maxBuffer: MAX_DIFF_BUFFER,
           },
@@ -330,7 +358,7 @@ async function getFileDiff(cwd, filePath, options = {}) {
     if (staged) args.push('--cached');
     args.push('--', filePath);
 
-    const raw = await gitAsync(args, cwd, { maxBuffer: MAX_DIFF_BUFFER });
+    const raw = await gitAsync(args, root, { maxBuffer: MAX_DIFF_BUFFER });
     return parseDiffOutput(raw, filePath);
   } catch (err) {
     // Empty diff or git error
@@ -350,9 +378,11 @@ async function getFileDiff(cwd, filePath, options = {}) {
 
 async function getFileBlame(cwd, filePath) {
   const result = { file: filePath, lines: [] };
+  // git status returns paths relative to the repo root, so run blame from there
+  const root = await getGitRoot(cwd);
 
   try {
-    const raw = await gitAsync(['blame', '--porcelain', '--', filePath], cwd, {
+    const raw = await gitAsync(['blame', '--porcelain', '--', filePath], root, {
       maxBuffer: MAX_BLAME_BUFFER,
     });
 
@@ -427,11 +457,14 @@ async function getGitLog(cwd, options = {}) {
 
   try {
     const args = ['log', `--format=${LOG_SEPARATOR}${LOG_FORMAT}`, `-n`, String(limit)];
+    // When filtering by file, run from repo root since paths are repo-root-relative
+    let runCwd = cwd;
     if (options.file) {
       args.push('--follow', '--', options.file);
+      runCwd = await getGitRoot(cwd);
     }
 
-    const raw = await gitAsync(args, cwd, { maxBuffer: MAX_LOG_BUFFER });
+    const raw = await gitAsync(args, runCwd, { maxBuffer: MAX_LOG_BUFFER });
 
     const entries = raw.split(LOG_SEPARATOR).filter((e) => e.trim());
     for (const entry of entries) {
@@ -462,4 +495,5 @@ module.exports = {
   getFileDiff,
   getFileBlame,
   getGitLog,
+  getGitRoot,
 };

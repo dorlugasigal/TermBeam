@@ -18,6 +18,9 @@ export interface FileTreeNode {
 }
 
 interface CodeViewerState {
+  // Tracks which session this state belongs to
+  boundSessionId: string | null;
+
   // State
   openFiles: Map<string, OpenFile>;
   activeFilePath: string | null;
@@ -52,9 +55,13 @@ interface CodeViewerState {
   setGitLog: (log: GitLog | null) => void;
   setDiffFile: (file: string | null) => void;
   toggleBlame: () => void;
+
+  // Bind store to a session, resetting state if the session changed
+  bindSession: (sessionId: string) => void;
 }
 
-export const useCodeViewerStore = create<CodeViewerState>((set) => ({
+export const useCodeViewerStore = create<CodeViewerState>((set, get) => ({
+  boundSessionId: null,
   openFiles: new Map(),
   activeFilePath: null,
   expandedDirs: new Set(),
@@ -128,4 +135,21 @@ export const useCodeViewerStore = create<CodeViewerState>((set) => ({
   setGitLog: (log) => set({ gitLog: log }),
   setDiffFile: (file) => set({ diffFile: file }),
   toggleBlame: () => set((state) => ({ blameEnabled: !state.blameEnabled })),
+
+  bindSession: (sessionId) => {
+    if (get().boundSessionId === sessionId) return;
+    set({
+      boundSessionId: sessionId,
+      openFiles: new Map(),
+      activeFilePath: null,
+      expandedDirs: new Set(),
+      fileTree: null,
+      gitStatus: null,
+      gitDiff: null,
+      gitBlame: null,
+      gitLog: null,
+      diffFile: null,
+      blameEnabled: false,
+    });
+  },
 }));
