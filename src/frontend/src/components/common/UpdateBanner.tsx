@@ -54,6 +54,7 @@ export default function UpdateBanner() {
   const commandRef = useRef('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sawServerDownRef = useRef(false);
 
   // Clean up copied timer on unmount
   useEffect(() => {
@@ -77,6 +78,29 @@ export default function UpdateBanner() {
         });
       }
     });
+  }, []);
+
+  // Re-check for updates when user clicks the refresh button in SessionsHub
+  useEffect(() => {
+    function handleCheckUpdate() {
+      checkUpdate(true).then((result) => {
+        if (result?.updateAvailable) {
+          const cmd = result.command ?? 'npm install -g termbeam@latest';
+          commandRef.current = cmd;
+          setDismissed(false);
+          setState({
+            kind: 'available',
+            current: result.current,
+            latest: result.latest,
+            canAutoUpdate: result.canAutoUpdate ?? false,
+            method: result.method ?? 'npm',
+            command: cmd,
+          });
+        }
+      });
+    }
+    window.addEventListener('termbeam:check-update', handleCheckUpdate);
+    return () => window.removeEventListener('termbeam:check-update', handleCheckUpdate);
   }, []);
 
   // Listen for WebSocket update-progress events (empty deps — attach once)
@@ -122,8 +146,24 @@ export default function UpdateBanner() {
   useEffect(() => {
     const isUpdating = state.kind === 'updating' || state.kind === 'restarting';
     if (isUpdating && !pollRef.current) {
+      // Reset server-down tracking when entering restarting state
+      if (state.kind === 'restarting') sawServerDownRef.current = false;
       pollRef.current = setInterval(async () => {
         const status = await getUpdateStatus();
+
+        // Detect server bounce during restart: server down → server back → reload
+        if (state.kind === 'restarting') {
+          if (!status) {
+            sawServerDownRef.current = true;
+            return;
+          }
+          if (sawServerDownRef.current) {
+            // Server came back after restart — reload to pick up new assets
+            window.location.reload();
+            return;
+          }
+        }
+
         if (!status) return;
         if (status.status === 'complete') {
           setState({ kind: 'success', toVersion: status.toVersion || '?' });
