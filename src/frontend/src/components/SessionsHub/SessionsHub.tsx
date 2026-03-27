@@ -119,10 +119,14 @@ export default function SessionsHub() {
 
   async function handleRefresh() {
     setRefreshing(true);
-    if ('caches' in window) {
-      caches.keys().then((names) => names.forEach((n) => caches.delete(n)));
+    try {
+      if ('caches' in window && typeof window.caches?.keys === 'function') {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+      }
+    } finally {
+      location.reload();
     }
-    location.reload();
   }
 
   function handleShare() {

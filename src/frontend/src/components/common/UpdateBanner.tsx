@@ -80,29 +80,6 @@ export default function UpdateBanner() {
     });
   }, []);
 
-  // Re-check for updates when user clicks the refresh button in SessionsHub
-  useEffect(() => {
-    function handleCheckUpdate() {
-      checkUpdate(true).then((result) => {
-        if (result?.updateAvailable) {
-          const cmd = result.command ?? 'npm install -g termbeam@latest';
-          commandRef.current = cmd;
-          setDismissed(false);
-          setState({
-            kind: 'available',
-            current: result.current,
-            latest: result.latest,
-            canAutoUpdate: result.canAutoUpdate ?? false,
-            method: result.method ?? 'npm',
-            command: cmd,
-          });
-        }
-      });
-    }
-    window.addEventListener('termbeam:check-update', handleCheckUpdate);
-    return () => window.removeEventListener('termbeam:check-update', handleCheckUpdate);
-  }, []);
-
   // Listen for WebSocket update-progress events (empty deps — attach once)
   useEffect(() => {
     function handleWsMessage(event: MessageEvent) {
@@ -157,7 +134,7 @@ export default function UpdateBanner() {
             sawServerDownRef.current = true;
             return;
           }
-          if (sawServerDownRef.current) {
+          if (sawServerDownRef.current || status.status === 'idle') {
             // Server came back after restart — reload to pick up new assets
             window.location.reload();
             return;
