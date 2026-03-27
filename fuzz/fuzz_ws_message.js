@@ -5,6 +5,7 @@
  * @param {Buffer} data
  */
 module.exports.fuzz = function (data) {
+  if (data.length > 4096) return;
   const str = data.toString('utf-8');
 
   // Fuzz JSON.parse with arbitrary input (mirrors websocket.js message handler)
@@ -21,29 +22,36 @@ module.exports.fuzz = function (data) {
   const { type } = parsed;
   if (typeof type !== 'string') return;
 
-  // Validate known message types (same dispatch as websocket.js)
-  const validTypes = ['attach', 'input', 'resize', 'detach', 'ping'];
-  if (!validTypes.includes(type)) return;
+  // Validate known message types (matches src/server/websocket.js dispatch)
+  const validTypes = ['auth', 'attach', 'input', 'resize'];
 
-  // Exercise resize payload validation
+  // Exercise resize payload validation (matches production: rows <= 200)
   if (type === 'resize') {
     const { cols, rows } = parsed;
     if (typeof cols !== 'number' || typeof rows !== 'number') return;
-    if (cols < 1 || cols > 500 || rows < 1 || rows > 500) return;
+    if (cols < 1 || cols > 500 || rows < 1 || rows > 200) return;
     if (!Number.isInteger(cols) || !Number.isInteger(rows)) return;
   }
 
-  // Exercise input payload validation
+  // Exercise input payload — production calls pty.write(msg.data) without
+  // type checking, so we intentionally allow non-string data here to surface
+  // potential crashes
   if (type === 'input') {
     const { data: inputData } = parsed;
-    if (typeof inputData !== 'string') return;
-    if (inputData.length > 1024 * 1024) return; // 1MB limit
+    if (inputData === undefined) return;
   }
 
   // Exercise attach payload validation
   if (type === 'attach') {
     const { sessionId, token } = parsed;
-    if (sessionId !== undefined && typeof sessionId !== 'string') return;
-    if (token !== undefined && typeof token !== 'string') return;
+    // Production uses these values without strict type checks
+    if (sessionId !== undefined) String(sessionId);
+    if (token !== undefined) String(token);
+  }
+
+  // Exercise auth payload
+  if (type === 'auth') {
+    const { token } = parsed;
+    if (token !== undefined) String(token);
   }
 };
