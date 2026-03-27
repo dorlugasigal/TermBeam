@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.17.6] - 2026-03-27
+
+- feat(security): improve OpenSSF scorecard score (#163)
+
 ## [1.17.5] - 2026-03-26
 
 - fix(git): resolve diff/blame paths from repo root and scope CodeViewer state per session
