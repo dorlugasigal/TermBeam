@@ -119,8 +119,14 @@ export default function SessionsHub() {
 
   async function handleRefresh() {
     setRefreshing(true);
-    await loadSessions();
-    setTimeout(() => setRefreshing(false), 600);
+    try {
+      if ('caches' in window && typeof window.caches?.keys === 'function') {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+      }
+    } finally {
+      location.reload();
+    }
   }
 
   function handleShare() {

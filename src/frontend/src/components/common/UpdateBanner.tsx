@@ -54,6 +54,7 @@ export default function UpdateBanner() {
   const commandRef = useRef('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sawServerDownRef = useRef(false);
 
   // Clean up copied timer on unmount
   useEffect(() => {
@@ -122,8 +123,24 @@ export default function UpdateBanner() {
   useEffect(() => {
     const isUpdating = state.kind === 'updating' || state.kind === 'restarting';
     if (isUpdating && !pollRef.current) {
+      // Reset server-down tracking when entering restarting state
+      if (state.kind === 'restarting') sawServerDownRef.current = false;
       pollRef.current = setInterval(async () => {
         const status = await getUpdateStatus();
+
+        // Detect server bounce during restart: server down → server back → reload
+        if (state.kind === 'restarting') {
+          if (!status) {
+            sawServerDownRef.current = true;
+            return;
+          }
+          if (sawServerDownRef.current || status.status === 'idle') {
+            // Server came back after restart — reload to pick up new assets
+            window.location.reload();
+            return;
+          }
+        }
+
         if (!status) return;
         if (status.status === 'complete') {
           setState({ kind: 'success', toVersion: status.toVersion || '?' });
