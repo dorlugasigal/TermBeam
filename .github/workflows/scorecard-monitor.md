@@ -40,6 +40,8 @@ Monitor the OpenSSF Scorecard for this repository and create actionable improvem
    - `Contributors` — depends on external contributors, not fixable
    - `CII-Best-Practices` — requires external badge program enrollment
    - `Signed-Releases` — only relevant if releases exist
+   - `Code-Review` — solo developer project, no external reviewers
+   - `Branch-Protection` — settings are already maximized for a solo maintainer
 
 4. For each actionable low-scoring check, create a GitHub issue with:
    - **Title**: `[scorecard] Improve <CheckName> (currently <score>/10)`
@@ -59,5 +61,5 @@ Monitor the OpenSSF Scorecard for this repository and create actionable improvem
 - The repository is a Node.js CLI tool (TermBeam) published on npm
 - Workflows live in `.github/workflows/`
 - Dependencies: npm (root + src/frontend/ + packages/), pip (docs/requirements.txt), Docker, GitHub Actions
-- Branch protection, code review, and fuzzing are common improvement areas
+- This is a solo-developer project — Code-Review and Branch-Protection checks requiring multiple reviewers are not actionable
 - The scorecard runs weekly via `.github/workflows/scorecard.yml`
