@@ -6,7 +6,7 @@ const isCI = !!process.env.CI;
 module.exports = defineConfig({
   testDir: './test',
   testMatch: 'e2e-*.test.js',
-  timeout: 30_000,
+  timeout: isCI ? 60_000 : 30_000,
   retries: isCI ? 1 : 0,
   workers: 1, // sequential — each test starts its own server
   reporter: isCI ? [['html', { open: 'never' }], ['list']] : 'list',

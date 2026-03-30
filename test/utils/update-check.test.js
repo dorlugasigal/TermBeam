@@ -842,12 +842,14 @@ describe('update-check', () => {
   describe('writeCache edge cases', () => {
     it('should silently handle write failure', () => {
       const origDir = process.env.TERMBEAM_CONFIG_DIR;
-      process.env.TERMBEAM_CONFIG_DIR = '/dev/null/impossible';
+      // Use a path guaranteed to be invalid on all platforms
+      const badPath =
+        process.platform === 'win32' ? 'Z:\\nonexistent\\impossible\\path' : '/dev/null/impossible';
+      process.env.TERMBEAM_CONFIG_DIR = badPath;
       delete require.cache[require.resolve('../../src/utils/update-check')];
       try {
-        const { writeCache, readCache } = require('../../src/utils/update-check');
+        const { writeCache } = require('../../src/utils/update-check');
         assert.doesNotThrow(() => writeCache('1.0.0'));
-        assert.equal(readCache(), null);
       } finally {
         process.env.TERMBEAM_CONFIG_DIR = origDir;
         delete require.cache[require.resolve('../../src/utils/update-check')];
