@@ -263,6 +263,12 @@ function createTermBeamServer(overrides = {}) {
           tunnelEvents.on('disconnected', () => {
             log.warn('Tunnel disconnected — watchdog will attempt to reconnect');
           });
+          tunnelEvents.on('auth-expired', () => {
+            log.warn('Tunnel auth expired — waiting for user to re-authenticate');
+          });
+          tunnelEvents.on('auth-restored', () => {
+            log.info('Tunnel auth restored — resuming reconnection');
+          });
           tunnelEvents.on('reconnecting', ({ attempt, delay }) => {
             log.info(`Tunnel reconnecting (attempt ${attempt}, backoff ${delay}ms)`);
           });

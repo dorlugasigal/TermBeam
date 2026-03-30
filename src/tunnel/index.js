@@ -21,19 +21,71 @@ let restartAttempts = 0;
 let isRestarting = false;
 let restartTimer = null;
 
+// --- Auth-wait state ---
+let waitingForAuth = false;
+let authCheckInterval = null;
+
 const HEALTH_CHECK_INTERVAL = 30_000; // 30s between checks
 const HEALTH_CHECK_GRACE = 2; // 2 consecutive failures before restart
 const MAX_RESTART_ATTEMPTS = 10;
 const BACKOFF_DELAYS = [1000, 2000, 5000, 10_000, 15_000, 30_000]; // then stays at 30s
+const AUTH_CHECK_INTERVAL = 30_000; // 30s between auth re-checks
+
+const AUTH_ERROR_PATTERNS = ['login required', 'not logged in', 'sign in required'];
 
 const SAFE_ID_RE = /^[a-zA-Z0-9._-]+$/;
 
 const DEVICE_CODE_INITIAL_TIMEOUT = 15000;
 const DEVICE_CODE_AUTH_TIMEOUT = 120000;
 
+function isAuthError(message) {
+  const lower = (message || '').toLowerCase();
+  return AUTH_ERROR_PATTERNS.some((p) => lower.includes(p));
+}
+
+function isLoggedIn() {
+  try {
+    const out = execFileSync(devtunnelCmd, ['user', 'show'], {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 10_000,
+    });
+    return out && !out.toLowerCase().includes('not logged in');
+  } catch {
+    return false;
+  }
+}
+
+function getLoginInfo() {
+  try {
+    const out = execFileSync(devtunnelCmd, ['user', 'show', '-v'], {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 10_000,
+    });
+    if (!out || out.toLowerCase().includes('not logged in')) return null;
+
+    let provider = 'unknown';
+    if (out.toLowerCase().includes('github')) provider = 'github';
+    else if (out.toLowerCase().includes('microsoft')) provider = 'microsoft';
+
+    // Parse "Token lifetime: H:MM:SS" from verbose output
+    let tokenLifetimeHours = null;
+    const ltMatch = out.match(/Token lifetime:\s*(\d+):(\d+):(\d+)/);
+    if (ltMatch) {
+      tokenLifetimeHours =
+        parseInt(ltMatch[1], 10) + parseInt(ltMatch[2], 10) / 60 + parseInt(ltMatch[3], 10) / 3600;
+    }
+
+    return { provider, tokenLifetimeHours };
+  } catch {
+    return null;
+  }
+}
+
 function deviceCodeLogin(cmd) {
   return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, ['user', 'login', '-d'], {
+    const proc = spawn(cmd, ['user', 'login', '-e', '-d'], {
       stdio: ['inherit', 'pipe', 'pipe'],
     });
 
@@ -152,7 +204,7 @@ let isPersisted = false;
 // --- Watchdog: health check & auto-restart ---
 
 function checkTunnelHealth() {
-  if (!tunnelId || !tunnelProc || isRestarting) return;
+  if (!tunnelId || !tunnelProc || isRestarting || waitingForAuth) return;
 
   const abortCtrl = new AbortController();
   const timer = setTimeout(() => abortCtrl.abort(), 10_000);
@@ -165,6 +217,12 @@ function checkTunnelHealth() {
       clearTimeout(timer);
 
       if (err) {
+        // Auth errors are handled separately — no restart countdown
+        if (isAuthError(err.message) || isAuthError(err.stderr)) {
+          handleAuthExpiration();
+          return;
+        }
+
         consecutiveFailures++;
         log.warn(
           `Tunnel health check error: ${err.message} (${consecutiveFailures}/${HEALTH_CHECK_GRACE})`,
@@ -226,30 +284,74 @@ function stopHealthCheck() {
 function handleTunnelFailure() {
   if (isRestarting) return;
   stopHealthCheck();
-
-  // Kill the zombie process
-  if (tunnelProc) {
-    try {
-      if (process.platform === 'win32' && tunnelProc.pid) {
-        try {
-          execFileSync('taskkill', ['/pid', String(tunnelProc.pid), '/T', '/F'], {
-            stdio: 'pipe',
-            timeout: 5000,
-          });
-        } catch {
-          /* best effort */
-        }
-      } else {
-        tunnelProc.kill('SIGKILL');
-      }
-    } catch {
-      /* best effort */
-    }
-    tunnelProc = null;
-  }
+  killTunnelProc();
 
   tunnelEvents.emit('disconnected');
   scheduleRestart();
+}
+
+// --- Auth-expiration handling ---
+
+function killTunnelProc() {
+  if (!tunnelProc) return;
+  try {
+    if (process.platform === 'win32' && tunnelProc.pid) {
+      try {
+        execFileSync('taskkill', ['/pid', String(tunnelProc.pid), '/T', '/F'], {
+          stdio: 'pipe',
+          timeout: 5000,
+        });
+      } catch {
+        /* best effort */
+      }
+    } else {
+      tunnelProc.kill('SIGKILL');
+    }
+  } catch {
+    /* best effort */
+  }
+  tunnelProc = null;
+}
+
+function handleAuthExpiration() {
+  if (waitingForAuth) return;
+  stopHealthCheck();
+  killTunnelProc();
+
+  tunnelEvents.emit('disconnected');
+  tunnelEvents.emit('auth-expired');
+  startAuthWait();
+}
+
+function startAuthWait() {
+  if (waitingForAuth) return;
+  waitingForAuth = true;
+  isRestarting = false;
+  restartAttempts = 0;
+  consecutiveFailures = 0;
+
+  log.warn('DevTunnel auth token expired (Microsoft tokens expire after a few days).');
+  log.warn('Tunnel is paused — re-authenticate on the host machine to restore:');
+  log.warn('  devtunnel user login -d');
+  log.warn('Tunnel will auto-reconnect once auth is restored.');
+
+  authCheckInterval = setInterval(() => {
+    if (isLoggedIn()) {
+      log.info('DevTunnel auth restored — resuming tunnel');
+      stopAuthWait();
+      tunnelEvents.emit('auth-restored');
+      scheduleRestart();
+    }
+  }, AUTH_CHECK_INTERVAL);
+  authCheckInterval.unref();
+}
+
+function stopAuthWait() {
+  waitingForAuth = false;
+  if (authCheckInterval) {
+    clearInterval(authCheckInterval);
+    authCheckInterval = null;
+  }
 }
 
 function scheduleRestart() {
@@ -271,6 +373,15 @@ function scheduleRestart() {
 
   restartTimer = setTimeout(async () => {
     restartTimer = null;
+
+    // If auth expired since restart was scheduled, switch to auth-wait mode
+    if (!isLoggedIn()) {
+      log.warn('DevTunnel auth expired during restart — waiting for re-authentication');
+      isRestarting = false;
+      handleAuthExpiration();
+      return;
+    }
+
     try {
       const result = await hostTunnel();
       if (result) {
@@ -368,21 +479,30 @@ async function startTunnel(port, options = {}) {
 
   log.info('Starting devtunnel...');
   try {
-    // Ensure user is logged in
-    let loggedIn = false;
-    try {
-      const userOut = execFileSync(devtunnelCmd, ['user', 'show'], {
-        encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-      // user show can succeed but show "not logged in" status
-      loggedIn = userOut && !userOut.toLowerCase().includes('not logged in');
-    } catch {}
+    // Ensure user is logged in. Prefer Entra over GitHub — Entra tokens auto-refresh
+    // for weeks via MSAL, while GitHub tokens expire after 8 hours.
+    let loggedIn = isLoggedIn();
+    const loginInfo = loggedIn ? getLoginInfo() : null;
+
+    if (loggedIn && loginInfo) {
+      const { provider, tokenLifetimeHours } = loginInfo;
+      if (provider === 'github') {
+        log.warn(
+          'Logged in with GitHub — tokens expire every 8 hours. ' +
+            'For longer sessions, use: devtunnel user login -e -d',
+        );
+      }
+      if (tokenLifetimeHours !== null) {
+        const h = Math.floor(tokenLifetimeHours);
+        const m = Math.round((tokenLifetimeHours - h) * 60);
+        log.info(`DevTunnel token expires in ${h}h ${m}m`);
+      }
+    }
 
     if (!loggedIn) {
-      log.info('devtunnel not logged in, launching browser login (30s timeout)...');
+      log.info('Logging in to DevTunnel with Microsoft Entra (recommended for long sessions)...');
       try {
-        execFileSync(devtunnelCmd, ['user', 'login'], { stdio: 'inherit', timeout: 30000 });
+        execFileSync(devtunnelCmd, ['user', 'login', '-e'], { stdio: 'inherit', timeout: 30000 });
       } catch {
         log.info('Browser login failed or unavailable, falling back to device code flow...');
         log.info('A code will be displayed — open the URL on any device to authenticate.');
@@ -391,7 +511,7 @@ async function startTunnel(port, options = {}) {
         } catch (_loginErr) {
           log.error('');
           log.error('  DevTunnel login failed. To use tunnels, run:');
-          log.error('    devtunnel user login');
+          log.error('    devtunnel user login -e -d');
           log.error('');
           log.error('  Or start without a tunnel:');
           log.error('    termbeam --no-tunnel');
@@ -480,8 +600,9 @@ async function startTunnel(port, options = {}) {
 }
 
 function cleanupTunnel() {
-  // Stop watchdog first to prevent restart during cleanup
+  // Stop watchdog and auth-wait to prevent restart during cleanup
   stopHealthCheck();
+  stopAuthWait();
   isRestarting = true; // prevent exit handler from restarting
   if (restartTimer) {
     clearTimeout(restartTimer);
@@ -489,26 +610,7 @@ function cleanupTunnel() {
   }
 
   const id = tunnelId;
-  if (tunnelProc) {
-    try {
-      // On Windows, kill the process tree to ensure all children die
-      if (process.platform === 'win32' && tunnelProc.pid) {
-        try {
-          execFileSync('taskkill', ['/pid', String(tunnelProc.pid), '/T', '/F'], {
-            stdio: 'pipe',
-            timeout: 5000,
-          });
-        } catch {
-          /* best effort */
-        }
-      } else {
-        tunnelProc.kill('SIGKILL');
-      }
-    } catch {
-      /* best effort */
-    }
-    tunnelProc = null;
-  }
+  killTunnelProc();
   if (id) {
     tunnelId = null;
     if (isPersisted) {
