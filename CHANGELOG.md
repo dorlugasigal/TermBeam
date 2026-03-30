@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.17.8] - 2026-03-30
+
+- fix(frontend): single-click tabs, smart session naming, push reliability (#169)
+
 ## [1.17.7] - 2026-03-27
 
 - fix(ui): refresh button triggers full reload and update restart auto-recovers (#168)
