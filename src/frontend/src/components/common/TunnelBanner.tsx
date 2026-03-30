@@ -1,5 +1,4 @@
-import { useEffect, useCallback, useState, useRef } from 'react';
-import { renewTunnelAuth } from '../../services/api';
+import { useEffect } from 'react';
 import { useTunnelStore } from '../../stores/tunnelStore';
 import type { TunnelState } from '../../stores/tunnelStore';
 import styles from './TunnelBanner.module.css';
@@ -20,23 +19,17 @@ function ensureGlobalListener() {
     if (msg.type !== 'tunnel-status') return;
 
     const store = useTunnelStore.getState();
-    const prev = store.state;
 
     let next: TunnelState | null = null;
     switch (msg.state) {
-      case 'expiring':
-        if (prev.kind !== 'renewing')
-          next = { kind: 'expiring', expiresIn: msg.expiresIn, provider: msg.provider };
+      case 'disconnected':
+        next = { kind: 'disconnected', provider: msg.provider };
         break;
-      case 'auth-expired':
-        if (prev.kind !== 'renewing') next = { kind: 'expired', provider: msg.provider };
+      case 'reconnecting':
+        next = { kind: 'reconnecting' };
         break;
       case 'connected':
-        if (prev.kind === 'renewing' || prev.kind === 'expired' || prev.kind === 'expiring') {
-          next = { kind: 'renewed' };
-        } else {
-          next = { kind: 'hidden' };
-        }
+        next = { kind: 'hidden' };
         break;
       case 'failed':
         next = { kind: 'failed' };
@@ -48,78 +41,22 @@ function ensureGlobalListener() {
 
 export default function TunnelBanner() {
   const tunnelState = useTunnelStore((s) => s.state);
-  const kind = tunnelState.kind;
   const setTunnelState = useTunnelStore((s) => s.setState);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     ensureGlobalListener();
   }, []);
 
-  useEffect(() => {
-    if (kind === 'renewed') {
-      const timer = setTimeout(() => setTunnelState({ kind: 'hidden' }), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [kind, setTunnelState]);
-
-  const handleRenew = useCallback(async () => {
-    try {
-      const result = await renewTunnelAuth();
-      if (result.url && result.code) {
-        setTunnelState({ kind: 'renewing', url: result.url, code: result.code });
-      } else if (result.ok) {
-        setTunnelState({ kind: 'renewed' });
-      } else {
-        setTunnelState({ kind: 'failed' });
-      }
-    } catch {
-      setTunnelState({ kind: 'failed' });
-    }
-  }, [setTunnelState]);
-
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-    };
-  }, []);
-
-  const handleCopy = useCallback((code: string) => {
-    navigator.clipboard.writeText(code).then(() => {
-      setCopied(true);
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
-    });
-  }, []);
-
-  const dismiss = useCallback(() => setTunnelState({ kind: 'hidden' }), [setTunnelState]);
+  const dismiss = () => setTunnelState({ kind: 'hidden' });
 
   if (tunnelState.kind === 'hidden') return null;
 
-  if (tunnelState.kind === 'expiring') {
-    const minutes = Math.max(1, Math.round(tunnelState.expiresIn / 60000));
-    return (
-      <div className={`${styles.banner} ${styles.warning}`} data-testid="tunnel-banner">
-        <span className={styles.text}>⏰ Tunnel token expires in {minutes}m</span>
-        <button className={styles.actionBtn} onClick={handleRenew}>
-          Renew
-        </button>
-        <button className={styles.dismiss} onClick={dismiss} aria-label="Dismiss">
-          ✕
-        </button>
-      </div>
-    );
-  }
-
-  if (tunnelState.kind === 'expired') {
+  if (tunnelState.kind === 'disconnected') {
     return (
       <div className={`${styles.banner} ${styles.error}`} data-testid="tunnel-banner">
-        <span className={styles.text}>❌ Tunnel auth expired</span>
-        <button className={styles.actionBtn} onClick={handleRenew}>
-          Renew
-        </button>
+        <span className={styles.text}>
+          ⚠️ Tunnel disconnected — reconnecting automatically
+        </span>
         <button className={styles.dismiss} onClick={dismiss} aria-label="Dismiss">
           ✕
         </button>
@@ -127,34 +64,10 @@ export default function TunnelBanner() {
     );
   }
 
-  if (tunnelState.kind === 'renewing') {
+  if (tunnelState.kind === 'reconnecting') {
     return (
       <div className={`${styles.banner} ${styles.warning}`} data-testid="tunnel-banner">
-        <span className={styles.text}>
-          🔑 Code: <strong>{tunnelState.code}</strong>
-        </span>
-        <button className={styles.actionBtn} onClick={() => handleCopy(tunnelState.code)}>
-          {copied ? '✓ Copied' : 'Copy'}
-        </button>
-        <a
-          href={tunnelState.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.actionBtn}
-        >
-          Open ↗
-        </a>
-        <button className={styles.dismiss} onClick={dismiss} aria-label="Dismiss">
-          ✕
-        </button>
-      </div>
-    );
-  }
-
-  if (tunnelState.kind === 'renewed') {
-    return (
-      <div className={`${styles.banner} ${styles.success}`} data-testid="tunnel-banner">
-        <span className={styles.text}>✓ Tunnel token renewed</span>
+        <span className={styles.text}>🔄 Tunnel reconnecting…</span>
         <button className={styles.dismiss} onClick={dismiss} aria-label="Dismiss">
           ✕
         </button>
@@ -165,10 +78,9 @@ export default function TunnelBanner() {
   if (tunnelState.kind === 'failed') {
     return (
       <div className={`${styles.banner} ${styles.error}`} data-testid="tunnel-banner">
-        <span className={styles.text}>Tunnel renewal failed</span>
-        <button className={styles.actionBtn} onClick={handleRenew}>
-          Retry
-        </button>
+        <span className={styles.text}>
+          ❌ Tunnel failed — run &quot;devtunnel user login&quot; on the host
+        </span>
         <button className={styles.dismiss} onClick={dismiss} aria-label="Dismiss">
           ✕
         </button>

@@ -999,31 +999,6 @@ Returns the current tunnel connection state, provider, and token lifetime.
 
 ---
 
-#### `POST /api/tunnel/renew`
-
-Initiates a device code authentication flow to renew an expired tunnel token. The client should display the returned URL and code to the user.
-
-**Response (200):**
-
-```json
-{ "url": "https://microsoft.com/devicelogin", "code": "ABC123" }
-```
-
-| Field  | Type   | Description                                     |
-| ------ | ------ | ----------------------------------------------- |
-| `url`  | string | Device login URL the user should open           |
-| `code` | string | One-time code the user enters at the device URL |
-
-**Response (504):**
-
-```json
-{ "error": "Timed out waiting for device code" }
-```
-
-Returned when the device code flow does not complete within the expected timeout.
-
----
-
 ### Port Preview
 
 #### `GET /preview/:port/*`

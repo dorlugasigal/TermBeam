@@ -293,13 +293,11 @@ function checkTokenExpiry() {
   if (remaining <= TOKEN_EXPIRY_WARN_SECONDS && !expiryWarned) {
     expiryWarned = true;
     const minutes = Math.round(remaining / 60);
-    log.warn(`DevTunnel token expires in ${minutes}m`);
-    tunnelEvents.emit('auth-expiring', {
-      expiresIn: remaining * 1000,
-      provider: info.provider,
-    });
+    log.warn(`DevTunnel token expires in ${minutes}m (will auto-refresh)`);
+  } else if (remaining > TOKEN_EXPIRY_WARN_SECONDS && expiryWarned) {
+    expiryWarned = false;
+    log.info('DevTunnel token was auto-refreshed');
   } else if (remaining > TOKEN_EXPIRY_WARN_SECONDS) {
-    // Reset the warning flag when token is refreshed
     expiryWarned = false;
   }
 }

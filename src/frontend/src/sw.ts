@@ -57,7 +57,14 @@ self.addEventListener('activate', (event) => {
 // ---------- Push notification handling ----------
 
 self.addEventListener('push', (event: PushEvent) => {
-  let data: { title?: string; body?: string } = {
+  let data: {
+    title?: string;
+    body?: string;
+    tag?: string;
+    url?: string;
+    type?: string;
+    sessionId?: string;
+  } = {
     title: 'Command finished',
     body: 'TermBeam',
   };
@@ -83,15 +90,21 @@ self.addEventListener('push', (event: PushEvent) => {
           body: data.body || 'A command has completed',
           icon: '/icons/icon-192.png',
           badge: '/icons/icon-192.png',
-          tag: 'termbeam-cmd',
+          tag: data.tag || 'termbeam-cmd',
           renotify: true,
-          data: { url: '/' },
+          data: {
+            url: data.url || '/',
+            type: data.type || 'command-complete',
+            sessionId: data.sessionId,
+          },
           vibrate: [200, 100, 200],
         };
 
         // Set app badge
         try {
-          await (self.navigator as unknown as { setAppBadge(n: number): Promise<void> }).setAppBadge(1);
+          await (
+            self.navigator as unknown as { setAppBadge(n: number): Promise<void> }
+          ).setAppBadge(1);
         } catch {
           // Badge API not supported
         }
@@ -111,17 +124,29 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
     // Badge API not supported
   }
 
-  const url = (event.notification.data?.url as string) || '/';
+  const notifData = event.notification.data || {};
+  const url = (notifData.url as string) || '/';
+  const type = (notifData.type as string) || '';
 
   event.waitUntil(
     self.clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
+        // Find an existing window and focus it
         for (const client of clientList) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
+            // Notify the frontend about what was clicked
+            if (type) {
+              client.postMessage({
+                type: 'NOTIFICATION_CLICKED',
+                notificationType: type,
+                sessionId: notifData.sessionId,
+              });
+            }
             return (client as WindowClient).focus();
           }
         }
+        // No existing window — open a new one
         return self.clients.openWindow(url);
       }),
   );

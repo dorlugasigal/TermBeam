@@ -583,17 +583,4 @@ export async function fetchTunnelStatus(): Promise<TunnelStatus> {
   return handleResponse<TunnelStatus>(res);
 }
 
-export async function renewTunnelAuth(): Promise<{
-  url?: string;
-  code?: string;
-  ok?: boolean;
-  message?: string;
-}> {
-  const res = await fetchWithTimeout(`${BASE}/api/tunnel/renew`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    timeout: 20_000,
-  });
-  return handleResponse<{ url?: string; code?: string; ok?: boolean; message?: string }>(res);
-}
+// Tunnel renew endpoint removed — DevTunnel handles its own OAuth lifecycle.
