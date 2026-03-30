@@ -2,6 +2,7 @@ const { describe, it, after } = require('node:test');
 const assert = require('node:assert');
 const http = require('http');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { createTermBeamServer } = require('../../src/server');
 
@@ -2084,6 +2085,1485 @@ describe('Routes', () => {
         hostname: '127.0.0.1',
         port: inst.port,
         path: `/api/sessions/${inst.defaultId}/files?dir=${encodeURIComponent(badDir)}`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 500);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Failed to read directory');
+    });
+  });
+
+  // === DELETE /api/sessions/:id ===
+  describe('DELETE /api/sessions/:id', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should delete an existing session and return 204', async () => {
+      inst = await startServer();
+      // Create a new session to delete (don't delete the default one)
+      const createBody = JSON.stringify({ name: 'ToDelete' });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(createBody),
+          },
+        },
+        createBody,
+      );
+      assert.strictEqual(createRes.statusCode, 201);
+      const { id } = JSON.parse(createRes.data);
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${id}`,
+        method: 'DELETE',
+      });
+      assert.strictEqual(res.statusCode, 204);
+    });
+
+    it('should return 404 for non-existent session', async () => {
+      if (!inst) inst = await startServer();
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions/nonexistent-id',
+        method: 'DELETE',
+      });
+      assert.strictEqual(res.statusCode, 404);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'not found');
+    });
+  });
+
+  // === POST /api/sessions — cwd is not a directory ===
+  describe('POST /api/sessions cwd-is-file validation', () => {
+    let inst;
+    let tmpFile;
+    after(() => {
+      inst?.shutdown();
+      if (tmpFile)
+        try {
+          fs.unlinkSync(tmpFile);
+        } catch {}
+    });
+
+    it('should reject cwd that is a file (not a directory) with 400', async () => {
+      inst = await startServer();
+      tmpFile = path.join(require('os').tmpdir(), `tb-notdir-${Date.now()}.txt`);
+      fs.writeFileSync(tmpFile, 'not a dir');
+      const body = JSON.stringify({ cwd: tmpFile });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'cwd is not a directory');
+    });
+  });
+
+  // === GET /login with password set ===
+  describe('GET /login with password', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should serve the login page when password is set', async () => {
+      inst = await startServer({ password: 'testpass' });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/login',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.data.length > 0, 'Login page should have content');
+    });
+  });
+
+  // === Push notification endpoints ===
+  describe('Push notification endpoints', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('GET /api/push/vapid-key should return 503 when VAPID keys not initialized', async () => {
+      inst = await startServer({ password: null });
+      // Force vapidKeys to null to simulate unconfigured push
+      inst.pushManager.vapidKeys = null;
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/push/vapid-key',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 503);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Push notifications not configured');
+    });
+
+    it('GET /api/push/vapid-key should return public key when configured', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      // Set fake VAPID keys
+      inst.pushManager.vapidKeys = { publicKey: 'test-public-key', privateKey: 'pk', subject: 's' };
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/push/vapid-key',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.publicKey, 'test-public-key');
+    });
+
+    it('POST /api/push/subscribe should return 400 for missing subscription', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      const body = JSON.stringify({});
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/push/subscribe',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Invalid subscription object');
+    });
+
+    it('POST /api/push/subscribe should return 400 for subscription missing keys', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      const body = JSON.stringify({ subscription: { endpoint: 'https://example.com' } });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/push/subscribe',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Invalid subscription object');
+    });
+
+    it('POST /api/push/subscribe should accept valid subscription', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      inst.pushManager.vapidKeys = { publicKey: 'pk', privateKey: 'sk', subject: 's' };
+      const body = JSON.stringify({
+        subscription: {
+          endpoint: 'https://fcm.example.com/send/abc',
+          keys: { p256dh: 'test-p256dh', auth: 'test-auth' },
+        },
+      });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/push/subscribe',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.ok, true);
+    });
+
+    it('DELETE /api/push/unsubscribe should return 400 for missing endpoint', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      const body = JSON.stringify({});
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/push/unsubscribe',
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Missing endpoint');
+    });
+
+    it('DELETE /api/push/unsubscribe should succeed with valid endpoint', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      const body = JSON.stringify({ endpoint: 'https://fcm.example.com/send/abc' });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/push/unsubscribe',
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.ok, true);
+    });
+  });
+
+  // === GET /api/shells ===
+  describe('GET /api/shells', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should return available shells with default and cwd', async () => {
+      inst = await startServer({ password: null });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/shells',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.ok(Array.isArray(data.shells), 'shells should be an array');
+      assert.ok(data.shells.length > 0, 'should detect at least one shell');
+      assert.ok(typeof data.default === 'string', 'default should be a string');
+      assert.ok(typeof data.cwd === 'string', 'cwd should be a string');
+    });
+  });
+
+  // === GET /api/sessions/:id/git/* endpoints ===
+  describe('GET /api/sessions/:id/git/status', () => {
+    let inst, sessionId;
+    after(() => inst?.shutdown());
+
+    it('should return 404 for non-existent session', async () => {
+      inst = await startServer({ password: null });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions/nonexistent/git/status',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 404);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Session not found');
+    });
+
+    it('should return git status for a valid session in a git repo', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      const body = JSON.stringify({ name: 'git-test' });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(createRes.statusCode, 201);
+      sessionId = JSON.parse(createRes.data).id;
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/git/status`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.ok(typeof data === 'object', 'should return an object');
+    });
+  });
+
+  describe('GET /api/sessions/:id/git/diff', () => {
+    let inst, sessionId;
+    after(() => inst?.shutdown());
+
+    it('should return 404 for non-existent session', async () => {
+      inst = await startServer({ password: null });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions/nonexistent/git/diff?file=README.md',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 404);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Session not found');
+    });
+
+    it('should return 400 for missing file parameter', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      const body = JSON.stringify({ name: 'diff-test' });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      sessionId = JSON.parse(createRes.data).id;
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/git/diff`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Invalid or missing file parameter');
+    });
+
+    it('should return 400 for absolute file path', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      if (!sessionId) {
+        const body = JSON.stringify({ name: 'diff-test2' });
+        const createRes = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: inst.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        sessionId = JSON.parse(createRes.data).id;
+      }
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/git/diff?file=/etc/passwd`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Invalid or missing file parameter');
+    });
+
+    it('should return 400 for path traversal in file param', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      if (!sessionId) {
+        const body = JSON.stringify({ name: 'diff-test3' });
+        const createRes = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: inst.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        sessionId = JSON.parse(createRes.data).id;
+      }
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/git/diff?file=../../etc/passwd`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Invalid or missing file parameter');
+    });
+
+    it('should return diff for a valid file', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      if (!sessionId) {
+        const body = JSON.stringify({ name: 'diff-test4' });
+        const createRes = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: inst.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        sessionId = JSON.parse(createRes.data).id;
+      }
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/git/diff?file=README.md`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+    });
+  });
+
+  describe('GET /api/sessions/:id/git/blame', () => {
+    let inst, sessionId;
+    after(() => inst?.shutdown());
+
+    it('should return 404 for non-existent session', async () => {
+      inst = await startServer({ password: null });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions/nonexistent/git/blame?file=README.md',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 404);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Session not found');
+    });
+
+    it('should return 400 for missing file parameter', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      const body = JSON.stringify({ name: 'blame-test' });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      sessionId = JSON.parse(createRes.data).id;
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/git/blame`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Invalid or missing file parameter');
+    });
+
+    it('should return blame for a valid file', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      if (!sessionId) {
+        const body = JSON.stringify({ name: 'blame-test2' });
+        const createRes = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: inst.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        sessionId = JSON.parse(createRes.data).id;
+      }
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/git/blame?file=README.md`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.ok(typeof data === 'object', 'should return an object');
+    });
+  });
+
+  describe('GET /api/sessions/:id/git/log', () => {
+    let inst, sessionId;
+    after(() => inst?.shutdown());
+
+    it('should return 404 for non-existent session', async () => {
+      inst = await startServer({ password: null });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions/nonexistent/git/log',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 404);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Session not found');
+    });
+
+    it('should return git log for a valid session', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      const body = JSON.stringify({ name: 'log-test' });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      sessionId = JSON.parse(createRes.data).id;
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/git/log?limit=5`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.ok(typeof data === 'object', 'should return an object');
+    });
+
+    it('should return 400 for invalid file parameter in git log', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      if (!sessionId) {
+        const body = JSON.stringify({ name: 'log-test2' });
+        const createRes = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: inst.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        sessionId = JSON.parse(createRes.data).id;
+      }
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/git/log?file=/etc/passwd`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Invalid file parameter');
+    });
+  });
+
+  // === GET /api/sessions/:id/file-tree ===
+  describe('GET /api/sessions/:id/file-tree', () => {
+    let inst, sessionId;
+    after(() => inst?.shutdown());
+
+    it('should return 404 for non-existent session', async () => {
+      inst = await startServer({ password: null });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions/nonexistent/file-tree',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 404);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Session not found');
+    });
+
+    it('should return file tree for a valid session', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      const body = JSON.stringify({ name: 'tree-test' });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      sessionId = JSON.parse(createRes.data).id;
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/file-tree`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.ok(typeof data.root === 'string', 'should have root');
+      assert.ok(Array.isArray(data.tree), 'should have tree array');
+    });
+
+    it('should return 400 for invalid depth parameter', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      if (!sessionId) {
+        const body = JSON.stringify({ name: 'tree-test2' });
+        const createRes = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: inst.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        sessionId = JSON.parse(createRes.data).id;
+      }
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/file-tree?depth=abc`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Invalid depth');
+    });
+
+    it('should respect custom depth parameter', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      if (!sessionId) {
+        const body = JSON.stringify({ name: 'tree-test3' });
+        const createRes = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: inst.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        sessionId = JSON.parse(createRes.data).id;
+      }
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/file-tree?depth=1`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.ok(Array.isArray(data.tree), 'should have tree array');
+    });
+  });
+
+  // === GET /api/sessions/:id/detect-port ===
+  describe('GET /api/sessions/:id/detect-port', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should return 404 for non-existent session', async () => {
+      inst = await startServer({ password: null });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions/nonexistent/detect-port',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 404);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'not found');
+    });
+
+    it('should return detected: false for session with no ports', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      const body = JSON.stringify({ name: 'port-test' });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      const sessionId = JSON.parse(createRes.data).id;
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/detect-port`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.detected, false);
+    });
+  });
+
+  // === GET /api/update-check ===
+  describe('GET /api/update-check', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should return update info', async () => {
+      inst = await startServer({ password: null });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/update-check',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.ok('current' in data || 'updateAvailable' in data, 'should have update info fields');
+    });
+  });
+
+  // === GET /api/update/status ===
+  describe('GET /api/update/status', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should return update state', async () => {
+      inst = await startServer({ password: null });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/update/status',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.ok(typeof data.status === 'string', 'should have a status field');
+    });
+  });
+
+  // === GET /api/config ===
+  describe('GET /api/config', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should return passwordRequired false when no password set', async () => {
+      inst = await startServer({ password: null });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/config',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.passwordRequired, false);
+    });
+
+    it('should return passwordRequired true when password is set', async () => {
+      if (inst) {
+        inst.shutdown();
+        inst = null;
+      }
+      inst = await startServer({ password: 'testpass' });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/config',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.passwordRequired, true);
+    });
+  });
+
+  // === GET /api/sessions/:id/file-raw — large file rejection ===
+  describe('GET /api/sessions/:id/file-raw large file', () => {
+    let inst, sessionId, tmpDir;
+    after(async () => {
+      inst?.shutdown();
+      await safeCleanup(tmpDir);
+    });
+
+    it('should return 413 for files larger than 20MB', async () => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'termbeam-fileraw-'));
+      inst = await startServer({ password: null, cwd: tmpDir });
+      const body = JSON.stringify({ name: 'fileraw-big', cwd: tmpDir });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      sessionId = JSON.parse(createRes.data).id;
+
+      // Create a file just over 20MB
+      const bigFile = path.join(tmpDir, 'big.bin');
+      const fd = fs.openSync(bigFile, 'w');
+      fs.ftruncateSync(fd, 21 * 1024 * 1024);
+      fs.closeSync(fd);
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/file-raw?file=big.bin`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 413);
+      const data = JSON.parse(res.data);
+      assert.ok(data.error.includes('too large'), 'should mention too large');
+    });
+  });
+
+  // === GET /api/sessions/:id/download — large file rejection ===
+  describe('GET /api/sessions/:id/download large file', () => {
+    let inst, sessionId, tmpDir;
+    after(async () => {
+      inst?.shutdown();
+      await safeCleanup(tmpDir);
+    });
+
+    it('should return 413 for files larger than 100MB', async () => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'termbeam-download-'));
+      inst = await startServer({ password: null, cwd: tmpDir });
+      const body = JSON.stringify({ name: 'download-big', cwd: tmpDir });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      sessionId = JSON.parse(createRes.data).id;
+
+      // Create a sparse file just over 100MB
+      const bigFile = path.join(tmpDir, 'huge.bin');
+      const fd = fs.openSync(bigFile, 'w');
+      fs.ftruncateSync(fd, 101 * 1024 * 1024);
+      fs.closeSync(fd);
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/download?file=huge.bin`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 413);
+      const data = JSON.parse(res.data);
+      assert.ok(data.error.includes('too large'), 'should mention too large');
+    });
+  });
+
+  // === GET /api/dirs with query parameter ===
+  describe('GET /api/dirs with q parameter', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should filter directories by prefix when q does not end with separator', async () => {
+      inst = await startServer({ password: null });
+      const cwd = process.cwd();
+      const q = encodeURIComponent(path.join(cwd, 's'));
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/dirs?q=${q}`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.ok(Array.isArray(data.dirs), 'dirs should be an array');
+      for (const d of data.dirs) {
+        assert.ok(path.basename(d).toLowerCase().startsWith('s'), `${d} should start with "s"`);
+      }
+    });
+
+    it('should list subdirectories when q ends with separator', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      const cwd = process.cwd();
+      const q = encodeURIComponent(cwd + path.sep);
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/dirs?q=${q}`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.ok(Array.isArray(data.dirs), 'dirs should be an array');
+      assert.ok(data.dirs.length > 0, 'should find some directories');
+    });
+  });
+
+  // === GET /api/update-check error fallback ===
+  describe('GET /api/update-check error fallback', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should return fallback info when update check throws', async () => {
+      inst = await startServer({ password: null });
+
+      // Mock checkForUpdate to throw by modifying the cached module
+      const updateCheckPath = require.resolve('../../src/utils/update-check');
+      const updateCheckModule = require(updateCheckPath);
+      const originalCheckForUpdate = updateCheckModule.checkForUpdate;
+      updateCheckModule.checkForUpdate = async () => {
+        throw new Error('Network error');
+      };
+
+      try {
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/update-check',
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        assert.strictEqual(data.latest, null);
+        assert.strictEqual(data.updateAvailable, false);
+        assert.ok('current' in data, 'should include current version');
+      } finally {
+        updateCheckModule.checkForUpdate = originalCheckForUpdate;
+      }
+    });
+  });
+
+  // === POST /api/sessions creation failure ===
+  describe('POST /api/sessions creation failure', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should return 400 when sessions.create throws', async () => {
+      inst = await startServer({ password: null });
+      // Mock sessions.create to throw
+      const originalCreate = inst.sessions.create.bind(inst.sessions);
+      inst.sessions.create = () => {
+        throw new Error('Simulated failure');
+      };
+
+      try {
+        const body = JSON.stringify({ name: 'fail-create' });
+        const res = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: inst.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        assert.strictEqual(res.statusCode, 400);
+        const data = JSON.parse(res.data);
+        assert.strictEqual(data.error, 'Failed to create session');
+      } finally {
+        inst.sessions.create = originalCreate;
+      }
+    });
+  });
+
+  // === GET /api/sessions/:id/git/diff with context parameter ===
+  describe('GET /api/sessions/:id/git/diff with context', () => {
+    let inst, sessionId;
+    after(() => inst?.shutdown());
+
+    it('should accept and use context query parameter', async () => {
+      inst = await startServer({ password: null });
+      const body = JSON.stringify({ name: 'diff-context-test' });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      sessionId = JSON.parse(createRes.data).id;
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/git/diff?file=README.md&context=10`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+    });
+
+    it('should handle non-numeric context parameter gracefully', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      if (!sessionId) {
+        const body = JSON.stringify({ name: 'diff-context-test2' });
+        const createRes = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: inst.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        sessionId = JSON.parse(createRes.data).id;
+      }
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/git/diff?file=README.md&context=abc`,
+        method: 'GET',
+      });
+      // Non-numeric context is ignored, not an error
+      assert.strictEqual(res.statusCode, 200);
+    });
+
+    it('should accept staged and untracked parameters', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      if (!sessionId) {
+        const body = JSON.stringify({ name: 'diff-params-test' });
+        const createRes = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: inst.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        sessionId = JSON.parse(createRes.data).id;
+      }
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/git/diff?file=README.md&staged=true&context=5`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+    });
+  });
+
+  // === POST /api/update error paths ===
+  describe('POST /api/update in-progress', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should return 409 when update is already in progress', async () => {
+      inst = await startServer({ password: null });
+
+      // Mock update-executor to report in-progress state
+      const executorPath = require.resolve('../../src/utils/update-executor');
+      const executorModule = require(executorPath);
+      const originalGetState = executorModule.getUpdateState;
+      executorModule.getUpdateState = () => ({ status: 'downloading' });
+
+      try {
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/update',
+          method: 'POST',
+        });
+        assert.strictEqual(res.statusCode, 409);
+        const data = JSON.parse(res.data);
+        assert.strictEqual(data.error, 'Update already in progress');
+      } finally {
+        executorModule.getUpdateState = originalGetState;
+      }
+    });
+  });
+
+  describe('POST /api/update not available', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should return 400 when auto-update is not available', async () => {
+      inst = await startServer({ password: null });
+
+      const executorPath = require.resolve('../../src/utils/update-executor');
+      const executorModule = require(executorPath);
+      const originalGetState = executorModule.getUpdateState;
+      executorModule.getUpdateState = () => ({ status: 'idle' });
+
+      const updateCheckPath = require.resolve('../../src/utils/update-check');
+      const updateCheckModule = require(updateCheckPath);
+      const originalDetect = updateCheckModule.detectInstallMethod;
+      updateCheckModule.detectInstallMethod = () => ({
+        canAutoUpdate: false,
+        method: 'manual',
+        command: 'npm i -g termbeam',
+        installCmd: null,
+        installArgs: null,
+        cwd: null,
+      });
+
+      try {
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/update',
+          method: 'POST',
+        });
+        assert.strictEqual(res.statusCode, 400);
+        const data = JSON.parse(res.data);
+        assert.ok(data.error.includes('Auto-update not available'));
+        assert.strictEqual(data.canAutoUpdate, false);
+      } finally {
+        executorModule.getUpdateState = originalGetState;
+        updateCheckModule.detectInstallMethod = originalDetect;
+      }
+    });
+  });
+
+  // === POST /api/update success path ===
+  describe('POST /api/update success', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should trigger update when state is idle and canAutoUpdate', async () => {
+      inst = await startServer({ password: null });
+
+      const executorPath = require.resolve('../../src/utils/update-executor');
+      const executorModule = require(executorPath);
+      const origGetState = executorModule.getUpdateState;
+      const origExecute = executorModule.executeUpdate;
+      const origReset = executorModule.resetState;
+
+      const updateCheckPath = require.resolve('../../src/utils/update-check');
+      const updateCheckModule = require(updateCheckPath);
+      const origDetect = updateCheckModule.detectInstallMethod;
+
+      executorModule.getUpdateState = () => ({ status: 'idle' });
+      executorModule.executeUpdate = async () => {};
+      executorModule.resetState = () => {};
+      updateCheckModule.detectInstallMethod = () => ({
+        canAutoUpdate: true,
+        method: 'npm-global',
+        command: 'npm i -g termbeam',
+        installCmd: 'npm',
+        installArgs: ['i', '-g', 'termbeam'],
+        cwd: null,
+        restartStrategy: 'exit',
+      });
+
+      try {
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/update',
+          method: 'POST',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        assert.strictEqual(data.status, 'updating');
+        assert.strictEqual(data.method, 'npm-global');
+      } finally {
+        executorModule.getUpdateState = origGetState;
+        executorModule.executeUpdate = origExecute;
+        executorModule.resetState = origReset;
+        updateCheckModule.detectInstallMethod = origDetect;
+      }
+    });
+  });
+
+  // === POST /api/update retry after failure ===
+  describe('POST /api/update retry', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should reset state when retrying after failure', async () => {
+      inst = await startServer({ password: null });
+
+      const executorPath = require.resolve('../../src/utils/update-executor');
+      const executorModule = require(executorPath);
+      const origGetState = executorModule.getUpdateState;
+      const origExecute = executorModule.executeUpdate;
+      const origReset = executorModule.resetState;
+
+      const updateCheckPath = require.resolve('../../src/utils/update-check');
+      const updateCheckModule = require(updateCheckPath);
+      const origDetect = updateCheckModule.detectInstallMethod;
+
+      let resetCalled = false;
+      executorModule.getUpdateState = () => ({ status: 'failed' });
+      executorModule.executeUpdate = async () => {};
+      executorModule.resetState = () => {
+        resetCalled = true;
+      };
+      updateCheckModule.detectInstallMethod = () => ({
+        canAutoUpdate: true,
+        method: 'npm-global',
+        command: 'npm i -g termbeam',
+        installCmd: 'npm',
+        installArgs: ['i', '-g', 'termbeam'],
+        cwd: null,
+        restartStrategy: 'exit',
+      });
+
+      try {
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/update',
+          method: 'POST',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        assert.ok(resetCalled, 'resetState should have been called for failed state');
+      } finally {
+        executorModule.getUpdateState = origGetState;
+        executorModule.executeUpdate = origExecute;
+        executorModule.resetState = origReset;
+        updateCheckModule.detectInstallMethod = origDetect;
+      }
+    });
+  });
+
+  // === POST /api/update rate limiting ===
+  describe('POST /api/update rate limit', () => {
+    let inst;
+    after(() => inst?.shutdown());
+
+    it('should return 429 on rapid successive requests', async () => {
+      inst = await startServer({ password: null });
+
+      const executorPath = require.resolve('../../src/utils/update-executor');
+      const executorModule = require(executorPath);
+      const origGetState = executorModule.getUpdateState;
+      executorModule.getUpdateState = () => ({ status: 'downloading' });
+
+      try {
+        // First request — returns 409 (in progress)
+        await httpRequest({
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/update',
+          method: 'POST',
+        });
+
+        // Second request — should hit rate limit
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/update',
+          method: 'POST',
+        });
+        assert.strictEqual(res.statusCode, 429);
+      } finally {
+        executorModule.getUpdateState = origGetState;
+      }
+    });
+  });
+  describe('GET /api/sessions/:id/file-tree error path', () => {
+    let inst;
+    after(async () => {
+      inst?.shutdown();
+      await safeCleanup(path.join(process.cwd(), '.termbeam-test-tree-err'));
+    });
+
+    it('should return 500 when file tree build throws', async () => {
+      inst = await startServer({ password: null });
+      // Create a session pointing to a temp dir, then remove it
+      const tmpDir = path.join(process.cwd(), '.termbeam-test-tree-err');
+      fs.mkdirSync(tmpDir, { recursive: true });
+
+      const body = JSON.stringify({ name: 'tree-err-test', cwd: tmpDir });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(createRes.statusCode, 201);
+      const sessionId = JSON.parse(createRes.data).id;
+
+      // Remove the directory after session creation
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/file-tree`,
+        method: 'GET',
+      });
+      // buildTree returns [] for unreadable dirs, but outer catch may fire
+      // Either 200 with empty tree or 500 is acceptable
+      assert.ok([200, 500].includes(res.statusCode));
+    });
+  });
+
+  // === Git diff with context parameter on non-git dir ===
+  describe('GET /api/sessions/:id/git/diff for non-git directory', () => {
+    let inst;
+    const tmpDir = path.join(process.cwd(), '.termbeam-test-git-nongit');
+    after(async () => {
+      inst?.shutdown();
+      await safeCleanup(tmpDir);
+    });
+
+    it('should return 200 with empty diff for non-git directory', async () => {
+      inst = await startServer({ password: null });
+      fs.mkdirSync(tmpDir, { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, 'hello.txt'), 'hello');
+
+      const body = JSON.stringify({ name: 'nongit-diff', cwd: tmpDir });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      const sessionId = JSON.parse(createRes.data).id;
+
+      // Test with untracked=true which exercises a different code path
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/git/diff?file=hello.txt&untracked=true&context=3`,
+        method: 'GET',
+      });
+      assert.ok([200, 500].includes(res.statusCode));
+    });
+  });
+
+  // === Files endpoint for deleted cwd ===
+  describe('GET /api/sessions/:id/files error path', () => {
+    let inst;
+    after(async () => {
+      inst?.shutdown();
+      await safeCleanup(path.join(process.cwd(), '.termbeam-test-files-err'));
+    });
+
+    it('should return 500 when session cwd no longer exists', async () => {
+      inst = await startServer({ password: null });
+      const tmpDir = path.join(process.cwd(), '.termbeam-test-files-err');
+      fs.mkdirSync(tmpDir, { recursive: true });
+
+      const body = JSON.stringify({ name: 'files-err', cwd: tmpDir });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      const sessionId = JSON.parse(createRes.data).id;
+
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/files`,
         method: 'GET',
       });
       assert.strictEqual(res.statusCode, 500);

@@ -61,7 +61,7 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 6px;
-  cursor: grab;
+  cursor: pointer;
   white-space: nowrap;
   user-select: none;
   font-size: 12px;

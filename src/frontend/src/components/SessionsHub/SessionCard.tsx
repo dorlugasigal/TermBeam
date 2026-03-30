@@ -165,6 +165,7 @@ export default function SessionCard({
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
       if (!isSwiping.current) return;
+      e.preventDefault(); // prevent click after swipe
 
       const touch = e.changedTouches[0];
       if (!touch) return;
@@ -222,6 +223,7 @@ export default function SessionCard({
         ref={cardRef}
         className={styles.card}
         data-testid="session-card"
+        onClick={() => onSelect(session.id)}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -277,17 +279,7 @@ export default function SessionCard({
           </div>
         )}
 
-        {/* Connect button */}
-        <button
-          className={styles.connectBtn}
-          data-testid="connect-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(session.id);
-          }}
-        >
-          Connect →
-        </button>
+        <span className={styles.connectHint}>Connect →</span>
       </div>
     </div>
   );

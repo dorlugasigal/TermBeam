@@ -203,4 +203,52 @@ describe('PushManager', () => {
     // Subscription should NOT be removed for non-410/404 errors
     assert.strictEqual(pm.subscriptions.size, 1);
   });
+
+  it('subscribe rejects when VAPID keys not initialized', () => {
+    const pm = new PushManager(tmpDir);
+    // Do NOT call pm.init()
+    pm.subscribe({
+      endpoint: 'https://push.example.com/sub1',
+      keys: { p256dh: 'k', auth: 'a' },
+    });
+    assert.strictEqual(pm.subscriptions.size, 0);
+  });
+
+  it('notify skips when VAPID keys not initialized', async () => {
+    const pm = new PushManager(tmpDir);
+    // Do NOT call pm.init() — vapidKeys stays null
+    // Manually add a subscription to bypass subscribe() guard
+    pm.subscriptions.set('https://push.example.com/sub1', {
+      endpoint: 'https://push.example.com/sub1',
+      keys: { p256dh: 'k', auth: 'a' },
+    });
+    assert.strictEqual(pm.subscriptions.size, 1);
+    // Should return early without error
+    await pm.notify({ title: 'Test', body: 'Hello' });
+    // Subscription should still be there (not processed)
+    assert.strictEqual(pm.subscriptions.size, 1);
+  });
+
+  it('notify removes subscription after 5 consecutive failures', async () => {
+    const pm = new PushManager(tmpDir);
+    await pm.init();
+    const webpushPath = require.resolve('web-push');
+    require.cache[webpushPath].exports.sendNotification = async () => {
+      const err = new Error('Server Error');
+      err.statusCode = 500;
+      throw err;
+    };
+    pm.subscribe({
+      endpoint: 'https://push.example.com/flaky',
+      keys: { p256dh: 'k', auth: 'a' },
+    });
+    // Send 4 times — subscription should survive
+    for (let i = 0; i < 4; i++) {
+      await pm.notify({ title: 'Test', body: `attempt ${i + 1}` });
+      assert.strictEqual(pm.subscriptions.size, 1, `should survive after ${i + 1} failures`);
+    }
+    // 5th failure should trigger removal
+    await pm.notify({ title: 'Test', body: 'attempt 5' });
+    assert.strictEqual(pm.subscriptions.size, 0, 'should be removed after 5 consecutive failures');
+  });
 });

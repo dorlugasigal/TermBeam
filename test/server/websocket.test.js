@@ -51,6 +51,7 @@ function createMockSession(id, opts = {}) {
         resizes.push({ cols, rows });
       },
     },
+    pendingNotifications: opts.pendingNotifications || [],
     _written: written,
     _resizes: resizes,
   };
@@ -82,12 +83,17 @@ function createMockWs() {
       this._closeReason = reason;
     },
     ping() {},
+    terminate() {
+      this._terminated = true;
+    },
     on(event, cb) {
       if (event === 'message') this._onMessage = cb;
       if (event === 'close') closeCbs.push(cb);
+      if (event === 'pong') this._onPong = cb;
     },
     _sent: sent,
     _closed: false,
+    _terminated: false,
     _closeCbs: closeCbs,
     _simulateMessage(obj) {
       this._onMessage(Buffer.from(JSON.stringify(obj)));
@@ -786,6 +792,186 @@ describe('WebSocket', () => {
       // Phone is active again, so min(40, 120) = 40
       const last = session._resizes[session._resizes.length - 1];
       assert.deepStrictEqual(last, { cols: 40, rows: 20 });
+    });
+  });
+
+  describe('pong handler', () => {
+    it('should clear _pongPending flag when pong is received', () => {
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+
+      // Simulate: ping was sent, _pongPending is true
+      ws._pongPending = true;
+
+      // Fire the pong handler
+      assert.ok(ws._onPong, 'pong handler should be registered');
+      ws._onPong();
+
+      assert.strictEqual(ws._pongPending, false, 'pong should clear the pending flag');
+    });
+  });
+
+  describe('ping timeout', () => {
+    it('should terminate connection when pong is not received before next ping', () => {
+      const originalSetInterval = global.setInterval;
+      let intervalCallback = null;
+
+      global.setInterval = function (fn, delay) {
+        intervalCallback = fn;
+        return originalSetInterval(fn, delay);
+      };
+
+      try {
+        const ws = createMockWs();
+        wss._simulateConnection(ws);
+
+        assert.ok(intervalCallback, 'ping interval should be set');
+
+        // First ping: sets _pongPending to true
+        intervalCallback();
+        assert.strictEqual(ws._pongPending, true, 'first ping should set _pongPending');
+        assert.strictEqual(ws._terminated, false, 'should not terminate after first ping');
+
+        // Second ping fires without pong response — dead connection
+        intervalCallback();
+        assert.strictEqual(ws._terminated, true, 'should terminate when pong was not received');
+
+        ws._simulateClose();
+      } finally {
+        global.setInterval = originalSetInterval;
+      }
+    });
+
+    it('should not terminate when pong is received between pings', () => {
+      const originalSetInterval = global.setInterval;
+      let intervalCallback = null;
+
+      global.setInterval = function (fn, delay) {
+        intervalCallback = fn;
+        return originalSetInterval(fn, delay);
+      };
+
+      try {
+        const ws = createMockWs();
+        wss._simulateConnection(ws);
+
+        // First ping
+        intervalCallback();
+        assert.strictEqual(ws._pongPending, true);
+
+        // Pong received
+        ws._onPong();
+        assert.strictEqual(ws._pongPending, false);
+
+        // Second ping — should NOT terminate
+        intervalCallback();
+        assert.strictEqual(ws._terminated, false, 'should not terminate after pong was received');
+        assert.strictEqual(ws._pongPending, true, 'should set _pongPending again');
+
+        ws._simulateClose();
+      } finally {
+        global.setInterval = originalSetInterval;
+      }
+    });
+  });
+
+  describe('WebSocket auth rate limiting', () => {
+    beforeEach(() => {
+      auth = createMockAuth('secret');
+      wss = createMockWss();
+      sessions = createMockSessions();
+      setupWebSocket(wss, { auth, sessions });
+    });
+
+    it('should reject auth after too many failed attempts from same IP', () => {
+      const ip = '10.0.0.1';
+
+      // Send 5 failed auth attempts
+      for (let i = 0; i < 5; i++) {
+        const ws = createMockWs();
+        wss._simulateConnection(ws, {
+          headers: {},
+          socket: { remoteAddress: ip },
+        });
+        ws._simulateMessage({ type: 'auth', password: 'wrong' });
+      }
+
+      // 6th attempt should be rate-limited
+      const ws = createMockWs();
+      wss._simulateConnection(ws, {
+        headers: {},
+        socket: { remoteAddress: ip },
+      });
+      ws._simulateMessage({ type: 'auth', password: 'secret' });
+
+      const err = ws._sent.find((m) => m.type === 'error');
+      assert.ok(err, 'should send error for rate-limited attempt');
+      assert.strictEqual(err.message, 'Too many attempts. Try again later.');
+      assert.ok(ws._closed, 'should close the connection');
+    });
+
+    it('should not rate-limit different IPs', () => {
+      // Send 5 failed attempts from one IP
+      for (let i = 0; i < 5; i++) {
+        const ws = createMockWs();
+        wss._simulateConnection(ws, {
+          headers: {},
+          socket: { remoteAddress: '10.0.0.1' },
+        });
+        ws._simulateMessage({ type: 'auth', password: 'wrong' });
+      }
+
+      // Different IP should still be allowed
+      const ws = createMockWs();
+      wss._simulateConnection(ws, {
+        headers: {},
+        socket: { remoteAddress: '10.0.0.2' },
+      });
+      ws._simulateMessage({ type: 'auth', password: 'secret' });
+
+      const ok = ws._sent.find((m) => m.type === 'auth_ok');
+      assert.ok(ok, 'different IP should not be rate-limited');
+      assert.ok(!ws._closed);
+    });
+  });
+
+  describe('pending notifications', () => {
+    it('should deliver pending notifications after attach', () => {
+      const notifications = [
+        { title: 'Command finished', body: 'exit code 0' },
+        { title: 'Build done', body: 'success' },
+      ];
+      const session = createMockSession('s1', {
+        hasHadClient: true,
+        pendingNotifications: [...notifications],
+      });
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      const notifs = ws._sent.filter((m) => m.type === 'notification');
+      assert.strictEqual(notifs.length, 2, 'should send all pending notifications');
+      assert.strictEqual(notifs[0].title, 'Command finished');
+      assert.strictEqual(notifs[1].title, 'Build done');
+      assert.strictEqual(
+        session.pendingNotifications.length,
+        0,
+        'should clear pending notifications after delivery',
+      );
+    });
+
+    it('should not send notifications when none are pending', () => {
+      const session = createMockSession('s1', { hasHadClient: true });
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      const notifs = ws._sent.filter((m) => m.type === 'notification');
+      assert.strictEqual(notifs.length, 0, 'should not send any notifications');
     });
   });
 

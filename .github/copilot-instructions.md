@@ -4,7 +4,7 @@
 
 ```bash
 npm test                              # run all tests (output buffered until done)
-node --test 'test/server/*.test.js' 'test/cli/*.test.js' 'test/utils/*.test.js' test/integration.test.js  # all tests with streaming output (preferred for dev/CI agents)
+node --test test/server test/cli test/utils test/integration.test.js  # run all tests with streaming output (preferred for dev/CI agents)
 node --test test/server/auth.test.js  # run a single test file
 npm run test:coverage                 # tests + coverage (c8, 92% threshold)
 npm run lint                          # syntax-check with node --check
@@ -13,7 +13,7 @@ npm run dev                           # start with auto-generated password
 npm start                             # start with defaults
 ```
 
-> **Agent note:** Prefer the `node --test` glob command over `npm test` when you need streaming output. The `npm test` script wraps `node --test` in `execFileSync` which buffers all output until completion — this makes it look like tests are hanging when they're actually running fine. The direct command gives real-time feedback. Use quoted glob patterns (`'test/server/*.test.js'`) — bare directory paths (e.g. `test/server`) cause `MODULE_NOT_FOUND` errors.
+> **Agent note:** Prefer `node --test test/server test/cli test/utils test/integration.test.js` over `npm test` when you need streaming output. The `npm test` script wraps `node --test` in `execFileSync` which buffers all output until completion — this makes it look like tests are hanging when they're actually running fine. The direct command gives real-time feedback.
 
 Pre-commit hooks (Husky + lint-staged) auto-format and syntax-check staged files.
 
@@ -34,7 +34,6 @@ Pre-commit hooks (Husky + lint-staged) auto-format and syntax-check staged files
 - **`test/server/sessions.test.js`** — manipulates `require.cache` for node-pty mocking; clear cache between tests.
 - **`test/cli/resume.test.js`** — uses `TERMBEAM_CONFIG_DIR` env var pointing to a temp directory for isolation.
 - **WebSocket connections** — close in `finally` blocks or `after()` hooks to prevent connection leaks.
-- **Windows temp directory cleanup** — on Windows, node-pty ConPTY holds directory locks after `pty.kill()`. Use `await safeCleanup(dir)` (async `fs.promises.rm` with `maxRetries`) instead of `fs.rmSync` in `after()` hooks and `finally` blocks when the temp dir was used as a PTY CWD. See the `safeCleanup()` helper in `test/server/routes.test.js`.
 
 **Port isolation:** Integration tests use port `0` (OS-assigned random port) to avoid conflicts. Never hardcode ports in tests.
 

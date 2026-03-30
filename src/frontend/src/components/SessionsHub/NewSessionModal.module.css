@@ -157,6 +157,7 @@
 }
 
 .submitBtn {
+  min-width: 100px;
   padding: 0.55rem 1.25rem;
   background: var(--accent);
   color: var(--bg);

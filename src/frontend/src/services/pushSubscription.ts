@@ -106,15 +106,28 @@ export function isPushSubscribedSync(): boolean {
   }
 }
 
-/** Async check — queries the actual PushManager. */
+/**
+ * Async check — queries the actual PushManager.
+ * If a subscription was lost but permission is still granted,
+ * attempts to re-subscribe automatically.
+ */
 export async function isPushSubscribed(): Promise<boolean> {
   try {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager?.getSubscription();
-    const active = !!subscription;
-    setPushState(active);
-    return active;
+    if (subscription) {
+      setPushState(true);
+      return true;
+    }
+
+    // Subscription lost — try to recover if we had it before and still have permission
+    if (isPushSubscribedSync() && Notification.permission === 'granted') {
+      return initPushSubscription();
+    }
+
+    setPushState(false);
+    return false;
   } catch {
     return false;
   }
@@ -127,7 +140,6 @@ export async function isPushSubscribed(): Promise<boolean> {
  */
 export async function ensurePushSubscription(): Promise<void> {
   try {
-    if (!isPushSubscribedSync()) return;
     if (Notification.permission !== 'granted') return;
     await initPushSubscription();
   } catch {

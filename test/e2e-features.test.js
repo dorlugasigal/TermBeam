@@ -613,7 +613,7 @@ test.describe('Hub Page', () => {
     await expect(page.locator('[data-testid="session-card"]')).toHaveCount(2, {
       timeout: 5_000,
     });
-    await page.locator('[data-testid="connect-btn"]').first().click();
+    await page.locator('[data-testid="session-card"]').first().click();
 
     await expect(page).toHaveURL(/\/terminal/, { timeout: 10_000 });
     await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({

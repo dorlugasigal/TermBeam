@@ -46,9 +46,13 @@ export function setNotificationsEnabled(enabled: boolean): void {
   }
 }
 
+import { isPushSubscribedSync } from './pushSubscription';
+
 export function sendCommandNotification(sessionName: string): void {
   if (!isNotificationsEnabled()) return;
   if (Notification.permission !== 'granted') return;
+  // Skip local notification when push is active — the service worker handles it
+  if (isPushSubscribedSync()) return;
   try {
     new Notification('Command finished in ' + sessionName, {
       icon: '/icons/icon-192.png',

@@ -520,4 +520,338 @@ describe('update-check', () => {
       }
     });
   });
+
+  describe('normalizeVersion edge cases', () => {
+    it('should handle capital V prefix', () => {
+      const { normalizeVersion } = require('../../src/utils/update-check');
+      assert.deepEqual(normalizeVersion('V2.0.0'), [2, 0, 0]);
+    });
+
+    it('should return null for more than 3 segments', () => {
+      const { normalizeVersion } = require('../../src/utils/update-check');
+      assert.equal(normalizeVersion('1.2.3.4'), null);
+    });
+
+    it('should pad single number version', () => {
+      const { normalizeVersion } = require('../../src/utils/update-check');
+      assert.deepEqual(normalizeVersion('5'), [5, 0, 0]);
+    });
+
+    it('should return null for version that becomes empty after stripping metadata', () => {
+      const { normalizeVersion } = require('../../src/utils/update-check');
+      // 'v-beta.1' -> strip v -> '-beta.1' -> strip prerelease -> '' -> null
+      assert.equal(normalizeVersion('v-beta.1'), null);
+    });
+
+    it('should handle version with both build metadata and prerelease', () => {
+      const { normalizeVersion } = require('../../src/utils/update-check');
+      assert.deepEqual(normalizeVersion('1.2.3-rc.1+build.123'), [1, 2, 3]);
+    });
+
+    it('should return null for whitespace-only string', () => {
+      const { normalizeVersion } = require('../../src/utils/update-check');
+      assert.equal(normalizeVersion('   '), null);
+    });
+
+    it('should return null for version with only build metadata after v', () => {
+      const { normalizeVersion } = require('../../src/utils/update-check');
+      assert.equal(normalizeVersion('v+build'), null);
+    });
+
+    it('should return null for number input', () => {
+      const { normalizeVersion } = require('../../src/utils/update-check');
+      assert.equal(normalizeVersion(123), null);
+    });
+  });
+
+  describe('isPreRelease edge cases', () => {
+    it('should return false for non-string input', () => {
+      const { isPreRelease } = require('../../src/utils/update-check');
+      assert.equal(isPreRelease(null), false);
+      assert.equal(isPreRelease(undefined), false);
+      assert.equal(isPreRelease(123), false);
+    });
+
+    it('should handle capital V prefix', () => {
+      const { isPreRelease } = require('../../src/utils/update-check');
+      assert.equal(isPreRelease('V1.0.0-rc.1'), true);
+      assert.equal(isPreRelease('V1.0.0'), false);
+    });
+
+    it('should return false for version with only build metadata', () => {
+      const { isPreRelease } = require('../../src/utils/update-check');
+      assert.equal(isPreRelease('1.0.0+build.123'), false);
+    });
+
+    it('should return true for version with both prerelease and build metadata', () => {
+      const { isPreRelease } = require('../../src/utils/update-check');
+      assert.equal(isPreRelease('1.0.0-beta.1+build.123'), true);
+    });
+  });
+
+  describe('isNewerVersion edge cases', () => {
+    it('should return false when latest is unparseable', () => {
+      const { isNewerVersion } = require('../../src/utils/update-check');
+      assert.equal(isNewerVersion('1.0.0', 'not-a-version'), false);
+    });
+
+    it('should return false when current minor is higher', () => {
+      const { isNewerVersion } = require('../../src/utils/update-check');
+      assert.equal(isNewerVersion('1.11.0', '1.10.0'), false);
+    });
+
+    it('should return false when current patch is higher', () => {
+      const { isNewerVersion } = require('../../src/utils/update-check');
+      assert.equal(isNewerVersion('1.0.5', '1.0.3'), false);
+    });
+
+    it('should return false when both are same pre-release base and latest is stable', () => {
+      const { isNewerVersion } = require('../../src/utils/update-check');
+      // Both pre-releases of same version - no update
+      assert.equal(isNewerVersion('1.0.0-alpha', '1.0.0-beta'), false);
+    });
+  });
+
+  describe('sanitizeVersion edge cases', () => {
+    it('should return empty string for non-string input', () => {
+      const { sanitizeVersion } = require('../../src/utils/update-check');
+      assert.equal(sanitizeVersion(null), '');
+      assert.equal(sanitizeVersion(undefined), '');
+      assert.equal(sanitizeVersion(42), '');
+    });
+
+    it('should strip OSC sequences (ESC ] ... BEL)', () => {
+      const { sanitizeVersion } = require('../../src/utils/update-check');
+      const osc = '\x1b]0;malicious title\x07';
+      assert.equal(sanitizeVersion(osc + '1.0.0'), '1.0.0');
+    });
+
+    it('should strip OSC sequences (ESC ] ... ESC \\)', () => {
+      const { sanitizeVersion } = require('../../src/utils/update-check');
+      const osc = '\x1b]0;title\x1b\\';
+      assert.equal(sanitizeVersion(osc + '1.0.0'), '1.0.0');
+    });
+
+    it('should strip DCS sequences', () => {
+      const { sanitizeVersion } = require('../../src/utils/update-check');
+      const dcs = '\x1bP1$r0m\x1b\\';
+      assert.equal(sanitizeVersion(dcs + '1.0.0'), '1.0.0');
+    });
+
+    it('should strip single-character ESC sequences', () => {
+      const { sanitizeVersion } = require('../../src/utils/update-check');
+      assert.equal(sanitizeVersion('\x1bM1.0.0'), '1.0.0');
+    });
+
+    it('should strip C1 control characters (0x80-0x9f)', () => {
+      const { sanitizeVersion } = require('../../src/utils/update-check');
+      assert.equal(sanitizeVersion('1.0\x80\x9f.0'), '1.0.0');
+    });
+
+    it('should handle empty string', () => {
+      const { sanitizeVersion } = require('../../src/utils/update-check');
+      assert.equal(sanitizeVersion(''), '');
+    });
+  });
+
+  describe('fetchLatestVersion edge cases', () => {
+    it('should return null when version field is missing from response', async () => {
+      const http = require('http');
+      const server = http.createServer((_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ name: 'termbeam' }));
+      });
+      await new Promise((r) => server.listen(0, '127.0.0.1', r));
+      const port = server.address().port;
+      try {
+        const { fetchLatestVersion } = require('../../src/utils/update-check');
+        const result = await fetchLatestVersion(`http://127.0.0.1:${port}/`);
+        assert.equal(result, null);
+      } finally {
+        server.close();
+      }
+    });
+
+    it('should return null when version is non-string in response', async () => {
+      const http = require('http');
+      const server = http.createServer((_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ version: 12345 }));
+      });
+      await new Promise((r) => server.listen(0, '127.0.0.1', r));
+      const port = server.address().port;
+      try {
+        const { fetchLatestVersion } = require('../../src/utils/update-check');
+        const result = await fetchLatestVersion(`http://127.0.0.1:${port}/`);
+        assert.equal(result, null);
+      } finally {
+        server.close();
+      }
+    });
+
+    it('should return null for non-semver version in response', async () => {
+      const http = require('http');
+      const server = http.createServer((_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ version: 'not-semver' }));
+      });
+      await new Promise((r) => server.listen(0, '127.0.0.1', r));
+      const port = server.address().port;
+      try {
+        const { fetchLatestVersion } = require('../../src/utils/update-check');
+        const result = await fetchLatestVersion(`http://127.0.0.1:${port}/`);
+        assert.equal(result, null);
+      } finally {
+        server.close();
+      }
+    });
+
+    it('should return null for oversized response', async () => {
+      const http = require('http');
+      const server = http.createServer((_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        // Send more than MAX_RESPONSE_SIZE (100KB)
+        res.end('x'.repeat(200 * 1024));
+      });
+      await new Promise((r) => server.listen(0, '127.0.0.1', r));
+      const port = server.address().port;
+      try {
+        const { fetchLatestVersion } = require('../../src/utils/update-check');
+        const result = await fetchLatestVersion(`http://127.0.0.1:${port}/`);
+        assert.equal(result, null);
+      } finally {
+        server.close();
+      }
+    });
+
+    it('should return null on connection error', async () => {
+      const net = require('net');
+      const server = net.createServer((socket) => socket.destroy());
+      await new Promise((r) => server.listen(0, '127.0.0.1', r));
+      const port = server.address().port;
+      try {
+        const { fetchLatestVersion } = require('../../src/utils/update-check');
+        const result = await fetchLatestVersion(`http://127.0.0.1:${port}/`);
+        assert.equal(result, null);
+      } finally {
+        server.close();
+      }
+    });
+
+    it('should return null when version is null in response', async () => {
+      const http = require('http');
+      const server = http.createServer((_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ version: null }));
+      });
+      await new Promise((r) => server.listen(0, '127.0.0.1', r));
+      const port = server.address().port;
+      try {
+        const { fetchLatestVersion } = require('../../src/utils/update-check');
+        const result = await fetchLatestVersion(`http://127.0.0.1:${port}/`);
+        assert.equal(result, null);
+      } finally {
+        server.close();
+      }
+    });
+  });
+
+  describe('checkForUpdate edge cases', () => {
+    it('should fetch from registry when cache is expired', async () => {
+      const mod = require('../../src/utils/update-check');
+      const cacheFile = path.join(tmpDir, 'update-check.json');
+      fs.writeFileSync(
+        cacheFile,
+        JSON.stringify({ latest: '1.0.0', checkedAt: Date.now() - 25 * 60 * 60 * 1000 }),
+      );
+
+      const origFetch = mod.fetchLatestVersion;
+      let fetchCalled = false;
+      mod.fetchLatestVersion = async () => {
+        fetchCalled = true;
+        return '3.0.0';
+      };
+      try {
+        const result = await mod.checkForUpdate({ currentVersion: '1.0.0' });
+        assert.ok(fetchCalled, 'should have fetched from registry');
+        assert.equal(result.latest, '3.0.0');
+        assert.equal(result.updateAvailable, true);
+      } finally {
+        mod.fetchLatestVersion = origFetch;
+      }
+    });
+
+    it('should ignore cached version with invalid format', async () => {
+      const mod = require('../../src/utils/update-check');
+      const cacheFile = path.join(tmpDir, 'update-check.json');
+      fs.writeFileSync(
+        cacheFile,
+        JSON.stringify({ latest: 'not-a-version', checkedAt: Date.now() }),
+      );
+
+      const origFetch = mod.fetchLatestVersion;
+      let fetchCalled = false;
+      mod.fetchLatestVersion = async () => {
+        fetchCalled = true;
+        return '2.0.0';
+      };
+      try {
+        const result = await mod.checkForUpdate({ currentVersion: '1.0.0' });
+        assert.ok(fetchCalled, 'should bypass invalid cached version');
+        assert.equal(result.latest, '2.0.0');
+      } finally {
+        mod.fetchLatestVersion = origFetch;
+      }
+    });
+
+    it('should ignore cached version with non-string latest', async () => {
+      const mod = require('../../src/utils/update-check');
+      const cacheFile = path.join(tmpDir, 'update-check.json');
+      fs.writeFileSync(cacheFile, JSON.stringify({ latest: 12345, checkedAt: Date.now() }));
+
+      const origFetch = mod.fetchLatestVersion;
+      let fetchCalled = false;
+      mod.fetchLatestVersion = async () => {
+        fetchCalled = true;
+        return '2.0.0';
+      };
+      try {
+        const result = await mod.checkForUpdate({ currentVersion: '1.0.0' });
+        assert.ok(fetchCalled, 'should bypass non-string cached version');
+        assert.equal(result.latest, '2.0.0');
+      } finally {
+        mod.fetchLatestVersion = origFetch;
+      }
+    });
+
+    it('should handle fetch returning null with no cached data', async () => {
+      const mod = require('../../src/utils/update-check');
+      const origFetch = mod.fetchLatestVersion;
+      mod.fetchLatestVersion = async () => null;
+      try {
+        const result = await mod.checkForUpdate({ currentVersion: '1.0.0', force: true });
+        assert.equal(result.updateAvailable, false);
+        assert.equal(result.latest, null);
+        assert.equal(result.current, '1.0.0');
+      } finally {
+        mod.fetchLatestVersion = origFetch;
+      }
+    });
+  });
+
+  describe('writeCache edge cases', () => {
+    it('should silently handle write failure', () => {
+      const origDir = process.env.TERMBEAM_CONFIG_DIR;
+      process.env.TERMBEAM_CONFIG_DIR = '/dev/null/impossible';
+      delete require.cache[require.resolve('../../src/utils/update-check')];
+      try {
+        const { writeCache, readCache } = require('../../src/utils/update-check');
+        assert.doesNotThrow(() => writeCache('1.0.0'));
+        assert.equal(readCache(), null);
+      } finally {
+        process.env.TERMBEAM_CONFIG_DIR = origDir;
+        delete require.cache[require.resolve('../../src/utils/update-check')];
+      }
+    });
+  });
 });

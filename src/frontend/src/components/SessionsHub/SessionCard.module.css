@@ -42,6 +42,7 @@
   border-radius: 12px;
   touch-action: pan-y;
   user-select: none;
+  cursor: pointer;
   z-index: 1;
   transition: border-color 0.15s;
 }
@@ -142,32 +143,16 @@
   color: var(--danger);
 }
 
-/* Connect button */
-.connectBtn {
+/* Connect hint */
+.connectHint {
   align-self: flex-end;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 20px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
-  transition:
-    opacity 0.15s,
-    transform 0.15s;
-}
-
-.connectBtn:hover {
-  opacity: 0.9;
-}
-
-.connectBtn:active {
-  transform: scale(0.97);
+  color: var(--accent);
 }
 
 @media (pointer: coarse) {
-  .connectBtn {
-    padding: 10px 24px;
+  .connectHint {
+    font-size: 14px;
   }
 }

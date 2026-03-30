@@ -444,4 +444,322 @@ describe('server.js', () => {
       }
     });
   });
+
+  // ── Push manager error handling ──────────────────────────────────────────
+
+  describe('push manager error handling', () => {
+    let inst;
+    afterEach(() => inst?.shutdown());
+
+    it('server starts even when pushManager.init() rejects', async () => {
+      const pushPath = require.resolve('../../src/server/push');
+      const origPushCache = require.cache[pushPath];
+      require.cache[pushPath] = {
+        id: pushPath,
+        filename: pushPath,
+        loaded: true,
+        exports: {
+          PushManager: class MockPushManager {
+            constructor() {
+              this.subscriptions = new Map();
+            }
+            async init() {
+              throw new Error('VAPID init failed');
+            }
+            subscribe() {}
+            unsubscribe() {}
+            async notify() {}
+            getVapidPublicKey() {
+              return null;
+            }
+          },
+        },
+      };
+
+      delete require.cache[require.resolve('../../src/server')];
+      delete require.cache[require.resolve('../../src/server/sessions')];
+      const { createTermBeamServer: freshCreate } = require('../../src/server');
+
+      try {
+        inst = freshCreate({ config: makeConfig() });
+        const result = await inst.start();
+        assert.ok(result.url);
+        assert.ok(result.defaultId);
+      } finally {
+        if (origPushCache) require.cache[pushPath] = origPushCache;
+        else delete require.cache[pushPath];
+        delete require.cache[require.resolve('../../src/server')];
+        delete require.cache[require.resolve('../../src/server/sessions')];
+      }
+    });
+
+    it('onCommandComplete handles push notification failure gracefully', async () => {
+      inst = await startServer();
+      inst.pushManager.notify = async () => {
+        throw new Error('Push delivery failed');
+      };
+      assert.doesNotThrow(() => {
+        inst.sessions.onCommandComplete({ sessionId: 'test-session', sessionName: 'test' });
+      });
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    it('onCommandComplete sends push notification with correct payload', async () => {
+      inst = await startServer();
+      let notifyPayload = null;
+      inst.pushManager.notify = async (payload) => {
+        notifyPayload = payload;
+      };
+      inst.sessions.onCommandComplete({ sessionId: 'sess-123', sessionName: 'my-session' });
+      await new Promise((r) => setTimeout(r, 50));
+      assert.ok(notifyPayload);
+      assert.equal(notifyPayload.title, 'Command finished');
+      assert.equal(notifyPayload.body, 'Session: my-session');
+      assert.ok(notifyPayload.tag.startsWith('termbeam-cmd-sess-123-'));
+    });
+  });
+
+  // ── Tunnel watchdog events ──────────────────────────────────────────────
+
+  describe('tunnel watchdog events', () => {
+    let inst;
+    afterEach(() => inst?.shutdown());
+
+    it('handles all watchdog events without error', async () => {
+      tunnelState.startTunnel = async () => ({ url: 'https://test.example.com' });
+      inst = await startServer({ useTunnel: true });
+
+      tunnelState.tunnelEvents.emit('disconnected');
+      tunnelState.tunnelEvents.emit('reconnecting', { attempt: 1, delay: 1000 });
+      tunnelState.tunnelEvents.emit('connected', { url: 'https://test.example.com' });
+      tunnelState.tunnelEvents.emit('failed', { attempts: 5 });
+    });
+
+    it('registers watchdog handlers even when tunnel start returns null', async () => {
+      tunnelState.startTunnel = async () => null;
+      inst = await startServer({ useTunnel: true });
+
+      const listenerCount = tunnelState.tunnelEvents.listenerCount('disconnected');
+      assert.ok(listenerCount > 0, 'disconnected handler should be registered');
+    });
+  });
+
+  // ── Update check during start ──────────────────────────────────────────
+
+  describe('update check during start', () => {
+    let inst;
+    afterEach(() => inst?.shutdown());
+
+    it('skips update check when version has no semver pattern', async () => {
+      inst = await startServer({ version: 'invalid-version' });
+      assert.ok(inst.port > 0);
+    });
+
+    it('runs update check when conditions are met (update available)', async () => {
+      const origTestCtx = process.env.NODE_TEST_CONTEXT;
+      const origCI = process.env.CI;
+      delete process.env.NODE_TEST_CONTEXT;
+      delete process.env.CI;
+      const origArgv = [...process.argv];
+      process.argv = process.argv.filter((a) => a !== '--test');
+
+      const updateCheckPath = require.resolve('../../src/utils/update-check');
+      const origUpdateCache = require.cache[updateCheckPath];
+      let checkCalled = false;
+      let detectCalled = false;
+      require.cache[updateCheckPath] = {
+        id: updateCheckPath,
+        filename: updateCheckPath,
+        loaded: true,
+        exports: {
+          checkForUpdate: async () => {
+            checkCalled = true;
+            return { current: '1.0.0', latest: '2.0.0', updateAvailable: true };
+          },
+          detectInstallMethod: () => {
+            detectCalled = true;
+            return { method: 'npm', command: 'npm install -g termbeam@latest' };
+          },
+        },
+      };
+
+      delete require.cache[require.resolve('../../src/server')];
+      delete require.cache[require.resolve('../../src/server/sessions')];
+      const { createTermBeamServer: freshCreate } = require('../../src/server');
+
+      try {
+        inst = freshCreate({ config: makeConfig({ version: '1.0.0' }) });
+        const result = await inst.start();
+        assert.ok(result.url);
+        await new Promise((r) => setTimeout(r, 150));
+        assert.ok(checkCalled, 'checkForUpdate should have been called');
+        assert.ok(detectCalled, 'detectInstallMethod should have been called');
+      } finally {
+        if (origTestCtx !== undefined) process.env.NODE_TEST_CONTEXT = origTestCtx;
+        else delete process.env.NODE_TEST_CONTEXT;
+        if (origCI !== undefined) process.env.CI = origCI;
+        else delete process.env.CI;
+        process.argv = origArgv;
+        if (origUpdateCache) require.cache[updateCheckPath] = origUpdateCache;
+        else delete require.cache[updateCheckPath];
+        delete require.cache[require.resolve('../../src/server')];
+        delete require.cache[require.resolve('../../src/server/sessions')];
+      }
+    });
+
+    it('runs update check with npx install method', async () => {
+      const origTestCtx = process.env.NODE_TEST_CONTEXT;
+      const origCI = process.env.CI;
+      delete process.env.NODE_TEST_CONTEXT;
+      delete process.env.CI;
+      const origArgv = [...process.argv];
+      process.argv = process.argv.filter((a) => a !== '--test');
+
+      const updateCheckPath = require.resolve('../../src/utils/update-check');
+      const origUpdateCache = require.cache[updateCheckPath];
+      require.cache[updateCheckPath] = {
+        id: updateCheckPath,
+        filename: updateCheckPath,
+        loaded: true,
+        exports: {
+          checkForUpdate: async () => ({
+            current: '1.0.0',
+            latest: '2.0.0',
+            updateAvailable: true,
+          }),
+          detectInstallMethod: () => ({
+            method: 'npx',
+            command: 'npx termbeam@latest',
+          }),
+        },
+      };
+
+      delete require.cache[require.resolve('../../src/server')];
+      delete require.cache[require.resolve('../../src/server/sessions')];
+      const { createTermBeamServer: freshCreate } = require('../../src/server');
+
+      try {
+        inst = freshCreate({ config: makeConfig({ version: '1.0.0' }) });
+        const result = await inst.start();
+        assert.ok(result.url);
+        await new Promise((r) => setTimeout(r, 150));
+      } finally {
+        if (origTestCtx !== undefined) process.env.NODE_TEST_CONTEXT = origTestCtx;
+        else delete process.env.NODE_TEST_CONTEXT;
+        if (origCI !== undefined) process.env.CI = origCI;
+        else delete process.env.CI;
+        process.argv = origArgv;
+        if (origUpdateCache) require.cache[updateCheckPath] = origUpdateCache;
+        else delete require.cache[updateCheckPath];
+        delete require.cache[require.resolve('../../src/server')];
+        delete require.cache[require.resolve('../../src/server/sessions')];
+      }
+    });
+
+    it('handles update check with no update available', async () => {
+      const origTestCtx = process.env.NODE_TEST_CONTEXT;
+      const origCI = process.env.CI;
+      delete process.env.NODE_TEST_CONTEXT;
+      delete process.env.CI;
+      const origArgv = [...process.argv];
+      process.argv = process.argv.filter((a) => a !== '--test');
+
+      const updateCheckPath = require.resolve('../../src/utils/update-check');
+      const origUpdateCache = require.cache[updateCheckPath];
+      require.cache[updateCheckPath] = {
+        id: updateCheckPath,
+        filename: updateCheckPath,
+        loaded: true,
+        exports: {
+          checkForUpdate: async () => ({
+            current: '1.0.0',
+            latest: '1.0.0',
+            updateAvailable: false,
+          }),
+          detectInstallMethod: () => ({
+            method: 'npm',
+            command: 'npm install -g termbeam@latest',
+          }),
+        },
+      };
+
+      delete require.cache[require.resolve('../../src/server')];
+      delete require.cache[require.resolve('../../src/server/sessions')];
+      const { createTermBeamServer: freshCreate } = require('../../src/server');
+
+      try {
+        inst = freshCreate({ config: makeConfig({ version: '1.0.0' }) });
+        const result = await inst.start();
+        assert.ok(result.url);
+        await new Promise((r) => setTimeout(r, 150));
+      } finally {
+        if (origTestCtx !== undefined) process.env.NODE_TEST_CONTEXT = origTestCtx;
+        else delete process.env.NODE_TEST_CONTEXT;
+        if (origCI !== undefined) process.env.CI = origCI;
+        else delete process.env.CI;
+        process.argv = origArgv;
+        if (origUpdateCache) require.cache[updateCheckPath] = origUpdateCache;
+        else delete require.cache[updateCheckPath];
+        delete require.cache[require.resolve('../../src/server')];
+        delete require.cache[require.resolve('../../src/server/sessions')];
+      }
+    });
+
+    it('silently handles update check failure', async () => {
+      const origTestCtx = process.env.NODE_TEST_CONTEXT;
+      const origCI = process.env.CI;
+      delete process.env.NODE_TEST_CONTEXT;
+      delete process.env.CI;
+      const origArgv = [...process.argv];
+      process.argv = process.argv.filter((a) => a !== '--test');
+
+      const updateCheckPath = require.resolve('../../src/utils/update-check');
+      const origUpdateCache = require.cache[updateCheckPath];
+      require.cache[updateCheckPath] = {
+        id: updateCheckPath,
+        filename: updateCheckPath,
+        loaded: true,
+        exports: {
+          checkForUpdate: async () => {
+            throw new Error('Network error');
+          },
+          detectInstallMethod: () => ({
+            method: 'npm',
+            command: 'npm install -g termbeam@latest',
+          }),
+        },
+      };
+
+      delete require.cache[require.resolve('../../src/server')];
+      delete require.cache[require.resolve('../../src/server/sessions')];
+      const { createTermBeamServer: freshCreate } = require('../../src/server');
+
+      try {
+        inst = freshCreate({ config: makeConfig({ version: '1.0.0' }) });
+        const result = await inst.start();
+        assert.ok(result.url);
+        await new Promise((r) => setTimeout(r, 150));
+      } finally {
+        if (origTestCtx !== undefined) process.env.NODE_TEST_CONTEXT = origTestCtx;
+        else delete process.env.NODE_TEST_CONTEXT;
+        if (origCI !== undefined) process.env.CI = origCI;
+        else delete process.env.CI;
+        process.argv = origArgv;
+        if (origUpdateCache) require.cache[updateCheckPath] = origUpdateCache;
+        else delete require.cache[updateCheckPath];
+        delete require.cache[require.resolve('../../src/server')];
+        delete require.cache[require.resolve('../../src/server/sessions')];
+      }
+    });
+  });
+
+  // ── Shutdown idempotency ────────────────────────────────────────────────
+
+  describe('shutdown', () => {
+    it('is idempotent (can be called multiple times safely)', async () => {
+      const inst = await startServer();
+      inst.shutdown();
+      assert.doesNotThrow(() => inst.shutdown());
+    });
+  });
 });

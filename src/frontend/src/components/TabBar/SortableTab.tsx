@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { ManagedSession } from '@/stores/sessionStore';
@@ -12,6 +13,8 @@ interface SortableTabProps {
   onMouseEnter?: (e: React.MouseEvent<HTMLDivElement>) => void;
   onMouseLeave?: () => void;
 }
+
+const TAP_THRESHOLD = 5;
 
 function formatTabActivity(lastActivity: string | number): string {
   const ts = typeof lastActivity === 'number' ? lastActivity : new Date(lastActivity).getTime();
@@ -34,6 +37,7 @@ export function SortableTab({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: session.id,
   });
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -50,7 +54,21 @@ export function SortableTab({
       className={`${styles.tab} ${isActive ? styles.tabActive : ''} ${isSplit ? styles.tabSplit : ''}`}
       data-testid="session-tab"
       {...(isActive ? { 'data-active': 'true' } : {})}
-      onClick={onActivate}
+      {...attributes}
+      {...listeners}
+      onPointerDown={(e) => {
+        pointerStart.current = { x: e.clientX, y: e.clientY };
+        // Chain with dnd-kit's handler
+        (listeners as Record<string, Function>)?.onPointerDown?.(e);
+      }}
+      onPointerUp={(e) => {
+        if (pointerStart.current && e.button === 0) {
+          const dx = Math.abs(e.clientX - pointerStart.current.x);
+          const dy = Math.abs(e.clientY - pointerStart.current.y);
+          if (dx < TAP_THRESHOLD && dy < TAP_THRESHOLD) onActivate();
+        }
+        pointerStart.current = null;
+      }}
       onAuxClick={(e) => {
         if (e.button === 1) {
           e.preventDefault();
@@ -59,8 +77,6 @@ export function SortableTab({
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      {...attributes}
-      {...listeners}
     >
       <span className={styles.colorDot} style={{ backgroundColor: session.color }} />
       <span className={styles.tabName} data-testid="tab-name">

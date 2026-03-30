@@ -9,8 +9,13 @@ describe('resume', () => {
   let resume;
   let tempDir;
   let CONNECTION_FILE;
+  let savedTermbeamSession;
 
   beforeEach(() => {
+    // Save and clear TERMBEAM_SESSION so resume() doesn't bail out
+    savedTermbeamSession = process.env.TERMBEAM_SESSION;
+    delete process.env.TERMBEAM_SESSION;
+
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'termbeam-test-'));
     process.env.TERMBEAM_CONFIG_DIR = tempDir;
     CONNECTION_FILE = path.join(tempDir, 'connection.json');
@@ -22,6 +27,12 @@ describe('resume', () => {
   });
 
   afterEach(() => {
+    // Restore TERMBEAM_SESSION
+    if (savedTermbeamSession !== undefined) {
+      process.env.TERMBEAM_SESSION = savedTermbeamSession;
+    } else {
+      delete process.env.TERMBEAM_SESSION;
+    }
     delete process.env.TERMBEAM_CONFIG_DIR;
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });

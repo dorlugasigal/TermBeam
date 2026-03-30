@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
 import { createSession, fetchShells } from '@/services/api';
@@ -13,9 +13,22 @@ interface NewSessionModalProps {
   onCreated: (id: string) => void;
 }
 
+function folderName(dir: string): string {
+  const parts = dir.replace(/[/\\]+$/, '').split(/[/\\]/);
+  return parts[parts.length - 1] || dir;
+}
+
+function uniqueName(base: string, existing: Set<string>): string {
+  if (!existing.has(base)) return base;
+  let i = 2;
+  while (existing.has(`${base} (${i})`)) i++;
+  return `${base} (${i})`;
+}
+
 export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   const { newSessionModalOpen, closeNewSessionModal } = useUIStore();
   const [name, setName] = useState('');
+  const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
   const [shell, setShell] = useState('');
   const [shells, setShells] = useState<ShellInfo[]>([]);
   const [cwd, setCwd] = useState('');
@@ -23,6 +36,17 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   const [color, setColor] = useState<SessionColor>(SESSION_COLORS[0]);
   const [submitting, setSubmitting] = useState(false);
   const [browsing, setBrowsing] = useState(false);
+
+  const deriveNameFromCwd = useCallback(
+    (dir: string) => {
+      if (nameManuallyEdited) return;
+      const sessions = useSessionStore.getState().sessions;
+      const existingNames = new Set<string>();
+      for (const s of sessions.values()) existingNames.add(s.name);
+      setName(uniqueName(folderName(dir), existingNames));
+    },
+    [nameManuallyEdited],
+  );
 
   useEffect(() => {
     if (newSessionModalOpen) {
@@ -34,7 +58,10 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
               list.find((s) => s.cmd === defaultShell) || list.find((s) => s.path === defaultShell);
             setShell(def?.cmd ?? list[0]?.cmd ?? '');
           }
-          if (!cwd && serverCwd) setCwd(serverCwd);
+          if (!cwd && serverCwd) {
+            setCwd(serverCwd);
+            deriveNameFromCwd(serverCwd);
+          }
         })
         .catch(() => setShells([]));
     }
@@ -42,6 +69,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
 
   function resetForm() {
     setName('');
+    setNameManuallyEdited(false);
     setShell('');
     setCwd('');
     setInitialCommand('');
@@ -99,6 +127,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
               currentDir={cwd || '/'}
               onSelect={(dir: string) => {
                 setCwd(dir);
+                deriveNameFromCwd(dir);
                 setBrowsing(false);
               }}
               onCancel={() => setBrowsing(false)}
@@ -110,9 +139,12 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                 <input
                   className={styles.input}
                   type="text"
-                  placeholder="my-session"
+                  placeholder={folderName(cwd || '/')}
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setNameManuallyEdited(true);
+                  }}
                   data-testid="ns-name"
                 />
               </div>
@@ -199,7 +231,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                   data-testid="ns-create"
                   onClick={handleSubmit}
                 >
-                  {submitting ? 'Creating…' : 'Create'}
+                  Create
                 </button>
               </div>
             </div>
