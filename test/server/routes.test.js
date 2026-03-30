@@ -65,7 +65,9 @@ describe('Routes', () => {
   // === Image upload endpoint ===
   describe('POST /api/upload', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should accept valid image upload and return opaque id', async () => {
       inst = await startServer();
@@ -388,7 +390,9 @@ describe('Routes', () => {
   // === Directory listing ===
   describe('GET /api/dirs', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return dirs from server cwd when no query', async () => {
       inst = await startServer();
@@ -444,7 +448,9 @@ describe('Routes', () => {
   // === Session creation validation ===
   describe('POST /api/sessions validation', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should reject invalid shell with 400', async () => {
       inst = await startServer();
@@ -601,7 +607,9 @@ describe('Routes', () => {
   // === Version endpoint ===
   describe('GET /api/version', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return version', async () => {
       inst = await startServer();
@@ -620,7 +628,9 @@ describe('Routes', () => {
   // === Session PATCH endpoint ===
   describe('PATCH /api/sessions/:id', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should update session color and name', async () => {
       inst = await startServer();
@@ -669,7 +679,9 @@ describe('Routes', () => {
   // === Login/Auth flow ===
   describe('Auth flow', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('GET /login should redirect to / when no password set', async () => {
       inst = await startServer({ password: null });
@@ -724,7 +736,9 @@ describe('Routes', () => {
   // === Share token auto-login ===
   describe('share token auto-login', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('GET /?ott=<valid> should set cookie and redirect to /', async () => {
       inst = await startServer({ password: 'secret' });
@@ -828,7 +842,9 @@ describe('Routes', () => {
   // === Cookie Secure flag ===
   describe('cookie Secure flag', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('POST /api/auth should set Secure cookie when X-Forwarded-Proto is https', async () => {
       inst = await startServer({ password: 'secret' });
@@ -898,7 +914,9 @@ describe('Routes', () => {
   // === Share token endpoint ===
   describe('GET /api/share-token', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return 404 when auth is disabled', async () => {
       inst = await startServer({ password: null });
@@ -2096,7 +2114,9 @@ describe('Routes', () => {
   // === DELETE /api/sessions/:id ===
   describe('DELETE /api/sessions/:id', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should delete an existing session and return 204', async () => {
       inst = await startServer();
@@ -2180,7 +2200,9 @@ describe('Routes', () => {
   // === GET /login with password set ===
   describe('GET /login with password', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should serve the login page when password is set', async () => {
       inst = await startServer({ password: 'testpass' });
@@ -2198,7 +2220,9 @@ describe('Routes', () => {
   // === Push notification endpoints ===
   describe('Push notification endpoints', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('GET /api/push/vapid-key should return 503 when VAPID keys not initialized', async () => {
       inst = await startServer({ password: null });
@@ -2345,7 +2369,9 @@ describe('Routes', () => {
   // === GET /api/shells ===
   describe('GET /api/shells', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return available shells with default and cwd', async () => {
       inst = await startServer({ password: null });
@@ -2367,7 +2393,9 @@ describe('Routes', () => {
   // === GET /api/sessions/:id/git/* endpoints ===
   describe('GET /api/sessions/:id/git/status', () => {
     let inst, sessionId;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return 404 for non-existent session', async () => {
       inst = await startServer({ password: null });
@@ -2415,7 +2443,9 @@ describe('Routes', () => {
 
   describe('GET /api/sessions/:id/git/diff', () => {
     let inst, sessionId;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return 404 for non-existent session', async () => {
       inst = await startServer({ password: null });
@@ -2553,7 +2583,9 @@ describe('Routes', () => {
 
   describe('GET /api/sessions/:id/git/blame', () => {
     let inst, sessionId;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return 404 for non-existent session', async () => {
       inst = await startServer({ password: null });
@@ -2631,7 +2663,9 @@ describe('Routes', () => {
 
   describe('GET /api/sessions/:id/git/log', () => {
     let inst, sessionId;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return 404 for non-existent session', async () => {
       inst = await startServer({ password: null });
@@ -2710,7 +2744,9 @@ describe('Routes', () => {
   // === GET /api/sessions/:id/file-tree ===
   describe('GET /api/sessions/:id/file-tree', () => {
     let inst, sessionId;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return 404 for non-existent session', async () => {
       inst = await startServer({ password: null });
@@ -2821,7 +2857,9 @@ describe('Routes', () => {
   // === GET /api/sessions/:id/detect-port ===
   describe('GET /api/sessions/:id/detect-port', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return 404 for non-existent session', async () => {
       inst = await startServer({ password: null });
@@ -2869,7 +2907,9 @@ describe('Routes', () => {
   // === GET /api/update-check ===
   describe('GET /api/update-check', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return update info', async () => {
       inst = await startServer({ password: null });
@@ -2888,7 +2928,9 @@ describe('Routes', () => {
   // === GET /api/update/status ===
   describe('GET /api/update/status', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return update state', async () => {
       inst = await startServer({ password: null });
@@ -2907,7 +2949,9 @@ describe('Routes', () => {
   // === GET /api/config ===
   describe('GET /api/config', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return passwordRequired false when no password set', async () => {
       inst = await startServer({ password: null });
@@ -3033,7 +3077,9 @@ describe('Routes', () => {
   // === GET /api/dirs with query parameter ===
   describe('GET /api/dirs with q parameter', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should filter directories by prefix when q does not end with separator', async () => {
       inst = await startServer({ password: null });
@@ -3073,7 +3119,9 @@ describe('Routes', () => {
   // === GET /api/update-check error fallback ===
   describe('GET /api/update-check error fallback', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return fallback info when update check throws', async () => {
       inst = await startServer({ password: null });
@@ -3107,7 +3155,9 @@ describe('Routes', () => {
   // === POST /api/sessions creation failure ===
   describe('POST /api/sessions creation failure', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return 400 when sessions.create throws', async () => {
       inst = await startServer({ password: null });
@@ -3144,7 +3194,9 @@ describe('Routes', () => {
   // === GET /api/sessions/:id/git/diff with context parameter ===
   describe('GET /api/sessions/:id/git/diff with context', () => {
     let inst, sessionId;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should accept and use context query parameter', async () => {
       inst = await startServer({ password: null });
@@ -3236,7 +3288,9 @@ describe('Routes', () => {
   // === POST /api/update error paths ===
   describe('POST /api/update in-progress', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return 409 when update is already in progress', async () => {
       inst = await startServer({ password: null });
@@ -3265,7 +3319,9 @@ describe('Routes', () => {
 
   describe('POST /api/update not available', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return 400 when auto-update is not available', async () => {
       inst = await startServer({ password: null });
@@ -3308,7 +3364,9 @@ describe('Routes', () => {
   // === POST /api/update success path ===
   describe('POST /api/update success', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should trigger update when state is idle and canAutoUpdate', async () => {
       inst = await startServer({ password: null });
@@ -3359,7 +3417,9 @@ describe('Routes', () => {
   // === POST /api/update retry after failure ===
   describe('POST /api/update retry', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should reset state when retrying after failure', async () => {
       inst = await startServer({ password: null });
@@ -3411,7 +3471,9 @@ describe('Routes', () => {
   // === POST /api/update rate limiting ===
   describe('POST /api/update rate limit', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+    });
 
     it('should return 429 on rapid successive requests', async () => {
       inst = await startServer({ password: null });
