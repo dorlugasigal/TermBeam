@@ -18,6 +18,7 @@ import NewSessionModal from '@/components/SessionsHub/NewSessionModal';
 import { UploadModal } from '@/components/Modals/UploadModal';
 import { PreviewModal } from '@/components/Modals/PreviewModal';
 import CopyOverlay from '@/components/Overlays/CopyOverlay';
+import TunnelBanner from '@/components/common/TunnelBanner';
 import type { Session } from '@/types';
 import styles from './TerminalApp.module.css';
 
@@ -448,6 +449,9 @@ export function TerminalApp() {
           </button>
         </div>
       )}
+
+      {/* ── Tunnel token banner ── */}
+      <TunnelBanner />
 
       {/* ── Search bar ── */}
       <SearchBar />

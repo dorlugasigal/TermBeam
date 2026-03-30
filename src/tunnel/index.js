@@ -24,12 +24,14 @@ let restartTimer = null;
 // --- Auth-wait state ---
 let waitingForAuth = false;
 let authCheckInterval = null;
+let expiryWarned = false;
 
 const HEALTH_CHECK_INTERVAL = 30_000; // 30s between checks
 const HEALTH_CHECK_GRACE = 2; // 2 consecutive failures before restart
 const MAX_RESTART_ATTEMPTS = 10;
 const BACKOFF_DELAYS = [1000, 2000, 5000, 10_000, 15_000, 30_000]; // then stays at 30s
 const AUTH_CHECK_INTERVAL = 30_000; // 30s between auth re-checks
+const TOKEN_EXPIRY_WARN_SECONDS = 3600; // warn at 1 hour remaining
 
 const AUTH_ERROR_PATTERNS = ['login required', 'not logged in', 'sign in required'];
 
@@ -63,24 +65,28 @@ function getLoginInfo() {
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 10_000,
     });
-    if (!out || out.toLowerCase().includes('not logged in')) return null;
-
-    let provider = 'unknown';
-    if (out.toLowerCase().includes('github')) provider = 'github';
-    else if (out.toLowerCase().includes('microsoft')) provider = 'microsoft';
-
-    // Parse "Token lifetime: H:MM:SS" from verbose output
-    let tokenLifetimeHours = null;
-    const ltMatch = out.match(/Token lifetime:\s*(\d+):(\d+):(\d+)/);
-    if (ltMatch) {
-      tokenLifetimeHours =
-        parseInt(ltMatch[1], 10) + parseInt(ltMatch[2], 10) / 60 + parseInt(ltMatch[3], 10) / 3600;
-    }
-
-    return { provider, tokenLifetimeHours };
+    return parseLoginInfo(out);
   } catch {
     return null;
   }
+}
+
+function parseLoginInfo(output) {
+  if (!output || output.toLowerCase().includes('not logged in')) return null;
+
+  let provider = 'unknown';
+  if (output.toLowerCase().includes('github')) provider = 'github';
+  else if (output.toLowerCase().includes('microsoft')) provider = 'microsoft';
+
+  // Parse "Token lifetime: H:MM:SS" from verbose output
+  let tokenLifetimeSeconds = null;
+  const ltMatch = output.match(/Token lifetime:\s*(\d+):(\d+):(\d+)/);
+  if (ltMatch) {
+    tokenLifetimeSeconds =
+      parseInt(ltMatch[1], 10) * 3600 + parseInt(ltMatch[2], 10) * 60 + parseInt(ltMatch[3], 10);
+  }
+
+  return { provider, tokenLifetimeSeconds };
 }
 
 function deviceCodeLogin(cmd) {
@@ -223,6 +229,14 @@ function checkTunnelHealth() {
           return;
         }
 
+        // "Tunnel not found" can mean the user's auth expired (CLI can't
+        // query the tunnel without valid credentials). Check login status
+        // to distinguish from a genuinely deleted tunnel.
+        if (!isLoggedIn()) {
+          handleAuthExpiration();
+          return;
+        }
+
         consecutiveFailures++;
         log.warn(
           `Tunnel health check error: ${err.message} (${consecutiveFailures}/${HEALTH_CHECK_GRACE})`,
@@ -251,6 +265,9 @@ function checkTunnelHealth() {
           log.info(`Tunnel health restored (${hostConns} host connection(s))`);
         }
         consecutiveFailures = 0;
+
+        // Check token expiry while tunnel is healthy
+        checkTokenExpiry();
         return;
       }
 
@@ -265,6 +282,26 @@ function checkTunnelHealth() {
       }
     },
   );
+}
+
+function checkTokenExpiry() {
+  const info = getLoginInfo();
+  if (!info || info.tokenLifetimeSeconds === null) return;
+
+  const remaining = info.tokenLifetimeSeconds;
+
+  if (remaining <= TOKEN_EXPIRY_WARN_SECONDS && !expiryWarned) {
+    expiryWarned = true;
+    const minutes = Math.round(remaining / 60);
+    log.warn(`DevTunnel token expires in ${minutes}m`);
+    tunnelEvents.emit('auth-expiring', {
+      expiresIn: remaining * 1000,
+      provider: info.provider,
+    });
+  } else if (remaining > TOKEN_EXPIRY_WARN_SECONDS) {
+    // Reset the warning flag when token is refreshed
+    expiryWarned = false;
+  }
 }
 
 function startHealthCheck() {
@@ -485,16 +522,16 @@ async function startTunnel(port, options = {}) {
     const loginInfo = loggedIn ? getLoginInfo() : null;
 
     if (loggedIn && loginInfo) {
-      const { provider, tokenLifetimeHours } = loginInfo;
+      const { provider, tokenLifetimeSeconds } = loginInfo;
       if (provider === 'github') {
         log.warn(
           'Logged in with GitHub — tokens expire every 8 hours. ' +
             'For longer sessions, use: devtunnel user login -e -d',
         );
       }
-      if (tokenLifetimeHours !== null) {
-        const h = Math.floor(tokenLifetimeHours);
-        const m = Math.round((tokenLifetimeHours - h) * 60);
+      if (tokenLifetimeSeconds !== null) {
+        const h = Math.floor(tokenLifetimeSeconds / 3600);
+        const m = Math.round((tokenLifetimeSeconds % 3600) / 60);
         log.info(`DevTunnel token expires in ${h}h ${m}m`);
       }
     }
@@ -629,6 +666,14 @@ function cleanupTunnel() {
   consecutiveFailures = 0;
   restartAttempts = 0;
   isRestarting = false;
+  expiryWarned = false;
 }
 
-module.exports = { startTunnel, cleanupTunnel, findDevtunnel, tunnelEvents };
+module.exports = {
+  startTunnel,
+  cleanupTunnel,
+  findDevtunnel,
+  tunnelEvents,
+  getLoginInfo,
+  parseLoginInfo,
+};

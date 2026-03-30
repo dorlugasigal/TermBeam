@@ -6,6 +6,7 @@ import { useThemeStore } from '@/stores/themeStore';
 import { THEMES, type ThemeId } from '@/themes/terminalThemes';
 import type { Session } from '@/types';
 import UpdateBanner from '@/components/common/UpdateBanner';
+import TunnelBanner from '@/components/common/TunnelBanner';
 import SessionCard from './SessionCard';
 import NewSessionModal from './NewSessionModal';
 import styles from './SessionsHub.module.css';
@@ -166,6 +167,7 @@ export default function SessionsHub() {
   return (
     <div className={styles.page}>
       <UpdateBanner />
+      <TunnelBanner />
 
       <header className={styles.header}>
         <h1 className={styles.title}>

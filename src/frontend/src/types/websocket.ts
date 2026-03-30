@@ -58,10 +58,18 @@ export interface WSNotificationMessage {
   timestamp: number;
 }
 
+export interface WSTunnelStatusMessage {
+  type: 'tunnel-status';
+  state: 'connected' | 'disconnected' | 'expiring' | 'auth-expired' | 'reconnecting' | 'failed';
+  expiresIn?: number;
+  provider?: string;
+}
+
 export type WSServerMessage =
   | WSOutputMessage
   | WSAttachedMessage
   | WSExitMessage
   | WSErrorMessage
   | WSUpdateProgressMessage
-  | WSNotificationMessage;
+  | WSNotificationMessage
+  | WSTunnelStatusMessage;

@@ -427,9 +427,7 @@ export async function fetchVapidKey(): Promise<{ publicKey: string }> {
   return handleResponse<{ publicKey: string }>(res);
 }
 
-export async function subscribePush(
-  subscription: PushSubscriptionJSON,
-): Promise<{ ok: boolean }> {
+export async function subscribePush(subscription: PushSubscriptionJSON): Promise<{ ok: boolean }> {
   const res = await fetchWithTimeout(`${BASE}/api/push/subscribe`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -560,15 +558,42 @@ export async function fetchGitBlame(sessionId: string, file: string): Promise<Gi
   return handleResponse<GitBlame>(res);
 }
 
-export async function fetchGitLog(
-  sessionId: string,
-  limit = 20,
-  file?: string,
-): Promise<GitLog> {
+export async function fetchGitLog(sessionId: string, limit = 20, file?: string): Promise<GitLog> {
   const params = new URLSearchParams({ limit: String(limit) });
   if (file) params.set('file', file);
   const res = await fetchWithTimeout(`${BASE}/api/sessions/${sessionId}/git/log?${params}`, {
     credentials: 'same-origin',
   });
   return handleResponse<GitLog>(res);
+}
+
+// ── Tunnel API ──
+
+export interface TunnelStatus {
+  state: string;
+  provider?: string | null;
+  tokenLifetimeSeconds?: number | null;
+  expiresIn?: number;
+}
+
+export async function fetchTunnelStatus(): Promise<TunnelStatus> {
+  const res = await fetchWithTimeout(`${BASE}/api/tunnel/status`, {
+    credentials: 'same-origin',
+  });
+  return handleResponse<TunnelStatus>(res);
+}
+
+export async function renewTunnelAuth(): Promise<{
+  url?: string;
+  code?: string;
+  ok?: boolean;
+  message?: string;
+}> {
+  const res = await fetchWithTimeout(`${BASE}/api/tunnel/renew`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    timeout: 20_000,
+  });
+  return handleResponse<{ url?: string; code?: string; ok?: boolean; message?: string }>(res);
 }

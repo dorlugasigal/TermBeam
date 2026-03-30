@@ -977,6 +977,79 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
       res.json({ ok: true });
     });
   }
+
+  // --- Tunnel token renewal ---
+  app.get('/api/tunnel/status', apiRateLimit, auth.middleware, (_req, res) => {
+    const tunnelStatus = state.tunnelStatus || { state: 'unknown' };
+    // getLoginInfo is called from the tunnel module; avoid importing it
+    // here to prevent loading the full tunnel module in test contexts.
+    const getLoginInfo = state.getLoginInfo;
+    const loginInfo = getLoginInfo ? getLoginInfo() : null;
+    res.json({
+      ...tunnelStatus,
+      provider: loginInfo?.provider ?? null,
+      tokenLifetimeSeconds: loginInfo?.tokenLifetimeSeconds ?? null,
+    });
+  });
+
+  app.post('/api/tunnel/renew', apiRateLimit, auth.middleware, (_req, res) => {
+    const { spawn } = require('child_process');
+    const proc = spawn('devtunnel', ['user', 'login', '-d'], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    let output = '';
+    let responded = false;
+
+    const timeout = setTimeout(() => {
+      if (!responded) {
+        responded = true;
+        proc.kill();
+        res.status(504).json({ error: 'Timed out waiting for device code' });
+      }
+    }, 15000);
+
+    function tryParse(data) {
+      if (output.length > 10_000) return; // prevent unbounded accumulation
+      output += data;
+      // Entra: "open the page https://... and enter the code ABC123 to authenticate"
+      // GitHub: "Browse to https://... and enter the code: AB12-CD34"
+      const match =
+        output.match(/open the page (https:\/\/[^\s]+) and enter the code ([A-Z0-9]+)/i) ||
+        output.match(/Browse to (https:\/\/[^\s]+) and enter the code:?\s*([A-Z0-9-]+)/i);
+      if (match && !responded) {
+        responded = true;
+        clearTimeout(timeout);
+        res.json({
+          url: match[1],
+          code: match[2],
+        });
+      }
+    }
+
+    proc.stdout.on('data', (d) => tryParse(d.toString()));
+    proc.stderr.on('data', (d) => tryParse(d.toString()));
+
+    proc.on('close', (code) => {
+      clearTimeout(timeout);
+      if (!responded) {
+        responded = true;
+        if (code === 0) {
+          res.json({ ok: true, message: 'Already authenticated' });
+        } else {
+          res.status(500).json({ error: 'DevTunnel login failed' });
+        }
+      }
+    });
+
+    proc.on('error', (err) => {
+      clearTimeout(timeout);
+      if (!responded) {
+        responded = true;
+        res.status(500).json({ error: err.message });
+      }
+    });
+  });
 }
 
 function cleanupUploadedFiles() {

@@ -43,6 +43,8 @@ const tunnelState = {
   startTunnel: async () => null,
   cleanupTunnel: () => {},
   tunnelEvents: new EventEmitter(),
+  getLoginInfo: () => null,
+  parseLoginInfo: () => null,
 };
 
 const tunnelPath = require.resolve('../../src/tunnel');
@@ -55,6 +57,8 @@ require.cache[tunnelPath] = {
     startTunnel: (...a) => tunnelState.startTunnel(...a),
     cleanupTunnel: (...a) => tunnelState.cleanupTunnel(...a),
     tunnelEvents: tunnelState.tunnelEvents,
+    getLoginInfo: (...a) => tunnelState.getLoginInfo(...a),
+    parseLoginInfo: (...a) => tunnelState.parseLoginInfo(...a),
   },
 };
 

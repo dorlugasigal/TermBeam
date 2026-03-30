@@ -1,0 +1,76 @@
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: calc(0.55rem + env(safe-area-inset-top, 0px)) 1rem 0.55rem;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 500;
+  animation: slide-down 0.25s ease;
+}
+
+.warning {
+  background: #e65100;
+}
+
+.error {
+  background: #d32f2f;
+}
+
+.success {
+  background: #2e7d32;
+}
+
+.text {
+  flex: 1;
+  text-align: center;
+}
+
+.actionBtn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.25rem 0.65rem;
+  border-radius: 5px;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.actionBtn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.dismiss {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  transition: opacity 0.15s;
+  line-height: 1;
+}
+
+.dismiss:hover {
+  opacity: 1;
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

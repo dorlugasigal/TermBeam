@@ -64,7 +64,7 @@ export default function UpdateBanner() {
   }, []);
 
   useEffect(() => {
-    checkUpdate().then((result) => {
+    checkUpdate(true).then((result) => {
       if (result?.updateAvailable) {
         const cmd = result.command ?? 'npm install -g termbeam@latest';
         commandRef.current = cmd;

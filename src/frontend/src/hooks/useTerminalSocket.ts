@@ -303,6 +303,11 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
             window.dispatchEvent(new MessageEvent('termbeam:ws-message', { data: event.data }));
             break;
           }
+          case 'tunnel-status': {
+            // Forward tunnel status events to the TunnelBanner via a custom DOM event
+            window.dispatchEvent(new MessageEvent('termbeam:ws-message', { data: event.data }));
+            break;
+          }
         }
       };
 
