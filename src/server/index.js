@@ -71,6 +71,9 @@ function createTermBeamServer(overrides = {}) {
         title: 'Command finished',
         body: `Session: ${sessionName}`,
         tag: `termbeam-cmd-${sessionId}-${Date.now()}`,
+        url: `/terminal`,
+        type: 'command-complete',
+        sessionId,
       })
       .catch((err) => {
         log.warn(`Push notification failed: ${err.message}`);
@@ -253,63 +256,18 @@ function createTermBeamServer(overrides = {}) {
 
         let publicUrl = null;
         if (config.useTunnel) {
-          // Helper: broadcast a message to all WebSocket clients
-          function broadcastTunnelStatus(msg) {
-            if (!wss) return;
-            const data = JSON.stringify(msg);
-            wss.clients.forEach((client) => {
-              if (client.readyState === 1) {
-                try {
-                  client.send(data);
-                } catch {
-                  /* client disconnected */
-                }
-              }
-            });
-          }
-
           // Wire up tunnel events BEFORE starting (startTunnel emits during setup)
           tunnelEvents.removeAllListeners();
           tunnelEvents.on('disconnected', () => {
             log.warn('Tunnel disconnected — watchdog will attempt to reconnect');
             state.tunnelStatus = { state: 'disconnected' };
-            broadcastTunnelStatus({ type: 'tunnel-status', state: 'disconnected' });
-          });
-          tunnelEvents.on('auth-expiring', ({ expiresIn, provider }) => {
-            const minutes = Math.round(expiresIn / 60000);
-            log.warn(`Tunnel token expiring in ${minutes}m`);
-            state.tunnelStatus = { state: 'expiring', expiresIn, provider };
-            broadcastTunnelStatus({
-              type: 'tunnel-status',
-              state: 'expiring',
-              expiresIn,
-              provider,
-            });
-            void pushManager
-              .notify({
-                title: '⏰ Tunnel token expiring',
-                body: `Token expires in ${minutes}m — open TermBeam to renew.`,
-                tag: 'termbeam-tunnel-expiring',
-              })
-              .catch(() => {});
           });
           tunnelEvents.on('auth-expired', () => {
-            log.warn('Tunnel auth expired — waiting for user to re-authenticate');
-            const loginInfo = getLoginInfo ? getLoginInfo() : null;
-            const provider = loginInfo?.provider ?? null;
-            state.tunnelStatus = { state: 'auth-expired', provider };
-            broadcastTunnelStatus({ type: 'tunnel-status', state: 'auth-expired', provider });
-            void pushManager
-              .notify({
-                title: '❌ Tunnel disconnected',
-                body: 'Auth token expired. Re-authenticate to restore.',
-                tag: 'termbeam-tunnel-expired',
-              })
-              .catch(() => {});
+            log.warn('Tunnel auth expired — run "devtunnel user login" on host to restore');
+            state.tunnelStatus = { state: 'auth-expired' };
           });
           tunnelEvents.on('auth-restored', () => {
             log.info('Tunnel auth restored — resuming reconnection');
-            broadcastTunnelStatus({ type: 'tunnel-status', state: 'reconnecting' });
           });
           tunnelEvents.on('reconnecting', ({ attempt, delay }) => {
             log.info(`Tunnel reconnecting (attempt ${attempt}, backoff ${delay}ms)`);
@@ -317,14 +275,12 @@ function createTermBeamServer(overrides = {}) {
           tunnelEvents.on('connected', ({ url }) => {
             log.info(`Tunnel connected: ${url}`);
             state.tunnelStatus = { state: 'connected' };
-            broadcastTunnelStatus({ type: 'tunnel-status', state: 'connected' });
           });
           tunnelEvents.on('failed', ({ attempts }) => {
             log.error(
               `Tunnel watchdog gave up after ${attempts} attempts — tunnel URL is unreachable`,
             );
             state.tunnelStatus = { state: 'failed' };
-            broadcastTunnelStatus({ type: 'tunnel-status', state: 'failed' });
           });
 
           const tunnel = await startTunnel(actualPort, {

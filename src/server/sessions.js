@@ -407,10 +407,30 @@ class SessionManager {
     return true;
   }
 
+  /** Get the live CWD for a session (detected from PTY process). */
+  getSessionCwd(id) {
+    const s = this.sessions.get(id);
+    if (!s) return null;
+    const cached = _gitCache.get(id);
+    if (cached && cached.cwd) {
+      // Update session.cwd so endpoints using session.cwd directly get fresh values
+      s.cwd = cached.cwd;
+      return cached.cwd;
+    }
+    // Trigger a refresh for next time
+    scheduleGitRefresh(id, s.pty.pid, s.cwd);
+    return s.cwd;
+  }
+
   list() {
     const list = [];
     for (const [id, s] of this.sessions) {
       const { cwd, git } = getCachedGitInfo(id, s.pty.pid, s.cwd);
+      // Keep session.cwd in sync with detected live CWD
+      if (cwd !== s.cwd) {
+        log.debug(`Session ${id} CWD changed: ${s.cwd} → ${cwd}`);
+        s.cwd = cwd;
+      }
       list.push({
         id,
         name: s.name,
