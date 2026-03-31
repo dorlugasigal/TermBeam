@@ -18,7 +18,6 @@ import NewSessionModal from '@/components/SessionsHub/NewSessionModal';
 import { UploadModal } from '@/components/Modals/UploadModal';
 import { PreviewModal } from '@/components/Modals/PreviewModal';
 import CopyOverlay from '@/components/Overlays/CopyOverlay';
-import TunnelBanner from '@/components/common/TunnelBanner';
 import type { Session } from '@/types';
 import styles from './TerminalApp.module.css';
 
@@ -173,11 +172,13 @@ export function TerminalApp() {
           window.location.replace('/');
         }
       } catch {
-        checkAuth().then(({ authenticated, serverReachable }) => {
-          if (!authenticated && serverReachable) window.location.replace('/login');
-        }).catch(() => {
-          // Network error — don't redirect, polling will retry
-        });
+        checkAuth()
+          .then(({ authenticated, serverReachable }) => {
+            if (!authenticated && serverReachable) window.location.replace('/login');
+          })
+          .catch(() => {
+            // Network error — don't redirect, polling will retry
+          });
       }
     }
 
@@ -238,11 +239,13 @@ export function TerminalApp() {
         pollFailuresRef.current++;
         if (pollFailuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
           setConnectionLost(true);
-          checkAuth().then(({ authenticated, serverReachable }) => {
-            if (!authenticated && serverReachable) window.location.replace('/login');
-          }).catch(() => {
-            // Network error — keep showing connection lost banner
-          });
+          checkAuth()
+            .then(({ authenticated, serverReachable }) => {
+              if (!authenticated && serverReachable) window.location.replace('/login');
+            })
+            .catch(() => {
+              // Network error — keep showing connection lost banner
+            });
         }
       }
     }, POLL_INTERVAL);
@@ -290,7 +293,18 @@ export function TerminalApp() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [toggleCommandPalette, openSearchBar, closeCommandPalette, closeSearchBar, showDownload, showMarkdown, closeDownloadModal, closeMarkdownModal, codeViewerOpen, closeCodeViewer]);
+  }, [
+    toggleCommandPalette,
+    openSearchBar,
+    closeCommandPalette,
+    closeSearchBar,
+    showDownload,
+    showMarkdown,
+    closeDownloadModal,
+    closeMarkdownModal,
+    codeViewerOpen,
+    closeCodeViewer,
+  ]);
 
   const activeSession = activeId ? sessions.get(activeId) : null;
 
@@ -441,17 +455,11 @@ export function TerminalApp() {
       {connectionLost && (
         <div className={styles.connectionBanner} data-testid="connection-banner">
           <span>Connection lost — reconnecting…</span>
-          <button
-            onClick={() => window.location.reload()}
-            className={styles.connectionBannerBtn}
-          >
+          <button onClick={() => window.location.reload()} className={styles.connectionBannerBtn}>
             Reload
           </button>
         </div>
       )}
-
-      {/* ── Tunnel token banner ── */}
-      <TunnelBanner />
 
       {/* ── Search bar ── */}
       <SearchBar />

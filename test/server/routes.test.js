@@ -1502,7 +1502,7 @@ describe('Routes', () => {
         method: 'GET',
       });
       const data = JSON.parse(res.data);
-      assert.strictEqual(data.rootDir, path.resolve(tmpDir));
+      assert.strictEqual(fs.realpathSync(data.rootDir), fs.realpathSync(tmpDir));
     });
   });
 

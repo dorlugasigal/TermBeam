@@ -2,10 +2,8 @@ import { create } from 'zustand';
 
 export type TunnelState =
   | { kind: 'hidden' }
-  | { kind: 'expiring'; expiresIn: number; provider?: string }
-  | { kind: 'expired'; provider?: string }
-  | { kind: 'renewing'; url: string; code: string }
-  | { kind: 'renewed' }
+  | { kind: 'disconnected'; provider?: string }
+  | { kind: 'reconnecting' }
   | { kind: 'failed' };
 
 interface TunnelStore {

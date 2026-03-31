@@ -18,33 +18,9 @@
   background: #d32f2f;
 }
 
-.success {
-  background: #2e7d32;
-}
-
 .text {
   flex: 1;
   text-align: center;
-}
-
-.actionBtn {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  color: #fff;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0.25rem 0.65rem;
-  border-radius: 5px;
-  transition:
-    background 0.15s,
-    opacity 0.15s;
-  white-space: nowrap;
-  text-decoration: none;
-}
-
-.actionBtn:hover {
-  background: rgba(255, 255, 255, 0.35);
 }
 
 .dismiss {

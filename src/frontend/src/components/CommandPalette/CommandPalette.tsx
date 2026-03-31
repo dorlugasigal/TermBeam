@@ -379,7 +379,9 @@ export default function CommandPalette() {
       requestAnimationFrame(() => setMounted(true));
       // Refresh push status when palette opens
       import('@/services/pushSubscription').then(({ isPushSubscribed }) => {
-        isPushSubscribed().then(setPushActive).catch(() => {});
+        isPushSubscribed()
+          .then(setPushActive)
+          .catch(() => {});
       });
     } else {
       setMounted(false);

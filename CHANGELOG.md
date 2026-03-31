@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.18.1] - 2026-03-30
+
+- fix(server): track live PTY CWD and remove redundant tunnel renewal UI
+
 ## [1.18.0] - 2026-03-30
 
 - feat(tunnel): auth expiry detection, in-app renewal, and token monitoring
