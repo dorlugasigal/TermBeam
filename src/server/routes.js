@@ -595,7 +595,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
       return res.status(400).json({ error: 'Invalid dir parameter' });
     }
 
-    const rootDir = path.resolve(session.cwd);
+    const rootDir = path.resolve(sessions.getSessionCwd(req.params.id));
     const dir = path.resolve(rootDir, req.query.dir || '.');
 
     const MAX_ENTRIES = 1000;
@@ -666,7 +666,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
       depth = parsedDepth;
     }
     depth = Math.min(Math.max(depth, 1), MAX_DEPTH);
-    const rootDir = path.resolve(session.cwd);
+    const rootDir = path.resolve(sessions.getSessionCwd(req.params.id));
     let totalEntries = 0;
 
     function buildTree(dir, currentDepth) {
@@ -749,7 +749,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
       return res.status(400).json({ error: 'Missing file parameter' });
     }
 
-    const rootDir = path.resolve(session.cwd);
+    const rootDir = path.resolve(sessions.getSessionCwd(req.params.id));
     const filePath = path.resolve(rootDir, file);
 
     try {
@@ -780,7 +780,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
       return res.status(400).json({ error: 'Missing file parameter' });
     }
 
-    const rootDir = path.resolve(session.cwd);
+    const rootDir = path.resolve(sessions.getSessionCwd(req.params.id));
     const filePath = path.resolve(rootDir, file);
 
     try {
@@ -811,7 +811,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
       return res.status(400).json({ error: 'Missing file parameter' });
     }
 
-    const rootDir = path.resolve(session.cwd);
+    const rootDir = path.resolve(sessions.getSessionCwd(req.params.id));
     const filePath = path.resolve(rootDir, file);
 
     try {
@@ -849,7 +849,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
     if (!session) return res.status(404).json({ error: 'Session not found' });
 
     try {
-      const status = await getDetailedStatus(session.cwd);
+      const status = await getDetailedStatus(sessions.getSessionCwd(req.params.id));
       res.json(status);
     } catch (err) {
       log.warn(`Git status failed: ${err.message}`);
@@ -876,7 +876,11 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
       }
     }
     try {
-      const diff = await getFileDiff(session.cwd, file, { staged, untracked, context });
+      const diff = await getFileDiff(sessions.getSessionCwd(req.params.id), file, {
+        staged,
+        untracked,
+        context,
+      });
       res.json(diff);
     } catch (err) {
       log.warn(`Git diff failed: ${err.message}`);
@@ -894,7 +898,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
     }
 
     try {
-      const blame = await getFileBlame(session.cwd, file);
+      const blame = await getFileBlame(sessions.getSessionCwd(req.params.id), file);
       res.json(blame);
     } catch (err) {
       log.warn(`Git blame failed: ${err.message}`);
@@ -913,7 +917,10 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
     }
 
     try {
-      const logResult = await getGitLog(session.cwd, { limit, file: file || null });
+      const logResult = await getGitLog(sessions.getSessionCwd(req.params.id), {
+        limit,
+        file: file || null,
+      });
       res.json(logResult);
     } catch (err) {
       log.warn(`Git log failed: ${err.message}`);
@@ -991,69 +998,9 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
     });
   });
 
-  app.post('/api/tunnel/renew', apiRateLimit, auth.middleware, (_req, res) => {
-    const { spawn } = require('child_process');
-    const { findDevtunnel } = require('../tunnel');
-    const cmd = findDevtunnel() || 'devtunnel';
-    const proc = spawn(cmd, ['user', 'login', '-d'], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    let output = '';
-    let responded = false;
-
-    const timeout = setTimeout(() => {
-      if (!responded) {
-        responded = true;
-        proc.kill();
-        res.status(504).json({ error: 'Timed out waiting for device code' });
-      }
-    }, 15000);
-
-    function tryParse(data) {
-      if (responded || output.length > 10_000) return;
-      output += data;
-      // Entra: "open the page https://... and enter the code ABC123 to authenticate"
-      // GitHub: "Browse to https://... and enter the code: AB12-CD34"
-      const match =
-        output.match(/open the page (https:\/\/[^\s]+) and enter the code ([A-Z0-9]+)/i) ||
-        output.match(/Browse to (https:\/\/[^\s]+) and enter the code:?\s*([A-Z0-9-]+)/i);
-      if (match) {
-        responded = true;
-        clearTimeout(timeout);
-        // Stop reading output — we have what we need
-        proc.stdout.removeAllListeners('data');
-        proc.stderr.removeAllListeners('data');
-        res.json({
-          url: match[1],
-          code: match[2],
-        });
-      }
-    }
-
-    proc.stdout.on('data', (d) => tryParse(d.toString()));
-    proc.stderr.on('data', (d) => tryParse(d.toString()));
-
-    proc.on('close', (code) => {
-      clearTimeout(timeout);
-      if (!responded) {
-        responded = true;
-        if (code === 0) {
-          res.json({ ok: true, message: 'Already authenticated' });
-        } else {
-          res.status(500).json({ error: 'DevTunnel login failed' });
-        }
-      }
-    });
-
-    proc.on('error', (err) => {
-      clearTimeout(timeout);
-      if (!responded) {
-        responded = true;
-        res.status(500).json({ error: err.message });
-      }
-    });
-  });
+  // Tunnel renew endpoint removed — DevTunnel CLI auto-refreshes OAuth
+  // tokens. If auth truly expires, user must run "devtunnel user login" on
+  // the host machine; the watchdog auto-reconnects after re-auth.
 }
 
 function cleanupUploadedFiles() {

@@ -179,9 +179,9 @@ The following UI features are entirely client-side and introduce **no new server
 ### Tunnel Token Expiry
 
 - DevTunnel auth tokens expire periodically (a Microsoft-imposed limitation)
-- TermBeam detects token expiry and enters **auth-wait mode**, pausing tunnel operations until a fresh token is obtained
-- Users can renew the token in-app via a device code flow (`POST /api/tunnel/renew`), which returns a URL and one-time code to complete re-authentication
-- Once renewed, the tunnel reconnects automatically — no server restart required
+- The DevTunnel CLI handles token refresh automatically via OAuth refresh tokens
+- If the refresh token itself expires, TermBeam enters **auth-wait mode**, pausing tunnel operations until the user runs `devtunnel user login` on the host machine
+- Once re-authenticated, the watchdog reconnects the tunnel automatically — no server restart required
 
 ## Best Practices
 
