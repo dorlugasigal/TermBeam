@@ -25,8 +25,9 @@ https://github.com/user-attachments/assets/9dd4f3d7-f017-4314-9b3a-f6a5688e3671
 <table align="center">
   <tr>
     <td align="center"><img src="docs/assets/screenshots/mobile-session-hub.jpeg" alt="Session hub on mobile" width="250" /></td>
-    <td align="center"><img src="docs/assets/screenshots/mobile-terminal.jpeg" alt="Terminal on mobile" width="250" /></td>
-    <td align="center"><img src="docs/assets/screenshots/mobile-session-preview.jpeg" alt="Session preview on mobile" width="250" /></td>
+    <td align="center"><img src="docs/assets/screenshots/mobile-terminal.jpeg" alt="Terminal with touch bar on mobile" width="250" /></td>
+    <td align="center"><img src="docs/assets/screenshots/mobile-session-preview.jpeg" alt="File browser on mobile" width="250" /></td>
+    <td align="center"><img src="docs/assets/screenshots/mobile-command-palette.jpeg" alt="Command palette on mobile" width="250" /></td>
   </tr>
 </table>
 

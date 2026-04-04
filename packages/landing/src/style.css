@@ -564,7 +564,7 @@ code {
 
 .phone-frame {
   position: relative;
-  width: 220px;
+  width: 200px;
   background: #1a1a1f;
   border-radius: 28px;
   border: 3px solid rgba(255, 255, 255, 0.1);
@@ -588,7 +588,7 @@ code {
 }
 
 .phone-frame-center {
-  width: 240px;
+  width: 220px;
   transform: rotateY(0deg) rotateX(0deg) translateY(-10px);
   opacity: 1;
   z-index: 2;
@@ -1074,11 +1074,11 @@ code {
   }
 
   .phone-frame {
-    width: 170px;
+    width: 160px;
   }
 
   .phone-frame-center {
-    width: 190px;
+    width: 175px;
   }
 }
 
@@ -1104,10 +1104,11 @@ code {
 
   .phone-showcase {
     gap: 0.75rem;
+    flex-wrap: wrap;
   }
 
   .phone-frame {
-    width: 110px;
+    width: 140px;
     border-radius: 16px;
     border-width: 2px;
   }
@@ -1117,7 +1118,7 @@ code {
   }
 
   .phone-frame-center {
-    width: 130px;
+    width: 150px;
   }
 
   .phone-notch {
