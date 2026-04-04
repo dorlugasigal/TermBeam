@@ -41,7 +41,6 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   // Agent state
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [launching, setLaunching] = useState<string | null>(null);
-  const [showCustom, setShowCustom] = useState(true);
 
   const deriveNameFromCwd = useCallback(
     (dir: string) => {
@@ -74,9 +73,8 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
           setCwd(shellData.cwd);
           deriveNameFromCwd(shellData.cwd);
         }
-        // Agents — collapse custom section if agents are available
+        // Agents
         setAgents(agentData.agents);
-        if (agentData.agents.length > 0) setShowCustom(false);
       });
     }
   }, [newSessionModalOpen]);
@@ -89,7 +87,6 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     setInitialCommand('');
     setColor(SESSION_COLORS[0]);
     setBrowsing(false);
-    setShowCustom(false);
     setLaunching(null);
   }
 
@@ -238,20 +235,8 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                 Resume previous session →
               </button>
 
-              {/* Divider */}
-              <div className={styles.divider}>
-                <button
-                  type="button"
-                  className={styles.dividerBtn}
-                  onClick={() => setShowCustom(!showCustom)}
-                >
-                  {showCustom ? '▾ Custom Session' : '▸ Custom Session'}
-                </button>
-              </div>
-
-              {/* Custom session form (expandable) */}
-              {showCustom && (
-                <>
+              {/* Custom session form */}
+              <div>
                   <div className={styles.field}>
                     <label className={styles.label}>Name</label>
                     <input
@@ -332,8 +317,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                       Create
                     </button>
                   </div>
-                </>
-              )}
+                </div>
             </div>
           )}
         </Dialog.Content>
