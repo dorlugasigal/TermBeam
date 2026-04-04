@@ -186,6 +186,7 @@
   right: 0;
   display: flex;
   min-height: 0;
+  background: var(--bg);
 }
 
 .split {

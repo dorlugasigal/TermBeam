@@ -139,13 +139,31 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
           vp.style.overflow = 'hidden auto';
         }
       }
-      // Set container background to match terminal background so any sub-cell
-      // gap on the right edge (xterm sizes to integer columns) is invisible.
-      container.style.background = theme.background;
       try {
         fit.fit();
       } catch {
         // ignore
+      }
+
+      // Stretch xterm-screen and row divs to fill 100% width.
+      // xterm.js sizes these to cols×cellWidth, leaving a sub-cell gap on the
+      // right. Setting width via JS overrides the inline styles xterm applies.
+      const xtScreen = container.querySelector('.xterm-screen') as HTMLElement | null;
+      if (xtScreen) xtScreen.style.width = '100%';
+      const xtRows = container.querySelector('.xterm-rows') as HTMLElement | null;
+      if (xtRows) {
+        xtRows.style.width = '100%';
+        // Also observe row mutations to fix newly-added rows
+        const rowObs = new MutationObserver(() => {
+          for (const child of xtRows.children) {
+            (child as HTMLElement).style.width = '100%';
+          }
+        });
+        rowObs.observe(xtRows, { childList: true });
+        // Fix existing rows
+        for (const child of xtRows.children) {
+          (child as HTMLElement).style.width = '100%';
+        }
       }
     };
 
@@ -283,10 +301,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
   // Apply theme changes
   useEffect(() => {
     if (!termRef.current) return;
-    const t = getTerminalTheme(themeId);
-    termRef.current.options.theme = t;
-    // Keep container background in sync so the sub-cell gap stays invisible
-    if (terminalRef.current) terminalRef.current.style.background = t.background;
+    termRef.current.options.theme = getTerminalTheme(themeId);
   }, [themeId]);
 
   // Apply font size changes
