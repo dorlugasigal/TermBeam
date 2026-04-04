@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.19.2] - 2026-04-04
+
+- fix(test): wait for shell options to load in E2E test
+
 ## [1.19.1] - 2026-04-04
 
 - fix(api): allow OpenCode session IDs in resume-command validation
