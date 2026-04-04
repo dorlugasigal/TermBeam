@@ -167,7 +167,8 @@
   border-color: var(--border, #555);
 }
 
-.themeRowActive {
+.themeRowActive,
+.themeRowActive:hover {
   border-color: var(--accent, #58a6ff);
 }
 
