@@ -31,6 +31,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const customFitRef = useRef<() => void>(() => {});
   const searchRef = useRef<SearchAddon | null>(null);
 
   const [terminal, setTerminal] = useState<Terminal | null>(null);
@@ -39,13 +40,51 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
 
   const themeId = useThemeStore((s) => s.themeId);
 
+  const isMobile =
+    typeof window !== 'undefined' &&
+    ('ontouchstart' in window || navigator.maxTouchPoints > 0) &&
+    window.innerWidth < 768;
+
   const fit = useCallback(() => {
     try {
-      fitRef.current?.fit();
+      if (!isMobile) {
+        fitRef.current?.fit();
+        return;
+      }
+      // On mobile, FitAddon subtracts scrollBarWidth from available width,
+      // resulting in fewer columns than actually fit on screen. We bypass
+      // this by calculating dimensions using the full container width.
+      const term = termRef.current;
+      const fa = fitRef.current;
+      if (!term || !fa) return;
+      const core = (term as any)._core;
+      if (!core) { fa.fit(); return; }
+      const dims = core._renderService?.dimensions;
+      if (!dims || dims.css.cell.width === 0 || dims.css.cell.height === 0) {
+        fa.fit();
+        return;
+      }
+      const el = term.element;
+      if (!el?.parentElement) { fa.fit(); return; }
+      const parentStyle = window.getComputedStyle(el.parentElement);
+      const parentH = parseInt(parentStyle.height);
+      const parentW = Math.max(0, parseInt(parentStyle.width));
+      const elStyle = window.getComputedStyle(el);
+      const availH = parentH - parseInt(elStyle.paddingTop) - parseInt(elStyle.paddingBottom);
+      const availW = parentW - parseInt(elStyle.paddingLeft) - parseInt(elStyle.paddingRight);
+      const cols = Math.max(2, Math.floor(availW / dims.css.cell.width));
+      const rows = Math.max(1, Math.floor(availH / dims.css.cell.height));
+      if (term.rows !== rows || term.cols !== cols) {
+        core._renderService.clear();
+        term.resize(cols, rows);
+      }
     } catch {
       // Container may not be visible yet
     }
-  }, []);
+  }, [isMobile]);
+
+  // Keep a ref so callbacks created inside useEffect can call the latest fit
+  customFitRef.current = fit;
 
   const write = useCallback((data: string) => {
     termRef.current?.write(data);
@@ -76,11 +115,11 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       theme,
     });
 
-    const fit = new FitAddon();
+    const fitAddonInstance = new FitAddon();
     const search = new SearchAddon();
     const webLinks = new WebLinksAddon();
 
-    term.loadAddon(fit);
+    term.loadAddon(fitAddonInstance);
     term.loadAddon(search);
     term.loadAddon(webLinks);
 
@@ -129,18 +168,8 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
           // Canvas not supported — DOM renderer fallback (default)
         }
       }
-      // On mobile, hide the xterm scrollbar so the FitAddon uses the full
-      // viewport width. The FitAddon measures scrollBarWidth via DOM
-      // (offsetWidth - clientWidth), so we must set the style BEFORE fit().
-      if (isMobileDevice) {
-        const vp = container.querySelector('.xterm-viewport') as HTMLElement | null;
-        if (vp) {
-          vp.style.scrollbarWidth = 'none';
-          vp.style.overflow = 'hidden auto';
-        }
-      }
       try {
-        fit.fit();
+        fit();
       } catch {
         // ignore
       }
@@ -167,6 +196,10 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       }
     };
 
+    termRef.current = term;
+    fitRef.current = fitAddonInstance;
+    searchRef.current = search;
+
     let initRo: ResizeObserver | null = null;
     if (container.offsetWidth > 0 && container.offsetHeight > 0) {
       openTerminal();
@@ -181,11 +214,8 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       initRo.observe(container);
     }
 
-    termRef.current = term;
-    fitRef.current = fit;
-    searchRef.current = search;
     setTerminal(term);
-    setFitAddon(fit);
+    setFitAddon(fitAddonInstance);
     setSearchAddon(search);
 
     // Load NerdFont asynchronously
@@ -201,7 +231,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
         if (termRef.current) {
           termRef.current.options.fontFamily = FONT_FAMILY;
           try {
-            fitRef.current?.fit();
+            customFitRef.current();
           } catch {
             // ignore
           }
@@ -233,7 +263,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       clearTimeout(roTimer);
       roTimer = setTimeout(() => {
         try {
-          fitRef.current?.fit();
+          customFitRef.current();
         } catch {
           // ignore
         }
@@ -264,7 +294,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       clearTimeout(timer);
       timer = setTimeout(() => {
         try {
-          fitRef.current?.fit();
+          customFitRef.current();
         } catch {
           // ignore
         }
@@ -285,7 +315,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     const onChange = () => {
       timer = setTimeout(() => {
         try {
-          fitRef.current?.fit();
+          customFitRef.current();
         } catch {
           // ignore
         }
