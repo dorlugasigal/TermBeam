@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.19.3] - 2026-04-04
+
+- fix(security): prevent path traversal in file endpoints and fix preview redirect loop
+
 ## [1.19.2] - 2026-04-04
 
 - fix(test): wait for shell options to load in E2E test
