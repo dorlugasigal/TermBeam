@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.19.1] - 2026-04-04
+
+- fix(api): allow OpenCode session IDs in resume-command validation
+- fix(ui): mobile terminal uses full screen width — custom fit bypasses scrollbar
+- fix(ui): stretch xterm screen/rows to full width via JS + MutationObserver
+- fix(ui): eliminate terminal right-edge gap via container background sync
+- fix(ui): override inline width on xterm row divs for full-width terminal
+- fix(ui): stretch xterm-screen to fill full viewport width
+- fix(ui): terminal uses full width on mobile via JS scrollbar override
+- fix(ui): terminal fills full width on mobile + update E2E theme list
+- fix(ui): theme selection highlights immediately on click
+- refactor(ui): remove retro-amber and lavender-dream themes
+- feat(ui): add 10 new themes — dark-teal, blue-mist, cyan-punch, earth-tone, crimson-night, golden-night, red-alert, lavender-dream, espresso, forest-floor
+- feat(agents): add OpenCode session support + fix theme palette colors
+- feat(ui): theme palette preview + PR review process docs
+- fix(security): address remaining review comments — input validation, async safety, a11y
+
 ## [1.19.0] - 2026-04-04
 
 - feat(agents): add AI agent launch, resume browser, and session detection (#176)
