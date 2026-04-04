@@ -77,6 +77,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
         setAgents(agentData.agents);
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps — intentionally runs only on modal open/close
   }, [newSessionModalOpen]);
 
   function resetForm() {

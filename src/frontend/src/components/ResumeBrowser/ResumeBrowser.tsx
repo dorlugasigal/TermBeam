@@ -107,7 +107,7 @@ export default function ResumeBrowser() {
   }, [sessions, filter, folderFilter, timeRange]);
 
   async function handleResume(session: AgentSession) {
-    setResuming(session.id);
+    setResuming(`${session.agent}-${session.id}`);
     try {
       const { command } = await getResumeCommand(session.agent, session.id);
       const store = useSessionStore.getState();
@@ -279,7 +279,7 @@ export default function ResumeBrowser() {
                 <span className={styles.cardSummary}>
                   {session.summary || 'Untitled session'}
                 </span>
-                {resuming === session.id && <span className={styles.spinner}>⟳</span>}
+                {resuming === `${session.agent}-${session.id}` && <span className={styles.spinner}>⟳</span>}
               </div>
               <div className={styles.cardMeta}>
                 {session.cwd && <span className={styles.metaItem}>{folderName(session.cwd)}</span>}

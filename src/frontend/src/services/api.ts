@@ -118,9 +118,11 @@ export interface AgentSession {
 export async function fetchAgentSessions(
   limit = 100,
   search?: string,
+  agent?: string,
 ): Promise<{ sessions: AgentSession[] }> {
   const params = new URLSearchParams({ limit: String(limit) });
   if (search) params.set('search', search);
+  if (agent) params.set('agent', agent);
   const res = await fetchWithTimeout(`${BASE}/api/agent-sessions?${params}`, {
     credentials: 'same-origin',
   });

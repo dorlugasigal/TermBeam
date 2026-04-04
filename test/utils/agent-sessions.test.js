@@ -30,7 +30,6 @@ describe('Agent Sessions', () => {
 
     it('returns an empty array when better-sqlite3 is not available', () => {
       // Simulate missing better-sqlite3 by clearing its cache entry
-      const origCache = { ...require.cache };
       try {
         // Force re-require with a mock that throws
         const modPath = require.resolve('../../src/utils/agent-sessions');
@@ -155,14 +154,17 @@ describe('Agent Sessions', () => {
   describe('getResumeCommand()', () => {
     it('returns correct command for copilot', () => {
       const { getResumeCommand } = load();
-      const cmd = getResumeCommand({ agent: 'copilot', id: 'abc-123' });
-      assert.strictEqual(cmd, 'copilot --resume=abc-123');
+      const cmd = getResumeCommand({
+        agent: 'copilot',
+        id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      });
+      assert.strictEqual(cmd, 'copilot --resume=a1b2c3d4-e5f6-7890-abcd-ef1234567890');
     });
 
     it('returns correct command for claude', () => {
       const { getResumeCommand } = load();
-      const cmd = getResumeCommand({ agent: 'claude', id: 'session-456' });
-      assert.strictEqual(cmd, 'claude --resume session-456');
+      const cmd = getResumeCommand({ agent: 'claude', id: 'aabbccdd-1122-3344-5566-778899aabbcc' });
+      assert.strictEqual(cmd, 'claude --resume aabbccdd-1122-3344-5566-778899aabbcc');
     });
 
     it('returns null for unknown agent', () => {

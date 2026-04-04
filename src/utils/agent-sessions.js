@@ -67,7 +67,11 @@ function readClaudeSessions(limit = 50) {
 
     for (const projDir of projectDirs) {
       const fullProjDir = path.join(baseDir, projDir);
-      if (!fs.statSync(fullProjDir).isDirectory()) continue;
+      try {
+        if (!fs.statSync(fullProjDir).isDirectory()) continue;
+      } catch {
+        continue; // Directory may have been removed
+      }
 
       // Decode CWD from directory name: -Users-foo-bar → /Users/foo/bar
       const cwd = projDir.replace(/^-/, '/').replace(/-/g, '/');
@@ -86,8 +90,17 @@ function readClaudeSessions(limit = 50) {
         try {
           const sessionId = path.basename(fileInfo.file, '.jsonl');
 
-          // Read file and split into lines
-          const content = fs.readFileSync(fileInfo.path, 'utf8');
+          // Read file — cap at 100KB to avoid blocking the event loop on large JSONL files
+          let content;
+          if (fileInfo.size > 100_000) {
+            const fd = fs.openSync(fileInfo.path, 'r');
+            const buf = Buffer.alloc(100_000);
+            const bytesRead = fs.readSync(fd, buf, 0, 100_000, 0);
+            fs.closeSync(fd);
+            content = buf.toString('utf8', 0, bytesRead);
+          } else {
+            content = fs.readFileSync(fileInfo.path, 'utf8');
+          }
           const rawLines = content.split('\n');
 
           let cwdFromFile = cwd;
@@ -197,6 +210,9 @@ async function getAgentSessions({ limit = 100, agent = null, search = null } = {
  * Build the resume command for a given agent session.
  */
 function getResumeCommand(session) {
+  // Validate session ID to prevent command injection
+  if (!/^[a-f0-9-]{8,}$/i.test(session.id)) return null;
+
   switch (session.agent) {
     case 'copilot':
       return `copilot --resume=${session.id}`;

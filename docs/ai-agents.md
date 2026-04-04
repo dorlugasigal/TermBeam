@@ -12,7 +12,7 @@ TermBeam can detect AI coding agents installed on your machine and launch them w
 | **Aider**               | `aider`      | [aider.chat](https://aider.chat)                                     |
 | **Codex CLI**           | `codex`      | [github.com/openai/codex](https://github.com/openai/codex)           |
 
-TermBeam auto-detects which agents are available in your PATH on server start.
+TermBeam auto-detects which agents are available in your PATH on first request, with results cached for 60 seconds.
 
 ## Usage
 

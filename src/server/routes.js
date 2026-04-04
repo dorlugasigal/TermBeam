@@ -396,6 +396,14 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
     auth.middleware,
     (req, res) => {
       const { agent, id } = req.params;
+      // Validate agent is a known value
+      if (!['copilot', 'claude'].includes(agent)) {
+        return res.status(400).json({ error: 'Unknown agent' });
+      }
+      // Validate id is a UUID-like string
+      if (!/^[a-f0-9-]{8,}$/i.test(id)) {
+        return res.status(400).json({ error: 'Invalid session ID' });
+      }
       const command = getResumeCommand({ agent, id });
       if (!command) return res.status(400).json({ error: 'Unknown agent' });
       res.json({ command });
