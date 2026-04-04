@@ -74,8 +74,9 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
           setCwd(shellData.cwd);
           deriveNameFromCwd(shellData.cwd);
         }
-        // Agents
+        // Agents — auto-expand custom section if no agents detected
         setAgents(agentData.agents);
+        if (agentData.agents.length === 0) setShowCustom(true);
       });
     }
   }, [newSessionModalOpen]);
