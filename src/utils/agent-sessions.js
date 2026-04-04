@@ -3,20 +3,17 @@ const path = require('path');
 const os = require('os');
 const log = require('./logger');
 
-// Try to load better-sqlite3 (optional dependency)
-let Database;
-try {
-  Database = require('better-sqlite3');
-} catch {
-  log.debug('better-sqlite3 not available — Copilot session reading disabled');
-}
-
 /**
  * Read Copilot sessions from SQLite store.
  * Returns array of { id, agent, summary, cwd, repo, branch, updatedAt, turnCount }
  */
 function readCopilotSessions(limit = 50) {
-  if (!Database) return [];
+  let Database;
+  try {
+    Database = require('better-sqlite3');
+  } catch {
+    return [];
+  }
   const dbPath = path.join(os.homedir(), '.copilot', 'session-store.db');
   if (!fs.existsSync(dbPath)) return [];
 
@@ -89,7 +86,7 @@ function readClaudeSessions(limit = 50) {
         try {
           const sessionId = path.basename(fileInfo.file, '.jsonl');
 
-          // Read line-by-line to avoid loading huge files into memory
+          // Read file and split into lines
           const content = fs.readFileSync(fileInfo.path, 'utf8');
           const rawLines = content.split('\n');
 

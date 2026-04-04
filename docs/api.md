@@ -1108,7 +1108,7 @@ Returns past sessions from Copilot (SQLite) and Claude Code (JSONL) for resume.
 }
 ```
 
-Sessions with zero user turns are excluded. Requires `better-sqlite3` for Copilot sessions (optional dependency).
+Sessions with zero user turns are excluded. Copilot session reading requires `better-sqlite3` (listed in `optionalDependencies` — installs automatically when native build tools are available, gracefully skipped otherwise).
 
 ### Get Resume Command
 

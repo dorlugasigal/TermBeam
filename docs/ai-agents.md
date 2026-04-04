@@ -18,12 +18,11 @@ TermBeam auto-detects which agents are available in your PATH on server start.
 
 ### From the UI
 
-1. Open the **Command Palette** (`Ctrl+K` or tap the ⌘ button)
-2. Select **"Launch AI Agent"**
-3. Tap the agent you want to start
-4. A new terminal session opens with the agent running
+1. Open the **New Session** modal (tap **"+ New Session"**)
+2. Choose your working directory
+3. Tap an AI agent to launch — a new terminal session opens with the agent running
 
-You can also find the launch button in the **Sessions Hub** (home screen).
+To resume a previous agent session, open the **Command Palette** (`Ctrl+K` or tap the ⌘ button) and select **"Resume agent session"**.
 
 ### How It Works
 
@@ -49,7 +48,7 @@ Returns detected AI agents:
       "name": "GitHub Copilot",
       "cmd": "copilot",
       "args": [],
-      "icon": "🐙",
+      "icon": "copilot",
       "version": "1.2.3"
     },
     {
@@ -57,7 +56,7 @@ Returns detected AI agents:
       "name": "Claude Code",
       "cmd": "claude",
       "args": [],
-      "icon": "🟣",
+      "icon": "claude",
       "version": "2.0.0"
     }
   ]
@@ -71,14 +70,11 @@ Results are cached for 60 seconds. The endpoint requires authentication.
 If no agents are detected, install one:
 
 ```bash
-# GitHub Copilot (standalone)
+# Claude Code
 npm install -g @anthropic-ai/claude-code
 
 # GitHub Copilot (via gh CLI)
 gh extension install github/gh-copilot
-
-# Claude Code
-npm install -g @anthropic-ai/claude-code
 
 # Aider
 pip install aider-chat

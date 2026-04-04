@@ -97,7 +97,7 @@ async function detectAgents() {
   const hasCopilot = agents.some((a) => a.id === 'copilot');
   const deduped = hasCopilot ? agents.filter((a) => a.id !== 'gh-copilot') : agents;
 
-  log.info(
+  log.debug(
     `Detected ${deduped.length} AI agent(s): ${deduped.map((a) => a.name).join(', ') || 'none'}`,
   );
   return deduped;

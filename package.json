@@ -70,7 +70,6 @@
     ]
   },
   "dependencies": {
-    "better-sqlite3": "^12.8.0",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
@@ -78,6 +77,9 @@
     "qrcode": "^1.5.4",
     "web-push": "^3.6.7",
     "ws": "^8.19.0"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^12.8.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.3",

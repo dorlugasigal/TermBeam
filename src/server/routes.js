@@ -378,7 +378,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
   // Agent session history (for resume)
   app.get('/api/agent-sessions', apiRateLimit, auth.middleware, async (req, res) => {
     try {
-      const limit = Math.min(Math.max(parseInt(req.query.limit) || 100, 1), 500);
+      const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 500);
       const agent = req.query.agent || null;
       const search = req.query.search || null;
       const sessions = await getAgentSessions({ limit, agent, search });

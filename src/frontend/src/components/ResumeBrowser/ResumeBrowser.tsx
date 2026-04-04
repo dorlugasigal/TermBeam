@@ -34,16 +34,24 @@ export default function ResumeBrowser() {
   const [resuming, setResuming] = useState<string | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
+  const requestId = useRef(0);
 
   const loadSessions = useCallback(async (searchText?: string) => {
+    const thisRequest = ++requestId.current;
     setLoading(true);
     try {
       const { sessions } = await fetchAgentSessions(100, searchText || undefined);
-      setSessions(sessions);
+      if (thisRequest === requestId.current) {
+        setSessions(sessions);
+      }
     } catch {
-      setSessions([]);
+      if (thisRequest === requestId.current) {
+        setSessions([]);
+      }
     } finally {
-      setLoading(false);
+      if (thisRequest === requestId.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -58,6 +66,9 @@ export default function ResumeBrowser() {
       setTimeRange('all');
       setFolderFilter('all');
     }
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
   }, [resumeBrowserOpen, loadSessions]);
 
   function handleSearchChange(value: string) {
@@ -149,7 +160,7 @@ export default function ResumeBrowser() {
     <div className={styles.page}>
       {/* Header */}
       <div className={styles.header}>
-        <button className={styles.backBtn} onClick={closeResumeBrowser}>
+        <button className={styles.backBtn} onClick={closeResumeBrowser} aria-label="Go back" type="button">
           ←
         </button>
         <h1 className={styles.title}>Resume Session</h1>
@@ -168,6 +179,7 @@ export default function ResumeBrowser() {
         {search && (
           <button
             className={styles.clearBtn}
+            aria-label="Clear search"
             onClick={() => {
               setSearch('');
               loadSessions();

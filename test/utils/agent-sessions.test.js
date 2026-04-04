@@ -69,9 +69,10 @@ describe('Agent Sessions', () => {
   });
 
   describe('readClaudeSessions()', () => {
+    // Integration test: reads the real filesystem. Returns [] on machines without
+    // Claude agent data installed — this is expected and the test still passes.
     it('returns an empty array when .claude/projects does not exist', () => {
       const { readClaudeSessions } = load();
-      // Unless the test machine has Claude sessions, this should return an array
       const result = readClaudeSessions();
       assert.ok(Array.isArray(result), 'Should return an array');
     });
