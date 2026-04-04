@@ -401,7 +401,7 @@ test.describe('Theme System', () => {
     expect(hubTheme).toBe('dracula');
   });
 
-  test('all 30 themes can be applied without errors', async ({ page }) => {
+  test('all 36 themes can be applied without errors', async ({ page }) => {
     const themes = [
       'dark',
       'light',
@@ -425,7 +425,6 @@ test.describe('Theme System', () => {
       'sunset-glow',
       'synthwave',
       'aurora',
-      'retro-amber',
       'deep-ocean',
       'neon-noir',
       'frost-byte',
@@ -433,6 +432,15 @@ test.describe('Theme System', () => {
       'radical',
       'material-ocean',
       'sakura',
+      'dark-teal',
+      'blue-mist',
+      'cyan-punch',
+      'earth-tone',
+      'crimson-night',
+      'golden-night',
+      'red-alert',
+      'espresso',
+      'forest-floor',
     ];
 
     await openTerminalWithNewSession(page);

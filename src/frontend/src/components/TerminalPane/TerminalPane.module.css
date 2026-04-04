@@ -26,6 +26,19 @@
   pointer-events: none;
 }
 
+/* Hide xterm's built-in scrollbar on mobile — touch scrolling works without
+   it, and the FitAddon subtracts scrollBarWidth (~14px) from the available
+   width, leaving a visible gap on the right edge of the terminal. */
+@media (max-width: 640px) {
+  .terminalContainer :global(.xterm-viewport) {
+    scrollbar-width: none;
+  }
+  .terminalContainer :global(.xterm-viewport)::-webkit-scrollbar {
+    width: 0;
+    display: none;
+  }
+}
+
 .scrollToBottom {
   position: absolute;
   bottom: 12px;
