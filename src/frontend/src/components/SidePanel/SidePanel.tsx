@@ -1,33 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Terminal } from '@xterm/xterm';
 import type { ManagedSession } from '@/stores/sessionStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
 import { fetchVersion, deleteSession } from '@/services/api';
 import { FileBrowser } from '@/components/FileBrowser/FileBrowser';
 import styles from './SidePanel.module.css';
-
-function getTerminalPreview(term: Terminal | null): string {
-  if (!term) return '';
-  const buf = term.buffer.active;
-  const totalRows = buf.length;
-  let lastNonEmpty = -1;
-  for (let i = totalRows - 1; i >= 0; i--) {
-    const line = buf.getLine(i);
-    if (line && line.translateToString(true).trim() !== '') {
-      lastNonEmpty = i;
-      break;
-    }
-  }
-  if (lastNonEmpty < 0) return '';
-  const start = Math.max(0, lastNonEmpty - 5);
-  const lines: string[] = [];
-  for (let i = start; i <= lastNonEmpty; i++) {
-    const line = buf.getLine(i);
-    if (line) lines.push(line.translateToString(true));
-  }
-  return lines.join('\n');
-}
 
 function getActivityLabel(ts: string | number | undefined): string {
   if (!ts) return '';
@@ -189,7 +166,6 @@ export function SidePanel() {
             {/* Session list */}
             <div className={styles.list} data-testid="side-panel-list">
               {orderedSessions.map((session) => {
-                const preview = getTerminalPreview(session.term);
                 const activity = getActivityLabel(session.lastActivity);
                 const git = session.git;
 
@@ -260,15 +236,6 @@ export function SidePanel() {
                         )}
                       </div>
                     )}
-
-                    {/* Terminal preview */}
-                    {preview ? (
-                      <div className={styles.cardPreview}>{preview}</div>
-                    ) : (
-                      <div className={`${styles.cardPreview} ${styles.cardPreviewEmpty}`}>
-                        No output yet
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -285,6 +252,15 @@ export function SidePanel() {
                   }}
                 >
                   + New Session
+                </button>
+                <button
+                  className={styles.footerBtn}
+                  onClick={() => {
+                    useUIStore.getState().openResumeBrowser();
+                    animateClose();
+                  }}
+                >
+                  ↺ Resume
                 </button>
               </div>
             </div>

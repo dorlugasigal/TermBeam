@@ -70,6 +70,7 @@
     ]
   },
   "dependencies": {
+    "better-sqlite3": "^12.8.0",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",

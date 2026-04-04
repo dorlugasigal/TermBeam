@@ -1,0 +1,19 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.dot {
+  border-radius: 50%;
+}
+
+.sm .dot {
+  width: 8px;
+  height: 8px;
+}
+
+.md .dot {
+  width: 10px;
+  height: 10px;
+}

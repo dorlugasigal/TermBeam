@@ -1044,6 +1044,88 @@ Returned when the upstream service does not respond within 10 seconds.
 
 ---
 
+## AI Agents API
+
+### List Detected Agents
+
+```
+GET /api/agents
+```
+
+Returns AI coding agents detected in the server's PATH.
+
+**Response:**
+
+```json
+{
+  "agents": [
+    {
+      "id": "copilot",
+      "name": "GitHub Copilot",
+      "cmd": "copilot",
+      "args": [],
+      "icon": "copilot",
+      "version": "1.2.3"
+    }
+  ]
+}
+```
+
+Results are cached for 60 seconds. If both `copilot` and `gh copilot` are available, only the standalone `copilot` is returned.
+
+### List Past Agent Sessions
+
+```
+GET /api/agent-sessions?limit=100&agent=copilot&search=auth
+```
+
+Returns past sessions from Copilot (SQLite) and Claude Code (JSONL) for resume.
+
+| Parameter | Default | Description                            |
+| --------- | ------- | -------------------------------------- |
+| `limit`   | `100`   | Max sessions to return (1–500)         |
+| `agent`   | all     | Filter by agent: `copilot` or `claude` |
+| `search`  | —       | Search in summary, CWD, repo, branch   |
+
+**Response:**
+
+```json
+{
+  "sessions": [
+    {
+      "id": "35b1faca-...",
+      "agent": "copilot",
+      "agentName": "GitHub Copilot",
+      "agentIcon": "copilot",
+      "summary": "Review Copilot Session Portal",
+      "cwd": "/Users/dev/projects/termbeam",
+      "repo": "user/repo",
+      "branch": "main",
+      "updatedAt": "2026-04-04T10:11:01.609Z",
+      "turnCount": 23
+    }
+  ]
+}
+```
+
+Sessions with zero user turns are excluded. Requires `better-sqlite3` for Copilot sessions (optional dependency).
+
+### Get Resume Command
+
+```
+GET /api/agent-sessions/:agent/:id/resume-command
+```
+
+Returns the CLI command to resume a specific agent session.
+
+**Response:**
+
+```json
+{ "command": "copilot --resume=35b1faca-..." }
+```
+
+---
+
 ## WebSocket API
 
 Connect to `ws://host:port/ws`.
