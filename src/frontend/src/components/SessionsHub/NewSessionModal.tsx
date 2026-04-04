@@ -41,7 +41,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   // Agent state
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [launching, setLaunching] = useState<string | null>(null);
-  const [showCustom, setShowCustom] = useState(false);
+  const [showCustom, setShowCustom] = useState(true);
 
   const deriveNameFromCwd = useCallback(
     (dir: string) => {
@@ -74,9 +74,9 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
           setCwd(shellData.cwd);
           deriveNameFromCwd(shellData.cwd);
         }
-        // Agents — auto-expand custom section if no agents detected
+        // Agents — collapse custom section if agents are available
         setAgents(agentData.agents);
-        if (agentData.agents.length === 0) setShowCustom(true);
+        if (agentData.agents.length > 0) setShowCustom(false);
       });
     }
   }, [newSessionModalOpen]);
