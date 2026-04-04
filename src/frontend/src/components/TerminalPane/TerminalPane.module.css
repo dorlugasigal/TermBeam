@@ -39,6 +39,14 @@
   }
 }
 
+/* xterm-screen is sized to cols×cellWidth, leaving a sub-cell-width gap on
+   the right. Stretch screen and rows to fill the viewport so the terminal
+   background covers the full width. Text still renders at integer columns. */
+.terminalContainer :global(.xterm-screen),
+.terminalContainer :global(.xterm-rows) {
+  width: 100% !important;
+}
+
 .scrollToBottom {
   position: absolute;
   bottom: 12px;
