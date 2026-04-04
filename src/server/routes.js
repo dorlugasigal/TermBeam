@@ -400,8 +400,8 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
       if (!['copilot', 'claude', 'opencode'].includes(agent)) {
         return res.status(400).json({ error: 'Unknown agent' });
       }
-      // Validate id is a UUID-like string
-      if (!/^[a-f0-9-]{8,}$/i.test(id)) {
+      // Validate id: UUID (copilot/claude) or ses_xxx (opencode)
+      if (!/^[a-z0-9_-]{8,}$/i.test(id)) {
         return res.status(400).json({ error: 'Invalid session ID' });
       }
       const command = getResumeCommand({ agent, id });
