@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.19.0] - 2026-04-04
+
+- feat(agents): add AI agent launch, resume browser, and session detection (#176)
+- chore(ci): bump davelosert/vitest-coverage-report-action from 2.9.3 to 2.10.0 (#173)
+- chore(ci): bump actions/deploy-pages from 4.0.5 to 5.0.0 (#172)
+- chore(ci): bump actions/configure-pages from 5.0.0 to 6.0.0 (#171)
+- chore(ci): bump github/codeql-action from 4.34.1 to 4.35.1 (#175)
+- chore(deps): bump express-rate-limit from 8.3.1 to 8.3.2 (#174)
+
 ## [1.18.1] - 2026-03-30
 
 - fix(server): track live PTY CWD and remove redundant tunnel renewal UI

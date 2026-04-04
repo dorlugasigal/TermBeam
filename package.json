@@ -1,6 +1,6 @@
 {
   "name": "termbeam",
-  "version": "1.18.1",
+  "version": "1.19.0",
   "description": "Beam your terminal to any device — mobile-optimized web terminal with multi-session support",
   "main": "src/server/index.js",
   "bin": {
