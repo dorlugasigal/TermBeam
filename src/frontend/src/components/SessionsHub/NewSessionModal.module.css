@@ -178,6 +178,122 @@
   cursor: not-allowed;
 }
 
+.agentSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.agentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.5rem;
+}
+
+.agentCard {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--surface-hover, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-align: left;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+  min-height: 44px;
+  position: relative;
+}
+
+.agentCard:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--surface-hover, rgba(255, 255, 255, 0.08));
+}
+
+.agentCard:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.agentCard:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.agentIcon {
+  font-size: 1.2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.agentName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentSpinner {
+  font-size: 1rem;
+  color: var(--accent);
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 0.25rem 0;
+}
+
+.dividerBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0.3rem 0;
+  font-family: inherit;
+  transition: color 0.15s;
+}
+
+.dividerBtn:hover {
+  color: var(--text);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Resume link */
+
+.resumeLink {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.3rem 0;
+  font-family: inherit;
+  text-align: left;
+  transition: opacity 0.15s;
+}
+
+.resumeLink:hover {
+  opacity: 0.8;
+}
+
 @media (pointer: coarse) {
   .content {
     top: 30%;

@@ -9,6 +9,7 @@ import UpdateBanner from '@/components/common/UpdateBanner';
 import TunnelBanner from '@/components/common/TunnelBanner';
 import SessionCard from './SessionCard';
 import NewSessionModal from './NewSessionModal';
+import ResumeBrowser from '@/components/ResumeBrowser/ResumeBrowser';
 import styles from './SessionsHub.module.css';
 
 const POLL_INTERVAL = 3000;
@@ -76,7 +77,7 @@ export default function SessionsHub() {
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const themeBtnRef = useRef<HTMLButtonElement>(null);
   const themePanelRef = useRef<HTMLDivElement>(null);
-  const { openNewSessionModal } = useUIStore();
+  const { openNewSessionModal, openResumeBrowser } = useUIStore();
   const { themeId, setTheme } = useThemeStore();
 
   const loadSessions = useCallback(async () => {
@@ -266,16 +267,26 @@ export default function SessionsHub() {
         )}
       </main>
 
-      <button
-        className={styles.newSessionBtn}
-        onClick={openNewSessionModal}
-        aria-label="New session"
-        data-testid="hub-new-session-btn"
-      >
-        + New Session
-      </button>
+      <div className={styles.hubFooter}>
+        <button
+          className={styles.newSessionBtn}
+          onClick={openNewSessionModal}
+          aria-label="New session"
+          data-testid="hub-new-session-btn"
+        >
+          + New Session
+        </button>
+        <button
+          className={styles.resumeBtn}
+          onClick={openResumeBrowser}
+          aria-label="Resume session"
+        >
+          ↺ Resume
+        </button>
+      </div>
 
       <NewSessionModal onCreated={navigateToSession} />
+      <ResumeBrowser />
     </div>
   );
 }

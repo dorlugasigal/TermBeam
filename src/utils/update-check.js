@@ -78,6 +78,16 @@ function normalizeVersion(version) {
  * Returns false if either version cannot be parsed.
  */
 function isNewerVersion(current, latest) {
+  // Dev builds (e.g. 1.18.1-dev+dirty) of the same base version are running
+  // from source — never prompt to "update" to the same stable release.
+  if (isDevBuild(current)) {
+    const cur = normalizeVersion(current);
+    const lat = normalizeVersion(latest);
+    if (!cur || !lat) return false;
+    const sameBase = cur[0] === lat[0] && cur[1] === lat[1] && cur[2] === lat[2];
+    if (sameBase) return false;
+    // Different base version — fall through to normal comparison
+  }
   const cur = normalizeVersion(current);
   const lat = normalizeVersion(latest);
   if (!cur || !lat) return false;
@@ -102,6 +112,15 @@ function isPreRelease(version) {
   const plusIdx = v.indexOf('+');
   if (plusIdx !== -1) v = v.slice(0, plusIdx);
   return v.includes('-');
+}
+
+/**
+ * Check if a version is a local dev build (e.g. "1.18.1-dev+dirty", "1.18.1-dev.3+abcdef").
+ * Dev builds should never trigger update prompts — they're running from source.
+ */
+function isDevBuild(version) {
+  if (typeof version !== 'string') return false;
+  return /-(dev|dirty)/.test(version) || /\+(dirty|dev)/.test(version);
 }
 
 /**

@@ -336,6 +336,20 @@ const iconAbout = (
   </svg>
 );
 
+const iconResume = (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="1 4 1 10 7 10" />
+    <path d="M3.51 11A6 6 0 0 0 14 8 6 6 0 0 0 3.51 5L1 10" />
+  </svg>
+);
+
 /* ---------- clipboard fallback for non-secure (HTTP) contexts ---------- */
 
 function fallbackCopy(text: string): void {
@@ -625,6 +639,12 @@ export default function CommandPalette() {
           label: 'Stop session',
           icon: iconStop,
           action: handleStop,
+        },
+        {
+          id: 'resume-agent',
+          label: 'Resume agent session',
+          icon: iconResume,
+          action: () => run(() => useUIStore.getState().openResumeBrowser()),
         },
       ],
     },

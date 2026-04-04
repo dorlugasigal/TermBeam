@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
-import { createSession, fetchShells } from '@/services/api';
-import type { ShellInfo } from '@/services/api';
+import { createSession, fetchShells, fetchAgents } from '@/services/api';
+import type { ShellInfo, AgentInfo } from '@/services/api';
 import { SESSION_COLORS, type SessionColor } from '@/types';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { FolderBrowser } from '@/components/FolderBrowser/FolderBrowser';
+import { AgentIcon } from '@/components/common/AgentIcon';
 import styles from './NewSessionModal.module.css';
 
 interface NewSessionModalProps {
@@ -27,6 +28,7 @@ function uniqueName(base: string, existing: Set<string>): string {
 
 export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   const { newSessionModalOpen, closeNewSessionModal } = useUIStore();
+  // Shell state
   const [name, setName] = useState('');
   const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
   const [shell, setShell] = useState('');
@@ -36,6 +38,9 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   const [color, setColor] = useState<SessionColor>(SESSION_COLORS[0]);
   const [submitting, setSubmitting] = useState(false);
   const [browsing, setBrowsing] = useState(false);
+  // Agent state
+  const [agents, setAgents] = useState<AgentInfo[]>([]);
+  const [launching, setLaunching] = useState<string | null>(null);
 
   const deriveNameFromCwd = useCallback(
     (dir: string) => {
@@ -50,20 +55,27 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
 
   useEffect(() => {
     if (newSessionModalOpen) {
-      fetchShells()
-        .then(({ shells: list, defaultShell, cwd: serverCwd }) => {
-          setShells(list);
-          if (!shell) {
-            const def =
-              list.find((s) => s.cmd === defaultShell) || list.find((s) => s.path === defaultShell);
-            setShell(def?.cmd ?? list[0]?.cmd ?? '');
-          }
-          if (!cwd && serverCwd) {
-            setCwd(serverCwd);
-            deriveNameFromCwd(serverCwd);
-          }
-        })
-        .catch(() => setShells([]));
+      // Fetch shells and agents in parallel
+      Promise.all([
+        fetchShells().catch(() => ({ shells: [], defaultShell: '', cwd: '' })),
+        fetchAgents().catch(() => ({ agents: [] })),
+      ]).then(([shellData, agentData]) => {
+        // Shells
+        const list = shellData.shells;
+        setShells(list);
+        if (!shell) {
+          const def =
+            list.find((s) => s.cmd === shellData.defaultShell) ||
+            list.find((s) => s.path === shellData.defaultShell);
+          setShell(def?.cmd ?? list[0]?.cmd ?? '');
+        }
+        if (!cwd && shellData.cwd) {
+          setCwd(shellData.cwd);
+          deriveNameFromCwd(shellData.cwd);
+        }
+        // Agents
+        setAgents(agentData.agents);
+      });
     }
   }, [newSessionModalOpen]);
 
@@ -75,6 +87,39 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     setInitialCommand('');
     setColor(SESSION_COLORS[0]);
     setBrowsing(false);
+    setLaunching(null);
+  }
+
+  async function handleAgentLaunch(agent: AgentInfo) {
+    setLaunching(agent.id);
+    try {
+      const store = useSessionStore.getState();
+      const activeMs = store.activeId ? store.sessions.get(store.activeId) : null;
+      const cols = activeMs?.term?.cols;
+      const rows = activeMs?.term?.rows;
+
+      const command = agent.args?.length ? `${agent.cmd} ${agent.args.join(' ')}` : agent.cmd;
+
+      const sessions = useSessionStore.getState().sessions;
+      const existingNames = new Set<string>();
+      for (const s of sessions.values()) existingNames.add(s.name);
+      const sessionName = uniqueName(folderName(cwd || '/'), existingNames);
+
+      const session = await createSession({
+        name: sessionName,
+        cwd: cwd.trim() || undefined,
+        initialCommand: command,
+        color: '#c084fc',
+        ...(cols && rows ? { cols, rows } : {}),
+      });
+      closeNewSessionModal();
+      resetForm();
+      onCreated(session.id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to launch agent');
+    } finally {
+      setLaunching(null);
+    }
   }
 
   async function handleSubmit() {
@@ -134,48 +179,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
             />
           ) : (
             <div className={styles.form}>
-              <div className={styles.field}>
-                <label className={styles.label}>Name</label>
-                <input
-                  className={styles.input}
-                  type="text"
-                  placeholder={folderName(cwd || '/')}
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    setNameManuallyEdited(true);
-                  }}
-                  data-testid="ns-name"
-                />
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label}>Shell</label>
-                <select
-                  className={styles.select}
-                  value={shell}
-                  onChange={(e) => setShell(e.target.value)}
-                  data-testid="ns-shell"
-                >
-                  {shells.map((s) => (
-                    <option key={s.path} value={s.cmd}>
-                      {s.name} ({s.path})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label}>Initial command</label>
-                <input
-                  className={styles.input}
-                  type="text"
-                  placeholder="e.g. npm run dev"
-                  value={initialCommand}
-                  onChange={(e) => setInitialCommand(e.target.value)}
-                />
-              </div>
-
+              {/* Working Directory — shared by agents and custom */}
               <div className={styles.field}>
                 <label className={styles.label}>Working Directory</label>
                 <div className={styles.dirRow}>
@@ -196,44 +200,124 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                 </div>
               </div>
 
-              <div className={styles.field}>
-                <label className={styles.label}>Color</label>
-                <div className={styles.colorPicker}>
-                  {SESSION_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      className={`${styles.colorDot} ${c === color ? styles.colorDotActive : ''}`}
-                      style={{ background: c }}
-                      onClick={() => setColor(c)}
-                      aria-label={`Color ${c}`}
-                    />
-                  ))}
+              {/* AI Agents section */}
+              {agents.length > 0 && (
+                <div className={styles.agentSection}>
+                  <label className={styles.label}>AI Agents</label>
+                  <div className={styles.agentGrid}>
+                    {agents.map((agent) => (
+                      <button
+                        key={agent.id}
+                        className={styles.agentCard}
+                        disabled={launching !== null || submitting}
+                        onClick={() => handleAgentLaunch(agent)}
+                      >
+                        <span className={styles.agentIcon}><AgentIcon agent={agent.icon} size="md" /></span>
+                        <span className={styles.agentName}>{agent.name}</span>
+                        {launching === agent.id && (
+                          <span className={styles.agentSpinner}>⟳</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className={styles.actions}>
-                <button
-                  type="button"
-                  className={styles.cancelBtn}
-                  data-testid="ns-cancel"
-                  onClick={() => {
-                    closeNewSessionModal();
-                    resetForm();
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className={styles.submitBtn}
-                  disabled={submitting}
-                  data-testid="ns-create"
-                  onClick={handleSubmit}
-                >
-                  Create
-                </button>
-              </div>
+              {/* Resume link */}
+              <button
+                type="button"
+                className={styles.resumeLink}
+                onClick={() => {
+                  closeNewSessionModal();
+                  useUIStore.getState().openResumeBrowser();
+                }}
+              >
+                Resume previous session →
+              </button>
+
+              {/* Custom session form */}
+              <div>
+                  <div className={styles.field}>
+                    <label className={styles.label}>Name</label>
+                    <input
+                      className={styles.input}
+                      type="text"
+                      placeholder={folderName(cwd || '/')}
+                      value={name}
+                      onChange={(e) => {
+                        setName(e.target.value);
+                        setNameManuallyEdited(true);
+                      }}
+                      data-testid="ns-name"
+                    />
+                  </div>
+
+                  <div className={styles.field}>
+                    <label className={styles.label}>Shell</label>
+                    <select
+                      className={styles.select}
+                      value={shell}
+                      onChange={(e) => setShell(e.target.value)}
+                      data-testid="ns-shell"
+                    >
+                      {shells.map((s) => (
+                        <option key={s.path} value={s.cmd}>
+                          {s.name} ({s.path})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className={styles.field}>
+                    <label className={styles.label}>Initial command</label>
+                    <input
+                      className={styles.input}
+                      type="text"
+                      placeholder="e.g. npm run dev"
+                      value={initialCommand}
+                      onChange={(e) => setInitialCommand(e.target.value)}
+                    />
+                  </div>
+
+                  <div className={styles.field}>
+                    <label className={styles.label}>Color</label>
+                    <div className={styles.colorPicker}>
+                      {SESSION_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          className={`${styles.colorDot} ${c === color ? styles.colorDotActive : ''}`}
+                          style={{ background: c }}
+                          onClick={() => setColor(c)}
+                          aria-label={`Color ${c}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className={styles.actions}>
+                    <button
+                      type="button"
+                      className={styles.cancelBtn}
+                      data-testid="ns-cancel"
+                      onClick={() => {
+                        closeNewSessionModal();
+                        resetForm();
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.submitBtn}
+                      disabled={submitting}
+                      data-testid="ns-create"
+                      onClick={handleSubmit}
+                    >
+                      Create
+                    </button>
+                  </div>
+                </div>
             </div>
           )}
         </Dialog.Content>

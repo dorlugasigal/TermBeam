@@ -92,6 +92,57 @@
   flex-shrink: 0;
 }
 
+.statusGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.statusDot[data-connected='true'] {
+  background: var(--success);
+}
+
+.activityTime {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  overflow: hidden;
+}
+
+.subtitleItem {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitleBranch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.subtitleBranch svg {
+  flex-shrink: 0;
+}
+
 /* Details row: cwd, shell, connected, activity */
 .detailsRow {
   display: flex;

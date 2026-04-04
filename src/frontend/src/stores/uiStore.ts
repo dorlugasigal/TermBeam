@@ -32,10 +32,13 @@ interface UIState {
   fontSize: number;
   touchCtrlActive: boolean;
   touchShiftActive: boolean;
+  resumeBrowserOpen: boolean;
   codeViewerOpen: boolean;
   codeViewerSessionId: string | null;
   codeViewerInitialView: 'files' | 'changes';
 
+  openResumeBrowser: () => void;
+  closeResumeBrowser: () => void;
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
   toggleCommandPalette: () => void;
@@ -77,10 +80,13 @@ export const useUIStore = create<UIState>((set) => ({
   fontSize: loadFontSize(),
   touchCtrlActive: false,
   touchShiftActive: false,
+  resumeBrowserOpen: false,
   codeViewerOpen: false,
   codeViewerSessionId: null,
   codeViewerInitialView: 'files',
 
+  openResumeBrowser: () => set({ resumeBrowserOpen: true }),
+  closeResumeBrowser: () => set({ resumeBrowserOpen: false }),
   openCommandPalette: () => set({ commandPaletteOpen: true }),
   closeCommandPalette: () => set({ commandPaletteOpen: false }),
   toggleCommandPalette: () => set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen })),

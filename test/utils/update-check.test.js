@@ -120,11 +120,19 @@ describe('update-check', () => {
       assert.equal(isNewerVersion('2.0.0-rc.1', '1.9.0'), false);
     });
 
-    it('should offer update from dev build to same-base stable version', () => {
+    it('should NOT offer update from dev build to same-base stable version', () => {
       const { isNewerVersion } = require('../../src/utils/update-check');
-      // Dev builds from git (e.g. 1.15.2-dev.5+gabcdef) are pre-release —
-      // stable 1.15.2 is considered newer and should trigger an update
-      assert.equal(isNewerVersion('1.15.2-dev.5+gabcdef', '1.15.2'), true);
+      // Dev builds from git (e.g. 1.15.2-dev.5+gabcdef) are running from source —
+      // do not prompt to "update" to the same stable release
+      assert.equal(isNewerVersion('1.15.2-dev.5+gabcdef', '1.15.2'), false);
+      assert.equal(isNewerVersion('1.18.1-dev+dirty', '1.18.1'), false);
+    });
+
+    it('should offer update from dev build to newer stable version', () => {
+      const { isNewerVersion } = require('../../src/utils/update-check');
+      // Dev build is behind a newer release — should prompt
+      assert.equal(isNewerVersion('1.15.2-dev.5+gabcdef', '1.16.0'), true);
+      assert.equal(isNewerVersion('1.18.1-dev+dirty', '1.19.0'), true);
     });
 
     it('should not show update between two pre-releases of same version', () => {

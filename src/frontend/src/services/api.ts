@@ -88,6 +88,55 @@ export async function fetchShells(): Promise<{
   return { shells: data.shells, defaultShell: data.default, cwd: data.cwd };
 }
 
+export interface AgentInfo {
+  id: string;
+  name: string;
+  cmd: string;
+  args?: string[];
+  icon: string;
+  version?: string;
+}
+
+export async function fetchAgents(): Promise<{ agents: AgentInfo[] }> {
+  const res = await fetchWithTimeout(`${BASE}/api/agents`, { credentials: 'same-origin' });
+  return handleResponse<{ agents: AgentInfo[] }>(res);
+}
+
+export interface AgentSession {
+  id: string;
+  agent: 'copilot' | 'claude';
+  agentName: string;
+  agentIcon: string;
+  summary: string | null;
+  cwd: string | null;
+  repo: string | null;
+  branch: string | null;
+  updatedAt: string;
+  turnCount: number;
+}
+
+export async function fetchAgentSessions(
+  limit = 100,
+  search?: string,
+): Promise<{ sessions: AgentSession[] }> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (search) params.set('search', search);
+  const res = await fetchWithTimeout(`${BASE}/api/agent-sessions?${params}`, {
+    credentials: 'same-origin',
+  });
+  return handleResponse<{ sessions: AgentSession[] }>(res);
+}
+
+export async function getResumeCommand(
+  agent: string,
+  id: string,
+): Promise<{ command: string }> {
+  const res = await fetchWithTimeout(`${BASE}/api/agent-sessions/${agent}/${id}/resume-command`, {
+    credentials: 'same-origin',
+  });
+  return handleResponse<{ command: string }>(res);
+}
+
 export interface BrowseDirsResponse {
   base: string;
   dirs: string[];
@@ -584,3 +633,4 @@ export async function fetchTunnelStatus(): Promise<TunnelStatus> {
 }
 
 // Tunnel renew endpoint removed — DevTunnel handles its own OAuth lifecycle.
+

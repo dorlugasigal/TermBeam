@@ -113,7 +113,7 @@
   -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 /* ── Session card ── */
@@ -129,6 +129,7 @@
     background 0.15s,
     border-color 0.15s;
   -webkit-tap-highlight-color: transparent;
+  padding-bottom: 8px;
 }
 
 .card:hover {

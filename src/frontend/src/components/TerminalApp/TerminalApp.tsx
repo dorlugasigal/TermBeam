@@ -14,6 +14,7 @@ import { SidePanel } from '@/components/SidePanel/SidePanel';
 import { FileBrowser } from '@/components/FileBrowser/FileBrowser';
 import { MarkdownBrowser } from '@/components/MarkdownBrowser/MarkdownBrowser';
 import CodeViewer from '@/components/CodeViewer/CodeViewer';
+import ResumeBrowser from '@/components/ResumeBrowser/ResumeBrowser';
 import NewSessionModal from '@/components/SessionsHub/NewSessionModal';
 import { UploadModal } from '@/components/Modals/UploadModal';
 import { PreviewModal } from '@/components/Modals/PreviewModal';
@@ -501,6 +502,7 @@ export function TerminalApp() {
       <UploadModal />
       <PreviewModal />
       <CopyOverlay />
+      <ResumeBrowser />
 
       {/* ── Download file browser overlay ── */}
       {showDownload && activeId && activeSession?.cwd && (

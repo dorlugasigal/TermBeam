@@ -4,6 +4,8 @@ const fs = require('fs');
 const crypto = require('crypto');
 const express = require('express');
 const { detectShells } = require('../utils/shells');
+const { getAvailableAgents } = require('../utils/agents');
+const { getAgentSessions, getResumeCommand } = require('../utils/agent-sessions');
 const log = require('../utils/logger');
 const rateLimit = require('express-rate-limit');
 
@@ -361,6 +363,44 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
     const match = shells.find((s) => s.cmd === ds || s.path === ds || s.name === ds);
     res.json({ shells, default: match ? match.cmd : ds, cwd: config.cwd });
   });
+
+  // Available AI agents
+  app.get('/api/agents', apiRateLimit, auth.middleware, async (_req, res) => {
+    try {
+      const agents = await getAvailableAgents();
+      res.json({ agents });
+    } catch (err) {
+      log.warn(`Agent detection failed: ${err.message}`);
+      res.json({ agents: [] });
+    }
+  });
+
+  // Agent session history (for resume)
+  app.get('/api/agent-sessions', apiRateLimit, auth.middleware, async (req, res) => {
+    try {
+      const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 500);
+      const agent = req.query.agent || null;
+      const search = req.query.search || null;
+      const sessions = await getAgentSessions({ limit, agent, search });
+      res.json({ sessions });
+    } catch (err) {
+      log.warn(`Failed to read agent sessions: ${err.message}`);
+      res.json({ sessions: [] });
+    }
+  });
+
+  // Get resume command for a specific session
+  app.get(
+    '/api/agent-sessions/:agent/:id/resume-command',
+    apiRateLimit,
+    auth.middleware,
+    (req, res) => {
+      const { agent, id } = req.params;
+      const command = getResumeCommand({ agent, id });
+      if (!command) return res.status(400).json({ error: 'Unknown agent' });
+      res.json({ command });
+    },
+  );
 
   app.get('/api/sessions/:id/detect-port', auth.middleware, (req, res) => {
     log.debug(`Port detection requested for session ${req.params.id}`);
