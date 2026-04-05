@@ -62,7 +62,7 @@ async function deleteSession(id) {
 
 function convertToMp4(input, output) {
   execSync(
-    `"${FFMPEG}" -y -i "${input}" -c:v libx264 -crf 28 -preset slow ` +
+    `"${FFMPEG}" -y -i "${input}" -c:v libx264 -crf 18 -preset slow ` +
       `-an -movflags +faststart -pix_fmt yuv420p "${output}"`,
     { stdio: 'pipe' }
   );
@@ -71,9 +71,11 @@ function convertToMp4(input, output) {
 async function openContext(browser, size) {
   const dir = path.join(TEMP_DIR, `ctx-${Date.now()}`);
   fs.mkdirSync(dir, { recursive: true });
+  const recordSize = { width: size.width * 2, height: size.height * 2 };
   const context = await browser.newContext({
     viewport: size,
-    recordVideo: { dir, size },
+    deviceScaleFactor: 2,
+    recordVideo: { dir, size: recordSize },
     // Suppress permission prompts (microphone etc.)
     permissions: [],
   });
