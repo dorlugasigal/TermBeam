@@ -145,9 +145,9 @@ async function cleanupSessions() {
 // Recording functions — each showcases the ACTUAL UI feature
 // ---------------------------------------------------------------------------
 
-// 01: Sessions Hub → theme switcher → click a session → view its terminal
+// 01: Sessions Hub → click a session → view its terminal
 async function recordHubMobile(browser) {
-  console.log('Recording hub-mobile — Sessions Hub → themes → open session...');
+  console.log('Recording hub-mobile — Sessions Hub → open session...');
   await cleanupSessions();
   const sessions = [];
   for (const name of ['api-server', 'frontend', 'deploy']) {
@@ -163,34 +163,12 @@ async function recordHubMobile(browser) {
 
     const capture = await startCapture(page);
     // Show the hub with session cards
-    await page.waitForTimeout(1200);
-
-    // Open theme picker
-    const themeBtn = page.locator('button[aria-label="Change theme"]');
-    await themeBtn.click().catch(() => {});
-    await page.waitForTimeout(800);
-
-    // Switch through visually distinct themes
-    const themes = ['Dracula', 'Cyberpunk', 'Nord', 'Catppuccin'];
-    for (const theme of themes) {
-      const row = page.locator('button', { hasText: theme }).first();
-      await row.click().catch(() => {});
-      await page.waitForTimeout(700);
-    }
-
-    // Close theme panel
-    const closeBtn = page.locator('button[aria-label="Close theme picker"]');
-    await closeBtn.click().catch(() => {
-      // fallback: press Escape or click outside
-      page.keyboard.press('Escape').catch(() => {});
-    });
-    await page.waitForTimeout(600);
-
+    await page.waitForTimeout(2000);
     // Click a session card to open its terminal
     const card = page.locator('[data-testid="session-card"]').first();
     await card.click().catch(() => {});
     // Wait for terminal to load
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(2500);
     await saveVideo(capture, 'hub-mobile.mp4');
     await context.close();
   } finally {
@@ -208,10 +186,10 @@ async function recordAgentsDesktop(browser) {
   const page = await context.newPage();
   try {
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(1500);
 
     const capture = await startCapture(page);
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1200);
     // Open new session modal
     const btn = page.locator('[data-testid="hub-new-session-btn"]');
     await btn.waitFor({ timeout: 5000 }).catch(() => {});
@@ -219,7 +197,8 @@ async function recordAgentsDesktop(browser) {
     await page.waitForSelector('[data-testid="new-session-modal"]', { timeout: 5000 }).catch(
       () => {}
     );
-    await page.waitForTimeout(1200);
+    // Let user see the modal with agent cards
+    await page.waitForTimeout(2500);
     // Look for Claude Code agent card and click it
     const claudeCard = page.locator('button:has-text("Claude")').first();
     const hasClaudeCard = await claudeCard.count();
@@ -316,7 +295,7 @@ async function recordVoiceMobile(browser) {
           if (this.onresult) {
             this.onresult({
               results: {
-                0: { 0: { transcript: 'git status && echo "all clean"' }, isFinal: true },
+                0: { 0: { transcript: 'git status' }, isFinal: true },
                 length: 1,
               },
               resultIndex: 0,
@@ -426,9 +405,9 @@ async function recordSessionsDesktop(browser) {
   }
 }
 
-// 06: Resume — open resume browser, see agent sessions, click one
+// 06: Resume — open resume browser, see agent sessions, click a Copilot session
 async function recordResumeDesktop(browser) {
-  console.log('Recording resume-desktop — Resume browser with agent sessions...');
+  console.log('Recording resume-desktop — Resume browser → click Copilot session...');
   await cleanupSessions();
   const session = await createSession('main');
   const context = await openContext(browser, DESKTOP);
@@ -455,11 +434,17 @@ async function recordResumeDesktop(browser) {
       await resumeAction.click().catch(() => {});
       await page.waitForTimeout(2000);
       // The resume browser should now be open showing agent sessions
-      // Click a session if available
-      const resumeCard = page.locator('button:has-text("Untitled")').first();
-      const hasCard = await resumeCard.count();
-      if (hasCard > 0) {
-        await resumeCard.click().catch(() => {});
+      // Try clicking the Copilot filter tab first
+      const copilotTab = page.locator('button:has-text("Copilot")').first();
+      if ((await copilotTab.count()) > 0) {
+        await copilotTab.click().catch(() => {});
+        await page.waitForTimeout(1000);
+      }
+      // Click the first session card to resume it
+      const resumeCards = page.locator('[class*="card"]').filter({ hasText: /.+/ });
+      const cardCount = await resumeCards.count();
+      if (cardCount > 0) {
+        await resumeCards.first().click().catch(() => {});
         await page.waitForTimeout(1500);
       } else {
         await page.waitForTimeout(1500);
@@ -599,6 +584,51 @@ async function recordUploadDesktop(browser) {
   }
 }
 
+// 09: Themes — open theme picker from hub, cycle through visually distinct themes
+async function recordThemesMobile(browser) {
+  console.log('Recording themes-mobile — Theme picker cycling...');
+  await cleanupSessions();
+  const sessions = [];
+  for (const name of ['api-server', 'frontend']) {
+    sessions.push(await createSession(name));
+  }
+
+  const context = await openContext(browser, MOBILE);
+  const page = await context.newPage();
+  try {
+    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('[data-testid="sessions-list"]', { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(1000);
+
+    const capture = await startCapture(page);
+    await page.waitForTimeout(800);
+
+    // Open theme picker
+    const themeBtn = page.locator('button[aria-label="Change theme"]');
+    await themeBtn.click().catch(() => {});
+    await page.waitForTimeout(1000);
+
+    // Switch through visually distinct themes with pauses
+    const themes = ['Dracula', 'Cyberpunk', 'Nord', 'Catppuccin', 'Tokyo Night'];
+    for (const theme of themes) {
+      const row = page.locator('button', { hasText: theme }).first();
+      await row.click().catch(() => {});
+      await page.waitForTimeout(900);
+    }
+
+    // Close theme panel
+    const closeBtn = page.locator('button[aria-label="Close theme picker"]');
+    await closeBtn.click().catch(() => {
+      page.keyboard.press('Escape').catch(() => {});
+    });
+    await page.waitForTimeout(800);
+    await saveVideo(capture, 'themes-mobile.mp4');
+    await context.close();
+  } finally {
+    for (const s of sessions) await deleteSession(s.id).catch(() => {});
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -623,12 +653,13 @@ async function main() {
     await recordResumeDesktop(browser);
     await recordGitdiffDesktop(browser);
     await recordUploadDesktop(browser);
+    await recordThemesMobile(browser);
   } finally {
     await browser.close();
     fs.rmSync(TEMP_DIR, { recursive: true, force: true });
   }
 
-  console.log('\n✅ All 8 showcase videos recorded and optimized!');
+  console.log('\n✅ All 9 showcase videos recorded and optimized!');
 }
 
 main().catch((err) => {
