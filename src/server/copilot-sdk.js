@@ -203,11 +203,16 @@ class CopilotService {
             resolve({ answer: '', wasFreeform: true });
           }, 120000);
 
+          const storeResolve = (answer) => {
+            clearTimeout(timeout);
+            resolve(answer);
+          };
+
           if (entry) {
-            entry.pendingInputResolve = (answer) => {
-              clearTimeout(timeout);
-              resolve(answer);
-            };
+            entry.pendingInputResolve = storeResolve;
+          } else {
+            // Store on eventBuffer so it can be transferred after session registration
+            eventBuffer._pendingInputResolve = storeResolve;
           }
         });
       },
@@ -257,6 +262,11 @@ class CopilotService {
       existingMessages,
     });
 
+    // Transfer any pending input resolve stored before session registration
+    if (eventBuffer._pendingInputResolve) {
+      this.sessions.get(sessionId).pendingInputResolve = eventBuffer._pendingInputResolve;
+    }
+
     log.info(`Copilot SDK session resumed: ${sessionId} (from SDK session ${sdkSessionId})`);
     return sessionId;
   }
@@ -298,12 +308,17 @@ class CopilotService {
             resolve({ answer: '', wasFreeform: true });
           }, 120000); // 2 min timeout
 
+          const storeResolve = (answer) => {
+            clearTimeout(timeout);
+            resolve(answer);
+          };
+
           // Store resolver for the WebSocket handler to call
           if (entry) {
-            entry.pendingInputResolve = (answer) => {
-              clearTimeout(timeout);
-              resolve(answer);
-            };
+            entry.pendingInputResolve = storeResolve;
+          } else {
+            // Store on eventBuffer so it can be transferred after session registration
+            eventBuffer._pendingInputResolve = storeResolve;
           }
         });
       },
@@ -350,6 +365,11 @@ class CopilotService {
       createdAt: now,
       lastActivity: now,
     });
+
+    // Transfer any pending input resolve stored before session registration
+    if (eventBuffer._pendingInputResolve) {
+      this.sessions.get(sessionId).pendingInputResolve = eventBuffer._pendingInputResolve;
+    }
 
     log.info(`Copilot SDK session created: ${sessionId}`);
     return sessionId;

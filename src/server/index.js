@@ -126,7 +126,7 @@ function createTermBeamServer(overrides = {}) {
     log.info('Shutdown initiated');
     auth.cleanup();
     sessions.shutdown();
-    copilotService.shutdown().catch(() => {});
+    if (copilotService) copilotService.shutdown().catch(() => {});
     cleanupUploadedFiles();
     tunnelEvents.removeAllListeners();
     cleanupTunnel();
