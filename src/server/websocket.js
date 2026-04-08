@@ -193,7 +193,7 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
         if (copilotService && msg.type === 'copilot.attach') {
           let sid = msg.sessionId;
           if (!copilotService.sessions.has(sid)) {
-            // Session was garbage collected — create a fresh one
+            // Session not found in local map — create a fresh one
             try {
               sid = await copilotService.createSession({ model: msg.model });
             } catch (err) {
@@ -209,7 +209,6 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
             ws,
           );
           ws._copilotSessionId = sid;
-          ws._copilotOwnsSession = true;
           const entry = copilotService.sessions.get(sid);
           ws.send(
             JSON.stringify({
@@ -259,7 +258,6 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
               }),
             );
             ws._copilotSessionId = sdkSessionId;
-            ws._copilotOwnsSession = true;
           } catch (err) {
             ws.send(
               JSON.stringify({
@@ -291,7 +289,6 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
               ws,
             );
             ws._copilotSessionId = sessionId;
-            ws._copilotOwnsSession = true;
             ws.send(JSON.stringify({ type: 'copilot.created', data: { sessionId } }));
             // Send existing messages for replay
             const entry = copilotService.sessions.get(sessionId);

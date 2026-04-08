@@ -403,6 +403,9 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
 
     // Handle copilot SDK sessions — create both SDK + companion PTY
     if (type === 'copilot') {
+      if (!copilotService) {
+        return res.status(400).json({ error: 'Copilot service is not available' });
+      }
       // Validate cwd for copilot sessions
       if (cwd) {
         const resolved = path.resolve(cwd);

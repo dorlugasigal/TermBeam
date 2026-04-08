@@ -275,7 +275,6 @@ describe('Copilot WebSocket handlers', () => {
       const ws = connectWs();
       await ws._simulateMessage({ type: 'copilot.create' });
       assert.strictEqual(ws._copilotSessionId, 'mock-sdk-session-1');
-      assert.strictEqual(ws._copilotOwnsSession, true);
     });
   });
 
@@ -551,7 +550,6 @@ describe('Copilot WebSocket handlers', () => {
       });
 
       assert.strictEqual(ws._copilotSessionId, 'mock-resumed-session-1');
-      assert.strictEqual(ws._copilotOwnsSession, true);
       const listenerCall = copilotService._calls.setListener.find(
         (c) => c.sessionId === 'mock-resumed-session-1',
       );
