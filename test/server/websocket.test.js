@@ -1086,4 +1086,88 @@ describe('WebSocket', () => {
       assert.strictEqual(sanitizeForReplay(buf), buf);
     });
   });
+
+  describe('close with active bounce timer', () => {
+    it('should clear bounce timer and recalc pty size on close', () => {
+      const session = createMockSession('s1', {
+        hasHadClient: true,
+        scrollbackBuf: 'hello',
+        _lastCols: 80,
+        _lastRows: 24,
+      });
+      session.inAltScreen = true;
+      session.altScreenMode = '1049';
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      // Attach with inAltScreen sets _needsRedraw = true
+      // Resize enters _needsRedraw path, creating a bounce timer
+      ws._simulateMessage({ type: 'resize', cols: 80, rows: 24 });
+      assert.ok(session._resizeBounceTimer, 'bounce timer should be active');
+
+      // Close ws before timer fires — should clean up bounce timer
+      ws._simulateClose();
+      assert.strictEqual(session._resizeBounceTimer, null, 'bounce timer should be cleared');
+    });
+  });
+
+  describe('normal resize clearing bounce timer', () => {
+    it('should clear pre-existing bounce timer on normal resize', () => {
+      const session = createMockSession('s1', {
+        hasHadClient: true,
+        _lastCols: 80,
+        _lastRows: 24,
+      });
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      // Manually set a bounce timer (simulating a prior redraw)
+      const dummyTimer = setTimeout(() => {}, 10000);
+      session._resizeBounceTimer = dummyTimer;
+
+      // Normal resize (no _pendingResize, no _needsRedraw) should clear it
+      ws._simulateMessage({ type: 'resize', cols: 90, rows: 30 });
+      assert.strictEqual(session._resizeBounceTimer, null, 'should clear bounce timer');
+      clearTimeout(dummyTimer);
+    });
+  });
+
+  describe('alt-screen same-size pending resize', () => {
+    it('should create bounce timer for inAltScreen when size unchanged on first resize', async () => {
+      const session = createMockSession('s1', {
+        hasHadClient: false,
+        scrollbackBuf: 'some content',
+        _lastCols: 80,
+        _lastRows: 24,
+      });
+      session.inAltScreen = true;
+      session.altScreenMode = '1049';
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      // First client — _pendingResize is set
+      // Resize with same size as session defaults — sizeChanged is false
+      ws._simulateMessage({ type: 'resize', cols: 80, rows: 24 });
+
+      // Should enter the inAltScreen branch and create bounce timer
+      assert.ok(session._resizeBounceTimer, 'bounce timer should be set for alt-screen same-size');
+
+      // Should have sent alt-screen enter sequence
+      const altEnter = ws._sent.find((m) => m.type === 'output' && m.data.includes('\x1b[?1049h'));
+      assert.ok(altEnter, 'should send alt-screen enter');
+
+      // Wait for bounce timer to complete
+      await new Promise((r) => setTimeout(r, 80));
+      assert.strictEqual(session._resizeBounceTimer, null, 'bounce timer should have fired');
+    });
+  });
 });

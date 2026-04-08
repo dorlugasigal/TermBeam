@@ -1152,3 +1152,524 @@ describe('loadMcpConfig', () => {
     assert.ok(valid);
   });
 });
+
+// ─── Additional coverage tests ──────────────────────────────────────────────
+
+describe('CopilotService — SDK unavailable (lines 8-9)', () => {
+  afterEach(() => {
+    cleanupMocks();
+  });
+
+  it('should handle missing SDK and throw on ensureClient', async () => {
+    Module._resolveFilename = function (request, parent) {
+      if (request === '@github/copilot-sdk') throw new Error('Cannot find module');
+      return originalResolveFilename.call(this, request, parent);
+    };
+    delete require.cache['@github/copilot-sdk'];
+
+    delete require.cache[LOGGER_PATH];
+    require.cache[LOGGER_PATH] = {
+      id: LOGGER_PATH,
+      filename: LOGGER_PATH,
+      loaded: true,
+      exports: {
+        info: () => {},
+        warn: () => {},
+        error: () => {},
+        debug: () => {},
+        setLevel: () => {},
+      },
+    };
+
+    const testDir = path.join(os.tmpdir(), `termbeam-test-nosdk-${process.pid}-${Date.now()}`);
+    process.env.TERMBEAM_CONFIG_DIR = testDir;
+    delete require.cache[MODULE_PATH];
+    const { CopilotService: CS } = require('../../src/server/copilot-sdk');
+
+    const svc = new CS();
+    if (svc._authPollTimer) clearInterval(svc._authPollTimer);
+
+    await assert.rejects(() => svc.ensureClient(), {
+      message: 'Copilot SDK not installed',
+    });
+    assert.strictEqual(svc.client, null);
+  });
+});
+
+describe('CopilotService — _watchAuthUrls forwarding (lines 93-113)', () => {
+  afterEach(() => {
+    cleanupMocks();
+  });
+
+  it('should forward auth URLs from file to all session listeners', async () => {
+    const { CopilotService: CS, mockClient: mc, testConfigDir: testDir } = setupMocks();
+    const svc = new CS();
+    // Do NOT clear the timer — we need the poll to run
+
+    try {
+      await svc.ensureClient();
+      const id = await svc.createSession();
+      const received = [];
+      svc.setListener(id, (evt) => received.push(evt));
+
+      const authUrlFile = path.join(testDir, 'auth-urls.log');
+      fs.mkdirSync(testDir, { recursive: true });
+      fs.appendFileSync(authUrlFile, 'https://auth.example.com/oauth?code=123\n');
+
+      await new Promise((r) => setTimeout(r, 700));
+
+      const authEvents = received.filter((e) => e.type === 'copilot.auth_url');
+      assert.ok(authEvents.length >= 1, 'Expected at least one auth URL event');
+      assert.ok(authEvents[0].data.url.includes('auth.example.com'));
+    } finally {
+      if (svc._authPollTimer) clearInterval(svc._authPollTimer);
+    }
+  });
+
+  it('should handle URLs with invalid format for URL parser', async () => {
+    const { CopilotService: CS, testConfigDir: testDir } = setupMocks();
+    const svc = new CS();
+
+    try {
+      await svc.ensureClient();
+      const id = await svc.createSession();
+      const received = [];
+      svc.setListener(id, (evt) => received.push(evt));
+
+      const authUrlFile = path.join(testDir, 'auth-urls.log');
+      fs.mkdirSync(testDir, { recursive: true });
+      // URL starts with http but is malformed — triggers inner try/catch
+      fs.appendFileSync(authUrlFile, 'http://[invalid-url\n');
+
+      await new Promise((r) => setTimeout(r, 700));
+
+      const authEvents = received.filter((e) => e.type === 'copilot.auth_url');
+      assert.ok(authEvents.length >= 1, 'Should still forward malformed URLs');
+    } finally {
+      if (svc._authPollTimer) clearInterval(svc._authPollTimer);
+    }
+  });
+
+  it('should filter out non-http lines', async () => {
+    const { CopilotService: CS, testConfigDir: testDir } = setupMocks();
+    const svc = new CS();
+
+    try {
+      await svc.ensureClient();
+      const id = await svc.createSession();
+      const received = [];
+      svc.setListener(id, (evt) => received.push(evt));
+
+      const authUrlFile = path.join(testDir, 'auth-urls.log');
+      fs.mkdirSync(testDir, { recursive: true });
+      fs.appendFileSync(authUrlFile, 'not-a-url\nhttps://valid.example.com/auth\n');
+
+      await new Promise((r) => setTimeout(r, 700));
+
+      const authEvents = received.filter((e) => e.type === 'copilot.auth_url');
+      assert.ok(authEvents.length >= 1);
+      assert.ok(authEvents.every((e) => e.data.url.includes('valid.example.com')));
+    } finally {
+      if (svc._authPollTimer) clearInterval(svc._authPollTimer);
+    }
+  });
+
+  it('should forward to multiple sessions', async () => {
+    const { CopilotService: CS, testConfigDir: testDir } = setupMocks();
+    const svc = new CS();
+
+    try {
+      await svc.ensureClient();
+      const id1 = await svc.createSession();
+      const id2 = await svc.createSession();
+      const received1 = [];
+      const received2 = [];
+      svc.setListener(id1, (evt) => received1.push(evt));
+      svc.setListener(id2, (evt) => received2.push(evt));
+
+      const authUrlFile = path.join(testDir, 'auth-urls.log');
+      fs.mkdirSync(testDir, { recursive: true });
+      fs.appendFileSync(authUrlFile, 'https://auth.example.com/multi\n');
+
+      await new Promise((r) => setTimeout(r, 700));
+
+      const auth1 = received1.filter((e) => e.type === 'copilot.auth_url');
+      const auth2 = received2.filter((e) => e.type === 'copilot.auth_url');
+      assert.ok(auth1.length >= 1, 'Session 1 should receive auth URL');
+      assert.ok(auth2.length >= 1, 'Session 2 should receive auth URL');
+    } finally {
+      if (svc._authPollTimer) clearInterval(svc._authPollTimer);
+    }
+  });
+});
+
+describe('CopilotService — createSession onUserInputRequest (lines 291-323, 371-372)', () => {
+  let CopilotService, mockClient, service;
+
+  beforeEach(() => {
+    ({ CopilotService, mockClient } = setupMocks());
+    service = new CopilotService();
+    if (service._authPollTimer) clearInterval(service._authPollTimer);
+  });
+
+  afterEach(() => {
+    if (service?._authPollTimer) clearInterval(service._authPollTimer);
+    cleanupMocks();
+  });
+
+  it('should forward user input request to listener and resolve via respondToInput', async () => {
+    let capturedConfig;
+    mockClient.createSession = async (config) => {
+      capturedConfig = config;
+      return createMockSession();
+    };
+
+    const id = await service.createSession();
+    const received = [];
+    service.setListener(id, (evt) => received.push(evt));
+
+    const promise = capturedConfig.onUserInputRequest({
+      question: 'Continue?',
+      choices: ['yes', 'no'],
+      allowFreeform: true,
+    });
+
+    const inputEvents = received.filter((e) => e.type === 'copilot.user_input_request');
+    assert.strictEqual(inputEvents.length, 1);
+    assert.strictEqual(inputEvents[0].data.question, 'Continue?');
+    assert.deepStrictEqual(inputEvents[0].data.choices, ['yes', 'no']);
+    assert.strictEqual(inputEvents[0].data.allowFreeform, true);
+
+    service.respondToInput(id, { text: 'yes', wasFreeform: false });
+    const result = await promise;
+    assert.deepStrictEqual(result, { answer: 'yes', wasFreeform: false });
+  });
+
+  it('should buffer user input request when no listener attached', async () => {
+    let capturedConfig;
+    mockClient.createSession = async (config) => {
+      capturedConfig = config;
+      return createMockSession();
+    };
+
+    const id = await service.createSession();
+
+    const promise = capturedConfig.onUserInputRequest({
+      question: 'Pick one',
+      choices: ['a', 'b'],
+    });
+
+    const entry = service.sessions.get(id);
+    const inputEvents = entry.eventBuffer.filter((e) => e.type === 'copilot.user_input_request');
+    assert.strictEqual(inputEvents.length, 1);
+
+    assert.ok(entry.pendingInputResolve);
+    entry.pendingInputResolve({ answer: 'a', wasFreeform: false });
+    const result = await promise;
+    assert.deepStrictEqual(result, { answer: 'a', wasFreeform: false });
+  });
+
+  it('should transfer _pendingInputResolve when called during createSession', async () => {
+    let inputPromise;
+    mockClient.createSession = async (config) => {
+      // Call onUserInputRequest DURING createSession (before session is registered)
+      inputPromise = config.onUserInputRequest({
+        question: 'Early question',
+        choices: [],
+      });
+      return createMockSession();
+    };
+
+    const id = await service.createSession();
+    const entry = service.sessions.get(id);
+
+    assert.ok(entry.pendingInputResolve, 'pendingInputResolve should be transferred');
+
+    entry.pendingInputResolve({ answer: 'early answer', wasFreeform: true });
+    const result = await inputPromise;
+    assert.deepStrictEqual(result, { answer: 'early answer', wasFreeform: true });
+  });
+
+  it('should default allowFreeform to true when not specified', async () => {
+    let capturedConfig;
+    mockClient.createSession = async (config) => {
+      capturedConfig = config;
+      return createMockSession();
+    };
+
+    const id = await service.createSession();
+    const received = [];
+    service.setListener(id, (evt) => received.push(evt));
+
+    const promise = capturedConfig.onUserInputRequest({
+      question: 'Test?',
+      choices: [],
+    });
+
+    const inputEvents = received.filter((e) => e.type === 'copilot.user_input_request');
+    assert.strictEqual(inputEvents[0].data.allowFreeform, true);
+
+    service.respondToInput(id, { text: 'ok' });
+    await promise;
+  });
+});
+
+describe('CopilotService — resumeSession onUserInputRequest (lines 188-217, 267-268)', () => {
+  let CopilotService, mockClient, service;
+
+  beforeEach(() => {
+    ({ CopilotService, mockClient } = setupMocks());
+    service = new CopilotService();
+    if (service._authPollTimer) clearInterval(service._authPollTimer);
+  });
+
+  afterEach(() => {
+    if (service?._authPollTimer) clearInterval(service._authPollTimer);
+    cleanupMocks();
+  });
+
+  it('should forward user input request to listener in resumed session', async () => {
+    let capturedConfig;
+    mockClient.resumeSession = async (_sdkId, config) => {
+      capturedConfig = config;
+      return createMockSession();
+    };
+
+    const id = await service.resumeSession('sdk-1');
+    const received = [];
+    service.setListener(id, (evt) => received.push(evt));
+
+    const promise = capturedConfig.onUserInputRequest({
+      question: 'Resume action?',
+      choices: ['continue', 'stop'],
+      allowFreeform: false,
+    });
+
+    const inputEvents = received.filter((e) => e.type === 'copilot.user_input_request');
+    assert.strictEqual(inputEvents.length, 1);
+    assert.strictEqual(inputEvents[0].data.question, 'Resume action?');
+    assert.strictEqual(inputEvents[0].data.allowFreeform, false);
+
+    service.respondToInput(id, { text: 'continue', wasFreeform: false });
+    const result = await promise;
+    assert.deepStrictEqual(result, { answer: 'continue', wasFreeform: false });
+  });
+
+  it('should buffer user input request in resumed session when no listener', async () => {
+    let capturedConfig;
+    mockClient.resumeSession = async (_sdkId, config) => {
+      capturedConfig = config;
+      return createMockSession();
+    };
+
+    const id = await service.resumeSession('sdk-1');
+
+    const promise = capturedConfig.onUserInputRequest({
+      question: 'Pick',
+      choices: ['x'],
+    });
+
+    const entry = service.sessions.get(id);
+    assert.ok(entry.eventBuffer.some((e) => e.type === 'copilot.user_input_request'));
+    assert.ok(entry.pendingInputResolve);
+
+    entry.pendingInputResolve({ answer: 'x', wasFreeform: false });
+    const result = await promise;
+    assert.deepStrictEqual(result, { answer: 'x', wasFreeform: false });
+  });
+
+  it('should transfer _pendingInputResolve during resumeSession', async () => {
+    let inputPromise;
+    mockClient.resumeSession = async (_sdkId, config) => {
+      inputPromise = config.onUserInputRequest({
+        question: 'Early resume question',
+        choices: [],
+      });
+      return createMockSession();
+    };
+
+    const id = await service.resumeSession('sdk-1');
+    const entry = service.sessions.get(id);
+
+    assert.ok(entry.pendingInputResolve, 'pendingInputResolve should be transferred');
+    entry.pendingInputResolve({ answer: 'done', wasFreeform: true });
+    const result = await inputPromise;
+    assert.deepStrictEqual(result, { answer: 'done', wasFreeform: true });
+  });
+});
+
+describe('CopilotService — event handler errors (lines 241-242, 350-351)', () => {
+  let CopilotService, mockClient, service;
+
+  beforeEach(() => {
+    ({ CopilotService, mockClient } = setupMocks());
+    service = new CopilotService();
+    if (service._authPollTimer) clearInterval(service._authPollTimer);
+  });
+
+  afterEach(() => {
+    if (service?._authPollTimer) clearInterval(service._authPollTimer);
+    cleanupMocks();
+  });
+
+  it('should catch event processing errors in createSession handler', async () => {
+    const mockSession = createMockSession();
+    mockClient.createSession = async () => mockSession;
+
+    const id = await service.createSession();
+    service.setListener(id, () => {
+      throw new Error('listener boom');
+    });
+
+    // Emit an event — should not throw
+    mockSession._emit({ type: 'assistant.message', data: { content: 'test' } });
+    assert.ok(service.sessions.has(id));
+  });
+
+  it('should catch event processing errors in resumeSession handler', async () => {
+    const mockSession = createMockSession();
+    mockClient.resumeSession = async () => mockSession;
+
+    const id = await service.resumeSession('sdk-1');
+    service.setListener(id, () => {
+      throw new Error('listener error');
+    });
+
+    mockSession._emit({ type: 'assistant.message', data: { content: 'test' } });
+    assert.ok(service.sessions.has(id));
+  });
+
+  it('should buffer events in resumeSession when no listener attached', async () => {
+    const mockSession = createMockSession();
+    mockClient.resumeSession = async () => mockSession;
+
+    const id = await service.resumeSession('sdk-1');
+    // No listener set — event should go to eventBuffer
+
+    mockSession._emit({ type: 'session.idle', data: {} });
+
+    const entry = service.sessions.get(id);
+    assert.strictEqual(entry.eventBuffer.length, 1);
+    assert.strictEqual(entry.eventBuffer[0].type, 'copilot.idle');
+  });
+});
+
+describe('CopilotService — setListener overwrite (lines 382-385)', () => {
+  let CopilotService, mockClient, service;
+
+  beforeEach(() => {
+    ({ CopilotService, mockClient } = setupMocks());
+    service = new CopilotService();
+    if (service._authPollTimer) clearInterval(service._authPollTimer);
+  });
+
+  afterEach(() => {
+    if (service?._authPollTimer) clearInterval(service._authPollTimer);
+    cleanupMocks();
+  });
+
+  it('should warn when overwriting existing listener with a different one', async () => {
+    const id = await service.createSession();
+    const listener1 = () => {};
+    const listener2 = () => {};
+    service.setListener(id, listener1);
+    const result = service.setListener(id, listener2);
+    assert.strictEqual(result, true);
+    assert.strictEqual(service.sessions.get(id).listener, listener2);
+  });
+
+  it('should store listener owner', async () => {
+    const id = await service.createSession();
+    service.setListener(id, () => {}, 'ws-client-1');
+    const entry = service.sessions.get(id);
+    assert.strictEqual(entry._listenerOwner, 'ws-client-1');
+  });
+});
+
+describe('CopilotService — disconnectSession edge cases (lines 471-472, 476-477)', () => {
+  let CopilotService, mockClient, service;
+
+  beforeEach(() => {
+    ({ CopilotService, mockClient } = setupMocks());
+    service = new CopilotService();
+    if (service._authPollTimer) clearInterval(service._authPollTimer);
+  });
+
+  afterEach(() => {
+    if (service?._authPollTimer) clearInterval(service._authPollTimer);
+    cleanupMocks();
+  });
+
+  it('should handle unsubscribe error gracefully', async () => {
+    const id = await service.createSession();
+    const entry = service.sessions.get(id);
+    entry.unsubscribe = () => {
+      throw new Error('unsubscribe failed');
+    };
+
+    await service.disconnectSession(id);
+    assert.strictEqual(service.sessions.has(id), false);
+  });
+
+  it('should resolve pending input on disconnect', async () => {
+    const id = await service.createSession();
+    const entry = service.sessions.get(id);
+
+    let resolvedValue;
+    entry.pendingInputResolve = (val) => {
+      resolvedValue = val;
+    };
+
+    await service.disconnectSession(id);
+    assert.deepStrictEqual(resolvedValue, { answer: '', wasFreeform: true });
+  });
+});
+
+describe('CopilotService — _doStart timer cleanup (lines 138-140)', () => {
+  let CopilotService, mockClient, service;
+
+  beforeEach(() => {
+    ({ CopilotService, mockClient } = setupMocks());
+    service = new CopilotService();
+    if (service._authPollTimer) clearInterval(service._authPollTimer);
+  });
+
+  afterEach(() => {
+    if (service?._authPollTimer) clearInterval(service._authPollTimer);
+    cleanupMocks();
+  });
+
+  it('should clear auth poll timer when client start fails', async () => {
+    mockClient.start = async () => {
+      throw new Error('start failure');
+    };
+    service._authPollTimer = setInterval(() => {}, 100000);
+
+    await assert.rejects(() => service.ensureClient(), { message: 'start failure' });
+    assert.strictEqual(service._authPollTimer, null);
+  });
+});
+
+describe('CopilotService — _createPermissionHandler eventBuffer fallback (lines 165-167)', () => {
+  let CopilotService, mockClient, service;
+
+  beforeEach(() => {
+    ({ CopilotService, mockClient } = setupMocks());
+    service = new CopilotService();
+    if (service._authPollTimer) clearInterval(service._authPollTimer);
+  });
+
+  afterEach(() => {
+    if (service?._authPollTimer) clearInterval(service._authPollTimer);
+    cleanupMocks();
+  });
+
+  it('should buffer to external eventBuffer when session entry does not exist', () => {
+    const externalBuffer = [];
+    const handler = service._createPermissionHandler('nonexistent-session', externalBuffer);
+    handler({ kind: 'url', url: 'https://auth.example.com' });
+    assert.strictEqual(externalBuffer.length, 1);
+    assert.strictEqual(externalBuffer[0].type, 'copilot.auth_url');
+    assert.strictEqual(externalBuffer[0].data.url, 'https://auth.example.com');
+  });
+});

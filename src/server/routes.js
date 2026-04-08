@@ -1221,7 +1221,8 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
   // the host machine; the watchdog auto-reconnects after re-auth.
 
   // --- Copilot CLI session events ---
-  const copilotSessionsDir = path.join(os.homedir(), '.copilot', 'session-state');
+  const copilotSessionsDir =
+    process.env.COPILOT_SESSIONS_DIR || path.join(os.homedir(), '.copilot', 'session-state');
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
   const HOOK_TYPES = new Set(['hook.start', 'hook.end']);
 

@@ -357,6 +357,40 @@ describe('Copilot WebSocket handlers', () => {
       const history = ws._sent.find((m) => m.type === 'copilot.message_history');
       assert.ok(!history, 'should not send empty message history');
     });
+
+    it('should forward events via copilot.attach listener', async () => {
+      const ws = connectWs();
+      await ws._simulateMessage({
+        type: 'copilot.attach',
+        sessionId: 'nonexistent',
+        model: 'gpt-4o',
+      });
+
+      // Listener should be stored on the created session
+      const listener = copilotService._listeners.get('mock-sdk-session-1');
+      assert.ok(listener, 'listener should be registered');
+
+      // Invoke the listener — should forward event to ws
+      listener({ type: 'copilot.token', data: { text: 'hello' } });
+      const token = ws._sent.find((m) => m.type === 'copilot.token');
+      assert.ok(token, 'event should be forwarded to ws');
+    });
+
+    it('should not forward events via attach listener when ws is closed', async () => {
+      const ws = connectWs();
+      await ws._simulateMessage({
+        type: 'copilot.attach',
+        sessionId: 'nonexistent',
+      });
+
+      const listener = copilotService._listeners.get('mock-sdk-session-1');
+      assert.ok(listener);
+
+      const sentBefore = ws._sent.length;
+      ws.readyState = 3; // CLOSED
+      listener({ type: 'copilot.token', data: { text: 'dropped' } });
+      assert.strictEqual(ws._sent.length, sentBefore, 'should not forward when ws closed');
+    });
   });
 
   // ---- copilot.send ----
