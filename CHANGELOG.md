@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.0] - 2026-04-08
+
+- feat(copilot): integrate Copilot SDK agent with chat UI, tests, and code review fixes (#183)
+- Revert "docs: add background service section to README"
+- docs: add background service section to README
+- feat(landing): add themes demo, fix video pacing and content
+
 ## [1.19.5] - 2026-04-05
 
 - feat(landing): add theme switcher to hub video, fix voice to paste not type
