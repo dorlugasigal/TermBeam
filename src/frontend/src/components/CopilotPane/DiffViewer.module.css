@@ -1,0 +1,165 @@
+/* ── DiffViewer — GitHub Copilot CLI-style unified diff viewer ── */
+
+.diffContainer {
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+  line-height: 20px;
+  background: rgba(13, 17, 23, 0.5);
+}
+
+.hunkHeader {
+  background: rgba(56, 139, 253, 0.1);
+  color: var(--text-dim);
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.diffTable {
+  border-collapse: collapse;
+  border-spacing: 0;
+  width: 100%;
+}
+
+/* Column widths — match GitHub: 44px per line-num, rest for content */
+.colNum {
+  width: 44px;
+}
+.colContent {
+  width: 100%;
+}
+
+.diffTable td {
+  padding: 0;
+  vertical-align: top;
+}
+
+/* Override ancestor td styles (e.g. markdownWrapper td) */
+.diffContainer .diffTable td {
+  border: none;
+  padding: 0;
+}
+
+/* ── Line number cells ── */
+.lineNum {
+  min-width: 44px;
+  padding: 0 8px;
+  text-align: center;
+  color: rgba(139, 148, 158, 0.6);
+  user-select: none;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* ── Content cell ── */
+.lineContent {
+  width: 100%;
+}
+
+.lineContentInner {
+  display: flex;
+  padding: 0 8px 0 0;
+}
+
+.lineMarker {
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+  user-select: none;
+  font-weight: 600;
+}
+
+.lineText {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Addition: two shades of green ── */
+.lineNumAdd {
+  background-color: rgba(46, 160, 67, 0.4);
+  color: rgba(63, 185, 80, 0.8);
+}
+.lineContentAdd {
+  background-color: rgba(46, 160, 67, 0.15);
+}
+.lineContentAdd .lineMarker {
+  color: #3fb950;
+}
+
+/* ── Deletion: two shades of red ── */
+.lineNumDel {
+  background-color: rgba(248, 81, 73, 0.4);
+  color: rgba(248, 81, 73, 0.8);
+}
+.lineContentDel {
+  background-color: rgba(248, 81, 73, 0.15);
+}
+.lineContentDel .lineMarker {
+  color: #f85149;
+}
+
+/* ── Context: no special background ── */
+
+/* ── "Show all N lines" button ── */
+.showAllBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: 6px 0;
+  border: none;
+  background: rgba(56, 139, 253, 0.08);
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.showAllBtn:hover {
+  background: rgba(56, 139, 253, 0.15);
+  color: var(--text-secondary);
+}
+.showAllArrow {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.rawDiff {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: monospace;
+  white-space: pre-wrap;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 768px) {
+  .diffContainer {
+    font-size: 12px;
+    line-height: 18px;
+  }
+  .lineNum {
+    min-width: 32px;
+    padding: 0 4px;
+    font-size: 11px;
+  }
+  .colNum {
+    width: 32px;
+  }
+  .lineMarker {
+    width: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Hide old line numbers on very narrow screens */
+  .lineNum:first-child {
+    display: none;
+  }
+  .colNum:first-child {
+    display: none;
+  }
+}

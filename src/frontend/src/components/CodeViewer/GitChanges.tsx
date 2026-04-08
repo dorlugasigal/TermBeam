@@ -202,7 +202,14 @@ interface FileSectionProps {
   onFileClick: (path: string, staged: boolean, untracked: boolean) => void;
 }
 
-function FileSection({ title, files, staged, untracked, activeFile, onFileClick }: FileSectionProps) {
+function FileSection({
+  title,
+  files,
+  staged,
+  untracked,
+  activeFile,
+  onFileClick,
+}: FileSectionProps) {
   return (
     <div className={styles.section}>
       <div className={styles.sectionHeader}>

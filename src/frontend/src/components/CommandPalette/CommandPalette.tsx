@@ -453,21 +453,26 @@ export default function CommandPalette() {
               const isLight = (rc + gc + bc) / 3 > 140;
               const isActive = theme.id === themeId;
               return (
-              <button
-                key={theme.id}
-                className={`${styles.themeRow} ${isActive ? styles.themeRowActive : ''}`}
-                data-testid="theme-item"
-                data-tid={theme.id}
-                onClick={() => setTheme(theme.id as ThemeId)}
-              >
-                <span className={styles.themeBar}>
-                  <span style={{ flex: 40, background: theme.bg }} />
-                  <span style={{ flex: 30, background: theme.surface }} />
-                  <span style={{ flex: 20, background: theme.accent }} />
-                  <span style={{ flex: 10, background: theme.text }} />
-                </span>
-                <span className={styles.themeLabel} style={isLight ? { color: '#1a1a1a', textShadow: 'none' } : undefined}>{theme.name}</span>
-              </button>
+                <button
+                  key={theme.id}
+                  className={`${styles.themeRow} ${isActive ? styles.themeRowActive : ''}`}
+                  data-testid="theme-item"
+                  data-tid={theme.id}
+                  onClick={() => setTheme(theme.id as ThemeId)}
+                >
+                  <span className={styles.themeBar}>
+                    <span style={{ flex: 40, background: theme.bg }} />
+                    <span style={{ flex: 30, background: theme.surface }} />
+                    <span style={{ flex: 20, background: theme.accent }} />
+                    <span style={{ flex: 10, background: theme.text }} />
+                  </span>
+                  <span
+                    className={styles.themeLabel}
+                    style={isLight ? { color: '#1a1a1a', textShadow: 'none' } : undefined}
+                  >
+                    {theme.name}
+                  </span>
+                </button>
               );
             })}
           </div>
@@ -495,12 +500,16 @@ export default function CommandPalette() {
   };
 
   const handleStop = () => {
-    const { activeId, removeSession: remove } = useSessionStore.getState();
+    const { activeId, sessions: sess, removeSession: remove } = useSessionStore.getState();
     if (!activeId) return;
     if (!confirm('Stop this session? The process will be killed.')) return;
     deleteSession(activeId)
       .catch(() => toast.error('Failed to stop session'))
-      .finally(() => remove(activeId));
+      .finally(() => {
+        const ms = sess.get(activeId);
+        if (ms?.companionTermId) remove(ms.companionTermId);
+        remove(activeId);
+      });
     close();
   };
 
@@ -617,6 +626,7 @@ export default function CommandPalette() {
               const ms = sess.get(activeId);
               if (!confirm(`Close session "${ms?.name ?? activeId}"?`)) return;
               deleteSession(activeId).catch(() => {});
+              if (ms?.companionTermId) remove(ms.companionTermId);
               remove(activeId);
             }),
         },
@@ -698,8 +708,11 @@ export default function CommandPalette() {
           icon: iconCode,
           action: () =>
             run(() => {
-              const { activeId } = useSessionStore.getState();
-              if (activeId) useUIStore.getState().openCodeViewer(activeId);
+              const { activeId, sessions: sess } = useSessionStore.getState();
+              if (!activeId) return;
+              const ms = sess.get(activeId);
+              const ptyId = ms?.type === 'copilot' ? (ms.companionTermId ?? activeId) : activeId;
+              useUIStore.getState().openCodeViewer(ptyId);
             }),
         },
         {
@@ -708,10 +721,11 @@ export default function CommandPalette() {
           icon: iconGitChanges,
           action: () =>
             run(() => {
-              const { activeId } = useSessionStore.getState();
-              if (activeId) {
-                useUIStore.getState().openCodeViewer(activeId, 'changes');
-              }
+              const { activeId, sessions: sess } = useSessionStore.getState();
+              if (!activeId) return;
+              const ms = sess.get(activeId);
+              const ptyId = ms?.type === 'copilot' ? (ms.companionTermId ?? activeId) : activeId;
+              useUIStore.getState().openCodeViewer(ptyId, 'changes');
             }),
         },
       ],

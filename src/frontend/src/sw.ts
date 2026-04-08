@@ -49,9 +49,7 @@ self.addEventListener('install', () => {
 });
 self.addEventListener('activate', (event) => {
   // Clean up any legacy navigation caches from previous versions
-  event.waitUntil(
-    caches.delete('termbeam-navigation').then(() => self.clients.claim()),
-  );
+  event.waitUntil(caches.delete('termbeam-navigation').then(() => self.clients.claim()));
 });
 
 // ---------- Push notification handling ----------
@@ -129,25 +127,23 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   const type = (notifData.type as string) || '';
 
   event.waitUntil(
-    self.clients
-      .matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        // Find an existing window and focus it
-        for (const client of clientList) {
-          if (client.url.includes(self.location.origin) && 'focus' in client) {
-            // Notify the frontend about what was clicked
-            if (type) {
-              client.postMessage({
-                type: 'NOTIFICATION_CLICKED',
-                notificationType: type,
-                sessionId: notifData.sessionId,
-              });
-            }
-            return (client as WindowClient).focus();
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Find an existing window and focus it
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          // Notify the frontend about what was clicked
+          if (type) {
+            client.postMessage({
+              type: 'NOTIFICATION_CLICKED',
+              notificationType: type,
+              sessionId: notifData.sessionId,
+            });
           }
+          return (client as WindowClient).focus();
         }
-        // No existing window — open a new one
-        return self.clients.openWindow(url);
-      }),
+      }
+      // No existing window — open a new one
+      return self.clients.openWindow(url);
+    }),
   );
 });

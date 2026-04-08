@@ -105,10 +105,18 @@ function createTermBeamServer(overrides = {}) {
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 1 * 1024 * 1024 });
 
+  let copilotService = null;
+  try {
+    const { CopilotService } = require('./copilot-sdk');
+    if (CopilotService) copilotService = new CopilotService();
+  } catch {
+    log.info('Copilot SDK not available — agent features disabled');
+  }
+
   const state = { shareBaseUrl: null, updateInfo: null, wss, tunnelStatus: null, getLoginInfo };
   app.use('/preview', auth.middleware, createPreviewProxy());
-  setupRoutes(app, { auth, sessions, config, state, pushManager });
-  setupWebSocket(wss, { auth, sessions });
+  setupRoutes(app, { auth, sessions, config, state, pushManager, copilotService });
+  setupWebSocket(wss, { auth, sessions, copilotService });
 
   // --- Lifecycle ---
   let shuttingDown = false;
@@ -118,6 +126,7 @@ function createTermBeamServer(overrides = {}) {
     log.info('Shutdown initiated');
     auth.cleanup();
     sessions.shutdown();
+    copilotService.shutdown().catch(() => {});
     cleanupUploadedFiles();
     tunnelEvents.removeAllListeners();
     cleanupTunnel();

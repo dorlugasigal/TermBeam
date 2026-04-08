@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect } from 'react';
 import type { Session } from '@/types';
+import { CopilotLogo } from '@/components/common/CopilotLogo';
 import styles from './SessionCard.module.css';
 
 interface SessionCardProps {
@@ -11,7 +12,9 @@ interface SessionCardProps {
 }
 
 function formatActivity(lastActivity: string | number): string {
+  if (!lastActivity) return 'just now';
   const ts = typeof lastActivity === 'number' ? lastActivity : new Date(lastActivity).getTime();
+  if (isNaN(ts)) return 'just now';
   const diff = Date.now() - ts;
   if (diff < 10_000) return 'just now';
   if (diff < 60_000) return `${Math.floor(diff / 1000)}s ago`;
@@ -78,6 +81,8 @@ function getProviderIcon(provider?: string) {
   if (lower.includes('gitlab')) return <GitLabIcon />;
   return null;
 }
+
+const CopilotIcon = () => <CopilotLogo size={12} />;
 
 export default function SessionCard({
   session,
@@ -194,8 +199,9 @@ export default function SessionCard({
     [session.id, onDelete, onRevealChange],
   );
 
+  const isCopilot = session.type === 'copilot';
   const shellName = session.shell.split('/').pop() ?? session.shell;
-  const color = session.color ?? 'var(--success)';
+  const color = isCopilot ? '#a855f6' : (session.color ?? 'var(--success)');
   const git = session.git;
   const isClean = git?.status?.clean === true;
 
@@ -219,17 +225,27 @@ export default function SessionCard({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Top row: dot + name + PID */}
+        {/* Top row: dot + name + PID/Copilot label */}
         <div className={styles.topRow}>
           <div className={styles.nameGroup}>
-            <span className={styles.colorDot} style={{ background: color }} />
+            {isCopilot ? (
+              <CopilotIcon />
+            ) : (
+              <span className={styles.colorDot} style={{ background: color }} />
+            )}
             <span className={styles.name} data-testid="session-name">
               {session.name}
             </span>
           </div>
-          <span className={styles.pidBadge} data-testid="session-pid">
-            PID {session.pid}
-          </span>
+          {isCopilot ? (
+            <span className={styles.pidBadge} data-testid="session-type-badge">
+              {session.model ?? 'Copilot'}
+            </span>
+          ) : (
+            <span className={styles.pidBadge} data-testid="session-pid">
+              PID {session.pid}
+            </span>
+          )}
         </div>
 
         {/* Details row */}
@@ -237,9 +253,15 @@ export default function SessionCard({
           <span className={styles.detailItem}>
             <FolderIcon /> {session.cwd}
           </span>
-          <span className={styles.detailItem} data-testid="session-shell">
-            <ShellIcon /> {shellName}
-          </span>
+          {isCopilot ? (
+            <span className={styles.detailItem} data-testid="session-shell">
+              <CopilotIcon /> Copilot
+            </span>
+          ) : (
+            <span className={styles.detailItem} data-testid="session-shell">
+              <ShellIcon /> {shellName}
+            </span>
+          )}
           <span className={styles.detailItem}>
             <ClockIcon /> {formatActivity(session.lastActivity)}
           </span>

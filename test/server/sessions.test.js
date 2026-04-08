@@ -570,4 +570,123 @@ describe('SessionManager', () => {
 
     assert.ok(!session._silenceTimer, 'silence timer should NOT be set without direct child');
   });
+
+  describe('hidden sessions', () => {
+    it('should default hidden to false', () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({ name: 'normal', shell: '/bin/sh', cwd: '/tmp' });
+      const session = mgr.get(id);
+      assert.strictEqual(session.hidden, false);
+    });
+
+    it('should create a hidden session with hidden: true', () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({ name: 'companion', shell: '/bin/sh', cwd: '/tmp', hidden: true });
+      const session = mgr.get(id);
+      assert.ok(session, 'hidden session should be accessible via get()');
+      assert.strictEqual(session.hidden, true);
+      assert.strictEqual(session.name, 'companion');
+    });
+
+    it('should include hidden flag in list() output', () => {
+      const mgr = new SessionManager();
+      mgr.create({ name: 'visible', shell: '/bin/sh', cwd: '/tmp' });
+      mgr.create({ name: 'hidden-sess', shell: '/bin/sh', cwd: '/tmp', hidden: true });
+      const list = mgr.list();
+      assert.strictEqual(list.length, 2);
+      const visible = list.find((s) => s.name === 'visible');
+      const hidden = list.find((s) => s.name === 'hidden-sess');
+      assert.strictEqual(visible.hidden, false);
+      assert.strictEqual(hidden.hidden, true);
+    });
+
+    it('should allow filtering hidden sessions from list() by caller', () => {
+      const mgr = new SessionManager();
+      mgr.create({ name: 'user-term', shell: '/bin/sh', cwd: '/tmp' });
+      mgr.create({ name: 'companion-pty', shell: '/bin/sh', cwd: '/tmp', hidden: true });
+      mgr.create({ name: 'another-term', shell: '/bin/sh', cwd: '/tmp' });
+      const all = mgr.list();
+      const userVisible = all.filter((s) => !s.hidden);
+      assert.strictEqual(all.length, 3);
+      assert.strictEqual(userVisible.length, 2);
+      assert.ok(userVisible.every((s) => !s.hidden));
+    });
+
+    it('should allow deleting a hidden companion session', () => {
+      const mgr = new SessionManager();
+      const mainId = mgr.create({
+        name: 'copilot-session',
+        shell: '/bin/sh',
+        cwd: '/tmp',
+        type: 'agent',
+      });
+      const companionId = mgr.create({
+        name: 'copilot-companion',
+        shell: '/bin/sh',
+        cwd: '/tmp',
+        hidden: true,
+      });
+      assert.strictEqual(mgr.list().length, 2);
+
+      // Delete the main session
+      assert.strictEqual(mgr.delete(mainId), true);
+      // Companion should still exist and be independently deletable
+      assert.ok(mgr.get(companionId), 'companion should still exist after main deletion');
+      assert.strictEqual(mgr.delete(companionId), true);
+      assert.strictEqual(mgr.get(companionId), undefined);
+      assert.strictEqual(mgr.list().length, 0);
+    });
+
+    it('should allow hidden sessions to combine with type field', () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({
+        name: 'agent-companion',
+        shell: '/bin/sh',
+        cwd: '/tmp',
+        type: 'agent',
+        hidden: true,
+      });
+      const session = mgr.get(id);
+      assert.strictEqual(session.type, 'agent');
+      assert.strictEqual(session.hidden, true);
+
+      const list = mgr.list();
+      const entry = list.find((s) => s.id === id);
+      assert.strictEqual(entry.type, 'agent');
+      assert.strictEqual(entry.hidden, true);
+    });
+  });
+
+  describe('session type', () => {
+    it('should default type to terminal', () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({ name: 'default-type', shell: '/bin/sh', cwd: '/tmp' });
+      const session = mgr.get(id);
+      assert.strictEqual(session.type, 'terminal');
+    });
+
+    it('should accept type agent', () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({
+        name: 'agent-session',
+        shell: '/bin/sh',
+        cwd: '/tmp',
+        type: 'agent',
+      });
+      const session = mgr.get(id);
+      assert.strictEqual(session.type, 'agent');
+    });
+
+    it('should include type in list()', () => {
+      const mgr = new SessionManager();
+      mgr.create({ name: 'terminal-sess', shell: '/bin/sh', cwd: '/tmp' });
+      mgr.create({ name: 'agent-sess', shell: '/bin/sh', cwd: '/tmp', type: 'agent' });
+      const list = mgr.list();
+      assert.strictEqual(list.length, 2);
+      const terminalSess = list.find((s) => s.name === 'terminal-sess');
+      const agentSess = list.find((s) => s.name === 'agent-sess');
+      assert.strictEqual(terminalSess.type, 'terminal');
+      assert.strictEqual(agentSess.type, 'agent');
+    });
+  });
 });

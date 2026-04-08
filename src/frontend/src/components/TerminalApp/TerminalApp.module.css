@@ -189,6 +189,11 @@
   background: var(--bg);
 }
 
+/* Copilot chat hides the TouchBar — reclaim its space */
+.layout[data-hide-touchbar] .terminalArea {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--keyboard-height, 0px));
+}
+
 .split {
   flex-direction: row;
 }
@@ -217,6 +222,7 @@
   flex: 1;
   visibility: visible;
   pointer-events: auto;
+  overscroll-behavior: none;
 }
 
 /* Focus indicator on the active pane in split view */
@@ -256,6 +262,10 @@
   }
   /* TouchBar hides when keyboard is open — remove its offset */
   .layout[data-keyboard-open] .terminalArea {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--keyboard-height, 0px));
+  }
+  /* Copilot chat hides TouchBar — reclaim its space */
+  .layout[data-hide-touchbar] .terminalArea {
     bottom: calc(env(safe-area-inset-bottom, 0px) + var(--keyboard-height, 0px));
   }
 }

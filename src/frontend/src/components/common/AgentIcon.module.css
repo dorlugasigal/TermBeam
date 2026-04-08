@@ -1,16 +1,44 @@
 .badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  line-height: 1;
+}
+
+.badge svg {
+  display: block;
 }
 
 .dot {
   border-radius: 50%;
 }
 
+.sm {
+  width: 20px;
+  height: 20px;
+}
+
+.sm svg {
+  width: 20px;
+  height: 20px;
+}
+
 .sm .dot {
   width: 8px;
   height: 8px;
+}
+
+.md {
+  width: 28px;
+  height: 28px;
+}
+
+.md svg {
+  width: 28px;
+  height: 28px;
 }
 
 .md .dot {

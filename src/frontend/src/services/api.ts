@@ -32,14 +32,14 @@ export async function fetchSessions(): Promise<Session[]> {
 
 export async function createSession(
   req: CreateSessionRequest & { cols?: number; rows?: number },
-): Promise<{ id: string; url: string }> {
+): Promise<{ id: string; url: string; ptySessionId?: string | null }> {
   const res = await fetchWithTimeout(`${BASE}/api/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
     credentials: 'same-origin',
   });
-  return handleResponse<{ id: string; url: string }>(res);
+  return handleResponse<{ id: string; url: string; ptySessionId?: string | null }>(res);
 }
 
 export async function deleteSession(id: string): Promise<void> {
@@ -129,14 +129,24 @@ export async function fetchAgentSessions(
   return handleResponse<{ sessions: AgentSession[] }>(res);
 }
 
-export async function getResumeCommand(
-  agent: string,
-  id: string,
-): Promise<{ command: string }> {
+export async function getResumeCommand(agent: string, id: string): Promise<{ command: string }> {
   const res = await fetchWithTimeout(`${BASE}/api/agent-sessions/${agent}/${id}/resume-command`, {
     credentials: 'same-origin',
   });
   return handleResponse<{ command: string }>(res);
+}
+
+export async function resumeCopilotSdkSession(
+  sdkSessionId: string,
+  options?: { name?: string; model?: string; cwd?: string },
+): Promise<{ id: string; type: string; ptySessionId?: string | null }> {
+  const res = await fetchWithTimeout(`${BASE}/api/copilot/sdk/sessions/${sdkSessionId}/resume`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options || {}),
+    credentials: 'same-origin',
+  });
+  return handleResponse<{ id: string; type: string; ptySessionId?: string | null }>(res);
 }
 
 export interface BrowseDirsResponse {
@@ -635,4 +645,3 @@ export async function fetchTunnelStatus(): Promise<TunnelStatus> {
 }
 
 // Tunnel renew endpoint removed — DevTunnel handles its own OAuth lifecycle.
-

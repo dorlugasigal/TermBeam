@@ -246,10 +246,7 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
             if (document.hidden && store.activeId !== sessionId) {
               const wasAlreadyUnread = session?.hasUnread ?? false;
               store.markUnread(sessionId);
-              if (
-                !wasAlreadyUnread &&
-                isNotificationsEnabled()
-              ) {
+              if (!wasAlreadyUnread && isNotificationsEnabled()) {
                 playNotificationSound();
               }
             }

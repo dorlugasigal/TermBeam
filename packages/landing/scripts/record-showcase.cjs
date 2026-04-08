@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 'use strict';
 
+const path = require('path');
 const { chromium } = require(
-  require.resolve('playwright', { paths: ['/Users/dorlugasigal/Projects/termbeam'] })
+  require.resolve('playwright', { paths: [path.resolve(__dirname, '../../..')] }),
 );
 const { execSync } = require('child_process');
 const http = require('http');
 const fs = require('fs');
-const path = require('path');
 
 const BASE_URL = 'http://localhost:3456';
 const FFMPEG = '/opt/homebrew/bin/ffmpeg';
@@ -107,12 +107,12 @@ async function saveVideo(capture, outputName) {
     `"${FFMPEG}" -y -framerate ${CAPTURE_FPS} -i "${capture.dir}/frame-%05d.png" ` +
       `-c:v libx264 -crf 22 -preset slow -r ${OUTPUT_FPS} ` +
       `-an -movflags +faststart -pix_fmt yuv420p "${mp4Path}"`,
-    { stdio: 'pipe' }
+    { stdio: 'pipe' },
   );
   fs.rmSync(capture.dir, { recursive: true, force: true });
   const stat = fs.statSync(mp4Path);
   const dur = execSync(
-    `"${FFMPEG}" -i "${mp4Path}" 2>&1 | grep Duration | sed 's/.*Duration: //' | sed 's/,.*//'`
+    `"${FFMPEG}" -i "${mp4Path}" 2>&1 | grep Duration | sed 's/.*Duration: //' | sed 's/,.*//'`,
   )
     .toString()
     .trim();
@@ -126,11 +126,15 @@ async function focusTerminal(page, timeout = 5000) {
         const rows = document.querySelector('.xterm-rows');
         return rows && rows.textContent && rows.textContent.trim().length > 5;
       },
-      { timeout }
+      { timeout },
     )
     .catch(() => {});
   await page.waitForTimeout(300);
-  await page.locator('.xterm-screen').first().click().catch(() => {});
+  await page
+    .locator('.xterm-screen')
+    .first()
+    .click()
+    .catch(() => {});
   await page.waitForTimeout(150);
 }
 
@@ -194,9 +198,9 @@ async function recordAgentsDesktop(browser) {
     const btn = page.locator('[data-testid="hub-new-session-btn"]');
     await btn.waitFor({ timeout: 5000 }).catch(() => {});
     await btn.click().catch(() => {});
-    await page.waitForSelector('[data-testid="new-session-modal"]', { timeout: 5000 }).catch(
-      () => {}
-    );
+    await page
+      .waitForSelector('[data-testid="new-session-modal"]', { timeout: 5000 })
+      .catch(() => {});
     // Let user see the modal with agent cards
     await page.waitForTimeout(2500);
     // Look for Claude Code agent card and click it
@@ -444,7 +448,10 @@ async function recordResumeDesktop(browser) {
       const resumeCards = page.locator('[class*="card"]').filter({ hasText: /.+/ });
       const cardCount = await resumeCards.count();
       if (cardCount > 0) {
-        await resumeCards.first().click().catch(() => {});
+        await resumeCards
+          .first()
+          .click()
+          .catch(() => {});
         await page.waitForTimeout(1500);
       } else {
         await page.waitForTimeout(1500);
@@ -485,14 +492,18 @@ async function recordGitdiffDesktop(browser) {
     await paletteTrigger.click().catch(() => {});
     await page.waitForTimeout(800);
     // Click "Git changes" action
-    const gitAction = page.locator('[data-testid="palette-action"]:has-text("Git changes")').first();
+    const gitAction = page
+      .locator('[data-testid="palette-action"]:has-text("Git changes")')
+      .first();
     const hasGitAction = await gitAction.count();
     if (hasGitAction > 0) {
       await gitAction.click().catch(() => {});
       await page.waitForTimeout(1500);
       // Code viewer opens with git changes panel — click a non-binary file
       // Look for files with .js, .ts, .json, .css, .md extensions
-      const fileButtons = page.locator('button[aria-label*=".js"], button[aria-label*=".ts"], button[aria-label*=".json"], button[aria-label*=".css"], button[aria-label*=".md"], button[aria-label*=".cjs"]');
+      const fileButtons = page.locator(
+        'button[aria-label*=".js"], button[aria-label*=".ts"], button[aria-label*=".json"], button[aria-label*=".css"], button[aria-label*=".md"], button[aria-label*=".cjs"]',
+      );
       const fileCount = await fileButtons.count();
       if (fileCount > 0) {
         await fileButtons.first().click();
@@ -507,7 +518,9 @@ async function recordGitdiffDesktop(browser) {
       }
     } else {
       // Fallback: open "View code" instead
-      const codeAction = page.locator('[data-testid="palette-action"]:has-text("View code")').first();
+      const codeAction = page
+        .locator('[data-testid="palette-action"]:has-text("View code")')
+        .first();
       if ((await codeAction.count()) > 0) {
         await codeAction.click().catch(() => {});
         await page.waitForTimeout(1500);

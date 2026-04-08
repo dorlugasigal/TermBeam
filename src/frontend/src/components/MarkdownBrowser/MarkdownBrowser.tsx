@@ -146,9 +146,7 @@ export function MarkdownBrowser({ sessionId, rootDir, onClose }: MarkdownBrowser
               className={styles.entry}
               onClick={() => handleEntryClick(entry)}
             >
-              <span className={styles.entryIcon}>
-                {entry.type === 'directory' ? '📁' : '📝'}
-              </span>
+              <span className={styles.entryIcon}>{entry.type === 'directory' ? '📁' : '📝'}</span>
               <span className={styles.entryName}>{entry.name}</span>
               {entry.type === 'file' && (
                 <span className={styles.entryMeta}>{formatSize(entry.size)}</span>

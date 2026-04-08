@@ -142,10 +142,7 @@ export function FileBrowser({ sessionId, rootDir, onClose }: FileBrowserProps) {
             <div key={entry.name} className={styles.entry}>
               <span className={styles.entryIcon}>{entry.type === 'directory' ? '📁' : '📄'}</span>
               {entry.type === 'directory' ? (
-                <button
-                  className={styles.entryName}
-                  onClick={() => handleEntryClick(entry)}
-                >
+                <button className={styles.entryName} onClick={() => handleEntryClick(entry)}>
                   {entry.name}
                 </button>
               ) : (

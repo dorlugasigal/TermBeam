@@ -105,7 +105,10 @@ export function useContentPinchZoom(
 
       const dist = getDistance(t0, t1);
       const oldScale = scaleRef.current;
-      const newScale = Math.min(5, Math.max(1, startScaleRef.current * (dist / startDistRef.current)));
+      const newScale = Math.min(
+        5,
+        Math.max(1, startScaleRef.current * (dist / startDistRef.current)),
+      );
       if (Math.abs(newScale - oldScale) < 0.005) return;
 
       // Pinch midpoint in container viewport coords

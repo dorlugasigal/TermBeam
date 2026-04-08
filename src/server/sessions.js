@@ -147,6 +147,8 @@ class SessionManager {
     color = null,
     cols = 120,
     rows = 30,
+    type = 'terminal',
+    hidden = false,
   }) {
     // Defense-in-depth: reject shells with dangerous characters or relative paths
     if (
@@ -194,6 +196,8 @@ class SessionManager {
       shell,
       cwd,
       color,
+      type,
+      hidden,
       createdAt: new Date().toISOString(),
       lastActivity: Date.now(),
       clients: new Set(),
@@ -440,6 +444,8 @@ class SessionManager {
         clients: s.clients.size,
         createdAt: s.createdAt,
         color: s.color,
+        type: s.type,
+        hidden: s.hidden || false,
         lastActivity: s.lastActivity,
         git,
       });

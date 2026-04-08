@@ -15,6 +15,7 @@
   --danger: #f14c4c;
   --danger-hover: #d73a3a;
   --success: #89d185;
+  --warning: #e8ab3a;
   --overlay-bg: rgba(0, 0, 0, 0.85);
   --key-bg: #4a4a4c;
   --key-border: #5a5a5c;
@@ -37,6 +38,7 @@
   --danger: #e51400;
   --danger-hover: #c20000;
   --success: #16825d;
+  --warning: #d48806;
   --overlay-bg: rgba(0, 0, 0, 0.5);
   --key-bg: #ffffff;
   --key-border: #b5b5b5;

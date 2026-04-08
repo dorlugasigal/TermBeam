@@ -83,7 +83,7 @@ export default function SessionsHub() {
   const loadSessions = useCallback(async () => {
     try {
       const list = await fetchSessions();
-      setSessions(list);
+      setSessions(list.filter((s) => !s.hidden));
     } catch {
       // Silently retry on next poll
     } finally {
@@ -104,7 +104,7 @@ export default function SessionsHub() {
   }, []);
 
   function navigateToSession(id: string) {
-    window.history.pushState(null, '', `/terminal?id=${id}`);
+    window.history.pushState(null, '', `/terminal?session=${id}`);
     window.dispatchEvent(new PopStateEvent('popstate'));
   }
 
@@ -229,19 +229,24 @@ export default function SessionsHub() {
               const isLight = (rc + gc + bc) / 3 > 140;
               const isActive = theme.id === themeId;
               return (
-              <button
-                key={theme.id}
-                className={`${styles.themeRow} ${isActive ? styles.themeRowActive : ''}`}
-                onClick={() => setTheme(theme.id as ThemeId)}
-              >
-                <span className={styles.themeBar}>
-                  <span style={{ flex: 40, background: theme.bg }} />
-                  <span style={{ flex: 30, background: theme.surface }} />
-                  <span style={{ flex: 20, background: theme.accent }} />
-                  <span style={{ flex: 10, background: theme.text }} />
-                </span>
-                <span className={styles.themeLabel} style={isLight ? { color: '#1a1a1a', textShadow: 'none' } : undefined}>{theme.name}</span>
-              </button>
+                <button
+                  key={theme.id}
+                  className={`${styles.themeRow} ${isActive ? styles.themeRowActive : ''}`}
+                  onClick={() => setTheme(theme.id as ThemeId)}
+                >
+                  <span className={styles.themeBar}>
+                    <span style={{ flex: 40, background: theme.bg }} />
+                    <span style={{ flex: 30, background: theme.surface }} />
+                    <span style={{ flex: 20, background: theme.accent }} />
+                    <span style={{ flex: 10, background: theme.text }} />
+                  </span>
+                  <span
+                    className={styles.themeLabel}
+                    style={isLight ? { color: '#1a1a1a', textShadow: 'none' } : undefined}
+                  >
+                    {theme.name}
+                  </span>
+                </button>
               );
             })}
           </div>
