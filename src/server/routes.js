@@ -411,14 +411,18 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
         const resolved = path.resolve(cwd);
         if (!path.isAbsolute(resolved))
           return res.status(400).json({ error: 'cwd must be absolute' });
-        if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
+        try {
+          const real = fs.realpathSync(resolved);
+          if (!fs.statSync(real).isDirectory())
+            return res.status(400).json({ error: 'cwd must be an existing directory' });
+        } catch {
           return res.status(400).json({ error: 'cwd must be an existing directory' });
         }
       }
 
       let ptySessionId = null;
       try {
-        const sessionCwd = cwd ? path.resolve(cwd) : config.cwd;
+        const sessionCwd = cwd ? fs.realpathSync(path.resolve(cwd)) : config.cwd;
 
         // Create a companion PTY terminal first
         try {
@@ -1330,7 +1334,11 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
           const resolved = path.resolve(req.body.cwd);
           if (!path.isAbsolute(resolved))
             return res.status(400).json({ error: 'cwd must be absolute' });
-          if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
+          try {
+            const real = fs.realpathSync(resolved);
+            if (!fs.statSync(real).isDirectory())
+              return res.status(400).json({ error: 'cwd must be an existing directory' });
+          } catch {
             return res.status(400).json({ error: 'cwd must be an existing directory' });
           }
         }
@@ -1338,7 +1346,9 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
         let ptySessionId = null;
         try {
           const { sdkSessionId } = req.params;
-          const sessionCwd = req.body.cwd ? path.resolve(req.body.cwd) : config.cwd;
+          const sessionCwd = req.body.cwd
+            ? fs.realpathSync(path.resolve(req.body.cwd))
+            : config.cwd;
 
           // Create companion PTY for the resumed session
           try {
@@ -1449,7 +1459,15 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
       if (!sessionDir) {
         return res.status(400).json({ error: 'Invalid session path' });
       }
-      const eventsPath = path.join(sessionDir, 'events.jsonl');
+      let eventsPath;
+      try {
+        eventsPath = fs.realpathSync(path.join(sessionDir, 'events.jsonl'));
+        if (!eventsPath.startsWith(fs.realpathSync(copilotSessionsDir))) {
+          return res.status(400).json({ error: 'Invalid session path' });
+        }
+      } catch {
+        return res.status(404).json({ error: 'Session not found' });
+      }
       let content;
       try {
         content = await fs.promises.readFile(eventsPath, 'utf8');
