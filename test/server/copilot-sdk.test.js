@@ -1220,7 +1220,7 @@ describe('CopilotService — _watchAuthUrls forwarding (lines 93-113)', () => {
 
       const authEvents = received.filter((e) => e.type === 'copilot.auth_url');
       assert.ok(authEvents.length >= 1, 'Expected at least one auth URL event');
-      assert.ok(authEvents[0].data.url.startsWith('https://auth.example.com'));
+      assert.strictEqual(authEvents[0].data.url, 'https://auth.example.com/oauth?code=123');
     } finally {
       if (svc._authPollTimer) clearInterval(svc._authPollTimer);
     }
@@ -1268,7 +1268,7 @@ describe('CopilotService — _watchAuthUrls forwarding (lines 93-113)', () => {
 
       const authEvents = received.filter((e) => e.type === 'copilot.auth_url');
       assert.ok(authEvents.length >= 1);
-      assert.ok(authEvents.every((e) => e.data.url.startsWith('https://valid.example.com')));
+      assert.ok(authEvents.every((e) => e.data.url === 'https://valid.example.com/auth'));
     } finally {
       if (svc._authPollTimer) clearInterval(svc._authPollTimer);
     }

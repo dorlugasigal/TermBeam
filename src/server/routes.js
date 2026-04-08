@@ -20,6 +20,22 @@ function safePath(rootDir, userPath) {
   return resolved;
 }
 
+/**
+ * Validate and sanitize a user-provided cwd path.
+ * Returns the canonical real path or null if invalid.
+ */
+function validateCwd(userCwd) {
+  if (!userCwd || typeof userCwd !== 'string') return null;
+  try {
+    const real = fs.realpathSync(path.resolve(userCwd));
+    if (!path.isAbsolute(real)) return null;
+    if (!fs.statSync(real).isDirectory()) return null;
+    return real;
+  } catch {
+    return null;
+  }
+}
+
 const uploadedFiles = new Map(); // id -> filepath
 
 // Cache git info per cwd to avoid repeated git calls on each /api/sessions request
@@ -408,21 +424,14 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
       }
       // Validate cwd for copilot sessions
       if (cwd) {
-        const resolved = path.resolve(cwd);
-        if (!path.isAbsolute(resolved))
-          return res.status(400).json({ error: 'cwd must be absolute' });
-        try {
-          const real = fs.realpathSync(resolved);
-          if (!fs.statSync(real).isDirectory())
-            return res.status(400).json({ error: 'cwd must be an existing directory' });
-        } catch {
-          return res.status(400).json({ error: 'cwd must be an existing directory' });
-        }
+        const validCwd = validateCwd(cwd);
+        if (!validCwd)
+          return res.status(400).json({ error: 'cwd must be an existing absolute directory' });
       }
 
       let ptySessionId = null;
       try {
-        const sessionCwd = cwd ? fs.realpathSync(path.resolve(cwd)) : config.cwd;
+        const sessionCwd = cwd ? validateCwd(cwd) || config.cwd : config.cwd;
 
         // Create a companion PTY terminal first
         try {
@@ -1331,24 +1340,15 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
       async (req, res) => {
         // Validate cwd for resume endpoint
         if (req.body.cwd) {
-          const resolved = path.resolve(req.body.cwd);
-          if (!path.isAbsolute(resolved))
-            return res.status(400).json({ error: 'cwd must be absolute' });
-          try {
-            const real = fs.realpathSync(resolved);
-            if (!fs.statSync(real).isDirectory())
-              return res.status(400).json({ error: 'cwd must be an existing directory' });
-          } catch {
-            return res.status(400).json({ error: 'cwd must be an existing directory' });
-          }
+          const validCwd = validateCwd(req.body.cwd);
+          if (!validCwd)
+            return res.status(400).json({ error: 'cwd must be an existing absolute directory' });
         }
 
         let ptySessionId = null;
         try {
           const { sdkSessionId } = req.params;
-          const sessionCwd = req.body.cwd
-            ? fs.realpathSync(path.resolve(req.body.cwd))
-            : config.cwd;
+          const sessionCwd = req.body.cwd ? validateCwd(req.body.cwd) || config.cwd : config.cwd;
 
           // Create companion PTY for the resumed session
           try {

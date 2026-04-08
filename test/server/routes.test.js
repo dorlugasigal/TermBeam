@@ -4292,7 +4292,7 @@ describe('Routes', () => {
         );
         assert.strictEqual(res.statusCode, 400);
         const data = JSON.parse(res.data);
-        assert.ok(data.error.includes('existing directory'));
+        assert.ok(data.error.includes('existing absolute directory'));
       });
 
       it('type=copilot should return 500 when SDK createSession throws', async () => {
@@ -4422,7 +4422,7 @@ describe('Routes', () => {
         );
         assert.strictEqual(res.statusCode, 400);
         const data = JSON.parse(res.data);
-        assert.ok(data.error.includes('existing directory'));
+        assert.ok(data.error.includes('existing absolute directory'));
       });
 
       it('POST /api/copilot/sdk/sessions/:id/resume should return 500 when resumeSession throws', async () => {
