@@ -96,7 +96,12 @@ export function MarkdownViewer({
     <div className={styles.container}>
       {!hideHeader && (
         <div className={styles.header}>
-          <button className={styles.backBtn} onClick={onClose} title="Back to files" aria-label="Back to files">
+          <button
+            className={styles.backBtn}
+            onClick={onClose}
+            title="Back to files"
+            aria-label="Back to files"
+          >
             ←
           </button>
           <span className={styles.fileName}>📄 {fileName}</span>
@@ -114,70 +119,70 @@ export function MarkdownViewer({
           <div className={styles.error}>{error}</div>
         ) : (
           <>
-          <div className={styles.markdown} ref={markdownRef}>
-            <Markdown
-              remarkPlugins={[remarkGfm, remarkGemoji]}
-              rehypePlugins={[rehypeRaw]}
-              components={{
-                img: ({ src, alt, ...props }) => {
-                  if (!src || isExternalUrl(src)) {
-                    return <img src={src} alt={alt} {...props} />;
-                  }
-                  const resolved = resolveRelativePath(filePath, src);
-                  const url = `/api/sessions/${sessionId}/file-raw?file=${encodeURIComponent(resolved)}`;
-                  return <img src={url} alt={alt} {...props} />;
-                },
-                a: ({ href, children, ...props }) => {
-                  const h = href || '';
-                  const mdTarget = h ? h.split('#')[0] || '' : '';
-                  if (h && !isExternalUrl(h) && /\.(md|markdown)$/i.test(mdTarget)) {
+            <div className={styles.markdown} ref={markdownRef}>
+              <Markdown
+                remarkPlugins={[remarkGfm, remarkGemoji]}
+                rehypePlugins={[rehypeRaw]}
+                components={{
+                  img: ({ src, alt, ...props }) => {
+                    if (!src || isExternalUrl(src)) {
+                      return <img src={src} alt={alt} {...props} />;
+                    }
+                    const resolved = resolveRelativePath(filePath, src);
+                    const url = `/api/sessions/${sessionId}/file-raw?file=${encodeURIComponent(resolved)}`;
+                    return <img src={url} alt={alt} {...props} />;
+                  },
+                  a: ({ href, children, ...props }) => {
+                    const h = href || '';
+                    const mdTarget = h ? h.split('#')[0] || '' : '';
+                    if (h && !isExternalUrl(h) && /\.(md|markdown)$/i.test(mdTarget)) {
+                      return (
+                        <a
+                          href={h}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            const resolved = resolveRelativePath(filePath, mdTarget);
+                            const name = resolved.split('/').pop() || resolved;
+                            if (onNavigate) onNavigate(resolved, name);
+                          }}
+                          {...props}
+                        >
+                          {children}
+                        </a>
+                      );
+                    }
                     return (
-                      <a
-                        href={h}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          const resolved = resolveRelativePath(filePath, mdTarget);
-                          const name = resolved.split('/').pop() || resolved;
-                          if (onNavigate) onNavigate(resolved, name);
-                        }}
-                        {...props}
-                      >
+                      <a href={href} {...props}>
                         {children}
                       </a>
                     );
-                  }
-                  return (
-                    <a href={href} {...props}>
-                      {children}
-                    </a>
-                  );
-                },
-                code: ({ className, children, ...props }) => {
-                  const match = /language-mermaid/i.exec(className || '');
-                  if (match) {
-                    return <MermaidBlock code={String(children).trim()} />;
-                  }
-                  // Check if this is a block-level code (inside <pre>)
-                  const isInline = !className;
-                  if (isInline) {
+                  },
+                  code: ({ className, children, ...props }) => {
+                    const match = /language-mermaid/i.exec(className || '');
+                    if (match) {
+                      return <MermaidBlock code={String(children).trim()} />;
+                    }
+                    // Check if this is a block-level code (inside <pre>)
+                    const isInline = !className;
+                    if (isInline) {
+                      return (
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      );
+                    }
                     return (
                       <code className={className} {...props}>
                         {children}
                       </code>
                     );
-                  }
-                  return (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  );
-                },
-              }}
-            >
-              {content}
-            </Markdown>
-          </div>
-          <div ref={spacerRef} className={styles.spacer} />
+                  },
+                }}
+              >
+                {content}
+              </Markdown>
+            </div>
+            <div ref={spacerRef} className={styles.spacer} />
           </>
         )}
       </div>

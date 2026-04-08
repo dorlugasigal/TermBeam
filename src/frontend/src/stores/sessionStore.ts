@@ -14,6 +14,10 @@ export interface ManagedSession {
   color: string;
   createdAt: string;
   lastActivity: string | number;
+  type?: 'terminal' | 'copilot' | 'agent';
+  hidden?: boolean;
+  companionTermId?: string;
+  model?: string;
   term: Terminal | null;
   fitAddon: FitAddon | null;
   searchAddon: SearchAddon | null;

@@ -187,3 +187,83 @@
 .reconnectBtn:hover {
   background: var(--border);
 }
+
+/* ── Agent chat toggle button ── */
+.chatToggle {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+  transition:
+    opacity 0.2s,
+    background 0.15s;
+  z-index: 10;
+  font-family: monospace;
+}
+
+.chatToggle:hover {
+  opacity: 1;
+  background: var(--border);
+}
+
+/* ── Chat container (embedded CopilotSessionView) ── */
+.chatContainer {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.chatEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.chatInputBar {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.chatInputField {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.chatInputField:focus {
+  border-color: var(--accent);
+}
+
+.chatInputField::placeholder {
+  color: var(--text-dim);
+}

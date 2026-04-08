@@ -58,7 +58,7 @@ function recalcPtySize(session) {
   session.pty.resize(minCols, minRows);
 }
 
-function setupWebSocket(wss, { auth, sessions }) {
+function setupWebSocket(wss, { auth, sessions, copilotService }) {
   const wsAuthAttempts = new Map(); // ip -> [timestamps]
   const WS_AUTH_WINDOW = 60 * 1000; // 1 minute
   const WS_MAX_AUTH_ATTEMPTS = 5;
@@ -109,7 +109,7 @@ function setupWebSocket(wss, { auth, sessions }) {
       }
     }
 
-    ws.on('message', (raw) => {
+    ws.on('message', async (raw) => {
       try {
         const msg = JSON.parse(raw);
 
@@ -186,6 +186,172 @@ function setupWebSocket(wss, { auth, sessions }) {
             session.pendingNotifications = [];
           }
           log.info(`Client attached to session ${msg.sessionId}`);
+          return;
+        }
+
+        // Copilot SDK messages
+        if (copilotService && msg.type === 'copilot.attach') {
+          let sid = msg.sessionId;
+          if (!copilotService.sessions.has(sid)) {
+            // Session not found in local map — create a fresh one
+            try {
+              sid = await copilotService.createSession({ model: msg.model });
+            } catch (err) {
+              ws.send(JSON.stringify({ type: 'copilot.error', data: { message: err.message } }));
+              return;
+            }
+          }
+          copilotService.setListener(
+            sid,
+            (event) => {
+              if (ws.readyState === 1) ws.send(JSON.stringify(event));
+            },
+            ws,
+          );
+          ws._copilotSessionId = sid;
+          const entry = copilotService.sessions.get(sid);
+          ws.send(
+            JSON.stringify({
+              type: 'copilot.created',
+              data: { sessionId: sid, model: entry?.model },
+            }),
+          );
+          // Send existing message history for immediate replay on refresh/reconnect
+          const messages = copilotService.getMessages(sid);
+          if (messages.length > 0) {
+            ws.send(JSON.stringify({ type: 'copilot.message_history', data: { messages } }));
+          }
+          return;
+        }
+
+        if (copilotService && msg.type === 'copilot.create') {
+          // If this WebSocket already owns a live session, reuse it
+          if (ws._copilotSessionId && copilotService.sessions.has(ws._copilotSessionId)) {
+            const sid = ws._copilotSessionId;
+            copilotService.setListener(
+              sid,
+              (event) => {
+                if (ws.readyState === 1) ws.send(JSON.stringify(event));
+              },
+              ws,
+            );
+            ws.send(JSON.stringify({ type: 'copilot.created', data: { sessionId: sid } }));
+            return;
+          }
+          try {
+            const sdkSessionId = await copilotService.createSession({
+              model: msg.model,
+            });
+            copilotService.setListener(
+              sdkSessionId,
+              (event) => {
+                if (ws.readyState === 1) {
+                  ws.send(JSON.stringify(event));
+                }
+              },
+              ws,
+            );
+            ws.send(
+              JSON.stringify({
+                type: 'copilot.created',
+                data: { sessionId: sdkSessionId },
+              }),
+            );
+            ws._copilotSessionId = sdkSessionId;
+          } catch (err) {
+            ws.send(
+              JSON.stringify({
+                type: 'copilot.error',
+                data: { message: err.message },
+              }),
+            );
+          }
+          return;
+        }
+
+        if (copilotService && msg.type === 'copilot.resume') {
+          const sdkSessionId = msg.sdkSessionId;
+          if (!sdkSessionId) {
+            ws.send(
+              JSON.stringify({ type: 'copilot.error', data: { message: 'Missing sdkSessionId' } }),
+            );
+            return;
+          }
+          try {
+            const sessionId = await copilotService.resumeSession(sdkSessionId, {
+              model: msg.model,
+            });
+            copilotService.setListener(
+              sessionId,
+              (event) => {
+                if (ws.readyState === 1) ws.send(JSON.stringify(event));
+              },
+              ws,
+            );
+            ws._copilotSessionId = sessionId;
+            ws.send(JSON.stringify({ type: 'copilot.created', data: { sessionId } }));
+            // Send existing messages for replay
+            const entry = copilotService.sessions.get(sessionId);
+            if (entry?.existingMessages?.length) {
+              ws.send(
+                JSON.stringify({
+                  type: 'copilot.message_history',
+                  data: { messages: entry.existingMessages },
+                }),
+              );
+            }
+          } catch (err) {
+            ws.send(JSON.stringify({ type: 'copilot.error', data: { message: err.message } }));
+          }
+          return;
+        }
+
+        if (copilotService && msg.type === 'copilot.send') {
+          const sid = ws._copilotSessionId;
+          if (!sid) return;
+          try {
+            await copilotService.sendMessage(sid, msg.prompt);
+          } catch (err) {
+            ws.send(
+              JSON.stringify({
+                type: 'copilot.error',
+                data: { message: err.message },
+              }),
+            );
+          }
+          return;
+        }
+
+        if (copilotService && msg.type === 'copilot.input_response') {
+          const sid = ws._copilotSessionId;
+          if (!sid) return;
+          copilotService.respondToInput(sid, msg.answer);
+          return;
+        }
+
+        if (copilotService && msg.type === 'copilot.get_messages') {
+          const sid = ws._copilotSessionId;
+          if (!sid) return;
+          const messages = copilotService.getMessages(sid);
+          ws.send(JSON.stringify({ type: 'copilot.message_history', data: { messages } }));
+          return;
+        }
+
+        if (copilotService && msg.type === 'copilot.cancel') {
+          const sid = ws._copilotSessionId;
+          if (sid) await copilotService.abortSession(sid);
+          return;
+        }
+
+        if (copilotService && msg.type === 'copilot.set_model') {
+          const sid = ws._copilotSessionId;
+          if (!sid) return;
+          try {
+            await copilotService.setModel(sid, msg.model);
+            ws.send(JSON.stringify({ type: 'copilot.model_changed', data: { model: msg.model } }));
+          } catch (err) {
+            ws.send(JSON.stringify({ type: 'copilot.error', data: { message: err.message } }));
+          }
           return;
         }
 
@@ -303,6 +469,13 @@ function setupWebSocket(wss, { auth, sessions }) {
 
     ws.on('close', () => {
       clearInterval(pingInterval);
+      if (copilotService && ws._copilotSessionId) {
+        // Only clear the listener if this ws owns it — avoids clobbering another client's listener
+        const entry = copilotService.sessions.get(ws._copilotSessionId);
+        if (entry && entry._listenerOwner === ws) {
+          copilotService.setListener(ws._copilotSessionId, null);
+        }
+      }
       if (attached) {
         if (attached._resizeBounceTimer) {
           clearTimeout(attached._resizeBounceTimer);

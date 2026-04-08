@@ -36,7 +36,9 @@ interface UIState {
   codeViewerOpen: boolean;
   codeViewerSessionId: string | null;
   codeViewerInitialView: 'files' | 'changes';
+  showingAgentTerminal: boolean;
 
+  setShowingAgentTerminal: (v: boolean) => void;
   openResumeBrowser: () => void;
   closeResumeBrowser: () => void;
   openCommandPalette: () => void;
@@ -64,6 +66,16 @@ interface UIState {
   setTouchShift: (active: boolean) => void;
   openCodeViewer: (sessionId: string, initialView?: 'files' | 'changes') => void;
   closeCodeViewer: () => void;
+
+  /** Handler for TouchBar to interact with the active chat input (Copilot sessions) */
+  chatInputHandler: ((text: string) => void) | null;
+  chatSendHandler: (() => void) | null;
+  chatCancelHandler: (() => void) | null;
+  chatNewlineHandler: (() => void) | null;
+  setChatInputHandler: (handler: ((text: string) => void) | null) => void;
+  setChatSendHandler: (handler: (() => void) | null) => void;
+  setChatCancelHandler: (handler: (() => void) | null) => void;
+  setChatNewlineHandler: (handler: (() => void) | null) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -84,7 +96,9 @@ export const useUIStore = create<UIState>((set) => ({
   codeViewerOpen: false,
   codeViewerSessionId: null,
   codeViewerInitialView: 'files',
+  showingAgentTerminal: false,
 
+  setShowingAgentTerminal: (v) => set({ showingAgentTerminal: v }),
   openResumeBrowser: () => set({ resumeBrowserOpen: true }),
   closeResumeBrowser: () => set({ resumeBrowserOpen: false }),
   openCommandPalette: () => set({ commandPaletteOpen: true }),
@@ -119,7 +133,20 @@ export const useUIStore = create<UIState>((set) => ({
   setTouchCtrl: (active) => set({ touchCtrlActive: active }),
   setTouchShift: (active) => set({ touchShiftActive: active }),
   openCodeViewer: (sessionId, initialView = 'files') =>
-    set({ codeViewerOpen: true, codeViewerSessionId: sessionId, codeViewerInitialView: initialView }),
+    set({
+      codeViewerOpen: true,
+      codeViewerSessionId: sessionId,
+      codeViewerInitialView: initialView,
+    }),
   closeCodeViewer: () =>
     set({ codeViewerOpen: false, codeViewerSessionId: null, codeViewerInitialView: 'files' }),
+
+  chatInputHandler: null,
+  chatSendHandler: null,
+  chatCancelHandler: null,
+  chatNewlineHandler: null,
+  setChatInputHandler: (handler) => set({ chatInputHandler: handler }),
+  setChatSendHandler: (handler) => set({ chatSendHandler: handler }),
+  setChatCancelHandler: (handler) => set({ chatCancelHandler: handler }),
+  setChatNewlineHandler: (handler) => set({ chatNewlineHandler: handler }),
 }));

@@ -6,6 +6,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
 import { TerminalPane } from '@/components/TerminalPane/TerminalPane';
+import { CopilotPane } from '@/components/CopilotPane/CopilotPane';
 import { TabBar } from '@/components/TabBar/TabBar';
 import TouchBar from '@/components/TouchBar/TouchBar';
 import SearchBar from '@/components/SearchBar/SearchBar';
@@ -78,13 +79,18 @@ export function TerminalApp() {
     }
   }, [keyboardOpen]);
 
-  async function handleNewSessionCreated(id: string) {
-    // Add a placeholder immediately so TerminalPane mounts right away
+  async function handleNewSessionCreated(id: string, type?: 'terminal' | 'copilot', ptySessionId?: string | null, model?: string) {
+    // Add a placeholder immediately so the pane mounts right away
     const store = useSessionStore.getState();
-    if (!store.sessions.has(id)) {
+    const isCopilot = type === 'copilot';
+
+    // For copilot sessions, also register the companion PTY (hidden)
+    if (isCopilot && ptySessionId && !store.sessions.has(ptySessionId)) {
       store.addSession({
-        id,
-        name: id.slice(0, 8),
+        id: ptySessionId,
+        name: 'Agent Terminal',
+        type: 'terminal',
+        hidden: true,
         shell: '',
         pid: 0,
         cwd: '',
@@ -97,6 +103,31 @@ export function TerminalApp() {
         ws: null,
         send: null,
         connected: false,
+        exited: false,
+        scrollback: '',
+        hasUnread: false,
+      });
+    }
+
+    if (!store.sessions.has(id)) {
+      store.addSession({
+        id,
+        name: id.slice(0, 8),
+        type,
+        shell: '',
+        pid: 0,
+        cwd: '',
+        color: isCopilot ? '#a855f6' : '#6ec1e4',
+        createdAt: new Date().toISOString(),
+        lastActivity: Date.now(),
+        companionTermId: isCopilot && ptySessionId ? ptySessionId : undefined,
+        model: isCopilot ? model : undefined,
+        term: null,
+        fitAddon: null,
+        searchAddon: null,
+        ws: null,
+        send: null,
+        connected: isCopilot, // CopilotPane manages its own SDK connection
         exited: false,
         scrollback: '',
         hasUnread: false,
@@ -117,6 +148,8 @@ export function TerminalApp() {
           color: newSession.color ?? '#6ec1e4',
           createdAt: newSession.createdAt,
           lastActivity: newSession.lastActivity,
+          type: newSession.type,
+          model: (newSession as any).model,
         });
         toast.success(`Session "${newSession.name}" created`);
       }
@@ -138,7 +171,9 @@ export function TerminalApp() {
 
         // Add ALL sessions from server (matching old UI behavior)
         for (const s of list) {
+          if (s.hidden) continue; // Skip hidden companion sessions
           if (!store.sessions.has(s.id)) {
+            const isCopilot = s.type === 'copilot';
             store.addSession({
               id: s.id,
               name: s.name,
@@ -148,12 +183,14 @@ export function TerminalApp() {
               color: s.color ?? '#6ec1e4',
               createdAt: s.createdAt,
               lastActivity: s.lastActivity,
+              type: s.type,
+              companionTermId: isCopilot ? (s as any).ptySessionId ?? undefined : undefined,
               term: null,
               fitAddon: null,
               searchAddon: null,
               ws: null,
               send: null,
-              connected: false,
+              connected: isCopilot, // CopilotPane manages its own SDK connection
               exited: false,
               scrollback: '',
               hasUnread: false,
@@ -199,7 +236,10 @@ export function TerminalApp() {
 
         // Add new sessions that appeared on server
         for (const s of list) {
-          if (!store.sessions.has(s.id)) {
+          if (s.hidden) continue; // Skip hidden companion sessions
+          const existing = store.sessions.get(s.id);
+          if (!existing) {
+            const isCopilot = s.type === 'copilot';
             store.addSession({
               id: s.id,
               name: s.name,
@@ -209,18 +249,21 @@ export function TerminalApp() {
               color: s.color ?? '#6ec1e4',
               createdAt: s.createdAt,
               lastActivity: s.lastActivity,
+              type: s.type,
+              companionTermId: isCopilot ? (s as any).ptySessionId ?? undefined : undefined,
               term: null,
               fitAddon: null,
               searchAddon: null,
               ws: null,
               send: null,
-              connected: false,
+              connected: isCopilot, // CopilotPane manages its own SDK connection
               exited: false,
               scrollback: '',
               hasUnread: false,
             });
-          } else {
-            // Update metadata for existing sessions
+          } else if (!existing.hidden) {
+            // Update metadata for existing sessions, but skip hidden companion
+            // sessions so polling doesn't overwrite their name or re-surface them.
             store.updateSession(s.id, {
               name: s.name,
               lastActivity: s.lastActivity,
@@ -233,6 +276,10 @@ export function TerminalApp() {
         // Remove sessions that no longer exist on server
         for (const [id, ms] of store.sessions) {
           if (!serverIds.has(id) && !ms.exited) {
+            // If it's a copilot session, also remove its companion PTY
+            if (ms.companionTermId) {
+              store.removeSession(ms.companionTermId);
+            }
             store.removeSession(id);
           }
         }
@@ -308,9 +355,17 @@ export function TerminalApp() {
   ]);
 
   const activeSession = activeId ? sessions.get(activeId) : null;
+  const isCopilotChat = activeSession?.type === 'copilot';
+  const showingAgentTerminal = useUIStore((s) => s.showingAgentTerminal);
+  const hideTouchBar = isCopilotChat && !showingAgentTerminal;
+  // For copilot sessions, file/git APIs need the companion PTY session ID
+  const activePtyId = isCopilotChat ? (activeSession?.companionTermId ?? activeId) : activeId;
 
-  // Deduplicated tab order
-  const uniqueTabOrder = [...new Set(tabOrder)].filter((id) => sessions.has(id));
+  // Deduplicated tab order — exclude hidden companion sessions
+  const uniqueTabOrder = [...new Set(tabOrder)].filter((id) => {
+    const s = sessions.get(id);
+    return s && !s.hidden;
+  });
 
   // Determine which sessions to render in split mode
   const isSplit = splitMode !== 'off';
@@ -337,6 +392,7 @@ export function TerminalApp() {
       className={styles.layout}
       data-testid="terminal-app"
       data-keyboard-open={keyboardOpen || undefined}
+      data-hide-touchbar={hideTouchBar || undefined}
       style={{ '--keyboard-height': `${keyboardHeight}px` } as React.CSSProperties}
     >
       {/* ── Top bar ── */}
@@ -472,6 +528,7 @@ export function TerminalApp() {
         {uniqueTabOrder.map((id) => {
           const isVisible = visibleIds.includes(id);
           const isActive = id === activeId;
+          const sessionType = sessions.get(id)?.type;
 
           return (
             <div
@@ -481,18 +538,22 @@ export function TerminalApp() {
                 if (!isActive) setActiveId(id);
               }}
             >
-              <TerminalPane
-                sessionId={id}
-                active={isActive}
-                visible={isVisible}
-                fontSize={fontSize}
-              />
+              {sessionType === 'copilot' ? (
+                <CopilotPane sessionId={id} active={isActive} />
+              ) : (
+                <TerminalPane
+                  sessionId={id}
+                  active={isActive}
+                  visible={isVisible}
+                  fontSize={fontSize}
+                />
+              )}
             </div>
           );
         })}
       </div>
 
-      {/* ── Touch bar (key bar) ── */}
+      {/* ── Touch bar (key bar) — only for terminal sessions ── */}
       <TouchBar />
 
       {/* ── Overlays ── */}
@@ -505,11 +566,11 @@ export function TerminalApp() {
       <ResumeBrowser />
 
       {/* ── Download file browser overlay ── */}
-      {showDownload && activeId && activeSession?.cwd && (
+      {showDownload && activePtyId && activeSession?.cwd && (
         <div className={styles.downloadOverlay} onClick={closeDownloadModal}>
           <div className={styles.downloadPanel} onClick={(e) => e.stopPropagation()}>
             <FileBrowser
-              sessionId={activeId}
+              sessionId={activePtyId}
               rootDir={activeSession.cwd}
               onClose={closeDownloadModal}
             />
@@ -518,11 +579,11 @@ export function TerminalApp() {
       )}
 
       {/* ── Markdown browser overlay ── */}
-      {showMarkdown && activeId && activeSession?.cwd && (
+      {showMarkdown && activePtyId && activeSession?.cwd && (
         <div className={styles.downloadOverlay} onClick={closeMarkdownModal}>
           <div className={styles.downloadPanel} onClick={(e) => e.stopPropagation()}>
             <MarkdownBrowser
-              sessionId={activeId}
+              sessionId={activePtyId}
               rootDir={activeSession.cwd}
               onClose={closeMarkdownModal}
             />

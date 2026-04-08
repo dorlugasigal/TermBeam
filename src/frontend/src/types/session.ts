@@ -17,6 +17,10 @@ export interface Session {
   createdAt: string;
   lastActivity: string | number;
   color?: string;
+  type?: 'terminal' | 'copilot' | 'agent';
+  model?: string;
+  sdkSessionId?: string;
+  hidden?: boolean;
   cols?: number;
   rows?: number;
   clients?: number;
@@ -34,6 +38,9 @@ export interface CreateSessionRequest {
   cwd?: string;
   color?: string;
   initialCommand?: string;
+  type?: 'terminal' | 'copilot' | 'agent';
+  model?: string;
+  hidden?: boolean;
   cols?: number;
   rows?: number;
 }

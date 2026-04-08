@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { fetchAgentSessions, getResumeCommand, createSession } from '@/services/api';
+import { fetchAgentSessions, getResumeCommand, createSession, resumeCopilotSdkSession } from '@/services/api';
 import type { AgentSession } from '@/services/api';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { AgentIcon } from '@/components/common/AgentIcon';
+import { CopilotLogo } from '@/components/common/CopilotLogo';
 import styles from './ResumeBrowser.module.css';
 
 function folderName(dir: string): string {
@@ -32,6 +33,9 @@ export default function ResumeBrowser() {
   const [timeRange, setTimeRange] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [folderFilter, setFolderFilter] = useState<string>('all');
   const [resuming, setResuming] = useState<string | null>(null);
+  const [resumeChoice, setResumeChoice] = useState<{ session: AgentSession; name: string } | null>(
+    null,
+  );
   const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
   const requestId = useRef(0);
@@ -106,33 +110,114 @@ export default function ResumeBrowser() {
     return result;
   }, [sessions, filter, folderFilter, timeRange]);
 
-  async function handleResume(session: AgentSession) {
+  function getUniqueName(session: AgentSession): string {
+    const store = useSessionStore.getState();
+    const existingNames = new Set([...store.sessions.values()].map((s) => s.name));
+    let name = folderName(session.cwd || '/');
+    if (existingNames.has(name)) {
+      let i = 2;
+      while (existingNames.has(`${name} (${i})`)) i++;
+      name = `${name} (${i})`;
+    }
+    return name;
+  }
+
+  function handleResume(session: AgentSession) {
+    if (session.agent === 'copilot') {
+      // Show choice dialog for Copilot sessions
+      setResumeChoice({ session, name: getUniqueName(session) });
+    } else {
+      executeTerminalResume(session, getUniqueName(session));
+    }
+  }
+
+  async function executeTerminalResume(session: AgentSession, name: string) {
     setResuming(`${session.agent}-${session.id}`);
+    setResumeChoice(null);
     try {
-      const { command } = await getResumeCommand(session.agent, session.id);
       const store = useSessionStore.getState();
       const activeMs = store.activeId ? store.sessions.get(store.activeId) : null;
       const cols = activeMs?.term?.cols;
       const rows = activeMs?.term?.rows;
 
-      const existingNames = new Set([...store.sessions.values()].map((s) => s.name));
-      let name = folderName(session.cwd || '/');
-      if (existingNames.has(name)) {
-        let i = 2;
-        while (existingNames.has(`${name} (${i})`)) i++;
-        name = `${name} (${i})`;
-      }
-
+      const { command } = await getResumeCommand(session.agent, session.id);
       const created = await createSession({
         name,
         cwd: session.cwd || undefined,
         initialCommand: command,
-        color: session.agent === 'copilot' ? '#4a9eff' : '#c084fc',
+        color: '#c084fc',
         ...(cols && rows ? { cols, rows } : {}),
       });
       closeResumeBrowser();
-      // Navigate to the new session
       window.history.pushState(null, '', `/terminal?id=${created.id}`);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resume session');
+    } finally {
+      setResuming(null);
+    }
+  }
+
+  async function executeAgentUiResume(session: AgentSession, name: string) {
+    setResuming(`${session.agent}-${session.id}`);
+    setResumeChoice(null);
+    try {
+      const created = await resumeCopilotSdkSession(session.id, { name, cwd: session.cwd || undefined });
+      const store = useSessionStore.getState();
+
+      // Register companion PTY (hidden)
+      if (created.ptySessionId && !store.sessions.has(created.ptySessionId)) {
+        store.addSession({
+          id: created.ptySessionId,
+          name: `${name} Terminal`,
+          type: 'terminal',
+          hidden: true,
+          shell: '',
+          pid: 0,
+          cwd: session.cwd || '',
+          color: '#6ec1e4',
+          createdAt: new Date().toISOString(),
+          lastActivity: Date.now(),
+          term: null,
+          fitAddon: null,
+          searchAddon: null,
+          ws: null,
+          send: null,
+          connected: false,
+          exited: false,
+          scrollback: '',
+          hasUnread: false,
+        });
+      }
+
+      // Register the copilot session
+      if (!store.sessions.has(created.id)) {
+        store.addSession({
+          id: created.id,
+          name,
+          type: 'copilot',
+          shell: '',
+          pid: 0,
+          cwd: session.cwd || '',
+          color: '#a855f6',
+          createdAt: new Date().toISOString(),
+          lastActivity: Date.now(),
+          companionTermId: created.ptySessionId ?? undefined,
+          term: null,
+          fitAddon: null,
+          searchAddon: null,
+          ws: null,
+          send: null,
+          connected: true,
+          exited: false,
+          scrollback: '',
+          hasUnread: false,
+        });
+      }
+      store.setActiveId(created.id);
+
+      closeResumeBrowser();
+      window.history.pushState(null, '', `/terminal?session=${created.id}`);
       window.dispatchEvent(new PopStateEvent('popstate'));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to resume session');
@@ -145,11 +230,17 @@ export default function ResumeBrowser() {
   useEffect(() => {
     if (!resumeBrowserOpen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeResumeBrowser();
+      if (e.key === 'Escape') {
+        if (resumeChoice) {
+          setResumeChoice(null);
+        } else {
+          closeResumeBrowser();
+        }
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [resumeBrowserOpen, closeResumeBrowser]);
+  }, [resumeBrowserOpen, closeResumeBrowser, resumeChoice]);
 
   if (!resumeBrowserOpen) return null;
 
@@ -161,7 +252,12 @@ export default function ResumeBrowser() {
     <div className={styles.page}>
       {/* Header */}
       <div className={styles.header}>
-        <button className={styles.backBtn} onClick={closeResumeBrowser} aria-label="Go back" type="button">
+        <button
+          className={styles.backBtn}
+          onClick={closeResumeBrowser}
+          aria-label="Go back"
+          type="button"
+        >
           ←
         </button>
         <h1 className={styles.title}>Resume Session</h1>
@@ -284,22 +380,67 @@ export default function ResumeBrowser() {
               onClick={() => handleResume(session)}
             >
               <div className={styles.cardTop}>
-                <span className={styles.cardIcon}><AgentIcon agent={session.agentIcon} /></span>
-                <span className={styles.cardSummary}>
-                  {session.summary || 'Untitled session'}
+                <span className={styles.cardIcon}>
+                  <AgentIcon agent={session.agentIcon} />
                 </span>
-                {resuming === `${session.agent}-${session.id}` && <span className={styles.spinner}>⟳</span>}
+                <span className={styles.cardSummary}>{session.summary || 'Untitled session'}</span>
+                {resuming === `${session.agent}-${session.id}` && (
+                  <span className={styles.spinner}>⟳</span>
+                )}
               </div>
               <div className={styles.cardMeta}>
                 {session.cwd && <span className={styles.metaItem}>{folderName(session.cwd)}</span>}
                 {session.branch && <span className={styles.metaItem}>{session.branch}</span>}
                 <span className={styles.metaItem}>{formatTimeAgo(session.updatedAt)}</span>
-                {session.turnCount > 0 && <span className={styles.metaItem}>{session.turnCount} turns</span>}
+                {session.turnCount > 0 && (
+                  <span className={styles.metaItem}>{session.turnCount} turns</span>
+                )}
               </div>
             </button>
           ))
         )}
       </div>
+
+      {/* Resume method choice for Copilot sessions */}
+      {resumeChoice && (
+        <div className={styles.choiceOverlay} onClick={() => setResumeChoice(null)}>
+          <div className={styles.choiceDialog} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.choiceTitle}>Resume Copilot Session</h2>
+            <p className={styles.choiceDesc}>
+              {resumeChoice.session.summary || 'Untitled session'}
+            </p>
+            <div className={styles.choiceOptions}>
+              <button
+                className={styles.choiceBtn}
+                disabled={resuming !== null}
+                onClick={() =>
+                  executeTerminalResume(resumeChoice.session, resumeChoice.name)
+                }
+              >
+                <span className={styles.choiceBtnIcon}>
+                  <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 14.25 15H1.75A1.75 1.75 0 0 1 0 13.25Zm1.75-.25a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25ZM7.25 8a.749.749 0 0 1-.22.53l-2.25 2.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L5.44 8 3.72 6.28a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215l2.25 2.25c.141.14.22.331.22.53Zm1.5 1.5h3a.75.75 0 0 1 0 1.5h-3a.75.75 0 0 1 0-1.5Z" />
+                  </svg>
+                </span>
+                <span className={styles.choiceBtnLabel}>Terminal</span>
+                <span className={styles.choiceBtnHint}>Pure CLI experience</span>
+              </button>
+              <button
+                className={styles.choiceBtn}
+                disabled={resuming !== null}
+                onClick={() =>
+                  executeAgentUiResume(resumeChoice.session, resumeChoice.name)
+                }
+              >
+                <span className={styles.choiceBtnIcon}><CopilotLogo size={18} /></span>
+                <span className={styles.choiceBtnLabel}>Agent UI</span>
+                <span className={styles.choiceBtnHint}>Copilot SDK interface</span>
+              </button>
+            </div>
+            {resuming && <div className={styles.choiceSpinner}>⟳ Resuming…</div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

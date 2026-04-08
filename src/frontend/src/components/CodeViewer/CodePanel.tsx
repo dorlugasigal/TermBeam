@@ -143,7 +143,10 @@ export default function CodePanel({
 
   const clampFontSize = useCallback(
     (scale: number) =>
-      Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Math.round(BASE_FONT_SIZE * scale * 10) / 10)),
+      Math.min(
+        MAX_FONT_SIZE,
+        Math.max(MIN_FONT_SIZE, Math.round(BASE_FONT_SIZE * scale * 10) / 10),
+      ),
     [],
   );
 

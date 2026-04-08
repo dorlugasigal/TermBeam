@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { ManagedSession } from '@/stores/sessionStore';
+import { CopilotLogo } from '@/components/common/CopilotLogo';
 import styles from './TabBar.module.css';
 
 interface SortableTabProps {
@@ -17,7 +18,9 @@ interface SortableTabProps {
 const TAP_THRESHOLD = 5;
 
 function formatTabActivity(lastActivity: string | number): string {
+  if (!lastActivity) return '';
   const ts = typeof lastActivity === 'number' ? lastActivity : new Date(lastActivity).getTime();
+  if (isNaN(ts)) return '';
   const diff = Date.now() - ts;
   if (diff < 60_000) return '';
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
@@ -78,7 +81,13 @@ export function SortableTab({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <span className={styles.colorDot} style={{ backgroundColor: session.color }} />
+      {session.type === 'copilot' ? (
+        <span className={styles.copilotIcon} aria-label="Copilot session">
+          <CopilotLogo size={12} />
+        </span>
+      ) : (
+        <span className={styles.colorDot} style={{ backgroundColor: session.color }} />
+      )}
       <span className={styles.tabName} data-testid="tab-name">
         {session.name}
       </span>

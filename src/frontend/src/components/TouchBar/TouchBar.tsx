@@ -9,7 +9,7 @@ import styles from './TouchBar.module.css';
 const SpeechRecognitionAPI =
   typeof window !== 'undefined'
     ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     : null;
 
 type KeyType = 'special' | 'modifier' | 'icon' | 'enter' | 'danger';
@@ -19,8 +19,10 @@ interface KeyDef {
   data: string;
   type?: KeyType;
   modifier?: 'ctrl' | 'shift';
-  action?: 'copy' | 'paste';
+  action?: 'copy' | 'paste' | 'cancel' | 'newline' | 'send';
 }
+
+// ── Terminal mode keys ──
 
 // Row 1: Esc, Copy, Paste, Home, End, ↑, ↵
 const ROW1: KeyDef[] = [
@@ -78,6 +80,23 @@ function sendInput(data: string): void {
   const { sessions, activeId } = useSessionStore.getState();
   if (!activeId) return;
   const ms = sessions.get(activeId);
+
+  // For copilot sessions showing the terminal view, route to the companion PTY
+  if (ms?.type === 'copilot') {
+    const { showingAgentTerminal } = useUIStore.getState();
+    if (showingAgentTerminal && ms.companionTermId) {
+      const companion = sessions.get(ms.companionTermId);
+      if (companion?.send) {
+        companion.send(data);
+        return;
+      }
+    }
+    // Chat mode — route to chat input handler
+    const handler = useUIStore.getState().chatInputHandler;
+    if (handler) handler(data);
+    return;
+  }
+
   if (ms?.send) {
     ms.send(data);
   }
@@ -87,6 +106,14 @@ function refocusTerminal(): void {
   const { sessions, activeId } = useSessionStore.getState();
   if (!activeId) return;
   const ms = sessions.get(activeId);
+  if (ms?.type === 'copilot') {
+    const { showingAgentTerminal } = useUIStore.getState();
+    if (showingAgentTerminal && ms.companionTermId) {
+      const companion = sessions.get(ms.companionTermId);
+      companion?.term?.focus();
+    }
+    return;
+  }
   ms?.term?.focus();
 }
 
@@ -97,6 +124,11 @@ export default function TouchBar() {
   const shiftActive = useUIStore((s) => s.touchShiftActive);
   const setCtrlActive = useUIStore((s) => s.setTouchCtrl);
   const setShiftActive = useUIStore((s) => s.setTouchShift);
+  const activeSessionType = useSessionStore(
+    (s) => (s.activeId ? s.sessions.get(s.activeId)?.type : undefined),
+  );
+  const isAgentMode = activeSessionType === 'copilot';
+  const showingAgentTerminal = useUIStore((s) => s.showingAgentTerminal);
   const [flashKey, setFlashKey] = React.useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [micLocked, setMicLocked] = useState(false);
@@ -277,6 +309,24 @@ export default function TouchBar() {
         handlePaste();
         return;
       }
+      if (def.action === 'cancel') {
+        flash(def.label);
+        const cancelHandler = useUIStore.getState().chatCancelHandler;
+        if (cancelHandler) cancelHandler();
+        return;
+      }
+      if (def.action === 'newline') {
+        flash(def.label);
+        const newlineHandler = useUIStore.getState().chatNewlineHandler;
+        if (newlineHandler) newlineHandler();
+        return;
+      }
+      if (def.action === 'send') {
+        flash(def.label);
+        const sendHandler = useUIStore.getState().chatSendHandler;
+        if (sendHandler) sendHandler();
+        return;
+      }
 
       // Toggle modifiers
       if (def.modifier === 'ctrl') {
@@ -427,80 +477,85 @@ export default function TouchBar() {
 
   if (keyboardOpen && isLandscapeTight) return null;
 
+  const micButton = SpeechRecognitionAPI ? (
+    <button
+      className={`${styles.keyBtn} ${styles.special} ${styles.micBtn} ${isRecording ? styles.recording : ''} ${micLocked ? styles.micLocked : ''}`}
+      data-testid="mic-btn"
+      onMouseDown={(e) => {
+        e.preventDefault();
+        if (micLocked) {
+          forceStopMic();
+        } else {
+          startMic();
+        }
+      }}
+      onMouseUp={() => {
+        if (!micLocked) stopMic();
+      }}
+      onMouseLeave={() => {
+        if (!micLocked) stopMic();
+      }}
+      onTouchStart={(e) => {
+        e.preventDefault();
+        if (micLocked) {
+          forceStopMic();
+        } else {
+          micTouchStartY.current = e.touches[0]?.clientY ?? null;
+          startMic();
+        }
+      }}
+      onTouchMove={(e) => {
+        if (!isRecording || micLocked || micTouchStartY.current === null) return;
+        const currentY = e.touches[0]?.clientY;
+        if (currentY === undefined) return;
+        const dy = micTouchStartY.current - currentY;
+        if (dy > MIC_LOCK_SWIPE_THRESHOLD) {
+          setMicLocked(true);
+          micTouchStartY.current = null;
+        }
+      }}
+      onTouchEnd={(e) => {
+        e.preventDefault();
+        micTouchStartY.current = null;
+        if (!micLocked) stopMic();
+      }}
+      onTouchCancel={() => {
+        micTouchStartY.current = null;
+        if (!micLocked) stopMic();
+      }}
+    >
+      {micLocked ? (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      ) : isRecording ? (
+        <>
+          <span className={styles.micDot} />
+          <svg className={styles.lockHint} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="18 15 12 9 6 15" />
+          </svg>
+        </>
+      ) : (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+          <line x1="12" y1="19" x2="12" y2="23" />
+          <line x1="8" y1="23" x2="16" y2="23" />
+        </svg>
+      )}
+    </button>
+  ) : null;
+
+  // Hide touchbar only for copilot CHAT mode (not when showing terminal)
+  if (isAgentMode && !showingAgentTerminal) return null;
+
   return (
     <div className={styles.touchBar} style={touchBarStyle}>
       <div className={styles.row}>{ROW1.map(renderKey)}</div>
       <div className={styles.row}>
         {ROW2.map(renderKey)}
-        {SpeechRecognitionAPI && (
-          <button
-            className={`${styles.keyBtn} ${styles.special} ${styles.micBtn} ${isRecording ? styles.recording : ''} ${micLocked ? styles.micLocked : ''}`}
-            data-testid="mic-btn"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              if (micLocked) {
-                forceStopMic();
-              } else {
-                startMic();
-              }
-            }}
-            onMouseUp={() => {
-              if (!micLocked) stopMic();
-            }}
-            onMouseLeave={() => {
-              if (!micLocked) stopMic();
-            }}
-            onTouchStart={(e) => {
-              e.preventDefault();
-              if (micLocked) {
-                forceStopMic();
-              } else {
-                micTouchStartY.current = e.touches[0]?.clientY ?? null;
-                startMic();
-              }
-            }}
-            onTouchMove={(e) => {
-              if (!isRecording || micLocked || micTouchStartY.current === null) return;
-              const currentY = e.touches[0]?.clientY;
-              if (currentY === undefined) return;
-              const dy = micTouchStartY.current - currentY;
-              if (dy > MIC_LOCK_SWIPE_THRESHOLD) {
-                setMicLocked(true);
-                micTouchStartY.current = null;
-              }
-            }}
-            onTouchEnd={(e) => {
-              e.preventDefault();
-              micTouchStartY.current = null;
-              if (!micLocked) stopMic();
-            }}
-            onTouchCancel={() => {
-              micTouchStartY.current = null;
-              if (!micLocked) stopMic();
-            }}
-          >
-            {micLocked ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-            ) : isRecording ? (
-              <>
-                <span className={styles.micDot} />
-                <svg className={styles.lockHint} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="18 15 12 9 6 15" />
-                </svg>
-              </>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-            )}
-          </button>
-        )}
+        {micButton}
       </div>
     </div>
   );
