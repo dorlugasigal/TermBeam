@@ -709,6 +709,7 @@ describe('SessionManager', () => {
       assert.ok(sent.length > 0, 'should have sent messages');
       assert.strictEqual(sent[0].type, 'output');
       assert.strictEqual(sent[0].data, 'hello');
+      mgr.shutdown();
     });
 
     it('should not send to clients with closed readyState', () => {
@@ -726,6 +727,7 @@ describe('SessionManager', () => {
 
       mockProcess._callbacks.onData('hello');
       assert.strictEqual(sent.length, 0, 'should not send to closed ws');
+      mgr.shutdown();
     });
 
     it('should broadcast exit to connected ws clients on pty exit', () => {
@@ -748,6 +750,7 @@ describe('SessionManager', () => {
       assert.strictEqual(exitMsg.code, 42);
       // Session should be removed after exit
       assert.strictEqual(mgr.get(id), undefined);
+      mgr.shutdown();
     });
   });
 
@@ -755,6 +758,7 @@ describe('SessionManager', () => {
     it('should return null for non-existent session', () => {
       const mgr = new SessionManager();
       assert.strictEqual(mgr.getSessionCwd('nonexistent'), null);
+      mgr.shutdown();
     });
 
     it('should return session cwd when no cache exists', () => {
@@ -762,6 +766,7 @@ describe('SessionManager', () => {
       const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/test/cwd' });
       const cwd = mgr.getSessionCwd(id);
       assert.strictEqual(cwd, '/test/cwd');
+      mgr.shutdown();
     });
 
     it('should return cached cwd when git cache is populated', async () => {
@@ -776,6 +781,7 @@ describe('SessionManager', () => {
       // Second call should use cached value
       const cwd = mgr.getSessionCwd(id);
       assert.ok(cwd, 'should return a cwd');
+      mgr.shutdown();
     });
   });
 
@@ -799,6 +805,7 @@ describe('SessionManager', () => {
         // session.cwd should be updated to the cached value
         assert.notStrictEqual(session.cwd, '/manually-changed');
       }
+      mgr.shutdown();
     });
   });
 
@@ -835,6 +842,7 @@ describe('SessionManager', () => {
       } finally {
         mock.timers.reset();
       }
+      mgr.shutdown();
     });
 
     it('should respect notification cooldown', async () => {
@@ -864,6 +872,7 @@ describe('SessionManager', () => {
       } finally {
         mock.timers.reset();
       }
+      mgr.shutdown();
     });
   });
 
@@ -933,6 +942,7 @@ describe('SessionManager', () => {
         cp.exec = origExec;
         clearInterval(session._childMonitor);
       }
+      mgr.shutdown();
     });
 
     it('should handle exec errors in child monitoring gracefully', async () => {
@@ -979,6 +989,7 @@ describe('SessionManager', () => {
         cp.exec = origExec;
         clearInterval(session._childMonitor);
       }
+      mgr.shutdown();
     });
 
     it('should skip check when session is removed', async () => {
@@ -1020,6 +1031,7 @@ describe('SessionManager', () => {
         cp.exec = origExec;
         clearInterval(session._childMonitor);
       }
+      mgr.shutdown();
     });
 
     it('should respect notification cooldown on child exit', async () => {
@@ -1076,6 +1088,7 @@ describe('SessionManager', () => {
         cp.exec = origExec;
         clearInterval(session._childMonitor);
       }
+      mgr.shutdown();
     });
   });
 
@@ -1094,6 +1107,7 @@ describe('SessionManager', () => {
       assert.ok(list.length > 0);
       // git info should be populated (even if null on failure)
       assert.ok('git' in list[0], 'should include git field');
+      mgr.shutdown();
     });
   });
 });
