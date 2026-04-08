@@ -54,9 +54,7 @@ export default function TunnelBanner() {
   if (tunnelState.kind === 'disconnected') {
     return (
       <div className={`${styles.banner} ${styles.error}`} data-testid="tunnel-banner">
-        <span className={styles.text}>
-          ⚠️ Tunnel disconnected — reconnecting automatically
-        </span>
+        <span className={styles.text}>⚠️ Tunnel disconnected — reconnecting automatically</span>
         <button className={styles.dismiss} onClick={dismiss} aria-label="Dismiss">
           ✕
         </button>

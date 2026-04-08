@@ -310,3 +310,126 @@
     transform: rotate(360deg);
   }
 }
+
+/* Resume method choice dialog */
+
+.choiceOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fade-in 0.15s ease;
+}
+
+.choiceDialog {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  max-width: 340px;
+  width: 100%;
+  animation: scale-in 0.15s ease;
+}
+
+.choiceTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 4px;
+}
+
+.choiceDesc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.choiceOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.choiceBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.choiceBtn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.choiceBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.choiceBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.choiceBtnIcon {
+  font-size: 20px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.choiceBtnLabel {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.choiceBtnHint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
+.choiceSpinner {
+  text-align: center;
+  color: var(--accent);
+  font-size: 13px;
+  margin-top: 12px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

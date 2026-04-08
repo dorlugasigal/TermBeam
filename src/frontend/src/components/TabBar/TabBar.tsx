@@ -50,7 +50,12 @@ export function TabBar({ inline = false }: TabBarProps) {
     [tabOrder, setTabOrder],
   );
 
-  const orderedSessions = tabOrder
+  const visibleTabOrder = tabOrder.filter((id) => {
+    const s = sessions.get(id);
+    return s && !s.hidden;
+  });
+
+  const orderedSessions = visibleTabOrder
     .map((id) => sessions.get(id))
     .filter((s): s is NonNullable<typeof s> => s != null);
 
@@ -58,13 +63,13 @@ export function TabBar({ inline = false }: TabBarProps) {
   const isSplit = splitMode !== 'off';
   const splitSecondId =
     isSplit && activeId
-      ? (tabOrder.filter((id) => sessions.has(id)).find((id) => id !== activeId) ?? null)
+      ? (visibleTabOrder.filter((id) => sessions.has(id)).find((id) => id !== activeId) ?? null)
       : null;
 
   return (
     <div className={inline ? styles.tabBarInline : styles.tabBar}>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={tabOrder} strategy={horizontalListSortingStrategy}>
+        <SortableContext items={visibleTabOrder} strategy={horizontalListSortingStrategy}>
           <div className={styles.tabScroller}>
             {orderedSessions.map((session) => (
               <div key={session.id} style={{ position: 'relative' }}>

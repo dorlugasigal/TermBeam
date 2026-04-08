@@ -58,14 +58,20 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       const fa = fitRef.current;
       if (!term || !fa) return;
       const core = (term as any)._core;
-      if (!core) { fa.fit(); return; }
+      if (!core) {
+        fa.fit();
+        return;
+      }
       const dims = core._renderService?.dimensions;
       if (!dims || dims.css.cell.width === 0 || dims.css.cell.height === 0) {
         fa.fit();
         return;
       }
       const el = term.element;
-      if (!el?.parentElement) { fa.fit(); return; }
+      if (!el?.parentElement) {
+        fa.fit();
+        return;
+      }
       const parentStyle = window.getComputedStyle(el.parentElement);
       const parentH = parseInt(parentStyle.height);
       const parentW = Math.max(0, parseInt(parentStyle.width));

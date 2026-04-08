@@ -121,6 +121,22 @@ flowchart LR
 
 For all flags, subcommands, and environment variables, see the [Configuration docs](https://dorlugasigal.github.io/TermBeam/configuration/).
 
+## Background Service
+
+Run TermBeam as an always-on background service using the built-in PM2 integration:
+
+```bash
+termbeam service install     # interactive wizard — configures PM2, password, tunnel, boot auto-start
+termbeam service status      # check process info, uptime, memory
+termbeam service logs        # tail live logs
+termbeam service restart     # restart after config changes
+termbeam service uninstall   # stop and remove the service
+```
+
+The installer checks for [PM2](https://pm2.keymetrics.io/) (and offers to install it), then walks you through password, port, access mode, and boot auto-start options. Config is saved to `~/.termbeam/ecosystem.config.js`.
+
+For systemd, launchd, and Windows Task Scheduler setup, see the [Running in Background docs](https://dorlugasigal.github.io/TermBeam/running-in-background/).
+
 ## Security
 
 TermBeam auto-generates a password and creates a secure tunnel by default, binding to `127.0.0.1` (localhost only). Auth uses httpOnly cookies with 24-hour expiry, login is rate-limited to 5 attempts per minute, QR codes contain single-use share tokens (5-min expiry), and security headers (X-Frame-Options, CSP, nosniff) are set on all responses.

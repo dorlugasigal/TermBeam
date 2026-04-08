@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+
 import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
 import { createSession, fetchShells, fetchAgents } from '@/services/api';
@@ -8,11 +9,27 @@ import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { FolderBrowser } from '@/components/FolderBrowser/FolderBrowser';
 import { AgentIcon } from '@/components/common/AgentIcon';
+import { CopilotLogo } from '@/components/common/CopilotLogo';
 import styles from './NewSessionModal.module.css';
 
 interface NewSessionModalProps {
-  onCreated: (id: string) => void;
+  onCreated: (id: string, type?: 'terminal' | 'copilot', ptySessionId?: string | null, model?: string) => void;
 }
+
+const COPILOT_MODELS = [
+  { id: 'claude-opus-4.6', label: 'Claude Opus 4.6' },
+  { id: 'claude-opus-4.5', label: 'Claude Opus 4.5' },
+  { id: 'claude-sonnet-4.6', label: 'Claude Sonnet 4.6' },
+  { id: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5' },
+  { id: 'claude-sonnet-4', label: 'Claude Sonnet 4' },
+  { id: 'claude-haiku-4.5', label: 'Claude Haiku 4.5' },
+  { id: 'gpt-5.4', label: 'GPT-5.4' },
+  { id: 'gpt-5.2', label: 'GPT-5.2' },
+  { id: 'gpt-5.1', label: 'GPT-5.1' },
+  { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
+  { id: 'gpt-5-mini', label: 'GPT-5 Mini' },
+  { id: 'gpt-4.1', label: 'GPT-4.1' },
+];
 
 function folderName(dir: string): string {
   const parts = dir.replace(/[/\\]+$/, '').split(/[/\\]/);
@@ -28,59 +45,62 @@ function uniqueName(base: string, existing: Set<string>): string {
 
 export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   const { newSessionModalOpen, closeNewSessionModal } = useUIStore();
-  // Shell state
+  // Shared state
+  const [sessionMode, setSessionMode] = useState<'terminal' | 'copilot'>('terminal');
   const [name, setName] = useState('');
   const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
-  const [shell, setShell] = useState('');
-  const [shells, setShells] = useState<ShellInfo[]>([]);
   const [cwd, setCwd] = useState('');
-  const [initialCommand, setInitialCommand] = useState('');
-  const [color, setColor] = useState<SessionColor>(SESSION_COLORS[0]);
   const [submitting, setSubmitting] = useState(false);
   const [browsing, setBrowsing] = useState(false);
-  // Agent state
+  // Terminal-specific state
+  const [shell, setShell] = useState('');
+  const [shells, setShells] = useState<ShellInfo[]>([]);
+  const [initialCommand, setInitialCommand] = useState('');
+  const [color, setColor] = useState<SessionColor>(SESSION_COLORS[0]);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
-  const [launching, setLaunching] = useState<string | null>(null);
+  // Copilot-specific state
+  const [model, setModel] = useState('claude-opus-4.6');
 
   const deriveNameFromCwd = useCallback(
-    (dir: string) => {
+    (dir: string, mode?: 'terminal' | 'copilot') => {
       if (nameManuallyEdited) return;
       const sessions = useSessionStore.getState().sessions;
       const existingNames = new Set<string>();
       for (const s of sessions.values()) existingNames.add(s.name);
-      setName(uniqueName(folderName(dir), existingNames));
+      const base = folderName(dir);
+      const suffix = (mode ?? sessionMode) === 'copilot' ? ' · Copilot' : '';
+      setName(uniqueName(`${base}${suffix}`, existingNames));
     },
-    [nameManuallyEdited],
+    [nameManuallyEdited, sessionMode],
   );
 
   useEffect(() => {
     if (newSessionModalOpen) {
-      // Fetch shells and agents in parallel
-      Promise.all([
-        fetchShells().catch(() => ({ shells: [], defaultShell: '', cwd: '' })),
-        fetchAgents().catch(() => ({ agents: [] })),
-      ]).then(([shellData, agentData]) => {
-        // Shells
-        const list = shellData.shells;
-        setShells(list);
-        if (!shell) {
-          const def =
-            list.find((s) => s.cmd === shellData.defaultShell) ||
-            list.find((s) => s.path === shellData.defaultShell);
-          setShell(def?.cmd ?? list[0]?.cmd ?? '');
-        }
-        if (!cwd && shellData.cwd) {
-          setCwd(shellData.cwd);
-          deriveNameFromCwd(shellData.cwd);
-        }
-        // Agents
-        setAgents(agentData.agents);
-      });
+      fetchShells()
+        .catch(() => ({ shells: [], defaultShell: '', cwd: '' }))
+        .then((shellData) => {
+          const list = shellData.shells;
+          setShells(list);
+          if (!shell) {
+            const def =
+              list.find((s) => s.cmd === shellData.defaultShell) ||
+              list.find((s) => s.path === shellData.defaultShell);
+            setShell(def?.cmd ?? list[0]?.cmd ?? '');
+          }
+          if (!cwd && shellData.cwd) {
+            setCwd(shellData.cwd);
+            deriveNameFromCwd(shellData.cwd);
+          }
+        });
+      fetchAgents()
+        .then((data) => setAgents(data.agents || []))
+        .catch(() => setAgents([]));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps — intentionally runs only on modal open/close
   }, [newSessionModalOpen]);
 
   function resetForm() {
+    setSessionMode('terminal');
     setName('');
     setNameManuallyEdited(false);
     setShell('');
@@ -88,38 +108,13 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     setInitialCommand('');
     setColor(SESSION_COLORS[0]);
     setBrowsing(false);
-    setLaunching(null);
+    setModel('claude-sonnet-4');
   }
 
-  async function handleAgentLaunch(agent: AgentInfo) {
-    setLaunching(agent.id);
-    try {
-      const store = useSessionStore.getState();
-      const activeMs = store.activeId ? store.sessions.get(store.activeId) : null;
-      const cols = activeMs?.term?.cols;
-      const rows = activeMs?.term?.rows;
-
-      const command = agent.args?.length ? `${agent.cmd} ${agent.args.join(' ')}` : agent.cmd;
-
-      const sessions = useSessionStore.getState().sessions;
-      const existingNames = new Set<string>();
-      for (const s of sessions.values()) existingNames.add(s.name);
-      const sessionName = uniqueName(folderName(cwd || '/'), existingNames);
-
-      const session = await createSession({
-        name: sessionName,
-        cwd: cwd.trim() || undefined,
-        initialCommand: command,
-        color: '#c084fc',
-        ...(cols && rows ? { cols, rows } : {}),
-      });
-      closeNewSessionModal();
-      resetForm();
-      onCreated(session.id);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to launch agent');
-    } finally {
-      setLaunching(null);
+  function handleModeSwitch(mode: 'terminal' | 'copilot') {
+    setSessionMode(mode);
+    if (!nameManuallyEdited && cwd) {
+      deriveNameFromCwd(cwd, mode);
     }
   }
 
@@ -131,19 +126,55 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
       const cols = activeMs?.term?.cols;
       const rows = activeMs?.term?.rows;
 
+      const session = await createSession(
+        sessionMode === 'copilot'
+          ? {
+              name: name.trim() || undefined,
+              cwd: cwd.trim() || undefined,
+              type: 'copilot',
+              model,
+              ...(cols && rows ? { cols, rows } : {}),
+            }
+          : {
+              name: name.trim() || undefined,
+              shell: shell || undefined,
+              cwd: cwd.trim() || undefined,
+              color,
+              initialCommand: initialCommand.trim() || undefined,
+              ...(cols && rows ? { cols, rows } : {}),
+            },
+      );
+      closeNewSessionModal();
+      resetForm();
+      onCreated(session.id, sessionMode, session.ptySessionId ?? null, sessionMode === 'copilot' ? model : undefined);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create session');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleAgentLaunch(agent: AgentInfo) {
+    setSubmitting(true);
+    try {
+      const store = useSessionStore.getState();
+      const activeMs = store.activeId ? store.sessions.get(store.activeId) : null;
+      const cols = activeMs?.term?.cols;
+      const rows = activeMs?.term?.rows;
+
       const session = await createSession({
-        name: name.trim() || undefined,
+        name: name.trim() || `${agent.name}`,
         shell: shell || undefined,
         cwd: cwd.trim() || undefined,
         color,
-        initialCommand: initialCommand.trim() || undefined,
+        initialCommand: agent.args?.length ? `${agent.cmd} ${agent.args.join(' ')}` : agent.cmd,
         ...(cols && rows ? { cols, rows } : {}),
       });
       closeNewSessionModal();
       resetForm();
-      onCreated(session.id);
+      onCreated(session.id, 'terminal');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create session');
+      toast.error(err instanceof Error ? err.message : 'Failed to launch agent');
     } finally {
       setSubmitting(false);
     }
@@ -180,7 +211,25 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
             />
           ) : (
             <div className={styles.form}>
-              {/* Working Directory — shared by agents and custom */}
+              {/* Session type tabs */}
+              <div className={styles.sessionTypeTabs}>
+                <button
+                  type="button"
+                  className={`${styles.sessionTypeTab} ${sessionMode === 'terminal' ? styles.sessionTypeTabActive : ''}`}
+                  onClick={() => handleModeSwitch('terminal')}
+                >
+                  &gt;_ Terminal
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.sessionTypeTab} ${sessionMode === 'copilot' ? styles.sessionTypeTabActive : ''}`}
+                  onClick={() => handleModeSwitch('copilot')}
+                >
+                  <CopilotLogo size={14} /> GitHub Copilot
+                </button>
+              </div>
+
+              {/* Working Directory — shared by both modes */}
               <div className={styles.field}>
                 <label className={styles.label}>Working Directory</label>
                 <div className={styles.dirRow}>
@@ -201,58 +250,29 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                 </div>
               </div>
 
-              {/* AI Agents section */}
-              {agents.length > 0 && (
-                <div className={styles.agentSection}>
-                  <label className={styles.label}>AI Agents</label>
-                  <div className={styles.agentGrid}>
-                    {agents.map((agent) => (
-                      <button
-                        key={agent.id}
-                        className={styles.agentCard}
-                        disabled={launching !== null || submitting}
-                        onClick={() => handleAgentLaunch(agent)}
-                      >
-                        <span className={styles.agentIcon}><AgentIcon agent={agent.icon} size="md" /></span>
-                        <span className={styles.agentName}>{agent.name}</span>
-                        {launching === agent.id && (
-                          <span className={styles.agentSpinner}>⟳</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Name — shared by both modes */}
+              <div className={styles.field}>
+                <label className={styles.label}>Name</label>
+                <input
+                  className={styles.input}
+                  type="text"
+                  placeholder={
+                    sessionMode === 'copilot'
+                      ? `${folderName(cwd || '/')} · Copilot`
+                      : folderName(cwd || '/')
+                  }
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setNameManuallyEdited(true);
+                  }}
+                  data-testid="ns-name"
+                />
+              </div>
 
-              {/* Resume link */}
-              <button
-                type="button"
-                className={styles.resumeLink}
-                onClick={() => {
-                  closeNewSessionModal();
-                  useUIStore.getState().openResumeBrowser();
-                }}
-              >
-                Resume previous session →
-              </button>
-
-              {/* Custom session form */}
-              <div>
-                  <div className={styles.field}>
-                    <label className={styles.label}>Name</label>
-                    <input
-                      className={styles.input}
-                      type="text"
-                      placeholder={folderName(cwd || '/')}
-                      value={name}
-                      onChange={(e) => {
-                        setName(e.target.value);
-                        setNameManuallyEdited(true);
-                      }}
-                      data-testid="ns-name"
-                    />
-                  </div>
-
+              {/* Terminal-specific fields */}
+              {sessionMode === 'terminal' && (
+                <>
                   <div className={styles.field}>
                     <label className={styles.label}>Shell</label>
                     <select
@@ -296,29 +316,87 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                     </div>
                   </div>
 
-                  <div className={styles.actions}>
-                    <button
-                      type="button"
-                      className={styles.cancelBtn}
-                      data-testid="ns-cancel"
-                      onClick={() => {
-                        closeNewSessionModal();
-                        resetForm();
-                      }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.submitBtn}
-                      disabled={submitting}
-                      data-testid="ns-create"
-                      onClick={handleSubmit}
-                    >
-                      Create
-                    </button>
-                  </div>
+                  {agents.length > 0 && (
+                    <div className={styles.field}>
+                      <label className={styles.label}>AI Agents</label>
+                      <div className={styles.agentGrid}>
+                        {agents.map((agent) => (
+                          <button
+                            key={agent.id}
+                            type="button"
+                            className={styles.agentCard}
+                            disabled={submitting}
+                            onClick={() => handleAgentLaunch(agent)}
+                          >
+                            <span className={styles.agentIcon}>
+                              {<AgentIcon agent={agent.icon || agent.id} size="md" />}
+                            </span>
+                            <span className={styles.agentName}>{agent.name}</span>
+                            {agent.version && (
+                              <span className={styles.agentVersion}>{agent.version}</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Copilot-specific fields */}
+              {sessionMode === 'copilot' && (
+                <div className={styles.field}>
+                  <label className={styles.label}>Model</label>
+                  <select
+                    className={styles.modelSelect}
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    data-testid="ns-model"
+                  >
+                    {COPILOT_MODELS.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+              )}
+
+              {/* Resume link */}
+              <button
+                type="button"
+                className={styles.resumeLink}
+                onClick={() => {
+                  closeNewSessionModal();
+                  useUIStore.getState().openResumeBrowser();
+                }}
+              >
+                Resume previous session →
+              </button>
+
+              {/* Actions */}
+              <div className={styles.actions}>
+                <button
+                  type="button"
+                  className={styles.cancelBtn}
+                  data-testid="ns-cancel"
+                  onClick={() => {
+                    closeNewSessionModal();
+                    resetForm();
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={styles.submitBtn}
+                  disabled={submitting}
+                  data-testid="ns-create"
+                  onClick={handleSubmit}
+                >
+                  {sessionMode === 'copilot' ? 'Start Copilot Session' : 'Create'}
+                </button>
+              </div>
             </div>
           )}
         </Dialog.Content>

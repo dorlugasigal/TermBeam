@@ -1,0 +1,990 @@
+/* ── AgentView — GitHub Copilot-style agent UI ── */
+
+/* ── Layout ── */
+
+.agentContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.chatPanel {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 24px;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+
+.chatPanelInner {
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.inputArea {
+  position: sticky;
+  bottom: 0;
+  border-top: 1px solid var(--border);
+  padding: 16px 24px calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--bg);
+  z-index: 10;
+}
+
+.inputAreaInner {
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Messages ── */
+
+.messageList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: stretch;
+  width: 100%;
+}
+
+@keyframes messageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── User messages — GitHub-style right-aligned bubble ── */
+
+.userMessage {
+  max-width: min(60ch, 90%);
+  padding-bottom: 16px;
+  align-self: flex-end;
+  align-items: center;
+  gap: 10px;
+  display: flex;
+  animation: messageIn 0.2s ease-out;
+}
+
+.userBubble {
+  border-radius: 12px;
+  background: var(--bgColor-muted, #161b22);
+  padding: 16px 24px;
+  color: var(--fgColor-default, var(--text));
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  overflow: hidden;
+}
+
+.userBubbleText {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 0;
+}
+
+.userAvatar {
+  padding-top: 12px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  color: var(--fgColor-muted, #8b949e);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Assistant messages — GitHub Copilot style ── */
+
+.assistantMessage {
+  align-items: flex-start;
+  gap: 8px;
+  padding-inline: 6px 8px;
+  flex-direction: row;
+  display: flex;
+  padding-bottom: 8px;
+  animation: messageIn 0.2s ease-out;
+}
+
+/* Legacy classes used by AgentMessage.tsx (live agent chat) */
+.userContent {
+  min-width: 0;
+  max-width: 80%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.assistantBody {
+  min-width: 0;
+  flex: 1;
+}
+
+.messageMeta {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  user-select: none;
+}
+
+.userMessage .messageMeta {
+  text-align: right;
+}
+
+.assistantAvatar {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fgColor-muted, #8b949e);
+  margin-top: 2px;
+}
+
+.assistantContent {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 0;
+  line-height: 1.65;
+  font-size: 14px;
+  color: var(--text);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.markdownWrapper {
+  padding: 0 8px;
+  line-height: 1.65;
+  font-size: 14px;
+  color: var(--text);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.markdownWrapper pre {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+/* ── Markdown inside assistant ── */
+
+.markdownWrapper h1,
+.markdownWrapper h2,
+.markdownWrapper h3,
+.assistantContent h1,
+.assistantContent h2,
+.assistantContent h3 {
+  font-weight: 600;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.markdownWrapper h1,
+.assistantContent h1 {
+  font-size: 1.4em;
+}
+
+.markdownWrapper h2,
+.assistantContent h2 {
+  font-size: 1.2em;
+}
+
+.markdownWrapper h3,
+.assistantContent h3 {
+  font-size: 1.05em;
+}
+
+.markdownWrapper p,
+.assistantContent p {
+  margin: 8px 0;
+}
+
+.markdownWrapper p:first-child,
+.assistantContent p:first-child {
+  margin-top: 0;
+}
+
+.markdownWrapper p:last-child,
+.assistantContent p:last-child {
+  margin-bottom: 0;
+}
+
+.markdownWrapper ul,
+.markdownWrapper ol,
+.assistantContent ul,
+.assistantContent ol {
+  padding-left: 24px;
+  margin: 8px 0;
+}
+
+.markdownWrapper li,
+.assistantContent li {
+  margin: 4px 0;
+}
+
+.markdownWrapper strong,
+.assistantContent strong {
+  font-weight: 600;
+}
+
+.markdownWrapper a,
+.assistantContent a {
+  color: var(--accent);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+.markdownWrapper a:hover,
+.assistantContent a:hover {
+  text-decoration: underline;
+}
+
+.markdownWrapper code,
+.assistantContent code {
+  background: rgba(110, 118, 129, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+}
+
+.markdownWrapper pre code,
+.assistantContent pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+.markdownWrapper blockquote,
+.assistantContent blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 12px;
+  margin: 8px 0;
+  color: var(--text-secondary);
+}
+
+.markdownWrapper table,
+.assistantContent table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.markdownWrapper th,
+.markdownWrapper td,
+.assistantContent th,
+.assistantContent td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+}
+
+.markdownWrapper th,
+.assistantContent th {
+  background: rgba(127, 127, 127, 0.1);
+  font-weight: 600;
+}
+
+/* ── Legacy tool call classes (used by AgentToolCall.tsx in live chat) ── */
+
+.toolCallBlock {
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.toolCallHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  background: var(--surface);
+  border: none;
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.toolCallHeader:hover {
+  background: color-mix(in srgb, var(--surface) 80%, var(--text) 5%);
+}
+
+.toolCallIcon {
+  font-size: 16px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.toolCallLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolCallChevron {
+  width: 14px;
+  height: 14px;
+  color: var(--text-dim);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+  transform: rotate(0deg);
+}
+
+.toolCallChevronExpanded {
+  transform: rotate(90deg);
+}
+
+.toolCallContent {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  max-height: 400px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.toolCallCollapsed {
+  display: none;
+}
+
+/* ── Code blocks ── */
+
+.codeBlock {
+  background: #161b22;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 12px 0;
+}
+
+[data-theme='light'] .codeBlock {
+  background: #f6f8fa;
+  border: 1px solid var(--border);
+}
+
+.codeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #1c2128;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+[data-theme='light'] .codeHeader {
+  background: rgba(0, 0, 0, 0.03);
+  border-bottom-color: var(--border);
+}
+
+.codeHeader span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+  text-transform: lowercase;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+}
+
+.codePre {
+  padding: 12px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  color: #d4d4d4;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+[data-theme='light'] .codePre {
+  color: #24292f;
+}
+
+.copyButton {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition:
+    color 0.15s,
+    background 0.15s;
+  flex-shrink: 0;
+}
+
+.copyButton:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme='light'] .copyButton:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #24292f;
+}
+
+/* ── Tool headers — GitHub flat transparent style ── */
+
+.toolContainer {
+  box-sizing: border-box;
+  max-width: 100%;
+  position: relative;
+}
+
+.toolHeader {
+  border-radius: 6px;
+  align-items: center;
+  gap: 8px;
+  row-gap: 4px;
+  min-width: 0;
+  min-height: 28px;
+  color: var(--fgColor-muted, var(--text-secondary));
+  padding: 0 8px 0 6px;
+  background-color: transparent;
+  border: none;
+  flex-flow: row;
+  flex: 1;
+  display: flex;
+  position: relative;
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.15s;
+}
+
+.toolHeader:hover {
+  background-color: var(--bgColor-muted, rgba(110, 118, 129, 0.1));
+}
+
+.toolChevron {
+  flex-shrink: 0;
+  transition: transform 0.2s;
+  transform-origin: 50%;
+  will-change: transform;
+  color: var(--fgColor-muted, var(--text-dim));
+  display: flex;
+  align-items: center;
+}
+
+.toolChevronOpen {
+  transform: rotate(90deg);
+}
+
+.toolLeadingIcon {
+  width: 16px;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  color: var(--fgColor-muted, var(--text-dim));
+}
+
+.toolTitle {
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--fgColor-muted, var(--text-secondary));
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  text-align: start;
+  flex: 0 auto;
+}
+
+.toolAction {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--fgColor-muted, var(--text-secondary));
+  white-space: nowrap;
+}
+
+.toolDetail {
+  font-family: var(--fontStack-monospace, 'SF Mono', 'SFMono-Regular', 'Consolas', monospace);
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--fgColor-muted, var(--text-dim));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.toolPath {
+  font-family: var(--fontStack-monospace, 'SFMono-Regular', 'Consolas', monospace);
+  font-weight: 300;
+  font-size: 12px;
+  color: var(--fgColor-muted, var(--text-dim));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.toolDuration {
+  font-size: 11px;
+  color: var(--fgColor-muted, var(--text-dim));
+  background: rgba(110, 118, 129, 0.12);
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.toolContent {
+  margin-left: 30px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  border: 1px solid var(--borderColor-default, var(--border));
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.toolContentInner {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-family: var(--fontStack-monospace, 'SFMono-Regular', 'Consolas', monospace);
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bgColor-default, var(--bg));
+}
+
+.toolContentInner pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.toolContentCollapsed {
+  display: none;
+}
+
+.showMoreButton {
+  margin-top: 4px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+/* ── Sub-agent blocks ── */
+
+.subAgentMeta {
+  font-size: 12px;
+  color: var(--fgColor-muted, var(--text-dim));
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.subAgentMetaDot {
+  color: var(--fgColor-muted, var(--text-dim));
+}
+
+.subAgentRunning {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+/* ── Input ── */
+
+.inputContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.inputTextarea {
+  flex: 1;
+  resize: none;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  min-height: 44px;
+  max-height: 200px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+  font-family: inherit;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.inputTextarea::placeholder {
+  color: var(--text-muted);
+}
+
+.inputTextarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.sendButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition:
+    background 0.15s,
+    transform 0.1s,
+    opacity 0.15s;
+}
+
+.sendButton:hover {
+  background: var(--accent-hover);
+}
+
+.sendButton:active {
+  transform: scale(0.93);
+}
+
+.sendButton:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.stopButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition:
+    background 0.15s,
+    transform 0.1s;
+}
+
+.stopButton:hover {
+  background: var(--danger-hover);
+}
+
+.stopButton:active {
+  transform: scale(0.93);
+}
+
+/* ── Empty state ── */
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 80px 24px;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 48px;
+  opacity: 0.4;
+}
+
+.emptyTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 12px 0 4px;
+}
+
+.emptyHint {
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 400px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* ── System / error messages ── */
+
+.systemMessage {
+  display: flex;
+  justify-content: center;
+  animation: messageIn 0.2s ease-out;
+}
+
+.systemContent {
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: center;
+  padding: 6px 12px;
+}
+
+.errorMessage {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  animation: messageIn 0.2s ease-out;
+}
+
+.errorContent {
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+[data-theme='light'] .errorContent {
+  background: rgba(220, 38, 38, 0.06);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+/* ── Streaming cursor ── */
+
+.streamingCursor {
+  display: inline-block;
+  animation: agent-cursor-blink 0.8s step-end infinite;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+@keyframes agent-cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.rawTerminalContainer {
+  flex: 1;
+  overflow: hidden;
+}
+
+.hidden {
+  display: none;
+}
+
+/* ── Scroll anchor ── */
+
+.scrollAnchor {
+  height: 1px;
+  width: 100%;
+}
+
+.chatPanelWrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Responsive: tablet ── */
+
+.sessionPicker {
+  padding: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.sessionPickerTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+.sessionItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border: 1px solid transparent;
+}
+.sessionItem:hover {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.sessionItemIcon {
+  font-size: 16px;
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+.sessionItemTitle {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text);
+}
+.sessionItemMeta {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ── Session header (JSONL viewer) ── */
+
+.sessionHeader {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.sessionTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+}
+.sessionMeta {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sessionMetaBadge {
+  background: rgba(110, 118, 129, 0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* ── Responsive: tablet ── */
+
+@media (max-width: 768px) {
+  .chatPanel {
+    padding: 16px 12px;
+  }
+
+  .chatPanelInner {
+    max-width: 100%;
+  }
+
+  .userBubble {
+    padding: 12px 16px;
+  }
+
+  .inputArea {
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .emptyState {
+    padding: 48px 16px;
+  }
+
+  /* Horizontal scroll for wide tool details */
+  .toolDetail,
+  .toolPath,
+  .toolTitle {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    text-overflow: unset;
+    scrollbar-width: none;
+  }
+  .toolDetail::-webkit-scrollbar,
+  .toolPath::-webkit-scrollbar,
+  .toolTitle::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ── Responsive: mobile ── */
+
+@media (max-width: 480px) {
+  .chatPanel {
+    padding: 12px 8px;
+  }
+
+  .userBubble {
+    padding: 10px 14px;
+  }
+
+  .inputArea {
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .inputTextarea {
+    font-size: 16px; /* prevent iOS zoom */
+    padding: 8px 12px;
+    border-radius: 10px;
+    min-height: 40px;
+  }
+
+  .sendButton,
+  .stopButton {
+    width: 36px;
+    height: 36px;
+  }
+
+  .codeBlock {
+    border-radius: 6px;
+    margin: 6px 0;
+  }
+
+  .codePre {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .emptyState {
+    padding: 32px 12px;
+  }
+
+  .emptyTitle {
+    font-size: 16px;
+  }
+
+  .emptyHint {
+    font-size: 13px;
+  }
+}

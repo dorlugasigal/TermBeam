@@ -7,6 +7,7 @@ const { detectShells } = require('../utils/shells');
 const { getAvailableAgents } = require('../utils/agents');
 const { getAgentSessions, getResumeCommand } = require('../utils/agent-sessions');
 const log = require('../utils/logger');
+const { getGitInfo } = require('../utils/git');
 const rateLimit = require('express-rate-limit');
 
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
@@ -19,7 +20,45 @@ function safePath(rootDir, userPath) {
   return resolved;
 }
 
+/**
+ * Validate and sanitize a user-provided cwd path.
+ * Returns the canonical real path or null if invalid.
+ */
+function validateCwd(userCwd) {
+  if (!userCwd || typeof userCwd !== 'string') return null;
+  try {
+    const real = fs.realpathSync(path.resolve(userCwd));
+    if (!path.isAbsolute(real)) return null;
+    if (!fs.statSync(real).isDirectory()) return null; // lgtm[js/path-injection]
+    return real;
+  } catch {
+    return null;
+  }
+}
+
 const uploadedFiles = new Map(); // id -> filepath
+
+// Cache git info per cwd to avoid repeated git calls on each /api/sessions request
+const gitInfoCache = new Map(); // cwd -> { data, ts }
+const GIT_CACHE_TTL = 10_000; // 10 seconds
+
+function getCachedGitInfo(cwd) {
+  if (!cwd) return null;
+  const cached = gitInfoCache.get(cwd);
+  if (cached && Date.now() - cached.ts < GIT_CACHE_TTL) return cached.data;
+  try {
+    const data = getGitInfo(cwd);
+    gitInfoCache.set(cwd, { data, ts: Date.now() });
+    // Evict oldest entry when cache exceeds 100 entries
+    if (gitInfoCache.size > 100) {
+      const oldest = gitInfoCache.keys().next().value;
+      gitInfoCache.delete(oldest);
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
 
 const IMAGE_SIGNATURES = [
   { type: 'image/png', bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
@@ -45,7 +84,7 @@ function validateMagicBytes(buffer, contentType) {
   return true;
 }
 
-function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
+function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotService }) {
   const pageRateLimit = rateLimit({
     windowMs: 1 * 60 * 1000,
     max: 120,
@@ -64,7 +103,12 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
       res.status(429).json({ error: 'Too many requests, please try again later.' }),
   });
 
-  // Serve static files
+  // Serve static files — sw.js must never be cached by the browser
+  app.get('/sw.js', (_req, res, next) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Service-Worker-Allowed', '/');
+    next();
+  });
   app.use(express.static(PUBLIC_DIR, { index: false }));
 
   // Login page
@@ -280,6 +324,9 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
   app.get('/terminal', pageRateLimit, autoLogin, auth.middleware, (_req, res) =>
     res.sendFile('index.html', { root: PUBLIC_DIR }),
   );
+  app.get('/agent', pageRateLimit, autoLogin, auth.middleware, (_req, res) =>
+    res.sendFile('index.html', { root: PUBLIC_DIR }),
+  );
   app.get('/code/:sessionId', pageRateLimit, autoLogin, auth.middleware, (_req, res) =>
     res.sendFile('index.html', { root: PUBLIC_DIR }),
   );
@@ -296,11 +343,47 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
   // Session API
   app.get('/api/sessions', apiRateLimit, auth.middleware, (_req, res) => {
     log.debug('Sessions list requested');
-    res.json(sessions.list());
+    const ptySessions = sessions.list();
+    const copilotSessions = copilotService?.listSessionsDetailed() || [];
+
+    const all = [
+      ...ptySessions,
+      ...copilotSessions.map((s) => {
+        const cwdValid = typeof s.cwd === 'string' && path.isAbsolute(s.cwd);
+        return {
+          id: s.id,
+          name: s.name,
+          type: 'copilot',
+          cwd: cwdValid ? s.cwd : null,
+          model: s.model,
+          ptySessionId: s.ptySessionId || null,
+          createdAt: s.createdAt || new Date().toISOString(),
+          lastActivity: s.lastActivity || s.createdAt || new Date().toISOString(),
+          shell: 'copilot-sdk',
+          pid: 0,
+          clients: 0,
+          color: '#8b5cf6',
+          git: cwdValid ? getCachedGitInfo(s.cwd) : null,
+        };
+      }),
+    ];
+
+    res.json(all);
   });
 
-  app.post('/api/sessions', apiRateLimit, auth.middleware, (req, res) => {
-    const { name, shell, args: shellArgs, cwd, initialCommand, color, cols, rows } = req.body || {};
+  app.post('/api/sessions', apiRateLimit, auth.middleware, async (req, res) => {
+    const {
+      name,
+      shell,
+      args: shellArgs,
+      cwd,
+      initialCommand,
+      color,
+      cols,
+      rows,
+      type,
+      hidden,
+    } = req.body || {};
 
     // Validate shell field
     if (shell) {
@@ -325,6 +408,68 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
       if (typeof initialCommand !== 'string') {
         log.warn('Session creation failed: initialCommand must be a string');
         return res.status(400).json({ error: 'initialCommand must be a string' });
+      }
+    }
+
+    // Validate type field
+    if (type !== undefined && type !== 'terminal' && type !== 'agent' && type !== 'copilot') {
+      log.warn(`Session creation failed: invalid type "${type}"`);
+      return res.status(400).json({ error: 'type must be "terminal", "agent", or "copilot"' });
+    }
+
+    // Handle copilot SDK sessions — create both SDK + companion PTY
+    if (type === 'copilot') {
+      if (!copilotService) {
+        return res.status(400).json({ error: 'Copilot service is not available' });
+      }
+      // Validate cwd for copilot sessions
+      if (cwd) {
+        const validCwd = validateCwd(cwd);
+        if (!validCwd)
+          return res.status(400).json({ error: 'cwd must be an existing absolute directory' });
+      }
+
+      let ptySessionId = null;
+      try {
+        const sessionCwd = cwd ? validateCwd(cwd) || config.cwd : config.cwd;
+
+        // Create a companion PTY terminal first
+        try {
+          ptySessionId = sessions.create({
+            name: `${name || 'Copilot'} Terminal`,
+            shell: config.defaultShell,
+            cwd: sessionCwd,
+            type: 'terminal',
+            hidden: true,
+          });
+        } catch (ptyErr) {
+          log.warn('Failed to create companion PTY for copilot session:', ptyErr.message);
+        }
+
+        const sdkSessionId = await copilotService.createSession({
+          model: req.body.model,
+          cwd: sessionCwd,
+          name: name || 'Copilot Session',
+          ptySessionId,
+        });
+
+        return res.status(201).json({
+          id: sdkSessionId,
+          type: 'copilot',
+          ptySessionId,
+          url: `/terminal?id=${sdkSessionId}`,
+        });
+      } catch (err) {
+        // Clean up companion PTY if SDK session creation failed
+        if (ptySessionId) {
+          try {
+            sessions.delete(ptySessionId);
+          } catch {
+            /* ignore */
+          }
+        }
+        log.error('Failed to create Copilot session:', err.message);
+        return res.status(500).json({ error: 'Failed to create Copilot session: ' + err.message });
       }
     }
 
@@ -356,12 +501,15 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
         color: color || null,
         cols: typeof cols === 'number' && cols > 0 && cols <= 500 ? Math.floor(cols) : undefined,
         rows: typeof rows === 'number' && rows > 0 && rows <= 200 ? Math.floor(rows) : undefined,
+        type: type || 'terminal',
+        hidden: hidden === true,
       });
     } catch (err) {
       log.warn(`Session creation failed: ${err.message}`);
       return res.status(400).json({ error: 'Failed to create session' });
     }
-    res.status(201).json({ id, url: `/terminal?id=${id}` });
+    const url = `/terminal?id=${id}`;
+    res.status(201).json({ id, url });
   });
 
   // Available shells
@@ -441,12 +589,26 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
     }
   });
 
-  app.delete('/api/sessions/:id', auth.middleware, (req, res) => {
-    if (sessions.delete(req.params.id)) {
-      log.info(`Session deleted: ${req.params.id}`);
+  app.delete('/api/sessions/:id', auth.middleware, async (req, res) => {
+    const { id } = req.params;
+
+    // Try copilot first
+    if (copilotService?.sessions.has(id)) {
+      const entry = copilotService.sessions.get(id);
+      const ptyId = entry?.ptySessionId;
+      // Delete companion PTY first
+      if (ptyId) sessions.delete(ptyId);
+      await copilotService.disconnectSession(id);
+      log.info(`Copilot session deleted: ${id}`);
+      return res.status(204).end();
+    }
+
+    // Fall back to PTY
+    if (sessions.delete(id)) {
+      log.info(`Session deleted: ${id}`);
       res.status(204).end();
     } else {
-      log.warn(`Session delete failed: not found (${req.params.id})`);
+      log.warn(`Session delete failed: not found (${id})`);
       res.status(404).json({ error: 'not found' });
     }
   });
@@ -1070,6 +1232,274 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager }) {
   // Tunnel renew endpoint removed — DevTunnel CLI auto-refreshes OAuth
   // tokens. If auth truly expires, user must run "devtunnel user login" on
   // the host machine; the watchdog auto-reconnects after re-auth.
+
+  // --- Copilot CLI session events ---
+  const copilotSessionsDir =
+    process.env.COPILOT_SESSIONS_DIR || path.join(os.homedir(), '.copilot', 'session-state');
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  const HOOK_TYPES = new Set(['hook.start', 'hook.end']);
+
+  let copilotSessionsCache = null;
+  let copilotSessionsCacheTime = 0;
+  const COPILOT_CACHE_TTL = 5000;
+
+  async function readCopilotSessions() {
+    const now = Date.now();
+    if (copilotSessionsCache && now - copilotSessionsCacheTime < COPILOT_CACHE_TTL) {
+      return copilotSessionsCache;
+    }
+
+    let entries;
+    try {
+      entries = await fs.promises.readdir(copilotSessionsDir, { withFileTypes: true });
+    } catch {
+      copilotSessionsCache = [];
+      copilotSessionsCacheTime = now;
+      return [];
+    }
+
+    const dirs = entries.filter((e) => e.isDirectory() && UUID_RE.test(e.name)).map((e) => e.name);
+
+    const results = await Promise.all(
+      dirs.map(async (id) => {
+        const eventsPath = path.join(copilotSessionsDir, id, 'events.jsonl');
+        try {
+          const content = await fs.promises.readFile(eventsPath, 'utf8');
+          const lines = content.split('\n').filter((l) => l.trim());
+          let title = null;
+          let startTime = null;
+          let cwd = null;
+          let branch = null;
+          let repository = null;
+
+          for (const line of lines.slice(0, 20)) {
+            try {
+              const event = JSON.parse(line);
+              if (event.type === 'session.start' && !startTime) {
+                startTime = event.data?.startTime || event.timestamp;
+                cwd = event.data?.context?.cwd || null;
+                branch = event.data?.context?.branch || null;
+                repository = event.data?.context?.repository || null;
+              }
+              if (event.type === 'user.message' && !title) {
+                const msg = event.data?.content || '';
+                title = msg.length > 80 ? msg.slice(0, 80) + '…' : msg;
+              }
+              if (startTime && title) break;
+            } catch {
+              // skip malformed lines
+            }
+          }
+
+          return {
+            id,
+            title: title || '(untitled)',
+            startTime: startTime || null,
+            cwd,
+            branch,
+            repository,
+            eventCount: lines.length,
+          };
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    const sessions = results
+      .filter(Boolean)
+      .sort((a, b) => {
+        if (!a.startTime) return 1;
+        if (!b.startTime) return -1;
+        return new Date(b.startTime) - new Date(a.startTime);
+      })
+      .slice(0, 50);
+
+    copilotSessionsCache = sessions;
+    copilotSessionsCacheTime = now;
+    return sessions;
+  }
+
+  // --- Copilot SDK session creation ---
+  if (copilotService) {
+    app.post('/api/copilot/sdk/sessions', apiRateLimit, auth.middleware, async (req, res) => {
+      try {
+        const sessionId = await copilotService.createSession({
+          model: req.body.model,
+        });
+        res.status(201).json({ sessionId });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+
+    app.post(
+      '/api/copilot/sdk/sessions/:sdkSessionId/resume',
+      apiRateLimit,
+      auth.middleware,
+      async (req, res) => {
+        // Validate cwd for resume endpoint
+        if (req.body.cwd) {
+          const validCwd = validateCwd(req.body.cwd);
+          if (!validCwd)
+            return res.status(400).json({ error: 'cwd must be an existing absolute directory' });
+        }
+
+        let ptySessionId = null;
+        try {
+          const { sdkSessionId } = req.params;
+          const sessionCwd = req.body.cwd ? validateCwd(req.body.cwd) || config.cwd : config.cwd;
+
+          // Create companion PTY for the resumed session
+          try {
+            ptySessionId = sessions.create({
+              name: `${req.body.name || 'Copilot'} Terminal`,
+              shell: config.defaultShell,
+              cwd: sessionCwd,
+              type: 'terminal',
+              hidden: true,
+            });
+          } catch (ptyErr) {
+            log.warn('Failed to create companion PTY for resumed copilot session:', ptyErr.message);
+          }
+
+          const sessionId = await copilotService.resumeSession(sdkSessionId, {
+            name: req.body.name,
+            model: req.body.model,
+            ptySessionId,
+            cwd: sessionCwd,
+          });
+          res.status(201).json({ id: sessionId, type: 'copilot', ptySessionId });
+        } catch (err) {
+          // Clean up companion PTY if SDK session resume failed
+          if (ptySessionId) {
+            try {
+              sessions.delete(ptySessionId);
+            } catch {
+              /* ignore */
+            }
+          }
+          log.error('Failed to resume Copilot SDK session:', err.message);
+          res.status(500).json({ error: err.message });
+        }
+      },
+    );
+
+    app.get('/api/copilot/sdk/sessions', apiRateLimit, auth.middleware, async (_req, res) => {
+      try {
+        const sessions = await copilotService.listSdkSessions();
+        res.json({ sessions });
+      } catch (err) {
+        res.json({ sessions: [] });
+      }
+    });
+  }
+
+  app.get('/api/copilot/active', apiRateLimit, auth.middleware, async (_req, res) => {
+    try {
+      let entries;
+      try {
+        entries = await fs.promises.readdir(copilotSessionsDir, { withFileTypes: true });
+      } catch {
+        return res.json({ sessionId: null });
+      }
+
+      const dirs = entries
+        .filter((e) => e.isDirectory() && UUID_RE.test(e.name))
+        .map((e) => e.name);
+
+      const now = Date.now();
+      let bestId = null;
+      let bestMtime = 0;
+
+      await Promise.all(
+        dirs.map(async (id) => {
+          const eventsPath = path.join(copilotSessionsDir, id, 'events.jsonl');
+          try {
+            const stat = await fs.promises.stat(eventsPath);
+            const age = now - stat.mtimeMs;
+            if (age < 30000 && stat.mtimeMs > bestMtime) {
+              bestMtime = stat.mtimeMs;
+              bestId = id;
+            }
+          } catch {
+            // no events.jsonl
+          }
+        }),
+      );
+
+      res.json({ sessionId: bestId });
+    } catch (err) {
+      log.warn(`Failed to detect active Copilot session: ${err.message}`);
+      res.json({ sessionId: null });
+    }
+  });
+
+  app.get('/api/copilot/sessions', apiRateLimit, auth.middleware, async (_req, res) => {
+    try {
+      const sessions = await readCopilotSessions();
+      res.json({ sessions });
+    } catch (err) {
+      log.warn(`Failed to read Copilot sessions: ${err.message}`);
+      res.json({ sessions: [] });
+    }
+  });
+
+  app.get(
+    '/api/copilot/sessions/:sessionId/events',
+    apiRateLimit,
+    auth.middleware,
+    async (req, res) => {
+      const { sessionId } = req.params;
+      if (!UUID_RE.test(sessionId)) {
+        return res.status(400).json({ error: 'Invalid session ID' });
+      }
+
+      const sessionDir = safePath(copilotSessionsDir, sessionId);
+      if (!sessionDir) {
+        return res.status(400).json({ error: 'Invalid session path' });
+      }
+      let eventsPath;
+      try {
+        eventsPath = fs.realpathSync(path.join(sessionDir, 'events.jsonl'));
+        if (!eventsPath.startsWith(fs.realpathSync(copilotSessionsDir))) {
+          return res.status(400).json({ error: 'Invalid session path' });
+        }
+      } catch {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+      let content;
+      try {
+        content = await fs.promises.readFile(eventsPath, 'utf8');
+      } catch {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      const sinceIndex = parseInt(req.query.since, 10);
+      const hasSince = !isNaN(sinceIndex) && sinceIndex >= 0;
+      const typesParam = req.query.types;
+      const typeFilter = typesParam ? new Set(typesParam.split(',').map((t) => t.trim())) : null;
+
+      const lines = content.split('\n').filter((l) => l.trim());
+      const total = lines.length;
+
+      const startIndex = hasSince ? Math.min(sinceIndex, total) : 0;
+      const events = [];
+      for (let i = startIndex; i < total; i++) {
+        try {
+          const event = JSON.parse(lines[i]);
+          // Filter out hook events by default unless explicitly requested
+          if (!typeFilter && HOOK_TYPES.has(event.type)) continue;
+          if (typeFilter && !typeFilter.has(event.type)) continue;
+          events.push(event);
+        } catch {
+          // skip malformed lines
+        }
+      }
+
+      res.json({ events, total, hasMore: false });
+    },
+  );
 }
 
 function cleanupUploadedFiles() {

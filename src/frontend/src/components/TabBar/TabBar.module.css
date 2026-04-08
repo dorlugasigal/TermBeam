@@ -99,6 +99,14 @@
   flex-shrink: 0;
 }
 
+.copilotIcon {
+  color: #a855f6;
+  flex-shrink: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
 .tabName {
   max-width: 100px;
   overflow: hidden;

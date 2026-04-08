@@ -46,7 +46,14 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
   if (diff.isBinary) {
     return (
       <div className={styles.container}>
-        <DiffHeader diff={diff} staged={staged} fullFile={fullFile} loading={loading} onToggleStaged={handleStagedToggle} onToggleFullFile={handleFullFileToggle} />
+        <DiffHeader
+          diff={diff}
+          staged={staged}
+          fullFile={fullFile}
+          loading={loading}
+          onToggleStaged={handleStagedToggle}
+          onToggleFullFile={handleFullFileToggle}
+        />
         <div className={styles.binary}>Binary file — cannot display diff</div>
       </div>
     );
@@ -55,7 +62,14 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
   if (diff.hunks.length === 0) {
     return (
       <div className={styles.container}>
-        <DiffHeader diff={diff} staged={staged} fullFile={fullFile} loading={loading} onToggleStaged={handleStagedToggle} onToggleFullFile={handleFullFileToggle} />
+        <DiffHeader
+          diff={diff}
+          staged={staged}
+          fullFile={fullFile}
+          loading={loading}
+          onToggleStaged={handleStagedToggle}
+          onToggleFullFile={handleFullFileToggle}
+        />
         <div className={styles.empty}>No changes</div>
       </div>
     );
@@ -63,13 +77,18 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
 
   return (
     <div className={styles.container}>
-      <DiffHeader diff={diff} staged={staged} fullFile={fullFile} loading={loading} onToggleStaged={handleStagedToggle} onToggleFullFile={handleFullFileToggle} />
+      <DiffHeader
+        diff={diff}
+        staged={staged}
+        fullFile={fullFile}
+        loading={loading}
+        onToggleStaged={handleStagedToggle}
+        onToggleFullFile={handleFullFileToggle}
+      />
       <div className={styles.table}>
         {diff.hunks.map((hunk, hi) => (
           <div key={hi}>
-            <div className={styles.hunkHeader}>
-              {hunk.header}
-            </div>
+            <div className={styles.hunkHeader}>{hunk.header}</div>
             {hunk.lines.map((line, li) => {
               const rowClass =
                 line.type === 'add'
@@ -105,7 +124,14 @@ interface DiffHeaderProps {
   onToggleFullFile: () => void;
 }
 
-function DiffHeader({ diff, staged, fullFile, loading, onToggleStaged, onToggleFullFile }: DiffHeaderProps) {
+function DiffHeader({
+  diff,
+  staged,
+  fullFile,
+  loading,
+  onToggleStaged,
+  onToggleFullFile,
+}: DiffHeaderProps) {
   const toggleId = useId();
   // Untracked/new files are entirely additions — no meaningful diff/full or staged toggle
   const isNewFile =

@@ -570,4 +570,544 @@ describe('SessionManager', () => {
 
     assert.ok(!session._silenceTimer, 'silence timer should NOT be set without direct child');
   });
+
+  describe('hidden sessions', () => {
+    it('should default hidden to false', () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({ name: 'normal', shell: '/bin/sh', cwd: '/tmp' });
+      const session = mgr.get(id);
+      assert.strictEqual(session.hidden, false);
+    });
+
+    it('should create a hidden session with hidden: true', () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({ name: 'companion', shell: '/bin/sh', cwd: '/tmp', hidden: true });
+      const session = mgr.get(id);
+      assert.ok(session, 'hidden session should be accessible via get()');
+      assert.strictEqual(session.hidden, true);
+      assert.strictEqual(session.name, 'companion');
+    });
+
+    it('should include hidden flag in list() output', () => {
+      const mgr = new SessionManager();
+      mgr.create({ name: 'visible', shell: '/bin/sh', cwd: '/tmp' });
+      mgr.create({ name: 'hidden-sess', shell: '/bin/sh', cwd: '/tmp', hidden: true });
+      const list = mgr.list();
+      assert.strictEqual(list.length, 2);
+      const visible = list.find((s) => s.name === 'visible');
+      const hidden = list.find((s) => s.name === 'hidden-sess');
+      assert.strictEqual(visible.hidden, false);
+      assert.strictEqual(hidden.hidden, true);
+    });
+
+    it('should allow filtering hidden sessions from list() by caller', () => {
+      const mgr = new SessionManager();
+      mgr.create({ name: 'user-term', shell: '/bin/sh', cwd: '/tmp' });
+      mgr.create({ name: 'companion-pty', shell: '/bin/sh', cwd: '/tmp', hidden: true });
+      mgr.create({ name: 'another-term', shell: '/bin/sh', cwd: '/tmp' });
+      const all = mgr.list();
+      const userVisible = all.filter((s) => !s.hidden);
+      assert.strictEqual(all.length, 3);
+      assert.strictEqual(userVisible.length, 2);
+      assert.ok(userVisible.every((s) => !s.hidden));
+    });
+
+    it('should allow deleting a hidden companion session', () => {
+      const mgr = new SessionManager();
+      const mainId = mgr.create({
+        name: 'copilot-session',
+        shell: '/bin/sh',
+        cwd: '/tmp',
+        type: 'agent',
+      });
+      const companionId = mgr.create({
+        name: 'copilot-companion',
+        shell: '/bin/sh',
+        cwd: '/tmp',
+        hidden: true,
+      });
+      assert.strictEqual(mgr.list().length, 2);
+
+      // Delete the main session
+      assert.strictEqual(mgr.delete(mainId), true);
+      // Companion should still exist and be independently deletable
+      assert.ok(mgr.get(companionId), 'companion should still exist after main deletion');
+      assert.strictEqual(mgr.delete(companionId), true);
+      assert.strictEqual(mgr.get(companionId), undefined);
+      assert.strictEqual(mgr.list().length, 0);
+    });
+
+    it('should allow hidden sessions to combine with type field', () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({
+        name: 'agent-companion',
+        shell: '/bin/sh',
+        cwd: '/tmp',
+        type: 'agent',
+        hidden: true,
+      });
+      const session = mgr.get(id);
+      assert.strictEqual(session.type, 'agent');
+      assert.strictEqual(session.hidden, true);
+
+      const list = mgr.list();
+      const entry = list.find((s) => s.id === id);
+      assert.strictEqual(entry.type, 'agent');
+      assert.strictEqual(entry.hidden, true);
+    });
+  });
+
+  describe('session type', () => {
+    it('should default type to terminal', () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({ name: 'default-type', shell: '/bin/sh', cwd: '/tmp' });
+      const session = mgr.get(id);
+      assert.strictEqual(session.type, 'terminal');
+    });
+
+    it('should accept type agent', () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({
+        name: 'agent-session',
+        shell: '/bin/sh',
+        cwd: '/tmp',
+        type: 'agent',
+      });
+      const session = mgr.get(id);
+      assert.strictEqual(session.type, 'agent');
+    });
+
+    it('should include type in list()', () => {
+      const mgr = new SessionManager();
+      mgr.create({ name: 'terminal-sess', shell: '/bin/sh', cwd: '/tmp' });
+      mgr.create({ name: 'agent-sess', shell: '/bin/sh', cwd: '/tmp', type: 'agent' });
+      const list = mgr.list();
+      assert.strictEqual(list.length, 2);
+      const terminalSess = list.find((s) => s.name === 'terminal-sess');
+      const agentSess = list.find((s) => s.name === 'agent-sess');
+      assert.strictEqual(terminalSess.type, 'terminal');
+      assert.strictEqual(agentSess.type, 'agent');
+    });
+  });
+
+  describe('WebSocket broadcast', () => {
+    it('should broadcast pty output to connected ws clients', () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });
+      const session = mgr.get(id);
+      const mockProcess = mockPtyProcesses[mockPtyProcesses.length - 1];
+
+      const sent = [];
+      const mockWs = {
+        readyState: 1,
+        send: (data) => sent.push(JSON.parse(data)),
+      };
+      session.clients.add(mockWs);
+
+      mockProcess._callbacks.onData('hello');
+
+      assert.ok(sent.length > 0, 'should have sent messages');
+      assert.strictEqual(sent[0].type, 'output');
+      assert.strictEqual(sent[0].data, 'hello');
+      mgr.shutdown();
+    });
+
+    it('should not send to clients with closed readyState', () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });
+      const session = mgr.get(id);
+      const mockProcess = mockPtyProcesses[mockPtyProcesses.length - 1];
+
+      const sent = [];
+      const mockWs = {
+        readyState: 3,
+        send: (data) => sent.push(data),
+      };
+      session.clients.add(mockWs);
+
+      mockProcess._callbacks.onData('hello');
+      assert.strictEqual(sent.length, 0, 'should not send to closed ws');
+      mgr.shutdown();
+    });
+
+    it('should broadcast exit to connected ws clients on pty exit', () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });
+      const session = mgr.get(id);
+      const mockProcess = mockPtyProcesses[mockPtyProcesses.length - 1];
+
+      const sent = [];
+      const mockWs = {
+        readyState: 1,
+        send: (data) => sent.push(JSON.parse(data)),
+      };
+      session.clients.add(mockWs);
+
+      mockProcess._callbacks.onExit({ exitCode: 42 });
+
+      const exitMsg = sent.find((m) => m.type === 'exit');
+      assert.ok(exitMsg, 'should have sent exit message');
+      assert.strictEqual(exitMsg.code, 42);
+      // Session should be removed after exit
+      assert.strictEqual(mgr.get(id), undefined);
+      mgr.shutdown();
+    });
+  });
+
+  describe('getSessionCwd', () => {
+    it('should return null for non-existent session', () => {
+      const mgr = new SessionManager();
+      assert.strictEqual(mgr.getSessionCwd('nonexistent'), null);
+      mgr.shutdown();
+    });
+
+    it('should return session cwd when no cache exists', () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/test/cwd' });
+      const cwd = mgr.getSessionCwd(id);
+      assert.strictEqual(cwd, '/test/cwd');
+      mgr.shutdown();
+    });
+
+    it('should return cached cwd when git cache is populated', async () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/original' });
+
+      // First call triggers cache population via scheduleGitRefresh
+      mgr.getSessionCwd(id);
+      // Wait for the async exec callback to populate the cache
+      await new Promise((r) => setTimeout(r, 1500));
+
+      // Second call should use cached value
+      const cwd = mgr.getSessionCwd(id);
+      assert.ok(cwd, 'should return a cwd');
+      mgr.shutdown();
+    });
+  });
+
+  describe('list() CWD change detection', () => {
+    it('should update session cwd when cache reports different cwd', async () => {
+      const mgr = new SessionManager();
+      const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/original' });
+
+      // First list triggers cache population
+      mgr.list();
+      await new Promise((r) => setTimeout(r, 1500));
+
+      // Manually change session cwd to differ from cached value
+      const session = mgr.get(id);
+      if (session) {
+        session.cwd = '/manually-changed';
+        // Second list — cached cwd differs from session.cwd → update path
+        const list = mgr.list();
+        const entry = list.find((s) => s.id === id);
+        assert.ok(entry, 'session should be in list');
+        // session.cwd should be updated to the cached value
+        assert.notStrictEqual(session.cwd, '/manually-changed');
+      }
+      mgr.shutdown();
+    });
+  });
+
+  describe('silence-based notification', () => {
+    it('should fire notification after sustained output goes silent', async () => {
+      const { mock } = require('node:test');
+      const mgr = new SessionManager();
+      const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });
+      const session = mgr.get(id);
+      const mockProcess = mockPtyProcesses[mockPtyProcesses.length - 1];
+
+      let notified = false;
+      mgr.onCommandComplete = () => {
+        notified = true;
+      };
+
+      // Simulate a direct child process running
+      session._hasDirectChild = true;
+      // Pre-set burst start to 2 seconds ago with some bytes
+      session._outputBurstStart = Date.now() - 2000;
+      session._outputBytes = 50;
+
+      // Enable mock timers
+      mock.timers.enable({ apis: ['setTimeout'] });
+
+      try {
+        // Send enough data to exceed thresholds (50 + 60 = 110 bytes, duration ≥ 1000ms)
+        mockProcess._callbacks.onData('x'.repeat(60));
+
+        // Advance timer to trigger the silence notification
+        mock.timers.tick(5000);
+
+        assert.ok(notified, 'should emit command-complete notification');
+      } finally {
+        mock.timers.reset();
+      }
+      mgr.shutdown();
+    });
+
+    it('should respect notification cooldown', async () => {
+      const { mock } = require('node:test');
+      const mgr = new SessionManager();
+      const id = mgr.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp' });
+      const session = mgr.get(id);
+      const mockProcess = mockPtyProcesses[mockPtyProcesses.length - 1];
+
+      let notifyCount = 0;
+      mgr.onCommandComplete = () => {
+        notifyCount++;
+      };
+
+      session._hasDirectChild = true;
+      session._outputBurstStart = Date.now() - 2000;
+      session._outputBytes = 50;
+      // Set last notify time to now (within cooldown)
+      session._lastNotifyTime = Date.now();
+
+      mock.timers.enable({ apis: ['setTimeout'] });
+
+      try {
+        mockProcess._callbacks.onData('x'.repeat(60));
+        mock.timers.tick(5000);
+        assert.strictEqual(notifyCount, 0, 'should not notify within cooldown period');
+      } finally {
+        mock.timers.reset();
+      }
+      mgr.shutdown();
+    });
+  });
+
+  describe('child process monitoring', () => {
+    it('should detect child exit and emit notification', async () => {
+      // Capture setInterval callbacks to get the checkChildren function
+      const capturedCallbacks = [];
+      const origSetInterval = global.setInterval;
+      global.setInterval = (fn, delay) => {
+        capturedCallbacks.push({ fn, delay });
+        // Return a real interval handle but with a very long delay (won't auto-fire)
+        const handle = origSetInterval(fn, 999999);
+        return handle;
+      };
+
+      let mgr;
+      let id;
+      try {
+        mgr = new SessionManager();
+        id = mgr.create({ name: 'monitor-test', shell: '/bin/sh', cwd: '/tmp' });
+      } finally {
+        global.setInterval = origSetInterval;
+      }
+
+      const session = mgr.get(id);
+      assert.ok(session, 'session should exist');
+
+      // Find the checkChildren callback (last captured interval on non-Windows)
+      if (process.platform === 'win32') {
+        // Child monitoring is not set up on Windows
+        return;
+      }
+
+      const checkChildren = capturedCallbacks[capturedCallbacks.length - 1]?.fn;
+      assert.ok(checkChildren, 'should have captured checkChildren callback');
+
+      // Mock child_process.exec to return controlled output
+      const cp = require('child_process');
+      const origExec = cp.exec;
+      let execCallbacks = [];
+      cp.exec = (_cmd, _opts, cb) => {
+        execCallbacks.push(cb);
+      };
+
+      let notified = false;
+      mgr.onCommandComplete = () => {
+        notified = true;
+      };
+
+      try {
+        // Run checkChildren 4 times with a child present (pass initial 3 skips)
+        for (let i = 0; i < 4; i++) {
+          checkChildren();
+          assert.ok(execCallbacks.length > 0, `exec should be called on iteration ${i}`);
+          const cb = execCallbacks.pop();
+          cb(null, '12345\n');
+        }
+
+        // 5th check: child has exited (empty output)
+        checkChildren();
+        assert.ok(execCallbacks.length > 0);
+        const cb = execCallbacks.pop();
+        cb(null, '');
+
+        assert.ok(notified, 'should emit notification when child exits');
+      } finally {
+        cp.exec = origExec;
+        clearInterval(session._childMonitor);
+      }
+      mgr.shutdown();
+    });
+
+    it('should handle exec errors in child monitoring gracefully', async () => {
+      const capturedCallbacks = [];
+      const origSetInterval = global.setInterval;
+      global.setInterval = (fn, delay) => {
+        capturedCallbacks.push({ fn, delay });
+        return origSetInterval(fn, 999999);
+      };
+
+      let mgr;
+      let id;
+      try {
+        mgr = new SessionManager();
+        id = mgr.create({ name: 'err-test', shell: '/bin/sh', cwd: '/tmp' });
+      } finally {
+        global.setInterval = origSetInterval;
+      }
+
+      const session = mgr.get(id);
+      if (process.platform === 'win32') return;
+
+      const checkChildren = capturedCallbacks[capturedCallbacks.length - 1]?.fn;
+      assert.ok(checkChildren);
+
+      const cp = require('child_process');
+      const origExec = cp.exec;
+      let execCallbacks = [];
+      cp.exec = (_cmd, _opts, cb) => {
+        execCallbacks.push(cb);
+      };
+
+      try {
+        // Call checkChildren — exec should be called
+        checkChildren();
+        assert.ok(execCallbacks.length > 0);
+        // Simulate exec error
+        const cb = execCallbacks.pop();
+        cb(new Error('command failed'));
+
+        // Should not throw — error is handled gracefully
+        assert.ok(true, 'should handle exec error without throwing');
+      } finally {
+        cp.exec = origExec;
+        clearInterval(session._childMonitor);
+      }
+      mgr.shutdown();
+    });
+
+    it('should skip check when session is removed', async () => {
+      const capturedCallbacks = [];
+      const origSetInterval = global.setInterval;
+      global.setInterval = (fn, delay) => {
+        capturedCallbacks.push({ fn, delay });
+        return origSetInterval(fn, 999999);
+      };
+
+      let mgr;
+      let id;
+      try {
+        mgr = new SessionManager();
+        id = mgr.create({ name: 'skip-test', shell: '/bin/sh', cwd: '/tmp' });
+      } finally {
+        global.setInterval = origSetInterval;
+      }
+
+      const session = mgr.get(id);
+      if (process.platform === 'win32') return;
+
+      const checkChildren = capturedCallbacks[capturedCallbacks.length - 1]?.fn;
+      assert.ok(checkChildren);
+
+      const cp = require('child_process');
+      const origExec = cp.exec;
+      let execCalled = false;
+      cp.exec = () => {
+        execCalled = true;
+      };
+
+      try {
+        // Delete session, then try checkChildren — should skip
+        mgr.sessions.delete(id);
+        checkChildren();
+        assert.strictEqual(execCalled, false, 'should not call exec when session is removed');
+      } finally {
+        cp.exec = origExec;
+        clearInterval(session._childMonitor);
+      }
+      mgr.shutdown();
+    });
+
+    it('should respect notification cooldown on child exit', async () => {
+      const capturedCallbacks = [];
+      const origSetInterval = global.setInterval;
+      global.setInterval = (fn, delay) => {
+        capturedCallbacks.push({ fn, delay });
+        return origSetInterval(fn, 999999);
+      };
+
+      let mgr;
+      let id;
+      try {
+        mgr = new SessionManager();
+        id = mgr.create({ name: 'cooldown-test', shell: '/bin/sh', cwd: '/tmp' });
+      } finally {
+        global.setInterval = origSetInterval;
+      }
+
+      const session = mgr.get(id);
+      if (process.platform === 'win32') return;
+
+      const checkChildren = capturedCallbacks[capturedCallbacks.length - 1]?.fn;
+      assert.ok(checkChildren);
+
+      const cp = require('child_process');
+      const origExec = cp.exec;
+      let execCallbacks = [];
+      cp.exec = (_cmd, _opts, cb) => {
+        execCallbacks.push(cb);
+      };
+
+      let notifyCount = 0;
+      mgr.onCommandComplete = () => {
+        notifyCount++;
+      };
+
+      try {
+        // 4 initial checks with child present
+        for (let i = 0; i < 4; i++) {
+          checkChildren();
+          execCallbacks.pop()(null, '12345\n');
+        }
+
+        // Set last notify time to now (within cooldown)
+        session._lastNotifyTime = Date.now();
+
+        // Child exits
+        checkChildren();
+        execCallbacks.pop()(null, '');
+
+        assert.strictEqual(notifyCount, 0, 'should not notify within cooldown');
+      } finally {
+        cp.exec = origExec;
+        clearInterval(session._childMonitor);
+      }
+      mgr.shutdown();
+    });
+  });
+
+  describe('git cache', () => {
+    it('should return cached git info on second list() call', async () => {
+      const mgr = new SessionManager();
+      mgr.create({ name: 'git-test', shell: '/bin/sh', cwd: '/tmp' });
+
+      // First list triggers async git refresh
+      mgr.list();
+      // Wait for exec callback to populate cache
+      await new Promise((r) => setTimeout(r, 1500));
+
+      // Second list should use cached data (cache hit)
+      const list = mgr.list();
+      assert.ok(list.length > 0);
+      // git info should be populated (even if null on failure)
+      assert.ok('git' in list[0], 'should include git field');
+      mgr.shutdown();
+    });
+  });
 });

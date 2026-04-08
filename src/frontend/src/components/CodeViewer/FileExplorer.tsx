@@ -44,9 +44,7 @@ function TreeNode({
         onClick={() => (isDir ? onToggleDir(node.path) : onFileSelect(node.path))}
         title={node.path}
       >
-        {isDir && (
-          <span className={styles.chevron}>{isExpanded ? '▾' : '▸'}</span>
-        )}
+        {isDir && <span className={styles.chevron}>{isExpanded ? '▾' : '▸'}</span>}
         <img className={styles.fileIcon} src={iconUrl} alt="" draggable={false} />
         <span className={styles.name}>{node.name}</span>
       </button>

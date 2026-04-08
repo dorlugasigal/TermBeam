@@ -160,9 +160,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
               cancelable: true,
             };
             xtermEl.dispatchEvent(new MouseEvent('mousedown', mouseOpts));
-            xtermEl.dispatchEvent(
-              new MouseEvent('mouseup', { ...mouseOpts, buttons: 0 }),
-            );
+            xtermEl.dispatchEvent(new MouseEvent('mouseup', { ...mouseOpts, buttons: 0 }));
           }
         }
       }
@@ -654,7 +652,11 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
       onClick={handlePaneClick}
       {...((visible ?? active) ? { 'data-visible': 'true' } : {})}
     >
-      <div ref={terminalRef} className={styles.terminalContainer} />
+      {/* Terminal container */}
+      <div
+        ref={terminalRef}
+        className={styles.terminalContainer}
+      />
 
       {showScrollBtn && (
         <button

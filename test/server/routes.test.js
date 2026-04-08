@@ -604,6 +604,110 @@ describe('Routes', () => {
     });
   });
 
+  // === POST /api/sessions — type field ===
+  describe('POST /api/sessions - type field', () => {
+    let inst;
+    after(async () => {
+      await inst?.shutdown();
+    });
+
+    it('should accept type=agent in request body', async () => {
+      inst = await startServer();
+      const body = JSON.stringify({ name: 'agent-session', type: 'agent' });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 201);
+      const data = JSON.parse(res.data);
+      assert.ok(data.id, 'Response should contain session id');
+    });
+
+    it('should reject invalid type values', async () => {
+      if (!inst) inst = await startServer();
+      const body = JSON.stringify({ name: 'bad-type', type: 'invalid' });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'type must be "terminal", "agent", or "copilot"');
+    });
+
+    it('should default type to terminal', async () => {
+      if (!inst) inst = await startServer();
+      const body = JSON.stringify({ name: 'default-type-test' });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(createRes.statusCode, 201);
+
+      const listRes = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/sessions',
+        method: 'GET',
+      });
+      assert.strictEqual(listRes.statusCode, 200);
+      const sessions = JSON.parse(listRes.data);
+      const created = sessions.find((s) => s.name === 'default-type-test');
+      assert.ok(created, 'Created session should appear in list');
+      assert.strictEqual(created.type, 'terminal');
+    });
+  });
+
+  // === GET /agent ===
+  describe('GET /agent', () => {
+    let inst;
+    after(async () => {
+      await inst?.shutdown();
+    });
+
+    it('should serve the SPA index.html', async () => {
+      inst = await startServer();
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/agent',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(
+        res.headers['content-type'].includes('text/html'),
+        'Response should have HTML content type',
+      );
+    });
+  });
+
   // === Version endpoint ===
   describe('GET /api/version', () => {
     let inst;
@@ -3662,6 +3766,303 @@ describe('Routes', () => {
     },
   );
 
+  // === Copilot session routes ===
+  describe('Copilot session routes', { skip: isWindows && 'ConPTY limit' }, () => {
+    // Mock CopilotService to avoid real SDK client/network calls.
+    // We replace the copilot-sdk module in require.cache, then re-require
+    // the server index so createTermBeamServer uses our mock.
+    const copilotSdkPath = require.resolve('../../src/server/copilot-sdk');
+    const serverIndexPath = require.resolve('../../src/server/index');
+    const origCopilotCacheEntry = require.cache[copilotSdkPath];
+    const origServerCacheEntry = require.cache[serverIndexPath];
+
+    class FakeCopilotService {
+      constructor() {
+        this.sessions = new Map();
+        this._nextId = 0;
+        this._authPollTimer = null;
+      }
+      async createSession(options) {
+        const id = `copilot-${++this._nextId}`;
+        this.sessions.set(id, {
+          cwd: options.cwd || process.cwd(),
+          model: options.model || 'claude-opus-4.6',
+          name: options.name || 'Copilot Session',
+          ptySessionId: options.ptySessionId || null,
+          createdAt: new Date().toISOString(),
+          lastActivity: new Date().toISOString(),
+        });
+        return id;
+      }
+      listSessionsDetailed() {
+        const result = [];
+        for (const [id, entry] of this.sessions) {
+          result.push({
+            id,
+            name: entry.name || 'Copilot Session',
+            cwd: entry.cwd || process.cwd(),
+            model: entry.model || 'claude-opus-4.6',
+            ptySessionId: entry.ptySessionId || null,
+            createdAt: entry.createdAt || new Date().toISOString(),
+            lastActivity: entry.lastActivity || new Date().toISOString(),
+          });
+        }
+        return result;
+      }
+      async disconnectSession(id) {
+        this.sessions.delete(id);
+      }
+      async resumeSession(sdkSessionId, options) {
+        const id = `copilot-resumed-${++this._nextId}`;
+        this.sessions.set(id, {
+          cwd: options.cwd || process.cwd(),
+          model: options.model || 'claude-opus-4.6',
+          name: options.name || 'Resumed Session',
+          ptySessionId: options.ptySessionId || null,
+          createdAt: new Date().toISOString(),
+          lastActivity: new Date().toISOString(),
+          sdkSessionId,
+        });
+        return id;
+      }
+      async listSdkSessions() {
+        return [];
+      }
+      setListener() {
+        return true;
+      }
+      async shutdown() {
+        if (this._authPollTimer) clearInterval(this._authPollTimer);
+        this.sessions.clear();
+      }
+    }
+
+    // Swap modules before requiring a fresh server factory
+    require.cache[copilotSdkPath] = {
+      id: copilotSdkPath,
+      filename: copilotSdkPath,
+      loaded: true,
+      exports: { CopilotService: FakeCopilotService },
+    };
+    delete require.cache[serverIndexPath];
+    const { createTermBeamServer: createCopilotTestServer } = require('../../src/server');
+
+    let inst;
+    after(async () => {
+      await inst?.shutdown();
+      // Restore original module cache
+      if (origCopilotCacheEntry) require.cache[copilotSdkPath] = origCopilotCacheEntry;
+      else delete require.cache[copilotSdkPath];
+      if (origServerCacheEntry) require.cache[serverIndexPath] = origServerCacheEntry;
+      else delete require.cache[serverIndexPath];
+    });
+
+    async function startCopilotServer() {
+      if (inst) return inst;
+      inst = createCopilotTestServer({ config: makeConfig({ password: null }) });
+      await inst.start();
+      inst.port = inst.server.address().port;
+      return inst;
+    }
+
+    it('POST /api/sessions with type=copilot should create SDK + companion PTY session', async () => {
+      const srv = await startCopilotServer();
+      const body = JSON.stringify({ type: 'copilot', name: 'Test Copilot' });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 201);
+      const data = JSON.parse(res.data);
+      assert.ok(data.id, 'Response should contain copilot session id');
+      assert.strictEqual(data.type, 'copilot');
+      assert.ok(data.ptySessionId, 'Response should contain companion ptySessionId');
+      assert.ok(data.url, 'Response should contain a url');
+      // Verify companion PTY actually exists in the session manager
+      const ptySession = srv.sessions.get(data.ptySessionId);
+      assert.ok(ptySession, 'Companion PTY session should exist in SessionManager');
+    });
+
+    it('POST /api/sessions with type=copilot should accept model parameter', async () => {
+      const srv = await startCopilotServer();
+      const body = JSON.stringify({ type: 'copilot', name: 'GPT Session', model: 'gpt-4o' });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 201);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.type, 'copilot');
+      assert.ok(data.id);
+    });
+
+    it('GET /api/sessions should include copilot sessions with ptySessionId and model', async () => {
+      const srv = await startCopilotServer();
+      // Create a copilot session first
+      const createBody = JSON.stringify({ type: 'copilot', name: 'Listed Copilot' });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(createBody),
+          },
+        },
+        createBody,
+      );
+      assert.strictEqual(createRes.statusCode, 201);
+      const created = JSON.parse(createRes.data);
+
+      // Now list all sessions
+      const listRes = await httpRequest({
+        hostname: '127.0.0.1',
+        port: srv.port,
+        path: '/api/sessions',
+        method: 'GET',
+      });
+      assert.strictEqual(listRes.statusCode, 200);
+      const sessions = JSON.parse(listRes.data);
+      assert.ok(Array.isArray(sessions));
+
+      const copilotSession = sessions.find((s) => s.id === created.id);
+      assert.ok(copilotSession, 'Copilot session should appear in session list');
+      assert.strictEqual(copilotSession.type, 'copilot');
+      assert.ok('ptySessionId' in copilotSession, 'Should include ptySessionId field');
+      assert.ok('model' in copilotSession, 'Should include model field');
+      assert.strictEqual(copilotSession.shell, 'copilot-sdk');
+      assert.strictEqual(copilotSession.ptySessionId, created.ptySessionId);
+    });
+
+    it('DELETE /api/sessions/:id should delete copilot session and companion PTY', async () => {
+      const srv = await startCopilotServer();
+      // Create a copilot session
+      const createBody = JSON.stringify({ type: 'copilot', name: 'ToDelete Copilot' });
+      const createRes = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(createBody),
+          },
+        },
+        createBody,
+      );
+      assert.strictEqual(createRes.statusCode, 201);
+      const { id: copilotId, ptySessionId } = JSON.parse(createRes.data);
+      assert.ok(copilotId);
+      assert.ok(ptySessionId);
+
+      // Verify both exist before deletion
+      assert.ok(srv.sessions.get(ptySessionId), 'Companion PTY should exist before delete');
+
+      // Delete the copilot session
+      const deleteRes = await httpRequest({
+        hostname: '127.0.0.1',
+        port: srv.port,
+        path: `/api/sessions/${copilotId}`,
+        method: 'DELETE',
+      });
+      assert.strictEqual(deleteRes.statusCode, 204);
+      assert.strictEqual(deleteRes.data, '');
+
+      // Companion PTY deletion is async (pty.kill() triggers onExit which removes from Map).
+      // Poll briefly for the PTY to be cleaned up.
+      const deadline = Date.now() + 2000;
+      while (srv.sessions.get(ptySessionId) && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      assert.strictEqual(
+        srv.sessions.get(ptySessionId),
+        undefined,
+        'Companion PTY should be deleted when copilot session is deleted',
+      );
+    });
+
+    it('POST /api/copilot/sdk/sessions/:sdkSessionId/resume should create session with companion PTY', async () => {
+      const srv = await startCopilotServer();
+      const body = JSON.stringify({ name: 'Resumed Copilot', model: 'claude-opus-4.6' });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: '/api/copilot/sdk/sessions/test-sdk-session-123/resume',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 201);
+      const data = JSON.parse(res.data);
+      assert.ok(data.id, 'Response should contain session id');
+      assert.strictEqual(data.type, 'copilot');
+      assert.ok(data.ptySessionId, 'Response should contain companion ptySessionId');
+      // Verify companion PTY exists
+      const ptySession = srv.sessions.get(data.ptySessionId);
+      assert.ok(ptySession, 'Companion PTY session should exist for resumed session');
+    });
+
+    it('POST /api/sessions with invalid type should return 400', async () => {
+      const srv = await startCopilotServer();
+      const body = JSON.stringify({ type: 'invalid-type', name: 'Bad Type' });
+      const res = await httpRequest(
+        {
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: '/api/sessions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        body,
+      );
+      assert.strictEqual(res.statusCode, 400);
+      const data = JSON.parse(res.data);
+      assert.ok(data.error.includes('type must be'));
+    });
+
+    it('DELETE /api/sessions/:id for non-existent copilot session should return 404', async () => {
+      const srv = await startCopilotServer();
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: srv.port,
+        path: '/api/sessions/nonexistent-copilot-id',
+        method: 'DELETE',
+      });
+      assert.strictEqual(res.statusCode, 404);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'not found');
+    });
+  });
+
   // === Files endpoint for deleted cwd ===
   describe('GET /api/sessions/:id/files error path', { skip: isWindows && 'ConPTY limit' }, () => {
     let inst;
@@ -3704,4 +4105,731 @@ describe('Routes', () => {
       assert.strictEqual(data.error, 'Failed to read directory');
     });
   });
+
+  // === Copilot session create error paths ===
+  describe('Copilot session create — error paths', { skip: isWindows && 'ConPTY limit' }, () => {
+    let instNoCopilot;
+    after(async () => {
+      await instNoCopilot?.shutdown();
+    });
+
+    it('type=copilot should return 400 when copilotService is null', async () => {
+      const copilotSdkPathNull = require.resolve('../../src/server/copilot-sdk');
+      const serverIndexPathNull = require.resolve('../../src/server/index');
+      const routesPathNull = require.resolve('../../src/server/routes');
+      const wsPathNull = require.resolve('../../src/server/websocket');
+      const origCopilotNull = require.cache[copilotSdkPathNull];
+      const origServerNull = require.cache[serverIndexPathNull];
+      const origRoutesNull = require.cache[routesPathNull];
+      const origWsNull = require.cache[wsPathNull];
+
+      try {
+        require.cache[copilotSdkPathNull] = {
+          id: copilotSdkPathNull,
+          filename: copilotSdkPathNull,
+          loaded: true,
+          exports: { CopilotService: null },
+        };
+        delete require.cache[serverIndexPathNull];
+        delete require.cache[routesPathNull];
+        delete require.cache[wsPathNull];
+        const { createTermBeamServer: createNoCopilotServer } = require('../../src/server');
+
+        instNoCopilot = createNoCopilotServer({ config: makeConfig({ password: null }) });
+        await instNoCopilot.start();
+        instNoCopilot.port = instNoCopilot.server.address().port;
+
+        const body = JSON.stringify({ type: 'copilot', name: 'No Copilot' });
+        const res = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: instNoCopilot.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        assert.strictEqual(res.statusCode, 400);
+        const data = JSON.parse(res.data);
+        assert.ok(data.error.includes('not available'));
+      } finally {
+        // Restore caches
+        if (origCopilotNull) require.cache[copilotSdkPathNull] = origCopilotNull;
+        else delete require.cache[copilotSdkPathNull];
+        if (origServerNull) require.cache[serverIndexPathNull] = origServerNull;
+        else delete require.cache[serverIndexPathNull];
+        if (origRoutesNull) require.cache[routesPathNull] = origRoutesNull;
+        else delete require.cache[routesPathNull];
+        if (origWsNull) require.cache[wsPathNull] = origWsNull;
+        else delete require.cache[wsPathNull];
+      }
+    });
+  });
+
+  // === Copilot create with invalid cwd and SDK error paths ===
+  describe(
+    'Copilot session create — cwd validation and SDK errors',
+    { skip: isWindows && 'ConPTY limit' },
+    () => {
+      // Track the singleton instance via a closure
+      let failingInstance = null;
+
+      class FailingCopilotService {
+        constructor() {
+          this.sessions = new Map();
+          this._authPollTimer = null;
+          this._shouldFail = false;
+          failingInstance = this;
+        }
+        async createSession(options) {
+          if (this._shouldFail) throw new Error('SDK connection refused');
+          const id = `copilot-fail-test-${Date.now()}`;
+          this.sessions.set(id, {
+            cwd: options.cwd || process.cwd(),
+            model: options.model || 'claude-opus-4.6',
+            name: options.name || 'Copilot Session',
+            ptySessionId: options.ptySessionId || null,
+            createdAt: new Date().toISOString(),
+            lastActivity: new Date().toISOString(),
+          });
+          return id;
+        }
+        listSessionsDetailed() {
+          return [];
+        }
+        async disconnectSession(id) {
+          this.sessions.delete(id);
+        }
+        async resumeSession(sdkSessionId, options) {
+          if (this._shouldFail) throw new Error('Resume connection refused');
+          const id = `copilot-resumed-fail-test-${Date.now()}`;
+          this.sessions.set(id, {
+            cwd: options.cwd || process.cwd(),
+            model: options.model || 'claude-opus-4.6',
+            name: options.name || 'Resumed Session',
+            ptySessionId: options.ptySessionId || null,
+            sdkSessionId,
+          });
+          return id;
+        }
+        async listSdkSessions() {
+          if (this._shouldFail) throw new Error('List sessions failed');
+          return [{ id: 'sdk-1', name: 'Test SDK Session' }];
+        }
+        setListener() {
+          return true;
+        }
+        async shutdown() {
+          if (this._authPollTimer) clearInterval(this._authPollTimer);
+          this.sessions.clear();
+        }
+      }
+
+      let inst;
+      let origCopilot2, origServer2;
+
+      after(async () => {
+        await inst?.shutdown();
+        const copilotSdkPath2 = require.resolve('../../src/server/copilot-sdk');
+        const serverIndexPath2 = require.resolve('../../src/server/index');
+        if (origCopilot2) require.cache[copilotSdkPath2] = origCopilot2;
+        else delete require.cache[copilotSdkPath2];
+        if (origServer2) require.cache[serverIndexPath2] = origServer2;
+        else delete require.cache[serverIndexPath2];
+      });
+
+      let createFailServer;
+
+      function ensureFailServer() {
+        if (createFailServer) return;
+        const copilotSdkPath2 = require.resolve('../../src/server/copilot-sdk');
+        const serverIndexPath2 = require.resolve('../../src/server/index');
+        origCopilot2 = require.cache[copilotSdkPath2];
+        origServer2 = require.cache[serverIndexPath2];
+
+        require.cache[copilotSdkPath2] = {
+          id: copilotSdkPath2,
+          filename: copilotSdkPath2,
+          loaded: true,
+          exports: { CopilotService: FailingCopilotService },
+        };
+        delete require.cache[serverIndexPath2];
+        createFailServer = require('../../src/server').createTermBeamServer;
+      }
+
+      async function startFailServer() {
+        if (inst) return inst;
+        ensureFailServer();
+        inst = createFailServer({ config: makeConfig({ password: null }) });
+        await inst.start();
+        inst.port = inst.server.address().port;
+        return inst;
+      }
+
+      it('type=copilot with non-existent cwd should return 400', async () => {
+        const srv = await startFailServer();
+        const body = JSON.stringify({
+          type: 'copilot',
+          name: 'Bad CWD',
+          cwd: '/nonexistent/path/surely/does/not/exist',
+        });
+        const res = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: srv.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        assert.strictEqual(res.statusCode, 400);
+        const data = JSON.parse(res.data);
+        assert.ok(data.error.includes('existing absolute directory'));
+      });
+
+      it('type=copilot should return 500 when SDK createSession throws', async () => {
+        const srv = await startFailServer();
+        // Access the copilotService instance to toggle failure mode
+        // The copilotService is on the server internals — we need to find it
+        // We can access it via the state object or directly
+        // Since we used FailingCopilotService, we need to set _shouldFail
+        // The service is created during server construction, so we need to find the instance
+        // The server exposes copilotService on the returned object
+        if (failingInstance) failingInstance._shouldFail = true;
+
+        const body = JSON.stringify({ type: 'copilot', name: 'SDK Fail' });
+        const res = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: srv.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        assert.strictEqual(res.statusCode, 500);
+        const data = JSON.parse(res.data);
+        assert.ok(data.error.includes('Failed to create Copilot session'));
+
+        // Reset for subsequent tests
+        if (failingInstance) failingInstance._shouldFail = false;
+      });
+
+      it('POST /api/copilot/sdk/sessions should create SDK session', async () => {
+        const srv = await startFailServer();
+        if (failingInstance) failingInstance._shouldFail = false;
+        const body = JSON.stringify({ model: 'gpt-4o' });
+        const res = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: srv.port,
+            path: '/api/copilot/sdk/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        assert.strictEqual(res.statusCode, 201);
+        const data = JSON.parse(res.data);
+        assert.ok(data.sessionId, 'Response should contain sessionId');
+      });
+
+      it('POST /api/copilot/sdk/sessions should return 500 on error', async () => {
+        const srv = await startFailServer();
+        if (failingInstance) failingInstance._shouldFail = true;
+        const body = JSON.stringify({ model: 'gpt-4o' });
+        const res = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: srv.port,
+            path: '/api/copilot/sdk/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        assert.strictEqual(res.statusCode, 500);
+        const data = JSON.parse(res.data);
+        assert.ok(data.error);
+        if (failingInstance) failingInstance._shouldFail = false;
+      });
+
+      it('GET /api/copilot/sdk/sessions should list SDK sessions', async () => {
+        const srv = await startFailServer();
+        if (failingInstance) failingInstance._shouldFail = false;
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: '/api/copilot/sdk/sessions',
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        assert.ok(Array.isArray(data.sessions));
+      });
+
+      it('GET /api/copilot/sdk/sessions should return empty on error', async () => {
+        const srv = await startFailServer();
+        if (failingInstance) failingInstance._shouldFail = true;
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: '/api/copilot/sdk/sessions',
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        assert.deepStrictEqual(data.sessions, []);
+        if (failingInstance) failingInstance._shouldFail = false;
+      });
+
+      it('POST /api/copilot/sdk/sessions/:id/resume with non-existent cwd should return 400', async () => {
+        const srv = await startFailServer();
+        const body = JSON.stringify({
+          name: 'Bad Resume',
+          cwd: '/nonexistent/resume/cwd/path',
+        });
+        const res = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: srv.port,
+            path: '/api/copilot/sdk/sessions/some-sdk-id/resume',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        assert.strictEqual(res.statusCode, 400);
+        const data = JSON.parse(res.data);
+        assert.ok(data.error.includes('existing absolute directory'));
+      });
+
+      it('POST /api/copilot/sdk/sessions/:id/resume should return 500 when resumeSession throws', async () => {
+        const srv = await startFailServer();
+        if (failingInstance) failingInstance._shouldFail = true;
+        const body = JSON.stringify({ name: 'Resume Fail' });
+        const res = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: srv.port,
+            path: '/api/copilot/sdk/sessions/some-sdk-id/resume',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        assert.strictEqual(res.statusCode, 500);
+        const data = JSON.parse(res.data);
+        assert.ok(data.error);
+        if (failingInstance) failingInstance._shouldFail = false;
+      });
+    },
+  );
+
+  // === Agent endpoints ===
+  describe('GET /api/agents', { skip: isWindows && 'ConPTY limit' }, () => {
+    let inst;
+    after(async () => {
+      await inst?.shutdown();
+    });
+
+    it('should return agents array', async () => {
+      inst = await startServer({ password: null });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/agents',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.ok(Array.isArray(data.agents));
+    });
+  });
+
+  // === Agent sessions endpoint ===
+  describe('GET /api/agent-sessions', { skip: isWindows && 'ConPTY limit' }, () => {
+    let inst;
+    after(async () => {
+      await inst?.shutdown();
+    });
+
+    it('should return sessions array', async () => {
+      inst = await startServer({ password: null });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/agent-sessions',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.ok(Array.isArray(data.sessions));
+    });
+
+    it('should accept limit, agent, and search query params', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/agent-sessions?limit=10&agent=copilot&search=test',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.ok(Array.isArray(data.sessions));
+    });
+  });
+
+  // === Agent sessions resume command endpoint ===
+  describe(
+    'GET /api/agent-sessions/:agent/:id/resume-command',
+    { skip: isWindows && 'ConPTY limit' },
+    () => {
+      let inst;
+      after(async () => {
+        await inst?.shutdown();
+      });
+
+      it('should return resume command for valid agent and id', async () => {
+        inst = await startServer({ password: null });
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/agent-sessions/copilot/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/resume-command',
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        assert.ok(data.command, 'Should return a command');
+      });
+
+      it('should return 400 for unknown agent', async () => {
+        if (!inst) inst = await startServer({ password: null });
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/agent-sessions/unknown-agent/some-valid-id-12345/resume-command',
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 400);
+        const data = JSON.parse(res.data);
+        assert.ok(data.error.includes('Unknown agent'));
+      });
+
+      it('should return 400 for invalid session ID format', async () => {
+        if (!inst) inst = await startServer({ password: null });
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: '/api/agent-sessions/copilot/bad/resume-command',
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 400);
+        const data = JSON.parse(res.data);
+        assert.ok(data.error.includes('Invalid session ID'));
+      });
+    },
+  );
+
+  // === Copilot CLI session filesystem endpoints ===
+  describe(
+    'Copilot CLI session filesystem endpoints',
+    { skip: isWindows && 'ConPTY limit' },
+    () => {
+      let inst;
+      let tmpCopilotDir;
+      const testUuid = '11111111-2222-3333-4444-555555555555';
+      const testUuid2 = '66666666-7777-8888-9999-aaaaaaaaaaaa';
+
+      after(async () => {
+        await inst?.shutdown();
+        delete process.env.COPILOT_SESSIONS_DIR;
+        await safeCleanup(tmpCopilotDir);
+      });
+
+      async function startCopilotFsServer() {
+        if (inst) return inst;
+        tmpCopilotDir = path.join(process.cwd(), '.termbeam-test-copilot-sessions');
+        fs.mkdirSync(tmpCopilotDir, { recursive: true });
+        process.env.COPILOT_SESSIONS_DIR = tmpCopilotDir;
+
+        // Create test session directories with events.jsonl
+        const sessionDir = path.join(tmpCopilotDir, testUuid);
+        fs.mkdirSync(sessionDir, { recursive: true });
+        const events = [
+          JSON.stringify({
+            type: 'session.start',
+            timestamp: '2025-01-01T00:00:00Z',
+            data: {
+              startTime: '2025-01-01T00:00:00Z',
+              context: { cwd: '/home/test', branch: 'main', repository: 'test/repo' },
+            },
+          }),
+          JSON.stringify({
+            type: 'user.message',
+            timestamp: '2025-01-01T00:00:01Z',
+            data: { content: 'Hello, this is a test copilot message' },
+          }),
+          JSON.stringify({
+            type: 'hook.start',
+            timestamp: '2025-01-01T00:00:02Z',
+            data: {},
+          }),
+          JSON.stringify({
+            type: 'assistant.message',
+            timestamp: '2025-01-01T00:00:03Z',
+            data: { content: 'Response text' },
+          }),
+        ].join('\n');
+        fs.writeFileSync(path.join(sessionDir, 'events.jsonl'), events);
+
+        // Create a second session with no events (will return null in results)
+        const sessionDir2 = path.join(tmpCopilotDir, testUuid2);
+        fs.mkdirSync(sessionDir2, { recursive: true });
+        // No events.jsonl → this session should be filtered out
+
+        // Create a non-UUID directory (should be ignored)
+        fs.mkdirSync(path.join(tmpCopilotDir, 'not-a-uuid'), { recursive: true });
+
+        // Need a fresh server that reads the env var
+        // Clear require cache to pick up COPILOT_SESSIONS_DIR
+        const serverIndexPath = require.resolve('../../src/server/index');
+        const routesPath = require.resolve('../../src/server/routes');
+        const origServerEntry = require.cache[serverIndexPath];
+        const origRoutesEntry = require.cache[routesPath];
+        delete require.cache[serverIndexPath];
+        delete require.cache[routesPath];
+        const { createTermBeamServer: createFsServer } = require('../../src/server');
+
+        inst = createFsServer({ config: makeConfig({ password: null }) });
+        await inst.start();
+        inst.port = inst.server.address().port;
+
+        // Restore cache entries
+        if (origServerEntry) require.cache[serverIndexPath] = origServerEntry;
+        else delete require.cache[serverIndexPath];
+        if (origRoutesEntry) require.cache[routesPath] = origRoutesEntry;
+        else delete require.cache[routesPath];
+
+        return inst;
+      }
+
+      it('GET /api/copilot/sessions should return session list', async () => {
+        const srv = await startCopilotFsServer();
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: '/api/copilot/sessions',
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        assert.ok(Array.isArray(data.sessions));
+        // Should find our test session
+        const session = data.sessions.find((s) => s.id === testUuid);
+        assert.ok(session, 'Test session should appear in list');
+        assert.strictEqual(session.title, 'Hello, this is a test copilot message');
+        assert.strictEqual(session.cwd, '/home/test');
+        assert.strictEqual(session.branch, 'main');
+        assert.strictEqual(session.repository, 'test/repo');
+        assert.ok(session.eventCount >= 3, 'Should report event count');
+      });
+
+      it('GET /api/copilot/sessions/:sessionId/events should return events', async () => {
+        const srv = await startCopilotFsServer();
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: `/api/copilot/sessions/${testUuid}/events`,
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        assert.ok(Array.isArray(data.events));
+        assert.ok(data.total >= 3, 'Should report total event lines');
+        // hook.start events should be filtered out by default
+        const hookEvents = data.events.filter((e) => e.type === 'hook.start');
+        assert.strictEqual(hookEvents.length, 0, 'Hook events should be excluded by default');
+      });
+
+      it('GET /api/copilot/sessions/:id/events with since param should filter', async () => {
+        const srv = await startCopilotFsServer();
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: `/api/copilot/sessions/${testUuid}/events?since=2`,
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        assert.ok(Array.isArray(data.events));
+        // Should have fewer events since we started at index 2
+        assert.ok(data.total >= 3);
+      });
+
+      it('GET /api/copilot/sessions/:id/events with types filter', async () => {
+        const srv = await startCopilotFsServer();
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: `/api/copilot/sessions/${testUuid}/events?types=user.message`,
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        assert.ok(Array.isArray(data.events));
+        for (const event of data.events) {
+          assert.strictEqual(event.type, 'user.message');
+        }
+      });
+
+      it('GET /api/copilot/sessions/:id/events with types including hooks', async () => {
+        const srv = await startCopilotFsServer();
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: `/api/copilot/sessions/${testUuid}/events?types=hook.start`,
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        assert.ok(Array.isArray(data.events));
+        // When explicitly requesting hook.start, they should be returned
+        const hookEvents = data.events.filter((e) => e.type === 'hook.start');
+        assert.ok(
+          hookEvents.length > 0,
+          'Hook events should be included when explicitly requested',
+        );
+      });
+
+      it('GET /api/copilot/sessions/:id/events with invalid UUID should return 400', async () => {
+        const srv = await startCopilotFsServer();
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: '/api/copilot/sessions/not-a-valid-uuid/events',
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 400);
+        const data = JSON.parse(res.data);
+        assert.ok(data.error.includes('Invalid session ID'));
+      });
+
+      it('GET /api/copilot/sessions/:id/events for missing session should return 404', async () => {
+        const srv = await startCopilotFsServer();
+        const missingUuid = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: `/api/copilot/sessions/${missingUuid}/events`,
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 404);
+        const data = JSON.parse(res.data);
+        assert.ok(data.error.includes('not found'));
+      });
+
+      it('GET /api/copilot/active should return sessionId or null', async () => {
+        const srv = await startCopilotFsServer();
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: '/api/copilot/active',
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        assert.ok('sessionId' in data, 'Should have sessionId field');
+      });
+
+      it('GET /api/copilot/active should detect recently modified session', async () => {
+        const srv = await startCopilotFsServer();
+        // Touch the events.jsonl to make it appear recently active
+        const eventsPath = path.join(tmpCopilotDir, testUuid, 'events.jsonl');
+        const now = new Date();
+        fs.utimesSync(eventsPath, now, now);
+
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: '/api/copilot/active',
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        assert.strictEqual(data.sessionId, testUuid, 'Should detect the recently touched session');
+      });
+    },
+  );
+
+  // === Port detection with scrollback data ===
+  describe(
+    'GET /api/sessions/:id/detect-port — with port in scrollback',
+    { skip: isWindows && 'ConPTY limit' },
+    () => {
+      let inst;
+      after(async () => {
+        await inst?.shutdown();
+      });
+
+      it('should detect port from scrollback buffer', async () => {
+        inst = await startServer({ password: null });
+        // Create a session
+        const body = JSON.stringify({ name: 'port-detect-test' });
+        const createRes = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: inst.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        const sessionId = JSON.parse(createRes.data).id;
+        const session = inst.sessions.get(sessionId);
+        // Inject scrollback data containing a URL with port
+        session.scrollbackBuf = 'Server running at http://localhost:3000\nReady!\n';
+
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: inst.port,
+          path: `/api/sessions/${sessionId}/detect-port`,
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        assert.strictEqual(data.detected, true);
+        assert.strictEqual(data.port, 3000);
+      });
+    },
+  );
 });
