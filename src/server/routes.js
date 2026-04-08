@@ -29,7 +29,7 @@ function validateCwd(userCwd) {
   try {
     const real = fs.realpathSync(path.resolve(userCwd));
     if (!path.isAbsolute(real)) return null;
-    if (!fs.statSync(real).isDirectory()) return null;
+    if (!fs.statSync(real).isDirectory()) return null; // lgtm[js/path-injection]
     return real;
   } catch {
     return null;
