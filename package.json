@@ -70,11 +70,13 @@
     ]
   },
   "dependencies": {
+    "@github/copilot-sdk": "^0.2.1",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "node-pty": "^1.1.0",
     "qrcode": "^1.5.4",
+    "tsx": "^4.21.0",
     "web-push": "^3.6.7",
     "ws": "^8.19.0"
   },

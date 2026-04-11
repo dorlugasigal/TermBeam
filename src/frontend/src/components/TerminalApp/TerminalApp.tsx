@@ -174,6 +174,35 @@ export function TerminalApp() {
           if (s.hidden) continue; // Skip hidden companion sessions
           if (!store.sessions.has(s.id)) {
             const isCopilot = s.type === 'copilot';
+            const ptySessionId = isCopilot ? (s as any).ptySessionId ?? undefined : undefined;
+
+            // Register the companion PTY as a hidden session so that
+            // CopilotPane's embedded TerminalPane can updateSession() on it
+            // and TouchBar.sendInput() can route key presses to it.
+            if (ptySessionId && !store.sessions.has(ptySessionId)) {
+              store.addSession({
+                id: ptySessionId,
+                name: 'Agent Terminal',
+                type: 'terminal',
+                hidden: true,
+                shell: '',
+                pid: 0,
+                cwd: s.cwd ?? '',
+                color: '#6ec1e4',
+                createdAt: s.createdAt,
+                lastActivity: s.lastActivity,
+                term: null,
+                fitAddon: null,
+                searchAddon: null,
+                ws: null,
+                send: null,
+                connected: false,
+                exited: false,
+                scrollback: '',
+                hasUnread: false,
+              });
+            }
+
             store.addSession({
               id: s.id,
               name: s.name,
@@ -184,7 +213,7 @@ export function TerminalApp() {
               createdAt: s.createdAt,
               lastActivity: s.lastActivity,
               type: s.type,
-              companionTermId: isCopilot ? (s as any).ptySessionId ?? undefined : undefined,
+              companionTermId: ptySessionId,
               term: null,
               fitAddon: null,
               searchAddon: null,
@@ -240,6 +269,35 @@ export function TerminalApp() {
           const existing = store.sessions.get(s.id);
           if (!existing) {
             const isCopilot = s.type === 'copilot';
+            const ptySessionId = isCopilot ? (s as any).ptySessionId ?? undefined : undefined;
+
+            // Register the companion PTY as a hidden session so that
+            // CopilotPane's embedded TerminalPane can updateSession() on it
+            // and TouchBar.sendInput() can route key presses to it.
+            if (ptySessionId && !store.sessions.has(ptySessionId)) {
+              store.addSession({
+                id: ptySessionId,
+                name: 'Agent Terminal',
+                type: 'terminal',
+                hidden: true,
+                shell: '',
+                pid: 0,
+                cwd: s.cwd ?? '',
+                color: '#6ec1e4',
+                createdAt: s.createdAt,
+                lastActivity: s.lastActivity,
+                term: null,
+                fitAddon: null,
+                searchAddon: null,
+                ws: null,
+                send: null,
+                connected: false,
+                exited: false,
+                scrollback: '',
+                hasUnread: false,
+              });
+            }
+
             store.addSession({
               id: s.id,
               name: s.name,
@@ -250,7 +308,7 @@ export function TerminalApp() {
               createdAt: s.createdAt,
               lastActivity: s.lastActivity,
               type: s.type,
-              companionTermId: isCopilot ? (s as any).ptySessionId ?? undefined : undefined,
+              companionTermId: ptySessionId,
               term: null,
               fitAddon: null,
               searchAddon: null,

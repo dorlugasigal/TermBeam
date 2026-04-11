@@ -91,14 +91,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       if (state.sessions.has(session.id) || state.deletedIds.has(session.id)) return state;
       const sessions = new Map(state.sessions);
       sessions.set(session.id, session);
-      const tabOrder = state.tabOrder.includes(session.id)
-        ? state.tabOrder
-        : [...state.tabOrder, session.id];
+      // Hidden sessions (e.g. companion PTY for agent tabs) stay out of
+      // tabOrder so they never appear in the tab bar or side panel.
+      const tabOrder =
+        session.hidden || state.tabOrder.includes(session.id)
+          ? state.tabOrder
+          : [...state.tabOrder, session.id];
       saveTabOrder(tabOrder);
       return {
         sessions,
         tabOrder,
-        activeId: state.activeId ?? session.id,
+        activeId: state.activeId ?? (session.hidden ? state.activeId : session.id),
       };
     }),
 
