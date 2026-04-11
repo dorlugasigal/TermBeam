@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.1] - 2026-04-11
+
+- fix(copilot): register companion PTY in session store and hide from UI
+- chore(deps): bump eslint from 10.1.0 to 10.2.0 (#180)
+- chore(ci): bump davelosert/vitest-coverage-report-action from 2.10.0 to 2.11.2 (#178)
+- chore(deps): bump @playwright/test from 1.58.2 to 1.59.1 (#179)
+
 ## [1.20.0] - 2026-04-08
 
 - feat(copilot): integrate Copilot SDK agent with chat UI, tests, and code review fixes (#183)
