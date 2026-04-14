@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.20.2] - 2026-04-14
+
+- chore(deps): bump prettier from 3.8.1 to 3.8.2 (#189)
+- chore(deps): bump @github/copilot-sdk from 0.2.1 to 0.2.2 (#190)
+- chore(deps): bump better-sqlite3 from 12.8.0 to 12.9.0 (#188)
+- chore(ci): bump actions/upload-pages-artifact from 4.0.0 to 5.0.0 (#187)
+- chore(ci): bump actions/github-script from 8.0.0 to 9.0.0 (#185)
+- chore(ci): bump softprops/action-gh-release from 2.6.1 to 3.0.0 (#186)
+- chore(ci): bump actions/upload-artifact from 7.0.0 to 7.0.1 (#184)
+
 ## [1.20.1] - 2026-04-11
 
 - fix(copilot): register companion PTY in session store and hide from UI
