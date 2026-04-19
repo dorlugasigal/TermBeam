@@ -26,6 +26,10 @@ interface CodeViewerState {
   activeFilePath: string | null;
   expandedDirs: Set<string>;
   fileTree: FileTreeNode[] | null;
+  // Directory paths whose children have been loaded. Root is represented by ''.
+  loadedDirs: Set<string>;
+  // True once a full deep traversal has been merged (used for search).
+  deepLoaded: boolean;
   sidebarOpen: boolean;
 
   // Git state
@@ -43,6 +47,9 @@ interface CodeViewerState {
   setActiveFile: (path: string | null) => void;
   toggleDir: (path: string) => void;
   setFileTree: (tree: FileTreeNode[]) => void;
+  mergeChildren: (path: string, children: FileTreeNode[]) => void;
+  markDirLoaded: (path: string) => void;
+  setDeepLoaded: (loaded: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
   toggleSidebar: () => void;
   updateScrollTop: (path: string, scrollTop: number) => void;
@@ -66,6 +73,8 @@ export const useCodeViewerStore = create<CodeViewerState>((set, get) => ({
   activeFilePath: null,
   expandedDirs: new Set(),
   fileTree: null,
+  loadedDirs: new Set(),
+  deepLoaded: false,
   sidebarOpen: true,
 
   // Git defaults
@@ -110,7 +119,36 @@ export const useCodeViewerStore = create<CodeViewerState>((set, get) => ({
       return { expandedDirs };
     }),
 
-  setFileTree: (tree) => set({ fileTree: tree }),
+  setFileTree: (tree) => set({ fileTree: tree, loadedDirs: new Set(['']), deepLoaded: false }),
+
+  mergeChildren: (dirPath, children) =>
+    set((state) => {
+      if (!state.fileTree) return state;
+
+      // Recursively clone the path down to the target dir, replacing children in place.
+      function replace(nodes: FileTreeNode[]): FileTreeNode[] {
+        return nodes.map((n) => {
+          if (n.path === dirPath) return { ...n, children };
+          if (n.type === 'directory' && n.children && dirPath.startsWith(n.path + '/')) {
+            return { ...n, children: replace(n.children) };
+          }
+          return n;
+        });
+      }
+
+      const nextLoaded = new Set(state.loadedDirs);
+      nextLoaded.add(dirPath);
+      return { fileTree: replace(state.fileTree), loadedDirs: nextLoaded };
+    }),
+
+  markDirLoaded: (dirPath) =>
+    set((state) => {
+      const next = new Set(state.loadedDirs);
+      next.add(dirPath);
+      return { loadedDirs: next };
+    }),
+
+  setDeepLoaded: (loaded) => set({ deepLoaded: loaded }),
 
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
@@ -144,6 +182,8 @@ export const useCodeViewerStore = create<CodeViewerState>((set, get) => ({
       activeFilePath: null,
       expandedDirs: new Set(),
       fileTree: null,
+      loadedDirs: new Set(),
+      deepLoaded: false,
       gitStatus: null,
       gitDiff: null,
       gitBlame: null,

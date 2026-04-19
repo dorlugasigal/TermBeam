@@ -313,7 +313,7 @@ Download a file from within a session's working directory.
 **Response (403):**
 
 ```json
-{ "error": "Symbolic links are not allowed" }
+{ "error": "Symlink target is outside session directory" }
 ```
 
 **Response (404):**
@@ -379,7 +379,7 @@ Get the text content of a file. Used for in-browser file preview (e.g., markdown
 **Response (403):**
 
 ```json
-{ "error": "Symbolic links are not allowed" }
+{ "error": "Symlink target is outside session directory" }
 ```
 
 **Response (404):**
@@ -431,7 +431,7 @@ Serve a file inline from a session's working directory. Unlike the `/download` e
 **Response (403):**
 
 ```json
-{ "error": "Symbolic links are not allowed" }
+{ "error": "Symlink target is outside session directory" }
 ```
 
 **Response (404):**

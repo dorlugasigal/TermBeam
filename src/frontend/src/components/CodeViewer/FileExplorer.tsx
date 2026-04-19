@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useState, useMemo, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { type FileTreeNode } from '@/stores/codeViewerStore';
 import { getFileIconUrl } from './fileIcons';
 import styles from './FileExplorer.module.css';
@@ -13,6 +13,7 @@ interface FileExplorerProps {
   activeFilePath: string | null;
   onFileSelect: (path: string) => void;
   onToggleDir: (path: string) => void;
+  onSearchQueryChange?: (query: string) => void;
   loading?: boolean;
 }
 
@@ -120,7 +121,7 @@ function SearchResults({
 }
 
 const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(function FileExplorer(
-  { tree, expandedDirs, activeFilePath, onFileSelect, onToggleDir, loading },
+  { tree, expandedDirs, activeFilePath, onFileSelect, onToggleDir, onSearchQueryChange, loading },
   ref,
 ) {
   const [search, setSearch] = useState('');
@@ -131,6 +132,10 @@ const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(function 
       inputRef.current?.focus();
     },
   }));
+
+  useEffect(() => {
+    onSearchQueryChange?.(search);
+  }, [search, onSearchQueryChange]);
 
   const allFiles = useMemo(() => {
     if (!tree) return [];

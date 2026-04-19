@@ -20,6 +20,19 @@ function safePath(rootDir, userPath) {
   return resolved;
 }
 
+// Returns true if the given absolute path, after following symlinks, is still
+// contained within rootDir. Used to allow symlinks that point inside the
+// session dir while rejecting ones that escape it.
+function isWithinRoot(rootDir, absPath) {
+  try {
+    const real = fs.realpathSync(absPath);
+    const rootReal = fs.realpathSync(rootDir);
+    return real === rootReal || real.startsWith(rootReal + path.sep);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Validate and sanitize a user-provided cwd path.
  * Returns the canonical real path or null if invalid.
@@ -868,16 +881,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
     if (!session) return res.status(404).json({ error: 'Session not found' });
 
     const MAX_DEPTH = 5;
-    const MAX_ENTRIES = 2000;
-    const EXCLUDED = new Set([
-      'node_modules',
-      '.git',
-      '__pycache__',
-      'coverage',
-      '.next',
-      'dist',
-      'build',
-    ]);
+    const MAX_ENTRIES = 5000;
 
     let depth = 3;
     if (typeof req.query.depth !== 'undefined') {
@@ -889,71 +893,103 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
     }
     depth = Math.min(Math.max(depth, 1), MAX_DEPTH);
     const rootDir = path.resolve(sessions.getSessionCwd(req.params.id));
-    let totalEntries = 0;
 
-    function buildTree(dir, currentDepth) {
-      let dirents;
-      try {
-        dirents = fs.readdirSync(dir, { withFileTypes: true });
-      } catch {
-        return [];
+    // Optional subtree path (relative to session cwd). When provided, traversal
+    // starts from that directory — used for lazy-loading children on expand.
+    let startDir = rootDir;
+    if (typeof req.query.path === 'string' && req.query.path.length > 0) {
+      const resolved = safePath(rootDir, req.query.path);
+      if (!resolved) {
+        return res.status(403).json({ error: 'Path is outside session directory' });
       }
+      try {
+        if (!fs.statSync(resolved).isDirectory()) {
+          return res.status(400).json({ error: 'Not a directory' });
+        }
+      } catch {
+        return res.status(404).json({ error: 'Directory not found' });
+      }
+      startDir = resolved;
+    }
 
-      const entries = [];
-      const filtered = dirents
-        .filter((e) => {
-          if (e.name.startsWith('.')) return false;
-          if (EXCLUDED.has(e.name)) return false;
-          try {
-            return !fs.lstatSync(path.join(dir, e.name)).isSymbolicLink();
-          } catch {
-            return false;
-          }
-        })
-        .sort((a, b) => {
+    // Breadth-first traversal so one giant directory (e.g. node_modules) can't
+    // starve siblings of the global entry budget. No name/dotfile filtering —
+    // users expect to see everything in their session directory.
+    function buildTree() {
+      const rootNodes = [];
+      // Each queue item represents a directory whose children still need to be expanded.
+      // `node.children` is already attached to the parent tree, so appending to it mutates
+      // the response in place.
+      const queue = [{ dir: startDir, depth: 1, children: rootNodes }];
+      let totalEntries = 0;
+
+      while (queue.length > 0) {
+        if (totalEntries >= MAX_ENTRIES) break;
+
+        const { dir, depth: currentDepth, children } = queue.shift();
+
+        let dirents;
+        try {
+          dirents = fs.readdirSync(dir, { withFileTypes: true });
+        } catch {
+          continue;
+        }
+
+        const sorted = dirents.slice().sort((a, b) => {
           const aDir = a.isDirectory();
           const bDir = b.isDirectory();
           if (aDir !== bDir) return aDir ? -1 : 1;
           return a.name.localeCompare(b.name);
         });
 
-      for (const e of filtered) {
-        if (totalEntries >= MAX_ENTRIES) break;
-        totalEntries++;
+        for (const e of sorted) {
+          if (totalEntries >= MAX_ENTRIES) break;
+          totalEntries++;
 
-        const fullPath = path.join(dir, e.name);
-        const relativePath = path.relative(rootDir, fullPath);
-        const isDir = e.isDirectory();
+          const fullPath = path.join(dir, e.name);
+          const relativePath = path.relative(rootDir, fullPath).replace(/\\/g, '/');
 
-        if (isDir) {
-          const children = currentDepth < depth ? buildTree(fullPath, currentDepth + 1) : [];
-          entries.push({
-            name: e.name,
-            type: 'directory',
-            path: relativePath.replace(/\\/g, '/'),
-            children,
-          });
-        } else {
-          let size = 0;
+          let isSymlink = false;
           try {
-            size = fs.statSync(fullPath).size;
+            isSymlink = fs.lstatSync(fullPath).isSymbolicLink();
           } catch {
-            // ignore stat errors
+            // ignore lstat errors; treat as regular entry
           }
-          entries.push({
-            name: e.name,
-            type: 'file',
-            path: relativePath.replace(/\\/g, '/'),
-            size,
-          });
+
+          // Treat symlinks as leaves regardless of target type to avoid cycles.
+          if (e.isDirectory() && !isSymlink) {
+            const node = {
+              name: e.name,
+              type: 'directory',
+              path: relativePath,
+              children: [],
+            };
+            children.push(node);
+            if (currentDepth < depth) {
+              queue.push({ dir: fullPath, depth: currentDepth + 1, children: node.children });
+            }
+          } else {
+            let size = 0;
+            try {
+              size = fs.statSync(fullPath).size;
+            } catch {
+              // ignore stat errors (e.g. broken symlink)
+            }
+            children.push({
+              name: e.name,
+              type: 'file',
+              path: relativePath,
+              size,
+            });
+          }
         }
       }
 
-      return entries;
+      return rootNodes;
     }
 
     try {
-      const tree = buildTree(rootDir, 1);
+      const tree = buildTree();
       res.json({ root: rootDir, tree });
     } catch (err) {
       log.warn(`File tree failed: ${err.message}`);
@@ -978,8 +1014,8 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
     }
 
     try {
-      if (fs.lstatSync(filePath).isSymbolicLink()) {
-        return res.status(403).json({ error: 'Symbolic links are not allowed' });
+      if (fs.lstatSync(filePath).isSymbolicLink() && !isWithinRoot(rootDir, filePath)) {
+        return res.status(403).json({ error: 'Symlink target is outside session directory' });
       }
       const stat = fs.statSync(filePath);
       if (!stat.isFile()) {
@@ -1012,8 +1048,8 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
     }
 
     try {
-      if (fs.lstatSync(filePath).isSymbolicLink()) {
-        return res.status(403).json({ error: 'Symbolic links are not allowed' });
+      if (fs.lstatSync(filePath).isSymbolicLink() && !isWithinRoot(rootDir, filePath)) {
+        return res.status(403).json({ error: 'Symlink target is outside session directory' });
       }
       const stat = fs.statSync(filePath);
       if (!stat.isFile()) {
@@ -1046,8 +1082,8 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
     }
 
     try {
-      if (fs.lstatSync(filePath).isSymbolicLink()) {
-        return res.status(403).json({ error: 'Symbolic links are not allowed' });
+      if (fs.lstatSync(filePath).isSymbolicLink() && !isWithinRoot(rootDir, filePath)) {
+        return res.status(403).json({ error: 'Symlink target is outside session directory' });
       }
       const stat = fs.statSync(filePath);
       if (!stat.isFile()) {
@@ -1174,10 +1210,10 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
         .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
         .filter((e) => !prefix || e.name.toLowerCase().startsWith(prefix.toLowerCase()));
       const dirs = filtered.slice(0, MAX_DIRS).map((e) => path.join(dir, e.name));
-      res.json({ base: dir, dirs, truncated: filtered.length > MAX_DIRS });
+      res.json({ base: dir, dirs, truncated: filtered.length > MAX_DIRS, exists: true });
     } catch (err) {
       log.warn(`Directory listing failed: ${err.message}`);
-      res.json({ base: dir, dirs: [], truncated: false });
+      res.json({ base: dir, dirs: [], truncated: false, exists: false });
     }
   });
 

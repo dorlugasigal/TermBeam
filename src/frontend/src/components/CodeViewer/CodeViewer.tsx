@@ -28,6 +28,11 @@ export default function CodeViewer({ sessionId, onClose, initialView }: CodeView
   const {
     fileTree,
     setFileTree,
+    mergeChildren,
+    markDirLoaded,
+    loadedDirs,
+    deepLoaded,
+    setDeepLoaded,
     openFiles,
     activeFilePath,
     expandedDirs,
@@ -111,13 +116,13 @@ export default function CodeViewer({ sessionId, onClose, initialView }: CodeView
     };
   }, [blameEnabled, activeFilePath, sessionId, setGitBlame]);
 
-  // Load file tree on mount
+  // Load root file tree on mount (lazy — just depth=1).
   useEffect(() => {
     let cancelled = false;
     setTreeLoading(true);
     setTreeError(null);
 
-    fetchFileTree(sessionId)
+    fetchFileTree(sessionId, 1)
       .then(({ tree }) => {
         if (!cancelled) {
           setFileTree(tree);
@@ -135,6 +140,45 @@ export default function CodeViewer({ sessionId, onClose, initialView }: CodeView
       cancelled = true;
     };
   }, [sessionId, setFileTree]);
+
+  // Lazy-load children of a directory when the user expands it for the first time.
+  const handleToggleDir = useCallback(
+    (dirPath: string) => {
+      const wasExpanded = expandedDirs.has(dirPath);
+      toggleDir(dirPath);
+      if (wasExpanded) return; // collapsing — nothing to fetch
+      if (loadedDirs.has(dirPath) || deepLoaded) return;
+
+      // Mark as loaded optimistically to prevent duplicate requests.
+      markDirLoaded(dirPath);
+      fetchFileTree(sessionId, 1, dirPath)
+        .then(({ tree }) => {
+          mergeChildren(dirPath, tree);
+        })
+        .catch(() => {
+          // Silent: user can retry by collapsing + re-expanding.
+        });
+    },
+    [sessionId, expandedDirs, loadedDirs, deepLoaded, toggleDir, markDirLoaded, mergeChildren],
+  );
+
+  // When the user starts searching, fetch a deep tree once so search can find files
+  // inside directories the user hasn't expanded yet.
+  const handleSearchQueryChange = useCallback(
+    (query: string) => {
+      if (!query.trim() || deepLoaded) return;
+      setDeepLoaded(true);
+      fetchFileTree(sessionId, 5)
+        .then(({ tree }) => {
+          setFileTree(tree);
+          setDeepLoaded(true);
+        })
+        .catch(() => {
+          setDeepLoaded(false); // allow retry
+        });
+    },
+    [sessionId, deepLoaded, setFileTree, setDeepLoaded],
+  );
 
   const handleFileSelect = useCallback(
     async (filePath: string) => {
@@ -335,7 +379,8 @@ export default function CodeViewer({ sessionId, onClose, initialView }: CodeView
               expandedDirs={expandedDirs}
               activeFilePath={activeFilePath}
               onFileSelect={handleFileSelect}
-              onToggleDir={toggleDir}
+              onToggleDir={handleToggleDir}
+              onSearchQueryChange={handleSearchQueryChange}
               loading={treeLoading}
             />
           ) : (

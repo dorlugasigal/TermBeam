@@ -423,6 +423,7 @@ describe('Routes', () => {
       assert.ok(Array.isArray(body.dirs), 'dirs should be an array');
       // cwd has subdirectories like src, test, etc.
       assert.ok(body.dirs.length > 0, 'Should have subdirectories');
+      assert.strictEqual(body.exists, true, 'exists should be true for a valid path');
     });
 
     it('should return empty dirs for nonexistent path', async () => {
@@ -442,6 +443,7 @@ describe('Routes', () => {
       const body = JSON.parse(res.data);
       assert.ok(Array.isArray(body.dirs), 'dirs should be an array');
       assert.strictEqual(body.dirs.length, 0, 'Should have no dirs for nonexistent path');
+      assert.strictEqual(body.exists, false, 'exists should be false for a nonexistent path');
     });
   });
 
@@ -2024,24 +2026,31 @@ describe('Routes', () => {
     });
   });
 
-  // === Symlink rejection ===
-  describe('Symlink rejection', () => {
+  // === Symlink policy: allow inside session root, reject outside ===
+  describe('Symlink policy', () => {
     let inst;
     let tmpDir;
+    let outsideDir;
     after(async () => {
       inst?.shutdown();
       await safeCleanup(tmpDir);
+      await safeCleanup(outsideDir);
     });
 
     async function setup() {
       if (inst) return;
       tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'tb-symlink-'));
+      outsideDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'tb-outside-'));
       fs.writeFileSync(path.join(tmpDir, 'real.txt'), 'real content');
+      fs.writeFileSync(path.join(outsideDir, 'secret.txt'), 'SECRET');
+      // Symlink to a sibling inside the session root — must be allowed.
       fs.symlinkSync(path.join(tmpDir, 'real.txt'), path.join(tmpDir, 'link.txt'));
+      // Symlink that escapes the session root — must be rejected.
+      fs.symlinkSync(path.join(outsideDir, 'secret.txt'), path.join(tmpDir, 'escape.txt'));
       inst = await startServer({ cwd: tmpDir });
     }
 
-    it('should reject symlink in /download with 403', async () => {
+    it('should serve in-root symlink via /download', async () => {
       await setup();
       const res = await httpRequest({
         hostname: '127.0.0.1',
@@ -2049,12 +2058,11 @@ describe('Routes', () => {
         path: `/api/sessions/${inst.defaultId}/download?file=link.txt`,
         method: 'GET',
       });
-      assert.strictEqual(res.statusCode, 403);
-      const data = JSON.parse(res.data);
-      assert.strictEqual(data.error, 'Symbolic links are not allowed');
+      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.data, 'real content');
     });
 
-    it('should reject symlink in /file-raw with 403', async () => {
+    it('should serve in-root symlink via /file-raw', async () => {
       await setup();
       const res = await httpRequest({
         hostname: '127.0.0.1',
@@ -2062,12 +2070,11 @@ describe('Routes', () => {
         path: `/api/sessions/${inst.defaultId}/file-raw?file=link.txt`,
         method: 'GET',
       });
-      assert.strictEqual(res.statusCode, 403);
-      const data = JSON.parse(res.data);
-      assert.strictEqual(data.error, 'Symbolic links are not allowed');
+      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.data, 'real content');
     });
 
-    it('should reject symlink in /file-content with 403', async () => {
+    it('should serve in-root symlink via /file-content', async () => {
       await setup();
       const res = await httpRequest({
         hostname: '127.0.0.1',
@@ -2075,9 +2082,48 @@ describe('Routes', () => {
         path: `/api/sessions/${inst.defaultId}/file-content?file=link.txt`,
         method: 'GET',
       });
+      assert.strictEqual(res.statusCode, 200);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.content, 'real content');
+    });
+
+    it('should reject escaping symlink in /download with 403', async () => {
+      await setup();
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${inst.defaultId}/download?file=escape.txt`,
+        method: 'GET',
+      });
       assert.strictEqual(res.statusCode, 403);
       const data = JSON.parse(res.data);
-      assert.strictEqual(data.error, 'Symbolic links are not allowed');
+      assert.strictEqual(data.error, 'Symlink target is outside session directory');
+    });
+
+    it('should reject escaping symlink in /file-raw with 403', async () => {
+      await setup();
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${inst.defaultId}/file-raw?file=escape.txt`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 403);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Symlink target is outside session directory');
+    });
+
+    it('should reject escaping symlink in /file-content with 403', async () => {
+      await setup();
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${inst.defaultId}/file-content?file=escape.txt`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 403);
+      const data = JSON.parse(res.data);
+      assert.strictEqual(data.error, 'Symlink target is outside session directory');
     });
 
     it('should filter symlinks from /files listing', async () => {
@@ -3006,6 +3052,72 @@ describe('Routes', () => {
       assert.strictEqual(res.statusCode, 200);
       const data = JSON.parse(res.data);
       assert.ok(Array.isArray(data.tree), 'should have tree array');
+    });
+
+    it('should lazy-load a subtree via ?path=', async () => {
+      const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'tb-lazy-'));
+      fs.mkdirSync(path.join(tmp, 'sub'));
+      fs.writeFileSync(path.join(tmp, 'sub', 'inside.txt'), 'hi');
+      const lazyInst = await startServer({ password: null, cwd: tmp });
+      try {
+        const body = JSON.stringify({ name: 'lazy-test' });
+        const createRes = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: lazyInst.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        const sid = JSON.parse(createRes.data).id;
+
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: lazyInst.port,
+          path: `/api/sessions/${sid}/file-tree?depth=1&path=sub`,
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        const names = data.tree.map((n) => n.name);
+        assert.ok(names.includes('inside.txt'), 'should list subdir contents');
+      } finally {
+        await lazyInst.shutdown();
+        await safeCleanup(tmp);
+      }
+    });
+
+    it('should reject ?path= that escapes the session root', async () => {
+      if (!inst) inst = await startServer({ password: null });
+      if (!sessionId) {
+        const body = JSON.stringify({ name: 'tree-escape' });
+        const createRes = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: inst.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        sessionId = JSON.parse(createRes.data).id;
+      }
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: `/api/sessions/${sessionId}/file-tree?path=${encodeURIComponent('../../etc')}`,
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 403);
     });
   });
 

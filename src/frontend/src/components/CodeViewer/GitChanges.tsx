@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useCodeViewerStore } from '@/stores/codeViewerStore';
 import { fetchGitStatus, fetchGitDiff } from '@/services/api';
 import styles from './GitChanges.module.css';
@@ -43,25 +43,71 @@ export default function GitChanges({ sessionId }: GitChangesProps) {
   const { gitStatus, setGitStatus, setGitDiff, setDiffFile, diffFile } = useCodeViewerStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inFlightRef = useRef(false);
 
-  const loadStatus = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const status = await fetchGitStatus(sessionId);
-      setGitStatus(status);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load git status');
-    } finally {
-      setLoading(false);
-    }
-  }, [sessionId, setGitStatus]);
+  const loadStatus = useCallback(
+    async (showSpinner = true) => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      if (showSpinner) setLoading(true);
+      try {
+        const status = await fetchGitStatus(sessionId);
+        setGitStatus(status);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load git status');
+      } finally {
+        if (showSpinner) setLoading(false);
+        inFlightRef.current = false;
+      }
+    },
+    [sessionId, setGitStatus],
+  );
 
   useEffect(() => {
     if (!gitStatus) {
       loadStatus();
     }
   }, [gitStatus, loadStatus]);
+
+  useEffect(() => {
+    const POLL_MS = 3000;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const start = () => {
+      if (timer) return;
+      timer = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          loadStatus(false);
+        }
+      }, POLL_MS);
+    };
+    const stop = () => {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadStatus(false);
+        start();
+      } else {
+        stop();
+      }
+    };
+    const onFocus = () => loadStatus(false);
+
+    if (document.visibilityState === 'visible') start();
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [loadStatus]);
 
   const handleFileClick = useCallback(
     async (path: string, staged: boolean, untracked: boolean) => {
@@ -181,7 +227,7 @@ export default function GitChanges({ sessionId }: GitChangesProps) {
         </span>
         <button
           className={styles.refreshBtn}
-          onClick={loadStatus}
+          onClick={() => loadStatus(true)}
           disabled={loading}
           title="Refresh git status"
           aria-label="Refresh git status"

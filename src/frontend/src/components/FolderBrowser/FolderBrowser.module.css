@@ -6,6 +6,32 @@
   overflow: hidden;
 }
 
+.pathInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.9rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 0.4rem;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  /* Larger tap target on touch devices */
+  min-height: 2.5rem;
+}
+
+.pathInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.pathInput::placeholder {
+  color: var(--text-muted);
+}
+
 .breadcrumb {
   display: flex;
   align-items: center;

@@ -8,6 +8,7 @@
 .container {
   display: flex;
   flex: 1;
+  align-items: flex-start;
   overflow: auto;
   background: var(--bg);
   font-family: 'Menlo', 'Monaco', 'Courier New', monospace;

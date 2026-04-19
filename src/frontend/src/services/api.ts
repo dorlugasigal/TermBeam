@@ -153,11 +153,21 @@ export interface BrowseDirsResponse {
   base: string;
   dirs: string[];
   truncated?: boolean;
+  exists?: boolean;
 }
 
-export async function browseDirectory(dir: string): Promise<BrowseDirsResponse> {
-  // Trailing slash tells backend to list contents (not prefix-filter)
-  const q = dir.endsWith('/') || dir.endsWith('\\') ? dir : dir + '/';
+export async function browseDirectory(
+  dir: string,
+  options?: { prefixFilter?: boolean },
+): Promise<BrowseDirsResponse> {
+  // Default behavior: treat `dir` as a directory to list (trailing slash appended).
+  // With prefixFilter=true, pass through as-is so the backend treats the last
+  // path segment as a name prefix to filter by.
+  const q = options?.prefixFilter
+    ? dir
+    : dir.endsWith('/') || dir.endsWith('\\')
+      ? dir
+      : dir + '/';
   const res = await fetchWithTimeout(`${BASE}/api/dirs?q=${encodeURIComponent(q)}`, {
     credentials: 'same-origin',
   });
@@ -420,10 +430,16 @@ export async function fetchFileContent(
 export async function fetchFileTree(
   sessionId: string,
   depth = 3,
+  path?: string,
 ): Promise<{ root: string; tree: FileTreeNode[] }> {
-  const res = await fetchWithTimeout(`${BASE}/api/sessions/${sessionId}/file-tree?depth=${depth}`, {
-    credentials: 'same-origin',
-  });
+  const params = new URLSearchParams({ depth: String(depth) });
+  if (path) params.set('path', path);
+  const res = await fetchWithTimeout(
+    `${BASE}/api/sessions/${sessionId}/file-tree?${params.toString()}`,
+    {
+      credentials: 'same-origin',
+    },
+  );
   return handleResponse<{ root: string; tree: FileTreeNode[] }>(res);
 }
 

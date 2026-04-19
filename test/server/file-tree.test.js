@@ -143,7 +143,7 @@ describe('GET /api/sessions/:id/file-tree', () => {
     }
   });
 
-  it('filters hidden files and directories', async () => {
+  it('includes hidden files and directories (users expect to see everything)', async () => {
     await setup();
     const res = await get(`/api/sessions/${defaultId}/file-tree`);
     assert.equal(res.statusCode, 200);
@@ -159,12 +159,8 @@ describe('GET /api/sessions/:id/file-tree', () => {
     }
 
     const allNames = collectNames(body.tree);
-    for (const name of allNames) {
-      assert.ok(!name.startsWith('.'), `hidden entry "${name}" should be filtered out`);
-    }
-    // Specifically verify our fixtures are excluded
-    assert.ok(!allNames.includes('.hidden'), '.hidden file should be filtered');
-    assert.ok(!allNames.includes('.secret'), '.secret dir should be filtered');
+    assert.ok(allNames.includes('.hidden'), '.hidden file should be included');
+    assert.ok(allNames.includes('.secret'), '.secret dir should be included');
   });
 
   it('respects depth parameter', async () => {
