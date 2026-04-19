@@ -79,6 +79,12 @@ devtunnel user login
 !!! warning
 If a persisted tunnel stops working after ~30 days, delete `~/.termbeam/tunnel.json` and restart TermBeam to create a fresh tunnel.
 
+### Tunnel died overnight / after sleep
+
+If TermBeam is running as a long-lived service (`termbeam service`) and the tunnel stops working after a network interruption (laptop sleep, Wi-Fi drop, DHCP renewal, ISP DNS blip, etc.), the watchdog automatically enters a **network-wait** state once transient DNS / connectivity errors are detected. It probes the DevTunnel host every 60 seconds and reconnects as soon as the network is reachable again — no manual restart required.
+
+You'll see `[WARN] Tunnel paused — waiting for network connectivity` in the logs followed by `[INFO] Network connectivity restored — resuming tunnel` when it recovers. If the logs instead show repeated `Tunnel restart returned no URL` with no final giveup, the watchdog is still cycling through its 10 restart attempts; wait a few minutes for it to settle into network-wait.
+
 ---
 
 ## Authentication Issues

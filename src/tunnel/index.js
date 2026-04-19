@@ -2,6 +2,7 @@ const { execSync, execFileSync, execFile, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const dns = require('dns');
 const EventEmitter = require('events');
 const log = require('../utils/logger');
 const { promptInstall } = require('./install');
@@ -26,14 +27,37 @@ let waitingForAuth = false;
 let authCheckInterval = null;
 let expiryWarned = false;
 
+// --- Network-wait state ---
+let waitingForNetwork = false;
+let networkWaitInterval = null;
+
 const HEALTH_CHECK_INTERVAL = 30_000; // 30s between checks
 const HEALTH_CHECK_GRACE = 2; // 2 consecutive failures before restart
 const MAX_RESTART_ATTEMPTS = 10;
 const BACKOFF_DELAYS = [1000, 2000, 5000, 10_000, 15_000, 30_000]; // then stays at 30s
 const AUTH_CHECK_INTERVAL = 30_000; // 30s between auth re-checks
+const NETWORK_CHECK_INTERVAL = 60_000; // 60s between network reachability probes
+const NETWORK_PROBE_HOST = 'global.rel.tunnels.api.visualstudio.com';
+const NETWORK_PROBE_TIMEOUT = 5_000;
 const TOKEN_EXPIRY_WARN_SECONDS = 3600; // warn at 1 hour remaining
 
 const AUTH_ERROR_PATTERNS = ['login required', 'not logged in', 'sign in required'];
+
+// DNS / transient network failures that should NOT burn restart attempts.
+// These typically resolve on their own once the host regains connectivity
+// (e.g. Wi-Fi sleep/wake, router reboot, upstream DNS hiccup).
+const NETWORK_ERROR_PATTERNS = [
+  'nodename nor servname',
+  'getaddrinfo',
+  'enotfound',
+  'eai_again',
+  'econnrefused',
+  'econnreset',
+  'etimedout',
+  'network is unreachable',
+  'no such host',
+  'temporary failure in name resolution',
+];
 
 const SAFE_ID_RE = /^[a-zA-Z0-9._-]+$/;
 
@@ -43,6 +67,37 @@ const DEVICE_CODE_AUTH_TIMEOUT = 120000;
 function isAuthError(message) {
   const lower = (message || '').toLowerCase();
   return AUTH_ERROR_PATTERNS.some((p) => lower.includes(p));
+}
+
+function isNetworkError(message) {
+  const lower = (message || '').toLowerCase();
+  return NETWORK_ERROR_PATTERNS.some((p) => lower.includes(p));
+}
+
+function isNetworkReachable() {
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        resolve(false);
+      }
+    }, NETWORK_PROBE_TIMEOUT);
+    try {
+      dns.lookup(NETWORK_PROBE_HOST, (err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(!err);
+      });
+    } catch {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        resolve(false);
+      }
+    }
+  });
 }
 
 function isLoggedIn() {
@@ -210,7 +265,7 @@ let isPersisted = false;
 // --- Watchdog: health check & auto-restart ---
 
 function checkTunnelHealth() {
-  if (!tunnelId || !tunnelProc || isRestarting || waitingForAuth) return;
+  if (!tunnelId || !tunnelProc || isRestarting || waitingForAuth || waitingForNetwork) return;
 
   const abortCtrl = new AbortController();
   const timer = setTimeout(() => abortCtrl.abort(), 10_000);
@@ -226,6 +281,17 @@ function checkTunnelHealth() {
         // Auth errors are handled separately — no restart countdown
         if (isAuthError(err.message) || isAuthError(err.stderr)) {
           handleAuthExpiration();
+          return;
+        }
+
+        // Transient network errors (DNS, connection refused): the host has
+        // lost connectivity. Don't burn restart attempts — wait for network.
+        if (isNetworkError(err.message) || isNetworkError(err.stderr)) {
+          log.warn(`Tunnel health check: network unreachable — pausing until connectivity returns`);
+          stopHealthCheck();
+          killTunnelProc();
+          tunnelEvents.emit('disconnected');
+          startNetworkWait();
           return;
         }
 
@@ -389,13 +455,58 @@ function stopAuthWait() {
   }
 }
 
+function startNetworkWait() {
+  if (waitingForNetwork) return;
+  waitingForNetwork = true;
+  isRestarting = false;
+  restartAttempts = 0;
+  consecutiveFailures = 0;
+
+  log.warn('Tunnel paused — waiting for network connectivity.');
+  log.warn('Will auto-resume when the tunnel service is reachable.');
+  tunnelEvents.emit('network-lost');
+
+  const probe = async () => {
+    if (!waitingForNetwork) return;
+    // If auth expired while we were offline, switch to auth-wait instead.
+    if (!isLoggedIn()) {
+      log.warn('DevTunnel auth expired during network outage — waiting for re-authentication');
+      stopNetworkWait();
+      handleAuthExpiration();
+      return;
+    }
+    if (await isNetworkReachable()) {
+      log.info('Network connectivity restored — resuming tunnel');
+      stopNetworkWait();
+      tunnelEvents.emit('network-restored');
+      scheduleRestart();
+    }
+  };
+
+  networkWaitInterval = setInterval(probe, NETWORK_CHECK_INTERVAL);
+  networkWaitInterval.unref();
+  // Also probe once immediately in case the outage already cleared.
+  probe();
+}
+
+function stopNetworkWait() {
+  waitingForNetwork = false;
+  if (networkWaitInterval) {
+    clearInterval(networkWaitInterval);
+    networkWaitInterval = null;
+  }
+}
+
 function scheduleRestart() {
+  if (waitingForNetwork || waitingForAuth) return;
+
   if (restartAttempts >= MAX_RESTART_ATTEMPTS) {
-    log.error(
-      `Tunnel restart failed after ${MAX_RESTART_ATTEMPTS} attempts — giving up. Tunnel URL is unreachable.`,
+    log.warn(
+      `Tunnel restart failed after ${MAX_RESTART_ATTEMPTS} attempts — entering network-wait mode.`,
     );
     tunnelEvents.emit('failed', { attempts: restartAttempts });
     isRestarting = false;
+    startNetworkWait();
     return;
   }
 
@@ -428,11 +539,20 @@ function scheduleRestart() {
       } else {
         log.warn('Tunnel restart returned no URL');
         isRestarting = false;
+        // If the host appears to be offline, stop burning attempts.
+        if (!(await isNetworkReachable())) {
+          startNetworkWait();
+          return;
+        }
         scheduleRestart();
       }
     } catch (err) {
       log.error(`Tunnel restart error: ${err.message}`);
       isRestarting = false;
+      if (isNetworkError(err.message) || !(await isNetworkReachable())) {
+        startNetworkWait();
+        return;
+      }
       scheduleRestart();
     }
   }, delay);
@@ -635,9 +755,10 @@ async function startTunnel(port, options = {}) {
 }
 
 function cleanupTunnel() {
-  // Stop watchdog and auth-wait to prevent restart during cleanup
+  // Stop watchdog, auth-wait, and network-wait to prevent restart during cleanup
   stopHealthCheck();
   stopAuthWait();
+  stopNetworkWait();
   isRestarting = true; // prevent exit handler from restarting
   if (restartTimer) {
     clearTimeout(restartTimer);
@@ -674,4 +795,9 @@ module.exports = {
   tunnelEvents,
   getLoginInfo,
   parseLoginInfo,
+  // Exported for tests
+  _internal: {
+    isNetworkError,
+    isAuthError,
+  },
 };

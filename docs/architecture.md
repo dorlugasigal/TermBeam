@@ -117,10 +117,11 @@ Manages Azure DevTunnel lifecycle: login, create, host, cleanup. Includes a **wa
 - **Health check** — every 30 seconds, runs `devtunnel show` and parses the host connection count.
 - **Zombie detection** — if host connections drop to 0 for two consecutive checks (60s grace), the stale process is killed and a restart is initiated.
 - **Crash detection** — an `exit` handler on the child process triggers immediate restart if the process dies.
-- **Auto-restart** — exponential backoff (1s → 2s → 5s → 10s → 15s → 30s), up to 10 attempts before giving up.
+- **Auto-restart** — exponential backoff (1s → 2s → 5s → 10s → 15s → 30s), up to 10 attempts before transitioning to network-wait.
 - **Auth-wait system** — detects auth token expiry (Microsoft limitation), enters an auth-wait mode, polls for re-authentication via device code flow, and auto-reconnects once a fresh token is obtained.
+- **Network-wait system** — detects DNS / connectivity errors (e.g. `ENOTFOUND`, `EAI_AGAIN`, `nodename nor servname`), enters a network-wait mode, probes the DevTunnel host via DNS every 60 seconds, and auto-reconnects once the network is reachable again. Network errors do not consume restart attempts, so transient outages (Wi-Fi sleep, DHCP renewal, ISP DNS blips) no longer cause a permanent giveup.
 - **Token lifetime monitoring** — tracks the remaining lifetime of the DevTunnel auth token and emits warnings when less than 1 hour remains, giving the frontend time to prompt the user.
-- **Event emitter** — exports `tunnelEvents` (EventEmitter) with events: `connected`, `disconnected`, `reconnecting`, `failed`. The server subscribes for logging.
+- **Event emitter** — exports `tunnelEvents` (EventEmitter) with events: `connected`, `disconnected`, `reconnecting`, `network-lost`, `network-restored`, `failed`. The server subscribes for logging.
 
 Also exports `getLoginInfo()` (returns current auth provider and token expiry) and `parseLoginInfo()` (parses raw `devtunnel` CLI output into structured login metadata).
 
