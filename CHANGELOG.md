@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.20.4] - 2026-04-19
+
+- fix(tunnel): add network-wait mode for transient DNS outages
+
 ## [1.20.3] - 2026-04-19
 
 - fix(code-viewer): lazy-load file tree, allow in-root symlinks, auto-refresh git status
