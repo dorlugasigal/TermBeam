@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.20.3] - 2026-04-19
+
+- fix(code-viewer): lazy-load file tree, allow in-root symlinks, auto-refresh git status
+
 ## [1.20.2] - 2026-04-14
 
 - chore(deps): bump prettier from 3.8.1 to 3.8.2 (#189)
