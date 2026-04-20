@@ -18,19 +18,22 @@ export default function ReviewComposer({
   onCancel,
 }: ReviewComposerProps) {
   const [value, setValue] = useState('');
-  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [bottomOffset, setBottomOffset] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // On iOS Safari, position:fixed stays pinned to the layout viewport even
   // when the software keyboard opens, so the composer ends up hidden behind
-  // the keyboard. Track the visual viewport and raise the composer by the
-  // keyboard's height.
+  // the keyboard. Track the visual viewport and anchor the composer's bottom
+  // to the visual-viewport bottom (not the layout-viewport bottom).
   useEffect(() => {
     const vv = window.visualViewport;
-    if (!vv) return;
+    if (!vv) {
+      setBottomOffset(0);
+      return;
+    }
     const update = () => {
       const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      setKeyboardOffset(offset);
+      setBottomOffset(offset);
     };
     update();
     vv.addEventListener('resize', update);
@@ -40,6 +43,20 @@ export default function ReviewComposer({
       vv.removeEventListener('scroll', update);
     };
   }, []);
+
+  // iOS fires the visualViewport `resize` event only after the keyboard has
+  // finished animating in (200-400 ms). Without proactive re-measurement the
+  // composer stays hidden behind the keyboard for that window. Schedule a
+  // few extra updates as soon as the textarea gains focus.
+  const handleFocus = () => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const tick = () => {
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setBottomOffset(offset);
+    };
+    [50, 150, 300, 500, 800].forEach((ms) => window.setTimeout(tick, ms));
+  };
 
   const range = startLine === endLine ? `${startLine}` : `${startLine}–${endLine}`;
   const trimmed = value.trim();
@@ -54,7 +71,7 @@ export default function ReviewComposer({
       className={styles.composer}
       role="region"
       aria-label={`Add review comment for ${file} line ${range}`}
-      style={{ transform: keyboardOffset ? `translateY(-${keyboardOffset}px)` : undefined }}
+      style={{ bottom: `calc(8px + env(safe-area-inset-bottom, 0px) + ${bottomOffset}px)` }}
     >
       <div className={styles.header}>
         <span className={styles.headerLabel}>
@@ -74,6 +91,7 @@ export default function ReviewComposer({
         className={styles.textarea}
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        onFocus={handleFocus}
         placeholder="What should the agent change?"
         maxLength={4096}
         enterKeyHint="send"

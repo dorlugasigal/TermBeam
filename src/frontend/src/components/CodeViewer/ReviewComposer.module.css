@@ -2,7 +2,6 @@
   position: fixed;
   left: 8px;
   right: 8px;
-  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   padding: 8px 10px;
   background: var(--surface, #1e1e1e);
   border: 1px solid rgba(56, 139, 253, 0.6);
@@ -15,15 +14,12 @@
   touch-action: manipulation;
   max-width: 680px;
   margin: 0 auto;
-  will-change: transform;
-  transition: transform 0.15s ease-out;
 }
 
 @media (min-width: 900px) {
   .composer {
     left: auto;
     right: 24px;
-    bottom: 24px;
     width: 480px;
   }
 }
