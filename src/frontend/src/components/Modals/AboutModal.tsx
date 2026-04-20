@@ -17,23 +17,27 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
   const [checking, setChecking] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [changelog, setChangelog] = useState<string | null>(null);
-  const [changelogLoading, setChangelogLoading] = useState(false);
-  const [changelogError, setChangelogError] = useState(false);
+  const [changelogState, setChangelogState] = useState<'idle' | 'loading' | 'loaded' | 'error'>(
+    'idle',
+  );
 
   useEffect(() => {
-    if (!changelogOpen || changelog !== null || changelogLoading) return;
-    setChangelogLoading(true);
-    setChangelogError(false);
-    fetchChangelog()
-      .then((text) => {
-        if (text) {
-          setChangelog(text);
-        } else {
-          setChangelogError(true);
-        }
-      })
-      .finally(() => setChangelogLoading(false));
-  }, [changelogOpen, changelog, changelogLoading]);
+    if (!changelogOpen || changelogState !== 'idle') return;
+    let cancelled = false;
+    setChangelogState('loading');
+    fetchChangelog().then((text) => {
+      if (cancelled) return;
+      if (text) {
+        setChangelog(text);
+        setChangelogState('loaded');
+      } else {
+        setChangelogState('error');
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [changelogOpen, changelogState]);
 
   const handleCheckUpdate = useCallback(async () => {
     setChecking(true);
@@ -139,10 +143,10 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
 
             {changelogOpen && (
               <>
-                {changelogLoading && (
+                {changelogState === 'loading' && (
                   <div className={aboutStyles.changelogPlaceholder}>Loading release notes…</div>
                 )}
-                {changelogError && (
+                {changelogState === 'error' && (
                   <div className={aboutStyles.changelogPlaceholder}>
                     Couldn't load release notes.{' '}
                     <a
@@ -155,7 +159,7 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
                     </a>
                   </div>
                 )}
-                {changelog && (
+                {changelogState === 'loaded' && changelog && (
                   <div className={aboutStyles.changelog}>
                     <Markdown remarkPlugins={[remarkGfm]}>{changelog}</Markdown>
                   </div>
