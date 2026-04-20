@@ -384,7 +384,14 @@
 .inlineCommentEditLabel {
   font-size: 0.75rem;
   color: var(--text-dim, #aaa);
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.inlineCommentEditHint {
+  font-size: 0.7rem;
+  color: var(--text-dim, #888);
+  font-style: italic;
 }
 
 .inlineCommentEditHeader {
@@ -397,25 +404,29 @@
 
 .inlineCommentRangeControls {
   display: flex;
-  gap: 4px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .rangeBtn {
-  min-width: 36px;
-  height: 32px;
-  padding: 0 8px;
+  flex: 1 1 auto;
+  min-width: 140px;
+  height: 34px;
+  padding: 0 10px;
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 4px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   line-height: 1;
   cursor: pointer;
   touch-action: manipulation;
+  white-space: nowrap;
 }
 
 .rangeBtn:hover:not(:disabled) {
   background: var(--hover, rgba(255, 255, 255, 0.06));
+  border-color: #ffa657;
 }
 
 .rangeBtn:disabled {

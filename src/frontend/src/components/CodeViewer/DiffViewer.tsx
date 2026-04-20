@@ -152,19 +152,15 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
   );
 
   const extendPendingRange = useCallback(
-    (direction: 'up' | 'down', mode: 'grow' | 'shrink') => {
+    (direction: 'up' | 'down') => {
       if (!pending) return;
       const hunk = diff.hunks[pending.hunkIndex];
       if (!hunk) return;
       const maxIdx = hunk.lines.length - 1;
       let { startIdx, endIdx } = pending;
-      if (direction === 'up') {
-        if (mode === 'grow' && startIdx > 0) startIdx -= 1;
-        else if (mode === 'shrink' && startIdx < endIdx) startIdx += 1;
-      } else {
-        if (mode === 'grow' && endIdx < maxIdx) endIdx += 1;
-        else if (mode === 'shrink' && endIdx > startIdx) endIdx -= 1;
-      }
+      if (direction === 'up' && startIdx > 0) startIdx -= 1;
+      else if (direction === 'down' && endIdx < maxIdx) endIdx += 1;
+      else return;
       setPending({ hunkIndex: pending.hunkIndex, startIdx, endIdx });
     },
     [pending, diff.hunks],
@@ -174,7 +170,6 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
   const canExtendDown = pending
     ? pending.endIdx < (diff.hunks[pending.hunkIndex]?.lines.length ?? 0) - 1
     : false;
-  const canShrink = pending ? pending.endIdx > pending.startIdx : false;
 
   const pendingInfo = useMemo(() => {
     if (!pending) return null;
@@ -382,6 +377,7 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
                               ? pendingInfo.startLine
                               : `${pendingInfo.startLine}–${pendingInfo.endLine}`
                           }`}
+                          hint="Tap any line to reselect"
                           initialValue=""
                           submitLabel="Add comment"
                           onSubmit={handleComposerSave}
@@ -389,11 +385,8 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
                           rangeControls={{
                             canExtendUp,
                             canExtendDown,
-                            canShrink,
-                            onExtendUp: () => extendPendingRange('up', 'grow'),
-                            onExtendDown: () => extendPendingRange('down', 'grow'),
-                            onShrinkTop: () => extendPendingRange('up', 'shrink'),
-                            onShrinkBottom: () => extendPendingRange('down', 'shrink'),
+                            onExtendUp: () => extendPendingRange('up'),
+                            onExtendDown: () => extendPendingRange('down'),
                           }}
                         />
                       )}
@@ -553,17 +546,15 @@ function DiffHeader({
 interface RangeControls {
   canExtendUp: boolean;
   canExtendDown: boolean;
-  canShrink: boolean;
   onExtendUp: () => void;
   onExtendDown: () => void;
-  onShrinkTop: () => void;
-  onShrinkBottom: () => void;
 }
 
 interface InlineCommentEditorProps {
   initialValue: string;
   submitLabel: string;
   label?: string;
+  hint?: string;
   onSubmit: (body: string) => void;
   onCancel: () => void;
   disableUnchanged?: boolean;
@@ -574,6 +565,7 @@ function InlineCommentEditor({
   initialValue,
   submitLabel,
   label,
+  hint,
   onSubmit,
   onCancel,
   disableUnchanged = false,
@@ -591,24 +583,49 @@ function InlineCommentEditor({
     t.style.height = `${Math.min(t.scrollHeight, max)}px`;
   }, [value]);
 
-  const scrollIntoView = useCallback(() => {
+  // Keep the editor's BOTTOM edge above the mobile keyboard. iOS's native
+  // scrollIntoView uses the layout viewport (ignores the keyboard), so we
+  // compute the scroll manually against visualViewport.
+  const ensureVisible = useCallback(() => {
     const el = rootRef.current;
     if (!el) return;
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    let scrollParent: HTMLElement | null = el.parentElement;
+    while (scrollParent) {
+      const style = getComputedStyle(scrollParent);
+      if (style.overflowY === 'auto' || style.overflowY === 'scroll') break;
+      scrollParent = scrollParent.parentElement;
+    }
+    if (!scrollParent) return;
+    const vv = window.visualViewport;
+    const viewportTop = vv ? vv.offsetTop : 0;
+    const viewportBottom = viewportTop + (vv ? vv.height : window.innerHeight);
+    const rect = el.getBoundingClientRect();
+    const margin = 12;
+    if (rect.bottom > viewportBottom - margin) {
+      scrollParent.scrollTop += rect.bottom - (viewportBottom - margin);
+    } else if (rect.top < viewportTop + margin) {
+      scrollParent.scrollTop -= viewportTop + margin - rect.top;
+    }
   }, []);
 
   useEffect(() => {
-    // On mount and whenever the mobile keyboard opens/closes, make sure the
-    // editor is in view. iOS doesn't reliably scroll nested scroll containers
-    // when focus lands inside them.
-    const id = window.setTimeout(scrollIntoView, 50);
+    const id = window.setTimeout(ensureVisible, 50);
+    const id2 = window.setTimeout(ensureVisible, 350);
     const vv = window.visualViewport;
-    vv?.addEventListener('resize', scrollIntoView);
+    vv?.addEventListener('resize', ensureVisible);
+    vv?.addEventListener('scroll', ensureVisible);
     return () => {
       window.clearTimeout(id);
-      vv?.removeEventListener('resize', scrollIntoView);
+      window.clearTimeout(id2);
+      vv?.removeEventListener('resize', ensureVisible);
+      vv?.removeEventListener('scroll', ensureVisible);
     };
-  }, [scrollIntoView]);
+  }, [ensureVisible]);
+
+  useLayoutEffect(() => {
+    // Re-align after textarea grows.
+    ensureVisible();
+  }, [value, ensureVisible]);
 
   const trimmed = value.trim();
   const unchanged = trimmed === initialValue.trim();
@@ -616,57 +633,44 @@ function InlineCommentEditor({
 
   return (
     <div ref={rootRef} className={styles.inlineCommentEdit}>
-      {(label || rangeControls) && (
+      {(label || hint) && (
         <div className={styles.inlineCommentEditHeader}>
           {label && <span className={styles.inlineCommentEditLabel}>{label}</span>}
-          {rangeControls && (
-            <div
-              className={styles.inlineCommentRangeControls}
-              role="group"
-              aria-label="Adjust selected line range"
-            >
-              <button
-                type="button"
-                className={styles.rangeBtn}
-                onClick={rangeControls.onExtendUp}
-                disabled={!rangeControls.canExtendUp}
-                aria-label="Extend selection up"
-                title="Extend selection up"
-              >
-                ↑+
-              </button>
-              <button
-                type="button"
-                className={styles.rangeBtn}
-                onClick={rangeControls.onShrinkTop}
-                disabled={!rangeControls.canShrink}
-                aria-label="Shrink selection from top"
-                title="Shrink from top"
-              >
-                ↓−
-              </button>
-              <button
-                type="button"
-                className={styles.rangeBtn}
-                onClick={rangeControls.onShrinkBottom}
-                disabled={!rangeControls.canShrink}
-                aria-label="Shrink selection from bottom"
-                title="Shrink from bottom"
-              >
-                ↑−
-              </button>
-              <button
-                type="button"
-                className={styles.rangeBtn}
-                onClick={rangeControls.onExtendDown}
-                disabled={!rangeControls.canExtendDown}
-                aria-label="Extend selection down"
-                title="Extend selection down"
-              >
-                ↓+
-              </button>
-            </div>
-          )}
+          {hint && <span className={styles.inlineCommentEditHint}>{hint}</span>}
+        </div>
+      )}
+      {rangeControls && (
+        <div
+          className={styles.inlineCommentRangeControls}
+          role="group"
+          aria-label="Adjust selected line range"
+        >
+          <button
+            type="button"
+            className={styles.rangeBtn}
+            onClick={rangeControls.onExtendUp}
+            disabled={!rangeControls.canExtendUp}
+            title={
+              rangeControls.canExtendUp
+                ? 'Extend selection to the line above'
+                : 'Already at top of hunk'
+            }
+          >
+            ↑ Include line above
+          </button>
+          <button
+            type="button"
+            className={styles.rangeBtn}
+            onClick={rangeControls.onExtendDown}
+            disabled={!rangeControls.canExtendDown}
+            title={
+              rangeControls.canExtendDown
+                ? 'Extend selection to the line below'
+                : 'Already at end of hunk'
+            }
+          >
+            ↓ Include line below
+          </button>
         </div>
       )}
       <textarea
@@ -674,7 +678,7 @@ function InlineCommentEditor({
         className={styles.inlineCommentTextarea}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onFocus={scrollIntoView}
+        onFocus={ensureVisible}
         autoFocus
         maxLength={4096}
         rows={3}
