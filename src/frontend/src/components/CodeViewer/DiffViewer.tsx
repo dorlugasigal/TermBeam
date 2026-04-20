@@ -24,7 +24,12 @@ function lineNumberFor(line: DiffLine): number | null {
 }
 
 function lineNumberForKind(line: DiffLine, kind: ReviewLineKind): number | null {
-  if (kind === 'remove') return line.oldLine ?? line.newLine ?? null;
+  // Strict per-kind coordinate: avoid falling back to the other system, which
+  // would mix old/new line numbers (e.g. a removed line in an 'add'-kind
+  // selection contributing its old-line number).
+  if (kind === 'remove') return line.oldLine ?? null;
+  if (kind === 'add') return line.newLine ?? null;
+  // context lines have both set; prefer new, fall back to old defensively.
   return line.newLine ?? line.oldLine ?? null;
 }
 

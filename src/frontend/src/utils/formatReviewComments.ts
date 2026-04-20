@@ -17,6 +17,8 @@ export interface ReviewComment {
 
 const MAX_COMMENT_CHARS = 4 * 1024;
 const MAX_BATCH_CHARS = 64 * 1024;
+const MAX_QUOTED_CHARS = 8 * 1024;
+const QUOTE_TRUNCATION_MARKER = '> …(truncated)';
 
 const KIND_LABEL: Record<ReviewLineKind, string> = {
   add: 'new',
@@ -33,7 +35,21 @@ function formatRange(c: ReviewComment): string {
 function quoteLines(text: string): string {
   const clean = sanitizeTerminalInput(text);
   const lines = clean.replace(/\n+$/, '').split('\n');
-  return lines.map((l) => `> ${l}`).join('\n');
+  const quoted = lines.map((l) => `> ${l}`);
+  let out = quoted.join('\n');
+  if (out.length <= MAX_QUOTED_CHARS) return out;
+  // Truncate by whole lines so we never cut a line mid-way and always
+  // keep the batch under the per-comment quote cap.
+  const acc: string[] = [];
+  let size = 0;
+  for (const q of quoted) {
+    if (size + q.length + 1 + QUOTE_TRUNCATION_MARKER.length + 1 > MAX_QUOTED_CHARS) break;
+    acc.push(q);
+    size += q.length + 1;
+  }
+  acc.push(QUOTE_TRUNCATION_MARKER);
+  out = acc.join('\n');
+  return out;
 }
 
 export function formatSingleComment(c: ReviewComment): string {

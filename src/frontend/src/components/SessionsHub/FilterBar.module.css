@@ -106,10 +106,3 @@
 .chipMenuItemActive {
   background: rgba(56, 139, 253, 0.25);
 }
-
-.emptyFiltered {
-  padding: 24px 16px;
-  text-align: center;
-  color: var(--text-dim);
-  font-size: 14px;
-}

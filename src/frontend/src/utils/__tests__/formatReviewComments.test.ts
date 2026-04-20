@@ -107,4 +107,16 @@ describe('formatReviewBatch', () => {
     expect(r.includedCount).toBeLessThan(20);
     expect(r.text).toContain('additional comments omitted');
   });
+
+  it('still includes a single comment whose selectedText is larger than the batch cap', () => {
+    // A ~80 KB selection on its own would make formatSingleComment produce a
+    // piece >64 KB, which previously caused formatReviewBatch to drop it and
+    // return includedCount: 0. The per-comment quote cap must ensure the
+    // comment is still included (with a truncation marker in the quote).
+    const huge = Array.from({ length: 1000 }, (_, i) => `line ${i} ${'x'.repeat(80)}`).join('\n');
+    const r = formatReviewBatch([mk({ selectedText: huge, comment: 'please fix' })]);
+    expect(r.includedCount).toBe(1);
+    expect(r.text).toContain('please fix');
+    expect(r.text).toContain('…(truncated)');
+  });
 });

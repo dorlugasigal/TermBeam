@@ -237,47 +237,6 @@
   text-align: center;
 }
 
-.selectionBar {
-  position: sticky;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  background: var(--surface, #252526);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.25);
-  z-index: 4;
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
-}
-
-.selectionInfo {
-  flex: 1;
-  font-size: 0.85rem;
-  color: var(--text);
-  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-}
-
-.selectionBtn {
-  padding: 8px 14px;
-  min-height: 40px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text);
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-.selectionBtnPrimary {
-  background: rgba(56, 139, 253, 0.3);
-  border-color: rgba(56, 139, 253, 0.7);
-}
-
-.selectionBtnPrimary:hover {
-  background: rgba(56, 139, 253, 0.45);
-}
-
 .binary {
   display: flex;
   align-items: center;
