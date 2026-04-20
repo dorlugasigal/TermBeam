@@ -514,6 +514,7 @@ interface InlineCommentCardProps {
 
 function InlineCommentCard({ comment, onSave, onDelete }: InlineCommentCardProps) {
   const [editing, setEditing] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [value, setValue] = useState(comment.comment);
 
   if (editing) {
@@ -570,30 +571,62 @@ function InlineCommentCard({ comment, onSave, onDelete }: InlineCommentCardProps
     );
   }
 
+  const preview = comment.comment.replace(/\s+/g, ' ').trim();
+
   return (
     <div className={styles.inlineComment}>
-      <div className={styles.inlineCommentBody}>{comment.comment}</div>
-      <div className={styles.inlineCommentActions}>
-        <button
-          type="button"
-          className={styles.inlineCommentBtn}
-          onClick={() => {
-            setValue(comment.comment);
-            setEditing(true);
-          }}
-          aria-label="Edit comment"
+      <div
+        className={`${styles.inlineCommentHeader} ${
+          expanded ? '' : styles.inlineCommentHeaderCollapsed
+        }`}
+        onClick={() => setExpanded((v) => !v)}
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        aria-label={expanded ? 'Collapse comment' : 'Expand comment'}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setExpanded((v) => !v);
+          }
+        }}
+      >
+        <span
+          className={`${styles.inlineCommentCaret} ${
+            expanded ? styles.inlineCommentCaretOpen : ''
+          }`}
+          aria-hidden
         >
-          Edit
-        </button>
-        <button
-          type="button"
-          className={styles.inlineCommentBtn}
-          onClick={onDelete}
-          aria-label="Delete comment"
-        >
-          Delete
-        </button>
+          ▶
+        </span>
+        <span className={styles.inlineCommentPreview}>💬 {preview}</span>
       </div>
+      {expanded && (
+        <div className={styles.inlineCommentContent}>
+          <div className={styles.inlineCommentBody}>{comment.comment}</div>
+          <div className={styles.inlineCommentActions}>
+            <button
+              type="button"
+              className={styles.inlineCommentBtn}
+              onClick={() => {
+                setValue(comment.comment);
+                setEditing(true);
+              }}
+              aria-label="Edit comment"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              className={styles.inlineCommentBtn}
+              onClick={onDelete}
+              aria-label="Delete comment"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
