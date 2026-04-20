@@ -106,9 +106,22 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
     await reloadDiff(staged, newFullFile);
   }, [staged, fullFile, reloadDiff]);
 
-  const handleReviewToggle = useCallback(() => {
-    setReviewMode(sessionId, !reviewMode);
-  }, [sessionId, reviewMode, setReviewMode]);
+  const handleStartReview = useCallback(() => {
+    setReviewMode(sessionId, true);
+  }, [sessionId, setReviewMode]);
+
+  const handleExitReview = useCallback(() => {
+    // Non-destructive: comments persist in localStorage. User can resume later
+    // or clear them explicitly from the comments panel.
+    setReviewMode(sessionId, false);
+    setPending(null);
+  }, [sessionId, setReviewMode]);
+
+  const handleFinishReview = useCallback(() => {
+    // Opening the panel is where Send/Copy live; we keep review mode on so
+    // the user can go back and add more comments if the panel prompts them to.
+    setPanelOpen(true);
+  }, []);
 
   const handleRowClick = useCallback(
     (hunkIndex: number, lineIdx: number) => {
@@ -179,7 +192,9 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
           reviewMode={reviewMode}
           onToggleStaged={handleStagedToggle}
           onToggleFullFile={handleFullFileToggle}
-          onToggleReview={handleReviewToggle}
+          onStartReview={handleStartReview}
+          onExitReview={handleExitReview}
+          onFinishReview={handleFinishReview}
           reviewBadge={totalComments}
           onOpenPanel={() => setPanelOpen(true)}
         />
@@ -204,7 +219,9 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
           reviewMode={reviewMode}
           onToggleStaged={handleStagedToggle}
           onToggleFullFile={handleFullFileToggle}
-          onToggleReview={handleReviewToggle}
+          onStartReview={handleStartReview}
+          onExitReview={handleExitReview}
+          onFinishReview={handleFinishReview}
           reviewBadge={totalComments}
           onOpenPanel={() => setPanelOpen(true)}
         />
@@ -228,7 +245,9 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
         reviewMode={reviewMode}
         onToggleStaged={handleStagedToggle}
         onToggleFullFile={handleFullFileToggle}
-        onToggleReview={handleReviewToggle}
+        onStartReview={handleStartReview}
+        onExitReview={handleExitReview}
+        onFinishReview={handleFinishReview}
         reviewBadge={totalComments}
         onOpenPanel={() => setPanelOpen(true)}
       />
@@ -319,7 +338,9 @@ interface DiffHeaderProps {
   reviewMode: boolean;
   onToggleStaged: () => void;
   onToggleFullFile: () => void;
-  onToggleReview: () => void;
+  onStartReview: () => void;
+  onExitReview: () => void;
+  onFinishReview: () => void;
   reviewBadge: number;
   onOpenPanel: () => void;
 }
@@ -332,7 +353,9 @@ function DiffHeader({
   reviewMode,
   onToggleStaged,
   onToggleFullFile,
-  onToggleReview,
+  onStartReview,
+  onExitReview,
+  onFinishReview,
   reviewBadge,
   onOpenPanel,
 }: DiffHeaderProps) {
@@ -353,24 +376,65 @@ function DiffHeader({
         {diff.deletions > 0 && <span className={styles.deletions}>-{diff.deletions}</span>}
         {isNewFile && <span className={styles.newFile}>new file</span>}
       </div>
-      <button
-        type="button"
-        className={`${styles.toggleBtn} ${reviewMode ? styles.toggleBtnActive : ''}`}
-        onClick={onToggleReview}
-        title={reviewMode ? 'Exit review mode' : 'Enter review mode'}
-        aria-pressed={reviewMode}
-      >
-        {reviewMode ? '✓ Review' : '✎ Review'}
-      </button>
-      {reviewBadge > 0 && (
+      {!reviewMode && reviewBadge === 0 && (
         <button
           type="button"
-          className={`${styles.toggleBtn} ${styles.reviewBadgeBtn}`}
-          onClick={onOpenPanel}
-          title="View review comments"
-          aria-label={`View ${reviewBadge} review comment${reviewBadge === 1 ? '' : 's'}`}
+          className={styles.toggleBtn}
+          onClick={onStartReview}
+          title="Start review"
         >
-          {reviewBadge}
+          ✎ Start review
+        </button>
+      )}
+      {!reviewMode && reviewBadge > 0 && (
+        <>
+          <button
+            type="button"
+            className={`${styles.toggleBtn} ${styles.toggleBtnPrimary}`}
+            onClick={onStartReview}
+            title="Resume review"
+          >
+            ▶ Resume ({reviewBadge})
+          </button>
+          <button
+            type="button"
+            className={`${styles.toggleBtn} ${styles.reviewBadgeBtn}`}
+            onClick={onOpenPanel}
+            title="View review comments"
+            aria-label={`View ${reviewBadge} review comment${reviewBadge === 1 ? '' : 's'}`}
+          >
+            {reviewBadge}
+          </button>
+        </>
+      )}
+      {reviewMode && reviewBadge > 0 && (
+        <>
+          <button
+            type="button"
+            className={`${styles.toggleBtn} ${styles.toggleBtnPrimary}`}
+            onClick={onFinishReview}
+            title="Finish review and open comments panel"
+          >
+            ✓ Finish ({reviewBadge})
+          </button>
+          <button
+            type="button"
+            className={styles.toggleBtn}
+            onClick={onExitReview}
+            title="Exit review mode (comments are kept)"
+          >
+            Exit
+          </button>
+        </>
+      )}
+      {reviewMode && reviewBadge === 0 && (
+        <button
+          type="button"
+          className={styles.toggleBtn}
+          onClick={onExitReview}
+          title="Exit review mode"
+        >
+          ✕ Exit
         </button>
       )}
       {!isNewFile && (

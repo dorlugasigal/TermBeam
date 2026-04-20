@@ -98,6 +98,18 @@
   border-color: rgba(56, 139, 253, 0.5);
 }
 
+.toggleBtnPrimary {
+  background: rgba(56, 139, 253, 0.3);
+  color: var(--text);
+  border-color: rgba(56, 139, 253, 0.7);
+  font-weight: 600;
+}
+
+.toggleBtnPrimary:hover {
+  background: rgba(56, 139, 253, 0.45);
+  border-color: rgba(56, 139, 253, 0.9);
+}
+
 .toggleBtn:disabled {
   opacity: 0.5;
   cursor: default;
