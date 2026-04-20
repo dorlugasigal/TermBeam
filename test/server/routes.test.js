@@ -731,6 +731,27 @@ describe('Routes', () => {
     });
   });
 
+  // === GET /api/changelog ===
+  describe('GET /api/changelog', () => {
+    let inst;
+    after(async () => {
+      await inst?.shutdown();
+    });
+
+    it('should return changelog markdown', async () => {
+      inst = await startServer();
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: inst.port,
+        path: '/api/changelog',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.match(res.headers['content-type'] || '', /text\/markdown/);
+      assert.match(res.data, /# Changelog/);
+    });
+  });
+
   // === Session PATCH endpoint ===
   describe('PATCH /api/sessions/:id', () => {
     let inst;

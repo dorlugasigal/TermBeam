@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { toast } from 'sonner';
 import { fetchSessions, deleteSession, fetchVersion, getShareUrl } from '@/services/api';
 import { useUIStore } from '@/stores/uiStore';
@@ -10,9 +10,35 @@ import TunnelBanner from '@/components/common/TunnelBanner';
 import SessionCard from './SessionCard';
 import NewSessionModal from './NewSessionModal';
 import ResumeBrowser from '@/components/ResumeBrowser/ResumeBrowser';
+import FilterBar from './FilterBar';
+import {
+  EMPTY_FILTER,
+  deriveFacets,
+  filterSessions,
+  isEmptyFilter,
+  type SessionFilterState,
+} from '@/utils/sessionFilter';
 import styles from './SessionsHub.module.css';
 
 const POLL_INTERVAL = 3000;
+const FILTER_STORAGE_KEY = 'termbeam-hub-filter';
+
+function loadFilterFromStorage(): SessionFilterState {
+  try {
+    const raw = sessionStorage.getItem(FILTER_STORAGE_KEY);
+    if (!raw) return EMPTY_FILTER;
+    const parsed = JSON.parse(raw) as Partial<SessionFilterState>;
+    return {
+      text: typeof parsed.text === 'string' ? parsed.text : '',
+      repo: typeof parsed.repo === 'string' ? parsed.repo : null,
+      branch: typeof parsed.branch === 'string' ? parsed.branch : null,
+      shell: typeof parsed.shell === 'string' ? parsed.shell : null,
+      hasAgent: !!parsed.hasAgent,
+    };
+  } catch {
+    return EMPTY_FILTER;
+  }
+}
 
 /* clipboard fallback for non-secure (HTTP) contexts */
 function fallbackCopyShare(text: string): void {
@@ -75,6 +101,7 @@ export default function SessionsHub() {
   const [version, setVersion] = useState('');
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [revealedId, setRevealedId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<SessionFilterState>(() => loadFilterFromStorage());
   const themeBtnRef = useRef<HTMLButtonElement>(null);
   const themePanelRef = useRef<HTMLDivElement>(null);
   const { openNewSessionModal, openResumeBrowser } = useUIStore();
@@ -102,6 +129,22 @@ export default function SessionsHub() {
       if (v) setVersion(v);
     });
   }, []);
+
+  useEffect(() => {
+    try {
+      if (isEmptyFilter(filter)) sessionStorage.removeItem(FILTER_STORAGE_KEY);
+      else sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filter));
+    } catch {
+      // ignore storage quota / private-mode errors
+    }
+  }, [filter]);
+
+  const facets = useMemo(() => deriveFacets(sessions), [sessions]);
+  const visibleSessions = useMemo(
+    () => filterSessions(sessions, filter),
+    [sessions, filter],
+  );
+  const filterActive = !isEmptyFilter(filter);
 
   function navigateToSession(id: string) {
     window.history.pushState(null, '', `/terminal?session=${id}`);
@@ -268,18 +311,39 @@ export default function SessionsHub() {
             </span>
           </div>
         ) : (
-          <div className={styles.sessionsList} data-testid="sessions-list">
-            {sessions.map((session) => (
-              <SessionCard
-                key={session.id}
-                session={session}
-                onSelect={navigateToSession}
-                onDelete={handleDelete}
-                revealedId={revealedId}
-                onRevealChange={setRevealedId}
-              />
-            ))}
-          </div>
+          <>
+            <FilterBar filter={filter} facets={facets} onChange={setFilter} />
+            {visibleSessions.length === 0 ? (
+              <div className={styles.emptyState} data-testid="empty-filtered">
+                <span className={styles.emptyIcon}>🔍</span>
+                <span className={styles.emptyText}>No sessions match your filters</span>
+                <button
+                  type="button"
+                  className={`${styles.emptyHint} ${styles.emptyHintButton}`}
+                  onClick={() => setFilter(EMPTY_FILTER)}
+                >
+                  Clear filters
+                </button>
+              </div>
+            ) : (
+              <div
+                className={styles.sessionsList}
+                data-testid="sessions-list"
+                data-filter-active={filterActive || undefined}
+              >
+                {visibleSessions.map((session) => (
+                  <SessionCard
+                    key={session.id}
+                    session={session}
+                    onSelect={navigateToSession}
+                    onDelete={handleDelete}
+                    revealedId={revealedId}
+                    onRevealChange={setRevealedId}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
 

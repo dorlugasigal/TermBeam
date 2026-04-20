@@ -58,7 +58,8 @@
     "src/utils/",
     "public/",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "lint-staged": {
     "*.js": [

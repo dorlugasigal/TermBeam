@@ -226,6 +226,20 @@
   color: var(--text-muted);
 }
 
+.emptyHintButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.emptyHintButton:hover,
+.emptyHintButton:focus-visible {
+  color: var(--text-primary);
+}
+
 .hubFooter {
   position: fixed;
   bottom: calc(16px + env(safe-area-inset-bottom, 0px));

@@ -2,13 +2,20 @@
   display: flex;
   flex-direction: column;
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   background: var(--bg);
-  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.5;
+  min-height: 0;
+}
+
+.scrollArea {
+  flex: 1;
+  overflow: auto;
   -webkit-overflow-scrolling: touch;
   min-height: 0;
+  container-type: inline-size;
+  padding-bottom: 50vh;
 }
 
 .header {
@@ -50,7 +57,6 @@
 
 .newFile {
   color: #73c991;
-  font-style: italic;
 }
 
 .stagedToggle {
@@ -98,6 +104,18 @@
   border-color: rgba(56, 139, 253, 0.5);
 }
 
+.toggleBtnPrimary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.toggleBtnPrimary:hover {
+  background: var(--accent-hover, var(--accent));
+  border-color: var(--accent-hover, var(--accent));
+}
+
 .toggleBtn:disabled {
   opacity: 0.5;
   cursor: default;
@@ -116,7 +134,7 @@
   color: var(--text-dim, #888);
   background: rgba(56, 139, 253, 0.15);
   font-size: 0.8rem;
-  font-style: italic;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
   user-select: none;
   box-sizing: border-box;
 }
@@ -138,6 +156,7 @@
   border-right: 1px solid var(--border);
   white-space: nowrap;
   font-size: 0.85em;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
   box-sizing: border-box;
 }
 
@@ -152,6 +171,7 @@
   tab-size: 4;
   color: var(--text);
   min-width: 0;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
 }
 
 .linePrefix {
@@ -189,6 +209,301 @@
 
 .rowContext {
   composes: row;
+}
+
+.rowReviewable {
+  cursor: pointer;
+  position: relative;
+}
+
+.rowReviewable:hover {
+  outline: 1px solid rgba(56, 139, 253, 0.35);
+  outline-offset: -1px;
+}
+
+.rowSelected {
+  outline: 2px solid rgba(56, 139, 253, 0.85);
+  outline-offset: -1px;
+  background: rgba(56, 139, 253, 0.15);
+}
+
+.rowCommented .lineContent::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #ffa657;
+}
+
+.rowCommented .lineContent {
+  position: relative;
+}
+
+.inlineComment {
+  position: sticky;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 4px 0;
+  width: calc(100cqi - 8px);
+  max-width: calc(100cqi - 8px);
+  margin-left: 4px;
+  background: rgba(255, 166, 87, 0.08);
+  border: 1px solid rgba(255, 166, 87, 0.4);
+  border-left: 3px solid #ffa657;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.inlineCommentHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255, 166, 87, 0.04);
+  border-bottom: 1px solid rgba(255, 166, 87, 0.2);
+}
+
+.inlineCommentHeaderCollapsed {
+  border-bottom: none;
+}
+
+.inlineCommentCaret {
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-dim, #aaa);
+  transition: transform 0.15s;
+}
+
+.inlineCommentCaretOpen {
+  transform: rotate(90deg);
+}
+
+.inlineCommentPreview {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.inlineCommentContent {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inlineCommentBody {
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.inlineCommentActions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  justify-content: flex-end;
+}
+
+.inlineCommentBtn {
+  padding: 4px 12px;
+  border: 1px solid var(--border, #444);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim, #aaa);
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.inlineCommentBtn:hover:not(:disabled) {
+  background: var(--surface, #252526);
+  color: var(--text);
+}
+
+.inlineCommentBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.inlineCommentBtnPrimary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.inlineCommentBtnPrimary:hover:not(:disabled) {
+  background: var(--accent-hover, var(--accent));
+  border-color: var(--accent-hover, var(--accent));
+  color: #fff;
+}
+
+.inlineCommentEdit {
+  position: sticky;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 4px 4px;
+  padding: 10px 12px;
+  width: calc(100cqi - 8px);
+  max-width: calc(100cqi - 8px);
+  background: rgba(255, 166, 87, 0.1);
+  border: 1px solid rgba(255, 166, 87, 0.4);
+  border-left: 3px solid #ffa657;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  box-sizing: border-box;
+}
+
+.inlineCommentEditLabel {
+  font-size: 0.75rem;
+  color: var(--text-dim, #aaa);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.inlineCommentEditHint {
+  font-size: 0.7rem;
+  color: var(--text-dim, #888);
+  font-style: italic;
+}
+
+.inlineCommentEditHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rangeAdjusters {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.rangeAdjusterRange {
+  flex: 1 1 auto;
+  text-align: center;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.rangeAdjusterBtn {
+  width: 36px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  flex: 0 0 auto;
+}
+
+.rangeAdjusterBtn:hover:not(:disabled) {
+  background: var(--hover, rgba(255, 255, 255, 0.06));
+  border-color: #ffa657;
+}
+
+.rangeAdjusterBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.inlineCommentTextarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.45;
+  resize: none;
+  overflow: hidden;
+  min-height: 60px;
+  touch-action: manipulation;
+}
+
+.inlineCommentTextarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .inlineCommentActions {
+    align-self: flex-end;
+  }
+
+  /* On mobile, the inline editor becomes a fixed bottom sheet anchored
+   * above the on-screen keyboard. --kb-offset is set from JS via
+   * visualViewport; when the keyboard is closed it falls back to 0 and
+   * the editor docks at the viewport bottom (respecting the safe area).
+   * This decouples the editor from the diff scroll container, so
+   * adjusting the selected range or toggling the keyboard no longer
+   * forces iOS to reflow or scroll the document. */
+  .inlineCommentEdit {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: calc(var(--kb-offset, 0px) + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    max-width: none;
+    margin: 0;
+    z-index: 1000;
+    background: #1f1b16;
+    box-shadow:
+      0 -6px 24px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 166, 87, 0.4);
+    transition: none;
+  }
+}
+
+.reviewBadgeBtn {
+  background: rgba(255, 166, 87, 0.25);
+  border-color: rgba(255, 166, 87, 0.6);
+  color: var(--text);
+  font-weight: 600;
+  min-width: 28px;
+  text-align: center;
 }
 
 .binary {

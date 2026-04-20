@@ -1,0 +1,221 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 70;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.panel {
+  width: 100%;
+  max-width: 720px;
+  max-height: calc(92vh - env(safe-area-inset-top, 0px));
+  background: var(--surface, #1e1e1e);
+  border-top: 1px solid var(--border);
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.18s ease-out;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
+}
+
+@media (min-width: 768px) {
+  .overlay {
+    align-items: center;
+  }
+  .panel {
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    max-height: 80vh;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+
+.title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.count {
+  color: var(--text-dim, #888);
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+.closeBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim, #888);
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.closeBtn:hover {
+  color: var(--text);
+}
+
+.body {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.empty {
+  padding: 32px 16px;
+  color: var(--text-dim, #888);
+  font-style: italic;
+  text-align: center;
+}
+
+.fileGroup {
+  padding: 4px 16px 10px;
+}
+
+.fileName {
+  font-size: 0.8rem;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  color: var(--text);
+  font-weight: 600;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
+.comment {
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.commentHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.75rem;
+  color: var(--text-dim, #888);
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+}
+
+.commentRemove {
+  background: transparent;
+  border: none;
+  color: var(--text-dim, #888);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  min-height: 32px;
+  min-width: 32px;
+  border-radius: 4px;
+}
+
+.commentRemove:hover {
+  background: rgba(218, 54, 51, 0.2);
+  color: #e06c75;
+}
+
+.commentBody {
+  font-size: 0.9rem;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.commentSnippet {
+  font-size: 0.75rem;
+  color: var(--text-dim, #aaa);
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 6px 8px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 100px;
+  overflow: auto;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 8px 14px;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.sendBtn {
+  flex: 1;
+  min-width: 160px;
+  background: rgba(56, 139, 253, 0.3);
+  border-color: rgba(56, 139, 253, 0.7);
+}
+
+.sendBtn:hover:not(:disabled) {
+  background: rgba(56, 139, 253, 0.45);
+}
+
+.clearBtn:hover:not(:disabled) {
+  background: rgba(218, 54, 51, 0.2);
+  color: #e06c75;
+  border-color: rgba(218, 54, 51, 0.6);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
