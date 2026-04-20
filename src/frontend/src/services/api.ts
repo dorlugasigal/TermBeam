@@ -314,6 +314,18 @@ export async function checkUpdate(force = false): Promise<{
   }
 }
 
+export async function fetchChangelog(): Promise<string | null> {
+  try {
+    const res = await fetchWithTimeout(`${BASE}/api/changelog`, {
+      credentials: 'same-origin',
+    });
+    if (!res.ok) return null;
+    return res.text();
+  } catch {
+    return null;
+  }
+}
+
 export interface UpdateState {
   status:
     | 'idle'

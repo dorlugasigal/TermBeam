@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useId, Fragment } from 'react';
+import { createPortal } from 'react-dom';
 import { useCodeViewerStore } from '@/stores/codeViewerStore';
 import { useReviewCommentsStore } from '@/stores/reviewCommentsStore';
 import { fetchGitDiff } from '@/services/api';
@@ -151,25 +152,45 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
     [reviewMode, pending],
   );
 
-  const extendPendingRange = useCallback(
-    (direction: 'up' | 'down') => {
+  const adjustPendingRange = useCallback(
+    (endpoint: 'start' | 'end', direction: 'up' | 'down') => {
       if (!pending) return;
       const hunk = diff.hunks[pending.hunkIndex];
       if (!hunk) return;
       const maxIdx = hunk.lines.length - 1;
       let { startIdx, endIdx } = pending;
-      if (direction === 'up' && startIdx > 0) startIdx -= 1;
-      else if (direction === 'down' && endIdx < maxIdx) endIdx += 1;
-      else return;
+      if (endpoint === 'start') {
+        if (direction === 'up' && startIdx > 0) startIdx -= 1;
+        else if (direction === 'down' && startIdx < endIdx) startIdx += 1;
+        else return;
+      } else {
+        if (direction === 'up' && endIdx > startIdx) endIdx -= 1;
+        else if (direction === 'down' && endIdx < maxIdx) endIdx += 1;
+        else return;
+      }
       setPending({ hunkIndex: pending.hunkIndex, startIdx, endIdx });
     },
     [pending, diff.hunks],
   );
 
-  const canExtendUp = pending ? pending.startIdx > 0 : false;
-  const canExtendDown = pending
-    ? pending.endIdx < (diff.hunks[pending.hunkIndex]?.lines.length ?? 0) - 1
-    : false;
+  const rangeCaps = useMemo(() => {
+    if (!pending) {
+      return {
+        canStartUp: false,
+        canStartDown: false,
+        canEndUp: false,
+        canEndDown: false,
+      };
+    }
+    const hunk = diff.hunks[pending.hunkIndex];
+    const maxIdx = hunk ? hunk.lines.length - 1 : 0;
+    return {
+      canStartUp: pending.startIdx > 0,
+      canStartDown: pending.startIdx < pending.endIdx,
+      canEndUp: pending.endIdx > pending.startIdx,
+      canEndDown: pending.endIdx < maxIdx,
+    };
+  }, [pending, diff.hunks]);
 
   const pendingInfo = useMemo(() => {
     if (!pending) return null;
@@ -383,10 +404,16 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
                           onSubmit={handleComposerSave}
                           onCancel={handleComposerCancel}
                           rangeControls={{
-                            canExtendUp,
-                            canExtendDown,
-                            onExtendUp: () => extendPendingRange('up'),
-                            onExtendDown: () => extendPendingRange('down'),
+                            startLine: pendingInfo.startLine,
+                            endLine: pendingInfo.endLine,
+                            canStartUp: rangeCaps.canStartUp,
+                            canStartDown: rangeCaps.canStartDown,
+                            canEndUp: rangeCaps.canEndUp,
+                            canEndDown: rangeCaps.canEndDown,
+                            onStartUp: () => adjustPendingRange('start', 'up'),
+                            onStartDown: () => adjustPendingRange('start', 'down'),
+                            onEndUp: () => adjustPendingRange('end', 'up'),
+                            onEndDown: () => adjustPendingRange('end', 'down'),
                           }}
                         />
                       )}
@@ -544,10 +571,16 @@ function DiffHeader({
 }
 
 interface RangeControls {
-  canExtendUp: boolean;
-  canExtendDown: boolean;
-  onExtendUp: () => void;
-  onExtendDown: () => void;
+  startLine: number;
+  endLine: number;
+  canStartUp: boolean;
+  canStartDown: boolean;
+  canEndUp: boolean;
+  canEndDown: boolean;
+  onStartUp: () => void;
+  onStartDown: () => void;
+  onEndUp: () => void;
+  onEndDown: () => void;
 }
 
 interface InlineCommentEditorProps {
@@ -572,6 +605,7 @@ function InlineCommentEditor({
   rangeControls,
 }: InlineCommentEditorProps) {
   const [value, setValue] = useState(initialValue);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -579,60 +613,107 @@ function InlineCommentEditor({
     const t = textareaRef.current;
     if (!t) return;
     t.style.height = 'auto';
-    const max = Math.round(window.innerHeight * 0.5);
-    t.style.height = `${Math.min(t.scrollHeight, max)}px`;
+    const vvHeight = window.visualViewport?.height ?? window.innerHeight;
+    // Cap to 30% of visible viewport so header + action row still fit.
+    const max = Math.round(vvHeight * 0.3);
+    t.style.height = `${Math.min(Math.max(t.scrollHeight, 60), max)}px`;
   }, [value]);
 
-  // Keep the editor's BOTTOM edge above the mobile keyboard. iOS's native
-  // scrollIntoView uses the layout viewport (ignores the keyboard), so we
-  // compute the scroll manually against visualViewport.
-  const ensureVisible = useCallback(() => {
-    const el = rootRef.current;
-    if (!el) return;
-    let scrollParent: HTMLElement | null = el.parentElement;
-    while (scrollParent) {
-      const style = getComputedStyle(scrollParent);
-      if (style.overflowY === 'auto' || style.overflowY === 'scroll') break;
-      scrollParent = scrollParent.parentElement;
-    }
-    if (!scrollParent) return;
+  // Track the keyboard inset so the fixed overlay sits directly above it.
+  // visualViewport.height shrinks when the keyboard is shown; the bottom
+  // inset is `innerHeight - (offsetTop + height)`. We debounce via rAF so
+  // we don't write to state on every animation frame during the slide-in.
+  useEffect(() => {
     const vv = window.visualViewport;
-    const viewportTop = vv ? vv.offsetTop : 0;
-    const viewportBottom = viewportTop + (vv ? vv.height : window.innerHeight);
-    const rect = el.getBoundingClientRect();
-    const margin = 12;
-    if (rect.bottom > viewportBottom - margin) {
-      scrollParent.scrollTop += rect.bottom - (viewportBottom - margin);
-    } else if (rect.top < viewportTop + margin) {
-      scrollParent.scrollTop -= viewportTop + margin - rect.top;
-    }
+    if (!vv) return;
+    let raf = 0;
+    const update = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+        setKeyboardOffset(inset);
+      });
+    };
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      cancelAnimationFrame(raf);
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
   }, []);
 
-  useEffect(() => {
-    const id = window.setTimeout(ensureVisible, 50);
-    const id2 = window.setTimeout(ensureVisible, 350);
+  // iOS fires visualViewport.resize lazily (sometimes 100-300ms after focus)
+  // which makes the editor visually "lag" behind the rising keyboard. On
+  // textarea focus, poll visualViewport every animation frame for ~600ms so
+  // --kb-offset tracks the keyboard slide-in smoothly from frame 1.
+  const handleFocusPoll = useCallback(() => {
     const vv = window.visualViewport;
-    vv?.addEventListener('resize', ensureVisible);
-    vv?.addEventListener('scroll', ensureVisible);
-    return () => {
-      window.clearTimeout(id);
-      window.clearTimeout(id2);
-      vv?.removeEventListener('resize', ensureVisible);
-      vv?.removeEventListener('scroll', ensureVisible);
+    if (!vv) return;
+    const start = performance.now();
+    let raf = 0;
+    const tick = () => {
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardOffset(inset);
+      if (performance.now() - start < 600) {
+        raf = requestAnimationFrame(tick);
+      }
     };
-  }, [ensureVisible]);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
-  useLayoutEffect(() => {
-    // Re-align after textarea grows.
-    ensureVisible();
-  }, [value, ensureVisible]);
+  // Prevent buttons from stealing focus from the textarea. Focus loss
+  // dismisses the iOS keyboard which causes layout thrash; preventDefault
+  // on pointerdown keeps the textarea focused across taps.
+  const keepFocus = useCallback((e: React.PointerEvent | React.MouseEvent) => {
+    if (document.activeElement !== textareaRef.current) return;
+    e.preventDefault();
+  }, []);
 
   const trimmed = value.trim();
   const unchanged = trimmed === initialValue.trim();
   const disabled = !trimmed || (disableUnchanged && unchanged);
 
-  return (
-    <div ref={rootRef} className={styles.inlineCommentEdit}>
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 640px)').matches : false,
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 640px)');
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  // On iOS, when the keyboard opens for a focused input in a scrollable
+  // document, Safari scrolls the page to bring the input "into view" —
+  // even if the input is already visible (position: fixed above the
+  // keyboard). That scroll is what makes the whole screen lurch. While
+  // the mobile editor is mounted we lock body/html scrolling so iOS has
+  // nothing to scroll. The diff content inside the code viewer overlay
+  // has its own inner scroll container which is unaffected.
+  useEffect(() => {
+    if (!isMobile || typeof document === 'undefined') return;
+    const body = document.body;
+    const html = document.documentElement;
+    const prevBody = body.style.overflow;
+    const prevHtml = html.style.overflow;
+    body.style.overflow = 'hidden';
+    html.style.overflow = 'hidden';
+    return () => {
+      body.style.overflow = prevBody;
+      html.style.overflow = prevHtml;
+    };
+  }, [isMobile]);
+
+  const editorNode = (
+    <div
+      ref={rootRef}
+      className={styles.inlineCommentEdit}
+      style={{ ['--kb-offset' as string]: `${keyboardOffset}px` }}
+    >
       {(label || hint) && (
         <div className={styles.inlineCommentEditHeader}>
           {label && <span className={styles.inlineCommentEditLabel}>{label}</span>}
@@ -641,35 +722,58 @@ function InlineCommentEditor({
       )}
       {rangeControls && (
         <div
-          className={styles.inlineCommentRangeControls}
+          className={styles.rangeAdjusters}
           role="group"
           aria-label="Adjust selected line range"
         >
           <button
             type="button"
-            className={styles.rangeBtn}
-            onClick={rangeControls.onExtendUp}
-            disabled={!rangeControls.canExtendUp}
-            title={
-              rangeControls.canExtendUp
-                ? 'Extend selection to the line above'
-                : 'Already at top of hunk'
-            }
+            className={styles.rangeAdjusterBtn}
+            onPointerDown={keepFocus}
+            onClick={rangeControls.onStartUp}
+            disabled={!rangeControls.canStartUp}
+            title="Move start line up"
+            aria-label="Move start line up"
           >
-            ↑ Include line above
+            ↑
           </button>
           <button
             type="button"
-            className={styles.rangeBtn}
-            onClick={rangeControls.onExtendDown}
-            disabled={!rangeControls.canExtendDown}
-            title={
-              rangeControls.canExtendDown
-                ? 'Extend selection to the line below'
-                : 'Already at end of hunk'
-            }
+            className={styles.rangeAdjusterBtn}
+            onPointerDown={keepFocus}
+            onClick={rangeControls.onStartDown}
+            disabled={!rangeControls.canStartDown}
+            title="Move start line down"
+            aria-label="Move start line down"
           >
-            ↓ Include line below
+            ↓
+          </button>
+          <span className={styles.rangeAdjusterRange}>
+            {rangeControls.startLine === rangeControls.endLine
+              ? `L${rangeControls.startLine}`
+              : `L${rangeControls.startLine}–${rangeControls.endLine}`}
+          </span>
+          <button
+            type="button"
+            className={styles.rangeAdjusterBtn}
+            onPointerDown={keepFocus}
+            onClick={rangeControls.onEndUp}
+            disabled={!rangeControls.canEndUp}
+            title="Move end line up"
+            aria-label="Move end line up"
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            className={styles.rangeAdjusterBtn}
+            onPointerDown={keepFocus}
+            onClick={rangeControls.onEndDown}
+            disabled={!rangeControls.canEndDown}
+            title="Move end line down"
+            aria-label="Move end line down"
+          >
+            ↓
           </button>
         </div>
       )}
@@ -678,8 +782,8 @@ function InlineCommentEditor({
         className={styles.inlineCommentTextarea}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onFocus={ensureVisible}
-        autoFocus
+        onFocus={handleFocusPoll}
+        autoFocus={!isMobile}
         maxLength={4096}
         rows={3}
         onKeyDown={(e) => {
@@ -694,13 +798,19 @@ function InlineCommentEditor({
         }}
       />
       <div className={styles.inlineCommentActions}>
-        <button type="button" className={styles.inlineCommentBtn} onClick={onCancel}>
+        <button
+          type="button"
+          className={styles.inlineCommentBtn}
+          onPointerDown={keepFocus}
+          onClick={onCancel}
+        >
           Cancel
         </button>
         <button
           type="button"
           className={`${styles.inlineCommentBtn} ${styles.inlineCommentBtnPrimary}`}
           disabled={disabled}
+          onPointerDown={keepFocus}
           onClick={() => onSubmit(trimmed)}
         >
           {submitLabel}
@@ -708,6 +818,17 @@ function InlineCommentEditor({
       </div>
     </div>
   );
+
+  // On mobile we render into a portal at document.body so the
+  // position: fixed styling is anchored to the visual viewport rather
+  // than the diff scroll container. The scroll container uses
+  // `container-type: inline-size`, which creates a containing block for
+  // fixed descendants and would otherwise pin the editor inside the
+  // overflowing scroll area (below the viewport, behind the keyboard).
+  if (isMobile && typeof document !== 'undefined') {
+    return createPortal(editorNode, document.body);
+  }
+  return editorNode;
 }
 
 interface InlineCommentCardProps {

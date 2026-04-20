@@ -402,35 +402,51 @@
   flex-wrap: wrap;
 }
 
-.inlineCommentRangeControls {
+.rangeAdjusters {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 4px;
 }
 
-.rangeBtn {
+.rangeAdjusterRange {
   flex: 1 1 auto;
-  min-width: 140px;
-  height: 34px;
-  padding: 0 10px;
+  text-align: center;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.rangeAdjusterBtn {
+  width: 36px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   line-height: 1;
   cursor: pointer;
   touch-action: manipulation;
-  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
-.rangeBtn:hover:not(:disabled) {
+.rangeAdjusterBtn:hover:not(:disabled) {
   background: var(--hover, rgba(255, 255, 255, 0.06));
   border-color: #ffa657;
 }
 
-.rangeBtn:disabled {
-  opacity: 0.35;
+.rangeAdjusterBtn:disabled {
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
@@ -459,6 +475,29 @@
 @media (max-width: 640px) {
   .inlineCommentActions {
     align-self: flex-end;
+  }
+
+  /* On mobile, the inline editor becomes a fixed bottom sheet anchored
+   * above the on-screen keyboard. --kb-offset is set from JS via
+   * visualViewport; when the keyboard is closed it falls back to 0 and
+   * the editor docks at the viewport bottom (respecting the safe area).
+   * This decouples the editor from the diff scroll container, so
+   * adjusting the selected range or toggling the keyboard no longer
+   * forces iOS to reflow or scroll the document. */
+  .inlineCommentEdit {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: calc(var(--kb-offset, 0px) + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    max-width: none;
+    margin: 0;
+    z-index: 1000;
+    background: #1f1b16;
+    box-shadow:
+      0 -6px 24px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 166, 87, 0.4);
+    transition: none;
   }
 }
 

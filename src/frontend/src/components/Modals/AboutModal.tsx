@@ -1,7 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { checkUpdate } from '@/services/api';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { checkUpdate, fetchChangelog } from '@/services/api';
 import styles from './PreviewModal.module.css';
+import aboutStyles from './AboutModal.module.css';
 
 interface AboutModalProps {
   open: boolean;
@@ -12,6 +15,25 @@ interface AboutModalProps {
 export function AboutModal({ open, onClose, version }: AboutModalProps) {
   const [updateStatus, setUpdateStatus] = useState('');
   const [checking, setChecking] = useState(false);
+  const [changelogOpen, setChangelogOpen] = useState(false);
+  const [changelog, setChangelog] = useState<string | null>(null);
+  const [changelogLoading, setChangelogLoading] = useState(false);
+  const [changelogError, setChangelogError] = useState(false);
+
+  useEffect(() => {
+    if (!changelogOpen || changelog !== null || changelogLoading) return;
+    setChangelogLoading(true);
+    setChangelogError(false);
+    fetchChangelog()
+      .then((text) => {
+        if (text) {
+          setChangelog(text);
+        } else {
+          setChangelogError(true);
+        }
+      })
+      .finally(() => setChangelogLoading(false));
+  }, [changelogOpen, changelog, changelogLoading]);
 
   const handleCheckUpdate = useCallback(async () => {
     setChecking(true);
@@ -34,6 +56,7 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
 
   const handleClose = useCallback(() => {
     setUpdateStatus('');
+    setChangelogOpen(false);
     onClose();
   }, [onClose]);
 
@@ -41,7 +64,9 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
     <Dialog.Root open={open} onOpenChange={(v) => !v && handleClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className={styles.overlay} />
-        <Dialog.Content className={styles.content}>
+        <Dialog.Content
+          className={`${styles.content} ${changelogOpen ? aboutStyles.wide : ''}`}
+        >
           <Dialog.Title className={styles.title}>
             TermBeam {version ? `v${version}` : ''}
           </Dialog.Title>
@@ -96,6 +121,46 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                 {updateStatus}
               </div>
+            )}
+
+            <button
+              type="button"
+              className={aboutStyles.changelogToggle}
+              onClick={() => setChangelogOpen((v) => !v)}
+              aria-expanded={changelogOpen}
+            >
+              <span
+                className={`${aboutStyles.caret} ${changelogOpen ? aboutStyles.caretOpen : ''}`}
+              >
+                ▶
+              </span>
+              What's new
+            </button>
+
+            {changelogOpen && (
+              <>
+                {changelogLoading && (
+                  <div className={aboutStyles.changelogPlaceholder}>Loading release notes…</div>
+                )}
+                {changelogError && (
+                  <div className={aboutStyles.changelogPlaceholder}>
+                    Couldn't load release notes.{' '}
+                    <a
+                      href="https://github.com/dorlugasigal/TermBeam/releases"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: 'var(--accent)' }}
+                    >
+                      View on GitHub
+                    </a>
+                  </div>
+                )}
+                {changelog && (
+                  <div className={aboutStyles.changelog}>
+                    <Markdown remarkPlugins={[remarkGfm]}>{changelog}</Markdown>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </Dialog.Content>
