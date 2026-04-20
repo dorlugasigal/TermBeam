@@ -1,26 +1,8 @@
-.changelogToggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
+.changelogHeader {
   font-size: 0.85rem;
-  padding: 4px 0;
-  text-align: left;
-}
-
-.changelogToggle:hover {
-  text-decoration: underline;
-}
-
-.caret {
-  display: inline-block;
-  font-size: 0.85rem;
-  width: 0.85rem;
-  text-align: center;
-  color: var(--accent);
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 4px;
 }
 
 .changelog {
@@ -77,7 +59,7 @@
   padding: 8px 0;
 }
 
-/* Make About modal wider when changelog is open */
+/* Wider About modal to fit changelog comfortably */
 .wide {
   width: min(560px, calc(100vw - 32px)) !important;
 }

@@ -15,14 +15,13 @@ interface AboutModalProps {
 export function AboutModal({ open, onClose, version }: AboutModalProps) {
   const [updateStatus, setUpdateStatus] = useState('');
   const [checking, setChecking] = useState(false);
-  const [changelogOpen, setChangelogOpen] = useState(false);
   const [changelog, setChangelog] = useState<string | null>(null);
   const [changelogState, setChangelogState] = useState<'idle' | 'loading' | 'loaded' | 'error'>(
     'idle',
   );
 
   useEffect(() => {
-    if (!changelogOpen || changelogState !== 'idle') return;
+    if (!open || changelogState !== 'idle') return;
     let cancelled = false;
     setChangelogState('loading');
     fetchChangelog().then((text) => {
@@ -37,7 +36,7 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
     return () => {
       cancelled = true;
     };
-  }, [changelogOpen, changelogState]);
+  }, [open, changelogState]);
 
   const handleCheckUpdate = useCallback(async () => {
     setChecking(true);
@@ -60,7 +59,6 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
 
   const handleClose = useCallback(() => {
     setUpdateStatus('');
-    setChangelogOpen(false);
     onClose();
   }, [onClose]);
 
@@ -68,9 +66,7 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
     <Dialog.Root open={open} onOpenChange={(v) => !v && handleClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className={styles.overlay} />
-        <Dialog.Content
-          className={`${styles.content} ${changelogOpen ? aboutStyles.wide : ''}`}
-        >
+        <Dialog.Content className={`${styles.content} ${aboutStyles.wide}`}>
           <Dialog.Title className={styles.title}>
             TermBeam {version ? `v${version}` : ''}
           </Dialog.Title>
@@ -127,42 +123,27 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
               </div>
             )}
 
-            <button
-              type="button"
-              className={aboutStyles.changelogToggle}
-              onClick={() => setChangelogOpen((v) => !v)}
-              aria-expanded={changelogOpen}
-            >
-              <span className={aboutStyles.caret} aria-hidden="true">
-                {changelogOpen ? '▾' : '▸'}
-              </span>
-              What's new
-            </button>
-
-            {changelogOpen && (
-              <>
-                {changelogState === 'loading' && (
-                  <div className={aboutStyles.changelogPlaceholder}>Loading release notes…</div>
-                )}
-                {changelogState === 'error' && (
-                  <div className={aboutStyles.changelogPlaceholder}>
-                    Couldn't load release notes.{' '}
-                    <a
-                      href="https://github.com/dorlugasigal/TermBeam/releases"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: 'var(--accent)' }}
-                    >
-                      View on GitHub
-                    </a>
-                  </div>
-                )}
-                {changelogState === 'loaded' && changelog && (
-                  <div className={aboutStyles.changelog}>
-                    <Markdown remarkPlugins={[remarkGfm]}>{changelog}</Markdown>
-                  </div>
-                )}
-              </>
+            <div className={aboutStyles.changelogHeader}>What's new</div>
+            {changelogState === 'loading' && (
+              <div className={aboutStyles.changelogPlaceholder}>Loading release notes…</div>
+            )}
+            {changelogState === 'error' && (
+              <div className={aboutStyles.changelogPlaceholder}>
+                Couldn't load release notes.{' '}
+                <a
+                  href="https://github.com/dorlugasigal/TermBeam/releases"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  View on GitHub
+                </a>
+              </div>
+            )}
+            {changelogState === 'loaded' && changelog && (
+              <div className={aboutStyles.changelog}>
+                <Markdown remarkPlugins={[remarkGfm]}>{changelog}</Markdown>
+              </div>
             )}
           </div>
         </Dialog.Content>
