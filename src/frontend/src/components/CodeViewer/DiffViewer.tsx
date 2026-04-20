@@ -43,7 +43,6 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
   const totalComments = allComments?.length ?? 0;
 
   const [pending, setPending] = useState<PendingSelection | null>(null);
-  const [composerOpen, setComposerOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
 
   useEffect(() => {
@@ -129,11 +128,6 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
     return { startLine, endLine, kind, selectedText };
   }, [pending, diff.hunks]);
 
-  const handleOpenComposer = useCallback(() => {
-    if (!pendingInfo) return;
-    setComposerOpen(true);
-  }, [pendingInfo]);
-
   const handleComposerSave = useCallback(
     (comment: string) => {
       if (!pendingInfo) return;
@@ -145,14 +139,13 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
         selectedText: pendingInfo.selectedText,
         comment,
       });
-      setComposerOpen(false);
       setPending(null);
     },
     [addComment, sessionId, diff.file, pendingInfo],
   );
 
   const handleComposerCancel = useCallback(() => {
-    setComposerOpen(false);
+    setPending(null);
   }, []);
 
   if (diff.isBinary) {
@@ -276,49 +269,18 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
                 </div>
               );
             })}
+            {pending !== null && pendingInfo !== null && pending.hunkIndex === hi && (
+              <ReviewComposer
+                file={diff.file}
+                startLine={pendingInfo.startLine}
+                endLine={pendingInfo.endLine}
+                onSave={handleComposerSave}
+                onCancel={handleComposerCancel}
+              />
+            )}
           </div>
         ))}
       </div>
-
-      {reviewMode && pendingInfo && (
-        <div className={styles.selectionBar} role="region" aria-label="Selection actions">
-          <span className={styles.selectionInfo}>
-            L{pendingInfo.startLine}
-            {pendingInfo.endLine !== pendingInfo.startLine ? `–${pendingInfo.endLine}` : ''} (
-            {pendingInfo.kind === 'add'
-              ? 'new'
-              : pendingInfo.kind === 'remove'
-                ? 'old'
-                : 'unchanged'}
-            )
-          </span>
-          <button
-            type="button"
-            className={styles.selectionBtn}
-            onClick={() => setPending(null)}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={`${styles.selectionBtn} ${styles.selectionBtnPrimary}`}
-            onClick={handleOpenComposer}
-          >
-            Comment
-          </button>
-        </div>
-      )}
-
-      {composerOpen && pendingInfo && (
-        <ReviewComposer
-          file={diff.file}
-          startLine={pendingInfo.startLine}
-          endLine={pendingInfo.endLine}
-          selectedText={pendingInfo.selectedText}
-          onSave={handleComposerSave}
-          onCancel={handleComposerCancel}
-        />
-      )}
 
       <ReviewCommentsPanel
         sessionId={sessionId}

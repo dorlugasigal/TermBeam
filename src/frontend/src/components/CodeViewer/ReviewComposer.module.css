@@ -1,64 +1,35 @@
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  z-index: 60;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  animation: fadeIn 0.15s ease-out;
-}
-
-.sheet {
-  width: 100%;
-  max-width: 560px;
+.composer {
+  display: block;
+  padding: 10px 12px;
+  margin: 4px 8px 8px calc(2 * var(--line-num-width, 3.5ch) + 8px);
   background: var(--surface, #1e1e1e);
-  border-top: 1px solid var(--border);
-  border-radius: 12px 12px 0 0;
-  padding: 16px;
+  border: 1px solid rgba(56, 139, 253, 0.5);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
-  animation: slideUp 0.18s ease-out;
-  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  gap: 8px;
 }
 
-@media (min-width: 768px) {
-  .overlay {
-    align-items: center;
-  }
-  .sheet {
-    border-radius: 12px;
-    border: 1px solid var(--border);
-  }
+.header {
+  font-size: 0.75rem;
+  color: var(--text-dim, #888);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.title {
-  font-size: 0.9rem;
+.headerLabel {
+  font-family: inherit;
   font-weight: 600;
   color: var(--text);
 }
 
-.subtitle {
-  font-size: 0.75rem;
-  color: var(--text-dim, #888);
-  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 140px;
-  overflow: auto;
-  padding: 8px 10px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-}
-
 .textarea {
   width: 100%;
-  min-height: 96px;
-  max-height: 40vh;
-  padding: 10px 12px;
+  min-height: 72px;
+  max-height: 200px;
+  padding: 8px 10px;
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
@@ -83,8 +54,8 @@
 }
 
 .btn {
-  padding: 8px 14px;
-  min-height: 40px;
+  padding: 6px 12px;
+  min-height: 36px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: transparent;
@@ -107,20 +78,9 @@
   background: rgba(56, 139, 253, 0.45);
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
+@media (max-width: 600px) {
+  .composer {
+    margin-left: 8px;
+    margin-right: 8px;
   }
 }
