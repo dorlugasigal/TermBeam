@@ -15,6 +15,35 @@ interface ReviewCommentsPanelProps {
 
 type SendTarget = 'session' | 'clipboard';
 
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fall through to legacy path.
+  }
+  // Legacy fallback for non-secure contexts (http://) where the async API
+  // is unavailable. Uses a hidden textarea + document.execCommand('copy').
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 export default function ReviewCommentsPanel({
   sessionId,
   open,
@@ -25,7 +54,6 @@ export default function ReviewCommentsPanel({
   const comments = useMemo(() => allComments ?? [], [allComments]);
   const removeComment = useReviewCommentsStore((s) => s.removeComment);
   const clearForSession = useReviewCommentsStore((s) => s.clearForSession);
-  const addComment = useReviewCommentsStore((s) => s.addComment);
 
   useEffect(() => {
     load(sessionId);
@@ -33,7 +61,6 @@ export default function ReviewCommentsPanel({
 
   const sessions = useSessionStore((s) => s.sessions);
   const session = sessions.get(sessionId);
-  const chatInputHandler = useUIStore((s) => s.chatInputHandler);
   const closeCodeViewer = useUIStore((s) => s.closeCodeViewer);
 
   const grouped = useMemo(() => groupByFile(comments), [comments]);
@@ -43,7 +70,6 @@ export default function ReviewCommentsPanel({
 
   const hasComments = comments.length > 0;
   const sessionLabel = session?.name ?? sessionId.slice(0, 8);
-  const isCopilot = session?.type === 'copilot';
   const defaultTarget: SendTarget = 'session';
 
   async function handleSend(target: SendTarget) {
@@ -57,13 +83,13 @@ export default function ReviewCommentsPanel({
       }
 
       if (target === 'clipboard') {
-        if (!navigator.clipboard) {
+        const ok = await copyToClipboard(text);
+        if (!ok) {
           toast.error('Clipboard not available');
           return;
         }
-        await navigator.clipboard.writeText(text);
       } else {
-        const sent = sendToSession(sessionId, text, { isCopilot, chatInputHandler });
+        const sent = sendToSession(sessionId, text);
         if (!sent) {
           toast.error('Session not ready — try Copy instead');
           return;
@@ -72,35 +98,26 @@ export default function ReviewCommentsPanel({
 
       if (truncated) toast.warning('Some comments were omitted (batch size cap)');
 
-      // Clear the review state and dismiss the whole git view so the user
-      // lands back in the terminal/agent where the comments were just sent.
+      // Snapshot the originals (ids, createdAt, etc) so Undo restores them
+      // faithfully rather than creating new comments with fresh metadata.
+      const snapshot = comments.map((c) => ({ ...c }));
       clearForSession(sessionId);
       onClose();
       if (target === 'session') {
         closeCodeViewer();
       } else {
-        // Clipboard path: keep the git view open, but still give the user a
-        // brief confirmation (can't reasonably paste without a target yet).
-        const snapshot = comments.map((c) => ({ ...c }));
-        toast.success(`Copied ${includedCount} comment${includedCount === 1 ? '' : 's'} to clipboard`, {
-          duration: 6000,
-          action: {
-            label: 'Undo clear',
-            onClick: () => {
-              for (const c of snapshot) {
-                addComment(sessionId, {
-                  file: c.file,
-                  startLine: c.startLine,
-                  endLine: c.endLine,
-                  lineKind: c.lineKind,
-                  selectedText: c.selectedText,
-                  comment: c.comment,
-                });
-              }
-              toast.success('Comments restored');
+        toast.success(
+          `Copied ${includedCount} comment${includedCount === 1 ? '' : 's'} to clipboard`,
+          {
+            duration: 6000,
+            action: {
+              label: 'Undo clear',
+              onClick: () => {
+                restoreSnapshot(sessionId, snapshot);
+              },
             },
           },
-        });
+        );
       }
     } catch (err) {
       toast.error('Failed to send comments');
@@ -178,9 +195,7 @@ export default function ReviewCommentsPanel({
             onClick={() => handleSend(defaultTarget)}
             disabled={!hasComments || sending}
           >
-            {sending
-              ? 'Sending…'
-              : `Send ${comments.length} to ${isCopilot ? 'agent chat' : sessionLabel}`}
+            {sending ? 'Sending…' : `Send ${comments.length} to ${sessionLabel}`}
           </button>
           <button
             type="button"
@@ -200,24 +215,18 @@ export default function ReviewCommentsPanel({
               }
               const snapshot = comments.map((c) => ({ ...c }));
               clearForSession(sessionId);
-              toast.success(`Cleared ${snapshot.length} comment${snapshot.length === 1 ? '' : 's'}`, {
-                duration: 6000,
-                action: {
-                  label: 'Undo',
-                  onClick: () => {
-                    for (const c of snapshot) {
-                      addComment(sessionId, {
-                        file: c.file,
-                        startLine: c.startLine,
-                        endLine: c.endLine,
-                        lineKind: c.lineKind,
-                        selectedText: c.selectedText,
-                        comment: c.comment,
-                      });
-                    }
+              toast.success(
+                `Cleared ${snapshot.length} comment${snapshot.length === 1 ? '' : 's'}`,
+                {
+                  duration: 6000,
+                  action: {
+                    label: 'Undo',
+                    onClick: () => {
+                      restoreSnapshot(sessionId, snapshot);
+                    },
                   },
                 },
-              });
+              );
             }}
             disabled={!hasComments}
           >
@@ -227,6 +236,26 @@ export default function ReviewCommentsPanel({
       </div>
     </div>
   );
+}
+
+function restoreSnapshot(sessionId: string, snapshot: ReviewComment[]): void {
+  // Preserve original ids & createdAt so Undo is a true restore rather than
+  // a fresh create with new metadata.
+  useReviewCommentsStore.setState((state) => {
+    const next = new Map(state.bySession);
+    const current = next.get(sessionId) ?? [];
+    const byId = new Map(current.map((c) => [c.id, c]));
+    for (const c of snapshot) byId.set(c.id, c);
+    const merged = [...byId.values()].sort((a, b) => a.createdAt - b.createdAt);
+    next.set(sessionId, merged);
+    try {
+      const key = `termbeam-review-comments:${sessionId}`;
+      localStorage.setItem(key, JSON.stringify(merged));
+    } catch {
+      // best-effort persistence
+    }
+    return { bySession: next };
+  });
 }
 
 function groupByFile(comments: ReviewComment[]): Map<string, ReviewComment[]> {
@@ -246,20 +275,8 @@ function kindLabel(kind: ReviewComment['lineKind']): string {
   return kind === 'add' ? 'new' : kind === 'remove' ? 'old' : 'unchanged';
 }
 
-interface SendContext {
-  isCopilot: boolean;
-  chatInputHandler: ((text: string) => void) | null;
-}
-
-function sendToSession(sessionId: string, text: string, ctx: SendContext): boolean {
+function sendToSession(sessionId: string, text: string): boolean {
   const safe = sanitizeTerminalInput(text);
-  if (ctx.isCopilot) {
-    if (ctx.chatInputHandler) {
-      ctx.chatInputHandler(safe);
-      return true;
-    }
-    return false;
-  }
   const { sessions } = useSessionStore.getState();
   const ms = sessions.get(sessionId);
   if (!ms?.send || !ms.connected) return false;

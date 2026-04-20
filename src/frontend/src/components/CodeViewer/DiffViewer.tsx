@@ -73,9 +73,11 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
   }, [reviewMode, diff.file]);
 
   const commentedLines = useMemo(() => {
-    const set = new Set<number>();
+    // Key by `${lineKind}:${lineNum}` so a remove-comment on old-line N
+    // doesn't collide with an add-comment on new-line N.
+    const set = new Set<string>();
     for (const c of fileComments) {
-      for (let n = c.startLine; n <= c.endLine; n++) set.add(n);
+      for (let n = c.startLine; n <= c.endLine; n++) set.add(`${c.lineKind}:${n}`);
     }
     return set;
   }, [fileComments]);
@@ -84,11 +86,12 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
   // Multiple rows may share a line number (e.g. add+remove pairs), so we
   // track which comments have already been rendered during the current pass.
   const commentsByEndLine = useMemo(() => {
-    const map = new Map<number, ReviewComment[]>();
+    const map = new Map<string, ReviewComment[]>();
     for (const c of fileComments) {
-      const arr = map.get(c.endLine) ?? [];
+      const key = `${c.lineKind}:${c.endLine}`;
+      const arr = map.get(key) ?? [];
       arr.push(c);
-      map.set(c.endLine, arr);
+      map.set(key, arr);
     }
     return map;
   }, [fileComments]);
@@ -212,7 +215,7 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
     if (nums.length === 0) return null;
     const startLine = Math.min(...nums);
     const endLine = Math.max(...nums);
-    const selectedText = lines.map((l) => `${prefixFor(l)}${l.content}`).join('\n');
+    const selectedText = lines.map((l) => `${prefixFor(l)} ${l.content}`).join('\n');
     return { startLine, endLine, kind, selectedText };
   }, [pending, diff.hunks]);
 
@@ -326,7 +329,8 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
                         : styles.rowContext;
                   const prefix = line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' ';
                   const lineNum = lineNumberFor(line);
-                  const hasComment = lineNum !== null && commentedLines.has(lineNum);
+                  const commentKey = lineNum !== null ? `${line.type}:${lineNum}` : null;
+                  const hasComment = commentKey !== null && commentedLines.has(commentKey);
                   const isSelected =
                     pending !== null &&
                     pending.hunkIndex === hi &&
@@ -339,8 +343,8 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
                   if (hasComment) classes.push(styles.rowCommented);
 
                   const inlineComments: ReviewComment[] = [];
-                  if (lineNum !== null) {
-                    for (const c of commentsByEndLine.get(lineNum) ?? []) {
+                  if (commentKey !== null) {
+                    for (const c of commentsByEndLine.get(commentKey) ?? []) {
                       if (!rendered.has(c.id)) {
                         rendered.add(c.id);
                         inlineComments.push(c);
@@ -648,20 +652,33 @@ function InlineCommentEditor({
   // which makes the editor visually "lag" behind the rising keyboard. On
   // textarea focus, poll visualViewport every animation frame for ~600ms so
   // --kb-offset tracks the keyboard slide-in smoothly from frame 1.
+  const focusPollRafRef = useRef<number | null>(null);
   const handleFocusPoll = useCallback(() => {
     const vv = window.visualViewport;
     if (!vv) return;
+    if (focusPollRafRef.current !== null) {
+      cancelAnimationFrame(focusPollRafRef.current);
+    }
     const start = performance.now();
-    let raf = 0;
     const tick = () => {
       const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       setKeyboardOffset(inset);
       if (performance.now() - start < 600) {
-        raf = requestAnimationFrame(tick);
+        focusPollRafRef.current = requestAnimationFrame(tick);
+      } else {
+        focusPollRafRef.current = null;
       }
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    focusPollRafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (focusPollRafRef.current !== null) {
+        cancelAnimationFrame(focusPollRafRef.current);
+        focusPollRafRef.current = null;
+      }
+    };
   }, []);
 
   // Prevent buttons from stealing focus from the textarea. Focus loss

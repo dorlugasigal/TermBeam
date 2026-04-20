@@ -16,12 +16,36 @@ function storage(): Storage | null {
   }
 }
 
+function isValidLineKind(v: unknown): v is ReviewLineKind {
+  return v === 'add' || v === 'remove' || v === 'context';
+}
+
+function isValidComment(v: unknown): v is ReviewComment {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as Record<string, unknown>;
+  return (
+    typeof o.id === 'string' &&
+    typeof o.file === 'string' &&
+    typeof o.startLine === 'number' &&
+    typeof o.endLine === 'number' &&
+    isValidLineKind(o.lineKind) &&
+    typeof o.selectedText === 'string' &&
+    typeof o.comment === 'string' &&
+    typeof o.createdAt === 'number'
+  );
+}
+
 function loadForSession(sessionId: string): ReviewComment[] {
   try {
     const raw = storage()?.getItem(storageKey(sessionId));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as ReviewComment[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    const valid = parsed.filter(isValidComment);
+    // Enforce cap on load — keep the newest MAX_COMMENTS_PER_SESSION.
+    return valid.length > MAX_COMMENTS_PER_SESSION
+      ? valid.slice(-MAX_COMMENTS_PER_SESSION)
+      : valid;
   } catch {
     return [];
   }

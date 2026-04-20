@@ -202,31 +202,6 @@
   border-color: rgba(218, 54, 51, 0.6);
 }
 
-.fab {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  min-width: 48px;
-  min-height: 48px;
-  padding: 0 16px;
-  background: rgba(56, 139, 253, 0.9);
-  color: white;
-  border: none;
-  border-radius: 24px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.fab:hover {
-  background: rgba(56, 139, 253, 1);
-}
-
 @keyframes fadeIn {
   from {
     opacity: 0;

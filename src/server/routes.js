@@ -163,8 +163,12 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
     const changelogPath = path.join(__dirname, '..', '..', 'CHANGELOG.md');
     fs.readFile(changelogPath, 'utf8', async (err, data) => {
       if (!err) {
-        res.set('Cache-Control', 'public, max-age=3600');
+        res.set('Cache-Control', 'private, max-age=3600');
         return res.type('text/markdown').send(data);
+      }
+      if (err.code !== 'ENOENT') {
+        log.warn('Failed to read local CHANGELOG.md', { code: err.code });
+        return res.status(500).json({ error: 'Failed to read changelog' });
       }
       try {
         const response = await fetch(
@@ -173,10 +177,11 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
         );
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const text = await response.text();
-        res.set('Cache-Control', 'public, max-age=3600');
+        res.set('Cache-Control', 'private, max-age=3600');
         res.type('text/markdown').send(text);
       } catch (fetchErr) {
-        log.debug('Changelog not available', { err: fetchErr.message });
+        const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+        log.debug('Changelog not available', { err: msg });
         res.status(404).json({ error: 'Changelog not available' });
       }
     });

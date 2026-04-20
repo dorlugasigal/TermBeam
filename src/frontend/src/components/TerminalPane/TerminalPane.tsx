@@ -280,6 +280,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     const ta = terminal.textarea;
     if (!ta) return;
 
+    let refocusTimer: ReturnType<typeof setTimeout> | null = null;
     const onBlur = (ev: FocusEvent) => {
       // Don't fight legitimate blurs (overlay open, pane inactive, etc.)
       const { commandPaletteOpen, searchBarOpen, sidePanelOpen, copyOverlayOpen } =
@@ -294,7 +295,9 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
       // Delay the re-focus check. On iOS, relatedTarget can be null during
       // focus transitions — we need to check document.activeElement after
       // the browser has settled on the new focus target.
-      setTimeout(() => {
+      if (refocusTimer) clearTimeout(refocusTimer);
+      refocusTimer = setTimeout(() => {
+        refocusTimer = null;
         if (isEditable(document.activeElement as HTMLElement | null)) return;
         if (document.activeElement !== ta) {
           ta.focus();
@@ -303,7 +306,10 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     };
 
     ta.addEventListener('blur', onBlur);
-    return () => ta.removeEventListener('blur', onBlur);
+    return () => {
+      ta.removeEventListener('blur', onBlur);
+      if (refocusTimer) clearTimeout(refocusTimer);
+    };
   }, [terminal, active]);
 
   // Track scroll position for scroll-to-bottom button.
