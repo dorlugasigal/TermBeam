@@ -21,7 +21,8 @@ export default function ReviewCommentsPanel({
   onClose,
 }: ReviewCommentsPanelProps) {
   const load = useReviewCommentsStore((s) => s.load);
-  const comments = useReviewCommentsStore((s) => s.bySession.get(sessionId) ?? []);
+  const allComments = useReviewCommentsStore((s) => s.bySession.get(sessionId));
+  const comments = useMemo(() => allComments ?? [], [allComments]);
   const removeComment = useReviewCommentsStore((s) => s.removeComment);
   const clearForSession = useReviewCommentsStore((s) => s.clearForSession);
 

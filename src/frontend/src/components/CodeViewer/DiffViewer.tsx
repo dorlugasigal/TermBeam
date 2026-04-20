@@ -35,10 +35,12 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
   const setReviewMode = useReviewCommentsStore((s) => s.setReviewMode);
   const load = useReviewCommentsStore((s) => s.load);
   const addComment = useReviewCommentsStore((s) => s.addComment);
-  const fileComments = useReviewCommentsStore((s) =>
-    (s.bySession.get(sessionId) ?? []).filter((c) => c.file === diff.file),
+  const allComments = useReviewCommentsStore((s) => s.bySession.get(sessionId));
+  const fileComments = useMemo(
+    () => (allComments ?? []).filter((c) => c.file === diff.file),
+    [allComments, diff.file],
   );
-  const totalComments = useReviewCommentsStore((s) => (s.bySession.get(sessionId) ?? []).length);
+  const totalComments = allComments?.length ?? 0;
 
   const [pending, setPending] = useState<PendingSelection | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
