@@ -6,6 +6,7 @@ const SID = 'sess-1';
 
 describe('reviewCommentsStore', () => {
   beforeEach(() => {
+    localStorage.clear();
     sessionStorage.clear();
     useReviewCommentsStore.setState({
       bySession: new Map(),
@@ -91,7 +92,7 @@ describe('reviewCommentsStore', () => {
     expect(useReviewCommentsStore.getState().getForSession(SID)).toHaveLength(0);
   });
 
-  it('persists across reload via sessionStorage', () => {
+  it('persists across reload via localStorage', () => {
     const s = useReviewCommentsStore.getState();
     s.addComment(SID, {
       file: 'a.ts',

@@ -25,6 +25,7 @@ export default function ReviewCommentsPanel({
   const comments = useMemo(() => allComments ?? [], [allComments]);
   const removeComment = useReviewCommentsStore((s) => s.removeComment);
   const clearForSession = useReviewCommentsStore((s) => s.clearForSession);
+  const addComment = useReviewCommentsStore((s) => s.addComment);
 
   useEffect(() => {
     load(sessionId);
@@ -60,20 +61,44 @@ export default function ReviewCommentsPanel({
           return;
         }
         await navigator.clipboard.writeText(text);
-        toast.success(`Copied ${includedCount} comment${includedCount === 1 ? '' : 's'}`);
       } else {
         const sent = sendToSession(sessionId, text, { isCopilot, chatInputHandler });
         if (!sent) {
           toast.error('Session not ready — try Copy instead');
           return;
         }
-        toast.success(
-          `Sent ${includedCount} comment${includedCount === 1 ? '' : 's'} to ${sessionLabel}`,
-        );
       }
 
       if (truncated) toast.warning('Some comments were omitted (batch size cap)');
+
+      // Snapshot before clearing so user can undo within the toast window.
+      const snapshot = comments.map((c) => ({ ...c }));
       clearForSession(sessionId);
+
+      const verb = target === 'clipboard' ? 'Copied' : 'Sent';
+      const dest = target === 'clipboard' ? 'clipboard' : sessionLabel;
+      toast.success(
+        `${verb} ${includedCount} comment${includedCount === 1 ? '' : 's'} to ${dest}`,
+        {
+          duration: 6000,
+          action: {
+            label: 'Undo clear',
+            onClick: () => {
+              for (const c of snapshot) {
+                addComment(sessionId, {
+                  file: c.file,
+                  startLine: c.startLine,
+                  endLine: c.endLine,
+                  lineKind: c.lineKind,
+                  selectedText: c.selectedText,
+                  comment: c.comment,
+                });
+              }
+              toast.success('Comments restored');
+            },
+          },
+        },
+      );
       onClose();
     } catch (err) {
       toast.error('Failed to send comments');
@@ -168,8 +193,29 @@ export default function ReviewCommentsPanel({
             type="button"
             className={`${styles.btn} ${styles.clearBtn}`}
             onClick={() => {
+              if (comments.length > 1 && !window.confirm(`Clear ${comments.length} comments?`)) {
+                return;
+              }
+              const snapshot = comments.map((c) => ({ ...c }));
               clearForSession(sessionId);
-              toast.success('Cleared');
+              toast.success(`Cleared ${snapshot.length} comment${snapshot.length === 1 ? '' : 's'}`, {
+                duration: 6000,
+                action: {
+                  label: 'Undo',
+                  onClick: () => {
+                    for (const c of snapshot) {
+                      addComment(sessionId, {
+                        file: c.file,
+                        startLine: c.startLine,
+                        endLine: c.endLine,
+                        lineKind: c.lineKind,
+                        selectedText: c.selectedText,
+                        comment: c.comment,
+                      });
+                    }
+                  },
+                },
+              });
             }}
             disabled={!hasComments}
           >

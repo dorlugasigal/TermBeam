@@ -117,6 +117,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       const tabOrder = state.tabOrder.filter((tid) => tid !== id);
       saveTabOrder(tabOrder);
 
+      try {
+        localStorage.removeItem(`termbeam-review-comments:${id}`);
+      } catch {
+        // ignore storage failure
+      }
+
       const deletedIds = new Set(state.deletedIds);
       deletedIds.add(id);
       // Auto-clear after 30s so stale IDs don't accumulate

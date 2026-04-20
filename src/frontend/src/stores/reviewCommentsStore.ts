@@ -8,9 +8,17 @@ function storageKey(sessionId: string): string {
   return `${STORAGE_KEY_PREFIX}:${sessionId}`;
 }
 
+function storage(): Storage | null {
+  try {
+    return typeof localStorage !== 'undefined' ? localStorage : null;
+  } catch {
+    return null;
+  }
+}
+
 function loadForSession(sessionId: string): ReviewComment[] {
   try {
-    const raw = sessionStorage.getItem(storageKey(sessionId));
+    const raw = storage()?.getItem(storageKey(sessionId));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as ReviewComment[]) : [];
@@ -21,9 +29,15 @@ function loadForSession(sessionId: string): ReviewComment[] {
 
 function persistForSession(sessionId: string, comments: ReviewComment[]): void {
   try {
-    sessionStorage.setItem(storageKey(sessionId), JSON.stringify(comments));
+    const s = storage();
+    if (!s) return;
+    if (comments.length === 0) {
+      s.removeItem(storageKey(sessionId));
+    } else {
+      s.setItem(storageKey(sessionId), JSON.stringify(comments));
+    }
   } catch {
-    // sessionStorage full or unavailable — silently drop persistence.
+    // storage full or unavailable — silently drop persistence.
   }
 }
 
@@ -126,7 +140,7 @@ export const useReviewCommentsStore = create<ReviewState>((set, get) => ({
       const next = new Map(s.bySession);
       next.set(sessionId, []);
       try {
-        sessionStorage.removeItem(storageKey(sessionId));
+        storage()?.removeItem(storageKey(sessionId));
       } catch {
         // ignore
       }
