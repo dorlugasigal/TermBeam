@@ -32,6 +32,8 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
         setChangelogState('loaded');
       } else {
         setChangelogState('error');
+        // Allow a retry on next open if the first fetch failed.
+        fetchStartedRef.current = false;
       }
     });
   }, [open]);

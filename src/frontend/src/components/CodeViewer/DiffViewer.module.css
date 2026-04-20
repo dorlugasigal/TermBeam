@@ -241,10 +241,6 @@
   position: relative;
 }
 
-.commentMarker {
-  display: none;
-}
-
 .inlineComment {
   position: sticky;
   left: 0;
