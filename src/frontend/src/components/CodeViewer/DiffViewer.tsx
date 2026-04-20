@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useState, useId, Fragment } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useId, Fragment } from 'react';
 import { useCodeViewerStore } from '@/stores/codeViewerStore';
 import { useReviewCommentsStore } from '@/stores/reviewCommentsStore';
 import { fetchGitDiff } from '@/services/api';
 import type { GitDiff, DiffLine } from '@/services/api';
 import type { ReviewComment, ReviewLineKind } from '@/utils/formatReviewComments';
-import ReviewComposer from './ReviewComposer';
 import ReviewCommentsPanel from './ReviewCommentsPanel';
 import styles from './DiffViewer.module.css';
 
@@ -213,7 +212,9 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
           reviewBadge={totalComments}
           onOpenPanel={() => setPanelOpen(true)}
         />
-        <div className={styles.binary}>Binary file — cannot display diff</div>
+        <div className={styles.scrollArea}>
+          <div className={styles.binary}>Binary file — cannot display diff</div>
+        </div>
         <ReviewCommentsPanel
           sessionId={sessionId}
           open={panelOpen}
@@ -240,7 +241,9 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
           reviewBadge={totalComments}
           onOpenPanel={() => setPanelOpen(true)}
         />
-        <div className={styles.empty}>No changes</div>
+        <div className={styles.scrollArea}>
+          <div className={styles.empty}>No changes</div>
+        </div>
         <ReviewCommentsPanel
           sessionId={sessionId}
           open={panelOpen}
@@ -266,100 +269,105 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
         reviewBadge={totalComments}
         onOpenPanel={() => setPanelOpen(true)}
       />
-      <div className={styles.table}>
-        {(() => {
-          const rendered = new Set<string>();
-          return diff.hunks.map((hunk, hi) => (
-            <div key={hi}>
-              <div className={styles.hunkHeader}>{hunk.header}</div>
-              {hunk.lines.map((line, li) => {
-                const rowClass =
-                  line.type === 'add'
-                    ? styles.rowAdd
-                    : line.type === 'remove'
-                      ? styles.rowRemove
-                      : styles.rowContext;
-                const prefix = line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' ';
-                const lineNum = lineNumberFor(line);
-                const hasComment = lineNum !== null && commentedLines.has(lineNum);
-                const isSelected =
-                  pending !== null &&
-                  pending.hunkIndex === hi &&
-                  li >= pending.startIdx &&
-                  li <= pending.endIdx;
-                const reviewable = reviewMode && lineNum !== null;
-                const classes = [rowClass];
-                if (reviewable) classes.push(styles.rowReviewable);
-                if (isSelected) classes.push(styles.rowSelected);
-                if (hasComment) classes.push(styles.rowCommented);
+      <div className={styles.scrollArea}>
+        <div className={styles.table}>
+          {(() => {
+            const rendered = new Set<string>();
+            return diff.hunks.map((hunk, hi) => (
+              <div key={hi}>
+                <div className={styles.hunkHeader}>{hunk.header}</div>
+                {hunk.lines.map((line, li) => {
+                  const rowClass =
+                    line.type === 'add'
+                      ? styles.rowAdd
+                      : line.type === 'remove'
+                        ? styles.rowRemove
+                        : styles.rowContext;
+                  const prefix = line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' ';
+                  const lineNum = lineNumberFor(line);
+                  const hasComment = lineNum !== null && commentedLines.has(lineNum);
+                  const isSelected =
+                    pending !== null &&
+                    pending.hunkIndex === hi &&
+                    li >= pending.startIdx &&
+                    li <= pending.endIdx;
+                  const reviewable = reviewMode && lineNum !== null;
+                  const classes = [rowClass];
+                  if (reviewable) classes.push(styles.rowReviewable);
+                  if (isSelected) classes.push(styles.rowSelected);
+                  if (hasComment) classes.push(styles.rowCommented);
 
-                // Comments anchored to this line (endLine match). Filter out
-                // ones already rendered against an earlier row that shared
-                // the same line number.
-                const inlineComments: ReviewComment[] = [];
-                if (lineNum !== null) {
-                  for (const c of commentsByEndLine.get(lineNum) ?? []) {
-                    if (!rendered.has(c.id)) {
-                      rendered.add(c.id);
-                      inlineComments.push(c);
+                  const inlineComments: ReviewComment[] = [];
+                  if (lineNum !== null) {
+                    for (const c of commentsByEndLine.get(lineNum) ?? []) {
+                      if (!rendered.has(c.id)) {
+                        rendered.add(c.id);
+                        inlineComments.push(c);
+                      }
                     }
                   }
-                }
 
-                return (
-                  <Fragment key={`${hi}-${li}`}>
-                    <div
-                      className={classes.join(' ')}
-                      onClick={reviewable ? () => handleRowClick(hi, li) : undefined}
-                      role={reviewable ? 'button' : undefined}
-                      tabIndex={reviewable ? 0 : undefined}
-                      aria-pressed={reviewable ? isSelected : undefined}
-                      onKeyDown={
-                        reviewable
-                          ? (e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                handleRowClick(hi, li);
+                  const isPendingLastLine =
+                    pending !== null &&
+                    pending.hunkIndex === hi &&
+                    li === pending.endIdx &&
+                    pendingInfo !== null;
+
+                  return (
+                    <Fragment key={`${hi}-${li}`}>
+                      <div
+                        className={classes.join(' ')}
+                        onClick={reviewable ? () => handleRowClick(hi, li) : undefined}
+                        role={reviewable ? 'button' : undefined}
+                        tabIndex={reviewable ? 0 : undefined}
+                        aria-pressed={reviewable ? isSelected : undefined}
+                        onKeyDown={
+                          reviewable
+                            ? (e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  handleRowClick(hi, li);
+                                }
                               }
-                            }
-                          : undefined
-                      }
-                    >
-                      <span className={styles.lineNumOld}>{line.oldLine ?? ''}</span>
-                      <span className={styles.lineNumNew}>{line.newLine ?? ''}</span>
-                      <span className={styles.lineContent}>
-                        <span className={styles.linePrefix}>{prefix} </span>
-                        {line.content}
-                        {hasComment && (
-                          <span className={styles.commentMarker} aria-label="has review comment">
-                            💬
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                    {inlineComments.map((c) => (
-                      <InlineCommentCard
-                        key={c.id}
-                        comment={c}
-                        onSave={(body) => updateComment(sessionId, c.id, body)}
-                        onDelete={() => removeComment(sessionId, c.id)}
-                      />
-                    ))}
-                  </Fragment>
-                );
-              })}
-              {pending !== null && pendingInfo !== null && pending.hunkIndex === hi && (
-                <ReviewComposer
-                  file={diff.file}
-                  startLine={pendingInfo.startLine}
-                  endLine={pendingInfo.endLine}
-                  onSave={handleComposerSave}
-                  onCancel={handleComposerCancel}
-                />
-              )}
-            </div>
-          ));
-        })()}
+                            : undefined
+                        }
+                      >
+                        <span className={styles.lineNumOld}>{line.oldLine ?? ''}</span>
+                        <span className={styles.lineNumNew}>{line.newLine ?? ''}</span>
+                        <span className={styles.lineContent}>
+                          <span className={styles.linePrefix}>{prefix} </span>
+                          {line.content}
+                        </span>
+                      </div>
+                      {inlineComments.map((c) => (
+                        <InlineCommentCard
+                          key={c.id}
+                          comment={c}
+                          onSave={(body) => updateComment(sessionId, c.id, body)}
+                          onDelete={() => removeComment(sessionId, c.id)}
+                        />
+                      ))}
+                      {isPendingLastLine && pendingInfo && (
+                        <InlineCommentEditor
+                          key={`pending-${hi}-${li}`}
+                          label={`L${
+                            pendingInfo.startLine === pendingInfo.endLine
+                              ? pendingInfo.startLine
+                              : `${pendingInfo.startLine}–${pendingInfo.endLine}`
+                          }`}
+                          initialValue=""
+                          submitLabel="Add comment"
+                          onSubmit={handleComposerSave}
+                          onCancel={handleComposerCancel}
+                        />
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </div>
+            ));
+          })()}
+        </div>
       </div>
 
       <ReviewCommentsPanel
@@ -506,6 +514,77 @@ function DiffHeader({
   );
 }
 
+interface InlineCommentEditorProps {
+  initialValue: string;
+  submitLabel: string;
+  label?: string;
+  onSubmit: (body: string) => void;
+  onCancel: () => void;
+  disableUnchanged?: boolean;
+}
+
+function InlineCommentEditor({
+  initialValue,
+  submitLabel,
+  label,
+  onSubmit,
+  onCancel,
+  disableUnchanged = false,
+}: InlineCommentEditorProps) {
+  const [value, setValue] = useState(initialValue);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useLayoutEffect(() => {
+    const t = textareaRef.current;
+    if (!t) return;
+    t.style.height = 'auto';
+    const max = Math.round(window.innerHeight * 0.5);
+    t.style.height = `${Math.min(t.scrollHeight, max)}px`;
+  }, [value]);
+
+  const trimmed = value.trim();
+  const unchanged = trimmed === initialValue.trim();
+  const disabled = !trimmed || (disableUnchanged && unchanged);
+
+  return (
+    <div className={styles.inlineCommentEdit}>
+      {label && <div className={styles.inlineCommentEditLabel}>{label}</div>}
+      <textarea
+        ref={textareaRef}
+        className={styles.inlineCommentTextarea}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        autoFocus
+        maxLength={4096}
+        rows={3}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            onCancel();
+          }
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            if (!disabled) onSubmit(trimmed);
+          }
+        }}
+      />
+      <div className={styles.inlineCommentActions}>
+        <button type="button" className={styles.inlineCommentBtn} onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className={`${styles.inlineCommentBtn} ${styles.inlineCommentBtnPrimary}`}
+          disabled={disabled}
+          onClick={() => onSubmit(trimmed)}
+        >
+          {submitLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface InlineCommentCardProps {
   comment: ReviewComment;
   onSave: (body: string) => void;
@@ -515,59 +594,19 @@ interface InlineCommentCardProps {
 function InlineCommentCard({ comment, onSave, onDelete }: InlineCommentCardProps) {
   const [editing, setEditing] = useState(false);
   const [expanded, setExpanded] = useState(true);
-  const [value, setValue] = useState(comment.comment);
 
   if (editing) {
-    const trimmed = value.trim();
-    const unchanged = trimmed === comment.comment.trim();
     return (
-      <div className={styles.inlineCommentEdit}>
-        <textarea
-          className={styles.inlineCommentTextarea}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          autoFocus
-          maxLength={4096}
-          rows={3}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              setValue(comment.comment);
-              setEditing(false);
-            }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-              e.preventDefault();
-              if (trimmed && !unchanged) {
-                onSave(trimmed);
-                setEditing(false);
-              }
-            }
-          }}
-        />
-        <div className={styles.inlineCommentActions}>
-          <button
-            type="button"
-            className={styles.inlineCommentBtn}
-            onClick={() => {
-              setValue(comment.comment);
-              setEditing(false);
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={`${styles.inlineCommentBtn} ${styles.inlineCommentBtnPrimary}`}
-            disabled={!trimmed || unchanged}
-            onClick={() => {
-              onSave(trimmed);
-              setEditing(false);
-            }}
-          >
-            Save
-          </button>
-        </div>
-      </div>
+      <InlineCommentEditor
+        initialValue={comment.comment}
+        submitLabel="Save"
+        disableUnchanged
+        onSubmit={(body) => {
+          onSave(body);
+          setEditing(false);
+        }}
+        onCancel={() => setEditing(false)}
+      />
     );
   }
 
@@ -599,7 +638,7 @@ function InlineCommentCard({ comment, onSave, onDelete }: InlineCommentCardProps
         >
           ▶
         </span>
-        <span className={styles.inlineCommentPreview}>💬 {preview}</span>
+        <span className={styles.inlineCommentPreview}>{preview}</span>
       </div>
       {expanded && (
         <div className={styles.inlineCommentContent}>
@@ -608,10 +647,7 @@ function InlineCommentCard({ comment, onSave, onDelete }: InlineCommentCardProps
             <button
               type="button"
               className={styles.inlineCommentBtn}
-              onClick={() => {
-                setValue(comment.comment);
-                setEditing(true);
-              }}
+              onClick={() => setEditing(true)}
               aria-label="Edit comment"
             >
               Edit

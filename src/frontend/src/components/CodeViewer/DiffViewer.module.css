@@ -2,10 +2,16 @@
   display: flex;
   flex-direction: column;
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   background: var(--bg);
   font-size: 13px;
   line-height: 1.5;
+  min-height: 0;
+}
+
+.scrollArea {
+  flex: 1;
+  overflow: auto;
   -webkit-overflow-scrolling: touch;
   min-height: 0;
   container-type: inline-size;
@@ -235,10 +241,7 @@
 }
 
 .commentMarker {
-  margin-left: 8px;
-  opacity: 0.8;
-  font-size: 0.85em;
-  user-select: none;
+  display: none;
 }
 
 .inlineComment {
@@ -377,6 +380,12 @@
   box-sizing: border-box;
 }
 
+.inlineCommentEditLabel {
+  font-size: 0.75rem;
+  color: var(--text-dim, #aaa);
+  font-weight: 500;
+}
+
 .inlineCommentTextarea {
   width: 100%;
   box-sizing: border-box;
@@ -388,7 +397,8 @@
   font-family: inherit;
   font-size: 16px;
   line-height: 1.45;
-  resize: vertical;
+  resize: none;
+  overflow: hidden;
   min-height: 60px;
   touch-action: manipulation;
 }
