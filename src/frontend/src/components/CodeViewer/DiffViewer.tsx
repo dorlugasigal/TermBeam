@@ -379,7 +379,7 @@ function DiffHeader({
       {!reviewMode && reviewBadge === 0 && (
         <button
           type="button"
-          className={styles.toggleBtn}
+          className={`${styles.toggleBtn} ${styles.toggleBtnPrimary}`}
           onClick={onStartReview}
           title="Start review"
         >

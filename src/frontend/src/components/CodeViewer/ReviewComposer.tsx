@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './ReviewComposer.module.css';
 
@@ -20,16 +20,6 @@ export default function ReviewComposer({
   const [value, setValue] = useState('');
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useLayoutEffect(() => {
-    const t = textareaRef.current;
-    if (!t) return;
-    try {
-      t.focus({ preventScroll: true });
-    } catch {
-      t.focus();
-    }
-  }, []);
 
   // On iOS Safari, position:fixed stays pinned to the layout viewport even
   // when the software keyboard opens, so the composer ends up hidden behind
@@ -65,9 +55,6 @@ export default function ReviewComposer({
       role="region"
       aria-label={`Add review comment for ${file} line ${range}`}
       style={{ transform: keyboardOffset ? `translateY(-${keyboardOffset}px)` : undefined }}
-      onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
-      onTouchStart={(e) => e.stopPropagation()}
     >
       <div className={styles.header}>
         <span className={styles.headerLabel}>
@@ -87,14 +74,6 @@ export default function ReviewComposer({
         className={styles.textarea}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onTouchStart={(e) => {
-          // iOS: focus inside the user gesture so the virtual keyboard opens.
-          e.stopPropagation();
-          textareaRef.current?.focus();
-        }}
-        onMouseDown={(e) => {
-          e.stopPropagation();
-        }}
         placeholder="What should the agent change?"
         maxLength={4096}
         enterKeyHint="send"
