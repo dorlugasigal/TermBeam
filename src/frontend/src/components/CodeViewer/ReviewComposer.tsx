@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './ReviewComposer.module.css';
 
@@ -18,6 +18,7 @@ export default function ReviewComposer({
   onCancel,
 }: ReviewComposerProps) {
   const [value, setValue] = useState('');
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {
@@ -28,6 +29,26 @@ export default function ReviewComposer({
     } catch {
       t.focus();
     }
+  }, []);
+
+  // On iOS Safari, position:fixed stays pinned to the layout viewport even
+  // when the software keyboard opens, so the composer ends up hidden behind
+  // the keyboard. Track the visual viewport and raise the composer by the
+  // keyboard's height.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardOffset(offset);
+    };
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
   }, []);
 
   const range = startLine === endLine ? `${startLine}` : `${startLine}–${endLine}`;
@@ -43,6 +64,7 @@ export default function ReviewComposer({
       className={styles.composer}
       role="region"
       aria-label={`Add review comment for ${file} line ${range}`}
+      style={{ transform: keyboardOffset ? `translateY(-${keyboardOffset}px)` : undefined }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
