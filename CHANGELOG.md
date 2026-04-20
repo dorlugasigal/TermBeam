@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.21.0] - 2026-04-20
+
+- feat(review): add Review Mode to diff viewer + SessionsHub filter chips (#195)
+
 ## [1.20.4] - 2026-04-19
 
 - fix(tunnel): add network-wait mode for transient DNS outages
