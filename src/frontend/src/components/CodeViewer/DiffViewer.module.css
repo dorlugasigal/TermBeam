@@ -191,6 +191,93 @@
   composes: row;
 }
 
+.rowReviewable {
+  cursor: pointer;
+  position: relative;
+}
+
+.rowReviewable:hover {
+  outline: 1px solid rgba(56, 139, 253, 0.35);
+  outline-offset: -1px;
+}
+
+.rowSelected {
+  outline: 2px solid rgba(56, 139, 253, 0.85);
+  outline-offset: -1px;
+  background: rgba(56, 139, 253, 0.15);
+}
+
+.rowCommented .lineContent::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #ffa657;
+}
+
+.rowCommented .lineContent {
+  position: relative;
+}
+
+.commentMarker {
+  margin-left: 8px;
+  opacity: 0.8;
+  font-size: 0.85em;
+  user-select: none;
+}
+
+.reviewBadgeBtn {
+  background: rgba(255, 166, 87, 0.25);
+  border-color: rgba(255, 166, 87, 0.6);
+  color: var(--text);
+  font-weight: 600;
+  min-width: 28px;
+  text-align: center;
+}
+
+.selectionBar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--surface, #252526);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.25);
+  z-index: 4;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+}
+
+.selectionInfo {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text);
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+}
+
+.selectionBtn {
+  padding: 8px 14px;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.selectionBtnPrimary {
+  background: rgba(56, 139, 253, 0.3);
+  border-color: rgba(56, 139, 253, 0.7);
+}
+
+.selectionBtnPrimary:hover {
+  background: rgba(56, 139, 253, 0.45);
+}
+
 .binary {
   display: flex;
   align-items: center;

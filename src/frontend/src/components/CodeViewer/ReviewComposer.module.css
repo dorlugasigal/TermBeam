@@ -1,0 +1,126 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 560px;
+  background: var(--surface, #1e1e1e);
+  border-top: 1px solid var(--border);
+  border-radius: 12px 12px 0 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
+  animation: slideUp 0.18s ease-out;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+@media (min-width: 768px) {
+  .overlay {
+    align-items: center;
+  }
+  .sheet {
+    border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+}
+
+.title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.subtitle {
+  font-size: 0.75rem;
+  color: var(--text-dim, #888);
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 140px;
+  overflow: auto;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 96px;
+  max-height: 40vh;
+  padding: 10px 12px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.textarea:focus {
+  outline: 2px solid rgba(56, 139, 253, 0.5);
+  outline-offset: -1px;
+  border-color: rgba(56, 139, 253, 0.8);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn {
+  padding: 8px 14px;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.primary {
+  background: rgba(56, 139, 253, 0.3);
+  border-color: rgba(56, 139, 253, 0.7);
+}
+
+.primary:hover:not(:disabled) {
+  background: rgba(56, 139, 253, 0.45);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
