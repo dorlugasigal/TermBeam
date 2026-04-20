@@ -17,12 +17,10 @@
 
 .caret {
   display: inline-block;
-  transition: transform 120ms ease;
-  font-size: 0.7rem;
-}
-
-.caretOpen {
-  transform: rotate(90deg);
+  font-size: 0.85rem;
+  width: 0.85rem;
+  text-align: center;
+  color: var(--accent);
 }
 
 .changelog {

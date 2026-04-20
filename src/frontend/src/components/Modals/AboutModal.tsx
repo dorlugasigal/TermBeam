@@ -133,10 +133,8 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
               onClick={() => setChangelogOpen((v) => !v)}
               aria-expanded={changelogOpen}
             >
-              <span
-                className={`${aboutStyles.caret} ${changelogOpen ? aboutStyles.caretOpen : ''}`}
-              >
-                ▶
+              <span className={aboutStyles.caret} aria-hidden="true">
+                {changelogOpen ? '▾' : '▸'}
               </span>
               What's new
             </button>
