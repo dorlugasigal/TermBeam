@@ -8,6 +8,14 @@ import { useUIStore } from '@/stores/uiStore';
 import { uploadImage } from '@/services/api';
 import styles from './TerminalPane.module.css';
 
+function isEditable(el: HTMLElement | null): boolean {
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (el.isContentEditable) return true;
+  return false;
+}
+
 interface TerminalPaneProps {
   sessionId: string;
   active: boolean;
@@ -272,18 +280,26 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     const ta = terminal.textarea;
     if (!ta) return;
 
-    const onBlur = () => {
+    const onBlur = (ev: FocusEvent) => {
       // Don't fight legitimate blurs (overlay open, pane inactive, etc.)
       const { commandPaletteOpen, searchBarOpen, sidePanelOpen, copyOverlayOpen } =
         useUIStore.getState();
       if (commandPaletteOpen || searchBarOpen || sidePanelOpen || copyOverlayOpen) return;
 
-      // Re-focus immediately within the blur event context
-      requestAnimationFrame(() => {
+      // If focus is moving to another editable element (e.g. review comment
+      // composer, rename dialog), let it keep focus instead of stealing back.
+      const next = (ev.relatedTarget as HTMLElement | null) ?? null;
+      if (isEditable(next)) return;
+
+      // Delay the re-focus check. On iOS, relatedTarget can be null during
+      // focus transitions — we need to check document.activeElement after
+      // the browser has settled on the new focus target.
+      setTimeout(() => {
+        if (isEditable(document.activeElement as HTMLElement | null)) return;
         if (document.activeElement !== ta) {
           ta.focus();
         }
-      });
+      }, 50);
     };
 
     ta.addEventListener('blur', onBlur);
