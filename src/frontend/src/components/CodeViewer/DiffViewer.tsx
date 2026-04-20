@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState, useId } from 'react';
+import { useCallback, useEffect, useMemo, useState, useId, Fragment } from 'react';
 import { useCodeViewerStore } from '@/stores/codeViewerStore';
 import { useReviewCommentsStore } from '@/stores/reviewCommentsStore';
 import { fetchGitDiff } from '@/services/api';
 import type { GitDiff, DiffLine } from '@/services/api';
-import type { ReviewLineKind } from '@/utils/formatReviewComments';
+import type { ReviewComment, ReviewLineKind } from '@/utils/formatReviewComments';
 import ReviewComposer from './ReviewComposer';
 import ReviewCommentsPanel from './ReviewCommentsPanel';
 import styles from './DiffViewer.module.css';
@@ -51,6 +51,8 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
   const setReviewMode = useReviewCommentsStore((s) => s.setReviewMode);
   const load = useReviewCommentsStore((s) => s.load);
   const addComment = useReviewCommentsStore((s) => s.addComment);
+  const updateComment = useReviewCommentsStore((s) => s.updateComment);
+  const removeComment = useReviewCommentsStore((s) => s.removeComment);
   const allComments = useReviewCommentsStore((s) => s.bySession.get(sessionId));
   const fileComments = useMemo(
     () => (allComments ?? []).filter((c) => c.file === diff.file),
@@ -76,6 +78,19 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
       for (let n = c.startLine; n <= c.endLine; n++) set.add(n);
     }
     return set;
+  }, [fileComments]);
+
+  // Render comments inline directly under the last line of their range.
+  // Multiple rows may share a line number (e.g. add+remove pairs), so we
+  // track which comments have already been rendered during the current pass.
+  const commentsByEndLine = useMemo(() => {
+    const map = new Map<number, ReviewComment[]>();
+    for (const c of fileComments) {
+      const arr = map.get(c.endLine) ?? [];
+      arr.push(c);
+      map.set(c.endLine, arr);
+    }
+    return map;
   }, [fileComments]);
 
   const reloadDiff = useCallback(
@@ -252,73 +267,99 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
         onOpenPanel={() => setPanelOpen(true)}
       />
       <div className={styles.table}>
-        {diff.hunks.map((hunk, hi) => (
-          <div key={hi}>
-            <div className={styles.hunkHeader}>{hunk.header}</div>
-            {hunk.lines.map((line, li) => {
-              const rowClass =
-                line.type === 'add'
-                  ? styles.rowAdd
-                  : line.type === 'remove'
-                    ? styles.rowRemove
-                    : styles.rowContext;
-              const prefix = line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' ';
-              const lineNum = lineNumberFor(line);
-              const hasComment = lineNum !== null && commentedLines.has(lineNum);
-              const isSelected =
-                pending !== null &&
-                pending.hunkIndex === hi &&
-                li >= pending.startIdx &&
-                li <= pending.endIdx;
-              const reviewable = reviewMode && lineNum !== null;
-              const classes = [rowClass];
-              if (reviewable) classes.push(styles.rowReviewable);
-              if (isSelected) classes.push(styles.rowSelected);
-              if (hasComment) classes.push(styles.rowCommented);
-              return (
-                <div
-                  key={`${hi}-${li}`}
-                  className={classes.join(' ')}
-                  onClick={reviewable ? () => handleRowClick(hi, li) : undefined}
-                  role={reviewable ? 'button' : undefined}
-                  tabIndex={reviewable ? 0 : undefined}
-                  aria-pressed={reviewable ? isSelected : undefined}
-                  onKeyDown={
-                    reviewable
-                      ? (e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleRowClick(hi, li);
-                          }
-                        }
-                      : undefined
+        {(() => {
+          const rendered = new Set<string>();
+          return diff.hunks.map((hunk, hi) => (
+            <div key={hi}>
+              <div className={styles.hunkHeader}>{hunk.header}</div>
+              {hunk.lines.map((line, li) => {
+                const rowClass =
+                  line.type === 'add'
+                    ? styles.rowAdd
+                    : line.type === 'remove'
+                      ? styles.rowRemove
+                      : styles.rowContext;
+                const prefix = line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' ';
+                const lineNum = lineNumberFor(line);
+                const hasComment = lineNum !== null && commentedLines.has(lineNum);
+                const isSelected =
+                  pending !== null &&
+                  pending.hunkIndex === hi &&
+                  li >= pending.startIdx &&
+                  li <= pending.endIdx;
+                const reviewable = reviewMode && lineNum !== null;
+                const classes = [rowClass];
+                if (reviewable) classes.push(styles.rowReviewable);
+                if (isSelected) classes.push(styles.rowSelected);
+                if (hasComment) classes.push(styles.rowCommented);
+
+                // Comments anchored to this line (endLine match). Filter out
+                // ones already rendered against an earlier row that shared
+                // the same line number.
+                const inlineComments: ReviewComment[] = [];
+                if (lineNum !== null) {
+                  for (const c of commentsByEndLine.get(lineNum) ?? []) {
+                    if (!rendered.has(c.id)) {
+                      rendered.add(c.id);
+                      inlineComments.push(c);
+                    }
                   }
-                >
-                  <span className={styles.lineNumOld}>{line.oldLine ?? ''}</span>
-                  <span className={styles.lineNumNew}>{line.newLine ?? ''}</span>
-                  <span className={styles.lineContent}>
-                    <span className={styles.linePrefix}>{prefix} </span>
-                    {line.content}
-                    {hasComment && (
-                      <span className={styles.commentMarker} aria-label="has review comment">
-                        💬
+                }
+
+                return (
+                  <Fragment key={`${hi}-${li}`}>
+                    <div
+                      className={classes.join(' ')}
+                      onClick={reviewable ? () => handleRowClick(hi, li) : undefined}
+                      role={reviewable ? 'button' : undefined}
+                      tabIndex={reviewable ? 0 : undefined}
+                      aria-pressed={reviewable ? isSelected : undefined}
+                      onKeyDown={
+                        reviewable
+                          ? (e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handleRowClick(hi, li);
+                              }
+                            }
+                          : undefined
+                      }
+                    >
+                      <span className={styles.lineNumOld}>{line.oldLine ?? ''}</span>
+                      <span className={styles.lineNumNew}>{line.newLine ?? ''}</span>
+                      <span className={styles.lineContent}>
+                        <span className={styles.linePrefix}>{prefix} </span>
+                        {line.content}
+                        {hasComment && (
+                          <span className={styles.commentMarker} aria-label="has review comment">
+                            💬
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
-                </div>
-              );
-            })}
-            {pending !== null && pendingInfo !== null && pending.hunkIndex === hi && (
-              <ReviewComposer
-                file={diff.file}
-                startLine={pendingInfo.startLine}
-                endLine={pendingInfo.endLine}
-                onSave={handleComposerSave}
-                onCancel={handleComposerCancel}
-              />
-            )}
-          </div>
-        ))}
+                    </div>
+                    {inlineComments.map((c) => (
+                      <InlineCommentCard
+                        key={c.id}
+                        comment={c}
+                        onSave={(body) => updateComment(sessionId, c.id, body)}
+                        onDelete={() => removeComment(sessionId, c.id)}
+                      />
+                    ))}
+                  </Fragment>
+                );
+              })}
+              {pending !== null && pendingInfo !== null && pending.hunkIndex === hi && (
+                <ReviewComposer
+                  file={diff.file}
+                  startLine={pendingInfo.startLine}
+                  endLine={pendingInfo.endLine}
+                  onSave={handleComposerSave}
+                  onCancel={handleComposerCancel}
+                />
+              )}
+            </div>
+          ));
+        })()}
       </div>
 
       <ReviewCommentsPanel
@@ -461,6 +502,98 @@ function DiffHeader({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+interface InlineCommentCardProps {
+  comment: ReviewComment;
+  onSave: (body: string) => void;
+  onDelete: () => void;
+}
+
+function InlineCommentCard({ comment, onSave, onDelete }: InlineCommentCardProps) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(comment.comment);
+
+  if (editing) {
+    const trimmed = value.trim();
+    const unchanged = trimmed === comment.comment.trim();
+    return (
+      <div className={styles.inlineCommentEdit}>
+        <textarea
+          className={styles.inlineCommentTextarea}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          autoFocus
+          maxLength={4096}
+          rows={3}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              setValue(comment.comment);
+              setEditing(false);
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+              e.preventDefault();
+              if (trimmed && !unchanged) {
+                onSave(trimmed);
+                setEditing(false);
+              }
+            }
+          }}
+        />
+        <div className={styles.inlineCommentActions}>
+          <button
+            type="button"
+            className={styles.inlineCommentBtn}
+            onClick={() => {
+              setValue(comment.comment);
+              setEditing(false);
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={`${styles.inlineCommentBtn} ${styles.inlineCommentBtnPrimary}`}
+            disabled={!trimmed || unchanged}
+            onClick={() => {
+              onSave(trimmed);
+              setEditing(false);
+            }}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.inlineComment}>
+      <div className={styles.inlineCommentBody}>{comment.comment}</div>
+      <div className={styles.inlineCommentActions}>
+        <button
+          type="button"
+          className={styles.inlineCommentBtn}
+          onClick={() => {
+            setValue(comment.comment);
+            setEditing(true);
+          }}
+          aria-label="Edit comment"
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          className={styles.inlineCommentBtn}
+          onClick={onDelete}
+          aria-label="Delete comment"
+        >
+          Delete
+        </button>
+      </div>
     </div>
   );
 }

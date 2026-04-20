@@ -21,6 +21,20 @@ export default function ReviewComposer({
   const [bottomOffset, setBottomOffset] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // iOS scroll-to-focused-input can briefly shift the LAYOUT viewport even
+  // though html/body have `overflow: hidden`, producing a visible "whole
+  // window slides up then snaps back" flash. Pin window scroll to 0 whenever
+  // the visual viewport reports a non-zero offsetTop (iOS's transient scroll
+  // state).
+  const pinScroll = () => {
+    if (window.scrollY !== 0 || window.scrollX !== 0) {
+      window.scrollTo(0, 0);
+    }
+    if (document.scrollingElement && document.scrollingElement.scrollTop !== 0) {
+      document.scrollingElement.scrollTop = 0;
+    }
+  };
+
   // On iOS Safari, position:fixed stays pinned to the layout viewport even
   // when the software keyboard opens, so the composer ends up hidden behind
   // the keyboard. Track the visual viewport and anchor the composer's bottom
@@ -32,6 +46,7 @@ export default function ReviewComposer({
       return;
     }
     const update = () => {
+      pinScroll();
       const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       setBottomOffset(offset);
     };
@@ -52,10 +67,12 @@ export default function ReviewComposer({
     const vv = window.visualViewport;
     if (!vv) return;
     const tick = () => {
+      pinScroll();
       const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       setBottomOffset(offset);
     };
-    [50, 150, 300, 500, 800].forEach((ms) => window.setTimeout(tick, ms));
+    tick();
+    [16, 50, 150, 300, 500, 800].forEach((ms) => window.setTimeout(tick, ms));
   };
 
   const range = startLine === endLine ? `${startLine}` : `${startLine}–${endLine}`;

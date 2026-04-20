@@ -240,6 +240,119 @@
   user-select: none;
 }
 
+.inlineComment {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 4px 0 4px 4.5ch;
+  padding: 8px 12px;
+  background: rgba(255, 166, 87, 0.08);
+  border-left: 3px solid #ffa657;
+  border-radius: 0 6px 6px 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.inlineCommentBody {
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.inlineCommentActions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.inlineCommentBtn {
+  padding: 3px 10px;
+  border: 1px solid var(--border, #444);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim, #aaa);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.inlineCommentBtn:hover:not(:disabled) {
+  background: var(--surface, #252526);
+  color: var(--text);
+}
+
+.inlineCommentBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.inlineCommentBtnPrimary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.inlineCommentBtnPrimary:hover:not(:disabled) {
+  background: var(--accent-hover, var(--accent));
+  border-color: var(--accent-hover, var(--accent));
+  color: #fff;
+}
+
+.inlineCommentEdit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 4px 4.5ch;
+  padding: 8px 12px;
+  background: rgba(255, 166, 87, 0.1);
+  border-left: 3px solid #ffa657;
+  border-radius: 0 6px 6px 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  font-size: 0.85rem;
+}
+
+.inlineCommentTextarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 60px;
+  touch-action: manipulation;
+}
+
+.inlineCommentTextarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .inlineComment,
+  .inlineCommentEdit {
+    margin-left: 0;
+  }
+  .inlineComment {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .inlineCommentActions {
+    align-self: flex-end;
+  }
+}
+
 .reviewBadgeBtn {
   background: rgba(255, 166, 87, 0.25);
   border-color: rgba(255, 166, 87, 0.6);
