@@ -13,12 +13,12 @@ type Dimension = 'repo' | 'branch' | 'shell';
 
 export default function FilterBar({ filter, facets, onChange }: Props) {
   const [openMenu, setOpenMenu] = useState<Dimension | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const groupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!openMenu) return;
     const handler = (e: MouseEvent) => {
-      if (!menuRef.current?.contains(e.target as Node)) setOpenMenu(null);
+      if (!groupRef.current?.contains(e.target as Node)) setOpenMenu(null);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -35,21 +35,22 @@ export default function FilterBar({ filter, facets, onChange }: Props) {
     if (options.length === 0 && !current) return null;
     const display = current ?? label;
     const active = !!current;
+    const isOpen = openMenu === dim;
     return (
-      <div className={styles.chipGroup} key={dim}>
+      <div className={styles.chipGroup} key={dim} ref={isOpen ? groupRef : undefined}>
         <button
           type="button"
           className={`${styles.chip} ${active ? styles.chipActive : ''}`}
           onClick={() => setOpenMenu((m) => (m === dim ? null : dim))}
-          aria-haspopup="listbox"
-          aria-expanded={openMenu === dim}
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
         >
           {active ? '✓ ' : ''}
           {display}
           {active ? '' : ' ▾'}
         </button>
-        {openMenu === dim && (
-          <div className={styles.chipMenu} ref={menuRef} role="listbox">
+        {isOpen && (
+          <div className={styles.chipMenu} role="menu">
             {current && (
               <button
                 type="button"
@@ -58,6 +59,7 @@ export default function FilterBar({ filter, facets, onChange }: Props) {
                   set({ [dim]: null } as Partial<SessionFilterState>);
                   setOpenMenu(null);
                 }}
+                role="menuitem"
               >
                 Clear {label}
               </button>
@@ -71,8 +73,7 @@ export default function FilterBar({ filter, facets, onChange }: Props) {
                   set({ [dim]: opt } as Partial<SessionFilterState>);
                   setOpenMenu(null);
                 }}
-                role="option"
-                aria-selected={current === opt}
+                role="menuitem"
               >
                 {opt}
               </button>

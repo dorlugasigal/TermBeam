@@ -318,9 +318,9 @@ export default function SessionsHub() {
                 <span className={styles.emptyIcon}>🔍</span>
                 <span className={styles.emptyText}>No sessions match your filters</span>
                 <button
-                  className={styles.emptyHint}
+                  type="button"
+                  className={`${styles.emptyHint} ${styles.emptyHintButton}`}
                   onClick={() => setFilter(EMPTY_FILTER)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer' }}
                 >
                   Clear filters
                 </button>

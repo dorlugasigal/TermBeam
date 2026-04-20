@@ -23,6 +23,17 @@ function lineNumberFor(line: DiffLine): number | null {
   return line.type === 'remove' ? line.oldLine : (line.newLine ?? line.oldLine);
 }
 
+function lineNumberForKind(line: DiffLine, kind: ReviewLineKind): number | null {
+  if (kind === 'remove') return line.oldLine ?? line.newLine ?? null;
+  return line.newLine ?? line.oldLine ?? null;
+}
+
+function prefixFor(line: DiffLine): string {
+  if (line.type === 'add') return '+';
+  if (line.type === 'remove') return '-';
+  return ' ';
+}
+
 export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
   const { setGitDiff } = useCodeViewerStore();
   const [staged, setStaged] = useState(false);
@@ -113,18 +124,22 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
     const hunk = diff.hunks[pending.hunkIndex];
     if (!hunk) return null;
     const lines = hunk.lines.slice(pending.startIdx, pending.endIdx + 1);
-    const nums = lines.map(lineNumberFor).filter((n): n is number => n !== null);
-    if (nums.length === 0) return null;
-    const startLine = Math.min(...nums);
-    const endLine = Math.max(...nums);
-    // If mix of add/remove, prefer 'add' (the new state is what the agent should act on).
+    if (lines.length === 0) return null;
+    // Decide kind first; prefer 'add' (new state is what agents act on), then 'remove', else 'context'.
     const kinds = new Set(lines.map((l) => l.type));
     const kind: ReviewLineKind = kinds.has('add')
       ? 'add'
       : kinds.has('remove')
         ? 'remove'
         : 'context';
-    const selectedText = lines.map((l) => l.content).join('\n');
+    // Derive line numbers using a consistent coordinate system for the decided kind.
+    const nums = lines
+      .map((l) => lineNumberForKind(l, kind))
+      .filter((n): n is number => n !== null);
+    if (nums.length === 0) return null;
+    const startLine = Math.min(...nums);
+    const endLine = Math.max(...nums);
+    const selectedText = lines.map((l) => `${prefixFor(l)}${l.content}`).join('\n');
     return { startLine, endLine, kind, selectedText };
   }, [pending, diff.hunks]);
 
