@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -19,13 +19,14 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
   const [changelogState, setChangelogState] = useState<'idle' | 'loading' | 'loaded' | 'error'>(
     'idle',
   );
+  const fetchStartedRef = useRef(false);
 
   useEffect(() => {
-    if (!open || changelogState !== 'idle') return;
-    let cancelled = false;
+    if (!open) return;
+    if (fetchStartedRef.current) return;
+    fetchStartedRef.current = true;
     setChangelogState('loading');
     fetchChangelog().then((text) => {
-      if (cancelled) return;
       if (text) {
         setChangelog(text);
         setChangelogState('loaded');
@@ -33,10 +34,7 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
         setChangelogState('error');
       }
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, changelogState]);
+  }, [open]);
 
   const handleCheckUpdate = useCallback(async () => {
     setChecking(true);
