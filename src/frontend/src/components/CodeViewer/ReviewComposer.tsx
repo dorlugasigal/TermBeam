@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import styles from './ReviewComposer.module.css';
 
 interface ReviewComposerProps {
@@ -19,14 +19,13 @@ export default function ReviewComposer({
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const t = textareaRef.current;
     if (!t) return;
-    t.focus();
     try {
-      t.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      t.focus({ preventScroll: true });
     } catch {
-      // ignore
+      t.focus();
     }
   }, []);
 
@@ -52,6 +51,11 @@ export default function ReviewComposer({
         className={styles.textarea}
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        onTouchStart={() => {
+          // iOS: ensure focus happens inside the user gesture so the
+          // virtual keyboard actually opens on the first tap.
+          textareaRef.current?.focus();
+        }}
         placeholder="What should the agent change?"
         maxLength={4096}
         enterKeyHint="send"
