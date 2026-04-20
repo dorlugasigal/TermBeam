@@ -34,6 +34,7 @@ export default function ReviewCommentsPanel({
   const sessions = useSessionStore((s) => s.sessions);
   const session = sessions.get(sessionId);
   const chatInputHandler = useUIStore((s) => s.chatInputHandler);
+  const closeCodeViewer = useUIStore((s) => s.closeCodeViewer);
 
   const grouped = useMemo(() => groupByFile(comments), [comments]);
   const [sending, setSending] = useState(false);
@@ -71,15 +72,17 @@ export default function ReviewCommentsPanel({
 
       if (truncated) toast.warning('Some comments were omitted (batch size cap)');
 
-      // Snapshot before clearing so user can undo within the toast window.
-      const snapshot = comments.map((c) => ({ ...c }));
+      // Clear the review state and dismiss the whole git view so the user
+      // lands back in the terminal/agent where the comments were just sent.
       clearForSession(sessionId);
-
-      const verb = target === 'clipboard' ? 'Copied' : 'Sent';
-      const dest = target === 'clipboard' ? 'clipboard' : sessionLabel;
-      toast.success(
-        `${verb} ${includedCount} comment${includedCount === 1 ? '' : 's'} to ${dest}`,
-        {
+      onClose();
+      if (target === 'session') {
+        closeCodeViewer();
+      } else {
+        // Clipboard path: keep the git view open, but still give the user a
+        // brief confirmation (can't reasonably paste without a target yet).
+        const snapshot = comments.map((c) => ({ ...c }));
+        toast.success(`Copied ${includedCount} comment${includedCount === 1 ? '' : 's'} to clipboard`, {
           duration: 6000,
           action: {
             label: 'Undo clear',
@@ -97,9 +100,8 @@ export default function ReviewCommentsPanel({
               toast.success('Comments restored');
             },
           },
-        },
-      );
-      onClose();
+        });
+      }
     } catch (err) {
       toast.error('Failed to send comments');
       console.error('[review] send failed', err);

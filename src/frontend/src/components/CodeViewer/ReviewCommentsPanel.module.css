@@ -12,7 +12,7 @@
 .panel {
   width: 100%;
   max-width: 720px;
-  max-height: 92vh;
+  max-height: calc(92vh - env(safe-area-inset-top, 0px));
   background: var(--surface, #1e1e1e);
   border-top: 1px solid var(--border);
   border-radius: 12px 12px 0 0;
@@ -21,6 +21,7 @@
   overflow: hidden;
   box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.4);
   animation: slideUp 0.18s ease-out;
+  padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: max(0px, env(safe-area-inset-bottom));
 }
 
