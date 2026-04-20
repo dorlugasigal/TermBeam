@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './ReviewComposer.module.css';
 
 interface ReviewComposerProps {
@@ -37,24 +38,40 @@ export default function ReviewComposer({
     onSave(trimmed);
   }
 
-  return (
+  return createPortal(
     <div
       className={styles.composer}
       role="region"
       aria-label={`Add review comment for ${file} line ${range}`}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
     >
       <div className={styles.header}>
-        <span className={styles.headerLabel}>Comment on L{range}</span>
+        <span className={styles.headerLabel}>
+          {file}:L{range}
+        </span>
+        <button
+          type="button"
+          className={styles.closeBtn}
+          onClick={onCancel}
+          aria-label="Close composer"
+        >
+          ✕
+        </button>
       </div>
       <textarea
         ref={textareaRef}
         className={styles.textarea}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onTouchStart={() => {
-          // iOS: ensure focus happens inside the user gesture so the
-          // virtual keyboard actually opens on the first tap.
+        onTouchStart={(e) => {
+          // iOS: focus inside the user gesture so the virtual keyboard opens.
+          e.stopPropagation();
           textareaRef.current?.focus();
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
         }}
         placeholder="What should the agent change?"
         maxLength={4096}
@@ -87,6 +104,7 @@ export default function ReviewComposer({
           Add comment
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -1,19 +1,29 @@
 .composer {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   padding: 10px 12px;
-  margin: 4px 8px 8px calc(2 * var(--line-num-width, 3.5ch) + 8px);
   background: var(--surface, #1e1e1e);
-  border: 1px solid rgba(56, 139, 253, 0.5);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(56, 139, 253, 0.6);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  position: sticky;
-  left: 8px;
-  right: 8px;
-  max-width: calc(100vw - 24px);
-  z-index: 2;
+  z-index: 1000;
   touch-action: manipulation;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+@media (min-width: 900px) {
+  .composer {
+    left: auto;
+    right: 24px;
+    bottom: 24px;
+    width: 480px;
+  }
 }
 
 .header {
@@ -22,11 +32,35 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
 }
 
 .headerLabel {
   font-family: inherit;
   font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.closeBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim, #888);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  min-height: 32px;
+  min-width: 32px;
+}
+
+.closeBtn:hover {
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text);
 }
 
@@ -84,11 +118,4 @@
 
 .primary:hover:not(:disabled) {
   background: rgba(56, 139, 253, 0.45);
-}
-
-@media (max-width: 600px) {
-  .composer {
-    margin-left: 8px;
-    margin-right: 8px;
-  }
 }
