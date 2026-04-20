@@ -138,18 +138,43 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
   }, []);
 
   const handleRowClick = useCallback(
-    (hunkIndex: number, lineIdx: number) => {
+    (hunkIndex: number, lineIdx: number, extend: boolean) => {
       if (!reviewMode) return;
-      if (!pending || pending.hunkIndex !== hunkIndex) {
-        setPending({ hunkIndex, startIdx: lineIdx, endIdx: lineIdx });
+      if (extend && pending && pending.hunkIndex === hunkIndex) {
+        const lo = Math.min(pending.startIdx, lineIdx);
+        const hi = Math.max(pending.endIdx, lineIdx);
+        setPending({ hunkIndex, startIdx: lo, endIdx: hi });
         return;
       }
-      const lo = Math.min(pending.startIdx, lineIdx);
-      const hi = Math.max(pending.startIdx, lineIdx);
-      setPending({ hunkIndex, startIdx: lo, endIdx: hi });
+      setPending({ hunkIndex, startIdx: lineIdx, endIdx: lineIdx });
     },
     [reviewMode, pending],
   );
+
+  const extendPendingRange = useCallback(
+    (direction: 'up' | 'down', mode: 'grow' | 'shrink') => {
+      if (!pending) return;
+      const hunk = diff.hunks[pending.hunkIndex];
+      if (!hunk) return;
+      const maxIdx = hunk.lines.length - 1;
+      let { startIdx, endIdx } = pending;
+      if (direction === 'up') {
+        if (mode === 'grow' && startIdx > 0) startIdx -= 1;
+        else if (mode === 'shrink' && startIdx < endIdx) startIdx += 1;
+      } else {
+        if (mode === 'grow' && endIdx < maxIdx) endIdx += 1;
+        else if (mode === 'shrink' && endIdx > startIdx) endIdx -= 1;
+      }
+      setPending({ hunkIndex: pending.hunkIndex, startIdx, endIdx });
+    },
+    [pending, diff.hunks],
+  );
+
+  const canExtendUp = pending ? pending.startIdx > 0 : false;
+  const canExtendDown = pending
+    ? pending.endIdx < (diff.hunks[pending.hunkIndex]?.lines.length ?? 0) - 1
+    : false;
+  const canShrink = pending ? pending.endIdx > pending.startIdx : false;
 
   const pendingInfo = useMemo(() => {
     if (!pending) return null;
@@ -317,7 +342,9 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
                     <Fragment key={`${hi}-${li}`}>
                       <div
                         className={classes.join(' ')}
-                        onClick={reviewable ? () => handleRowClick(hi, li) : undefined}
+                        onClick={
+                          reviewable ? (e) => handleRowClick(hi, li, e.shiftKey) : undefined
+                        }
                         role={reviewable ? 'button' : undefined}
                         tabIndex={reviewable ? 0 : undefined}
                         aria-pressed={reviewable ? isSelected : undefined}
@@ -326,7 +353,7 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
                             ? (e) => {
                                 if (e.key === 'Enter' || e.key === ' ') {
                                   e.preventDefault();
-                                  handleRowClick(hi, li);
+                                  handleRowClick(hi, li, e.shiftKey);
                                 }
                               }
                             : undefined
@@ -359,6 +386,15 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
                           submitLabel="Add comment"
                           onSubmit={handleComposerSave}
                           onCancel={handleComposerCancel}
+                          rangeControls={{
+                            canExtendUp,
+                            canExtendDown,
+                            canShrink,
+                            onExtendUp: () => extendPendingRange('up', 'grow'),
+                            onExtendDown: () => extendPendingRange('down', 'grow'),
+                            onShrinkTop: () => extendPendingRange('up', 'shrink'),
+                            onShrinkBottom: () => extendPendingRange('down', 'shrink'),
+                          }}
                         />
                       )}
                     </Fragment>
@@ -514,6 +550,16 @@ function DiffHeader({
   );
 }
 
+interface RangeControls {
+  canExtendUp: boolean;
+  canExtendDown: boolean;
+  canShrink: boolean;
+  onExtendUp: () => void;
+  onExtendDown: () => void;
+  onShrinkTop: () => void;
+  onShrinkBottom: () => void;
+}
+
 interface InlineCommentEditorProps {
   initialValue: string;
   submitLabel: string;
@@ -521,6 +567,7 @@ interface InlineCommentEditorProps {
   onSubmit: (body: string) => void;
   onCancel: () => void;
   disableUnchanged?: boolean;
+  rangeControls?: RangeControls;
 }
 
 function InlineCommentEditor({
@@ -530,9 +577,11 @@ function InlineCommentEditor({
   onSubmit,
   onCancel,
   disableUnchanged = false,
+  rangeControls,
 }: InlineCommentEditorProps) {
   const [value, setValue] = useState(initialValue);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
     const t = textareaRef.current;
@@ -542,18 +591,90 @@ function InlineCommentEditor({
     t.style.height = `${Math.min(t.scrollHeight, max)}px`;
   }, [value]);
 
+  const scrollIntoView = useCallback(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, []);
+
+  useEffect(() => {
+    // On mount and whenever the mobile keyboard opens/closes, make sure the
+    // editor is in view. iOS doesn't reliably scroll nested scroll containers
+    // when focus lands inside them.
+    const id = window.setTimeout(scrollIntoView, 50);
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', scrollIntoView);
+    return () => {
+      window.clearTimeout(id);
+      vv?.removeEventListener('resize', scrollIntoView);
+    };
+  }, [scrollIntoView]);
+
   const trimmed = value.trim();
   const unchanged = trimmed === initialValue.trim();
   const disabled = !trimmed || (disableUnchanged && unchanged);
 
   return (
-    <div className={styles.inlineCommentEdit}>
-      {label && <div className={styles.inlineCommentEditLabel}>{label}</div>}
+    <div ref={rootRef} className={styles.inlineCommentEdit}>
+      {(label || rangeControls) && (
+        <div className={styles.inlineCommentEditHeader}>
+          {label && <span className={styles.inlineCommentEditLabel}>{label}</span>}
+          {rangeControls && (
+            <div
+              className={styles.inlineCommentRangeControls}
+              role="group"
+              aria-label="Adjust selected line range"
+            >
+              <button
+                type="button"
+                className={styles.rangeBtn}
+                onClick={rangeControls.onExtendUp}
+                disabled={!rangeControls.canExtendUp}
+                aria-label="Extend selection up"
+                title="Extend selection up"
+              >
+                ↑+
+              </button>
+              <button
+                type="button"
+                className={styles.rangeBtn}
+                onClick={rangeControls.onShrinkTop}
+                disabled={!rangeControls.canShrink}
+                aria-label="Shrink selection from top"
+                title="Shrink from top"
+              >
+                ↓−
+              </button>
+              <button
+                type="button"
+                className={styles.rangeBtn}
+                onClick={rangeControls.onShrinkBottom}
+                disabled={!rangeControls.canShrink}
+                aria-label="Shrink selection from bottom"
+                title="Shrink from bottom"
+              >
+                ↑−
+              </button>
+              <button
+                type="button"
+                className={styles.rangeBtn}
+                onClick={rangeControls.onExtendDown}
+                disabled={!rangeControls.canExtendDown}
+                aria-label="Extend selection down"
+                title="Extend selection down"
+              >
+                ↓+
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       <textarea
         ref={textareaRef}
         className={styles.inlineCommentTextarea}
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        onFocus={scrollIntoView}
         autoFocus
         maxLength={4096}
         rows={3}

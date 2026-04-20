@@ -15,6 +15,7 @@
   -webkit-overflow-scrolling: touch;
   min-height: 0;
   container-type: inline-size;
+  padding-bottom: 50vh;
 }
 
 .header {
@@ -384,6 +385,42 @@
   font-size: 0.75rem;
   color: var(--text-dim, #aaa);
   font-weight: 500;
+}
+
+.inlineCommentEditHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inlineCommentRangeControls {
+  display: flex;
+  gap: 4px;
+}
+
+.rangeBtn {
+  min-width: 36px;
+  height: 32px;
+  padding: 0 8px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.rangeBtn:hover:not(:disabled) {
+  background: var(--hover, rgba(255, 255, 255, 0.06));
+}
+
+.rangeBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .inlineCommentTextarea {
