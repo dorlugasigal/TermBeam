@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.21.2] - 2026-04-21
+
+- chore(deps): bump the all-npm group with 2 updates (#203)
+- chore: group all dependabot updates into single PRs
+- chore(deps): bump prettier from 3.8.2 to 3.8.3 (#200)
+- chore(ci): bump github/codeql-action from 4.35.1 to 4.35.2 (#198)
+- chore(ci): bump actions/setup-node from 6.3.0 to 6.4.0 (#197)
+- chore(ci): bump cloudflare/wrangler-action from 3.14.1 to 3.15.0 (#196)
+
 ## [1.21.1] - 2026-04-21
 
 - fix(windows): service wizard uses getDefaultShell instead of COMSPEC
