@@ -106,6 +106,7 @@ function isLoggedIn() {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 10_000,
+      windowsHide: true,
     });
     return out && !out.toLowerCase().includes('not logged in');
   } catch {
@@ -119,6 +120,7 @@ function getLoginInfo() {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 10_000,
+      windowsHide: true,
     });
     return parseLoginInfo(out);
   } catch {
@@ -148,6 +150,7 @@ function deviceCodeLogin(cmd) {
   return new Promise((resolve, reject) => {
     const proc = spawn(cmd, ['user', 'login', '-e', '-d'], {
       stdio: ['inherit', 'pipe', 'pipe'],
+      windowsHide: true,
     });
 
     let gotOutput = false;
@@ -197,7 +200,7 @@ function deviceCodeLogin(cmd) {
 function findDevtunnel() {
   // Try devtunnel directly
   try {
-    execSync('devtunnel --version', { stdio: 'pipe' });
+    execSync('devtunnel --version', { stdio: 'pipe', windowsHide: true });
     return 'devtunnel';
   } catch {}
 
@@ -222,7 +225,7 @@ function findDevtunnel() {
   );
   if (fs.existsSync(homeBin)) {
     try {
-      execFileSync(homeBin, ['--version'], { stdio: 'pipe' });
+      execFileSync(homeBin, ['--version'], { stdio: 'pipe', windowsHide: true });
       return homeBin;
     } catch {}
   }
@@ -253,6 +256,7 @@ function isTunnelValid(id) {
     execFileSync(devtunnelCmd, ['show', id, '--json'], {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
     });
     return true;
   } catch {
@@ -273,7 +277,7 @@ function checkTunnelHealth() {
   execFile(
     devtunnelCmd,
     ['show', tunnelId],
-    { encoding: 'utf-8', signal: abortCtrl.signal },
+    { encoding: 'utf-8', signal: abortCtrl.signal, windowsHide: true },
     (err, stdout) => {
       clearTimeout(timer);
 
@@ -401,6 +405,7 @@ function killTunnelProc() {
         execFileSync('taskkill', ['/pid', String(tunnelProc.pid), '/T', '/F'], {
           stdio: 'pipe',
           timeout: 5000,
+          windowsHide: true,
         });
       } catch {
         /* best effort */
@@ -566,6 +571,7 @@ function scheduleRestart() {
 function hostTunnel() {
   const hostProc = spawn(devtunnelCmd, ['host', tunnelId], {
     stdio: ['pipe', 'pipe', 'pipe'],
+    windowsHide: true,
   });
   tunnelProc = hostProc;
 
@@ -657,7 +663,11 @@ async function startTunnel(port, options = {}) {
     if (!loggedIn) {
       log.info('Logging in to DevTunnel with Microsoft Entra (recommended for long sessions)...');
       try {
-        execFileSync(devtunnelCmd, ['user', 'login', '-e'], { stdio: 'inherit', timeout: 30000 });
+        execFileSync(devtunnelCmd, ['user', 'login', '-e'], {
+          stdio: 'inherit',
+          timeout: 30000,
+          windowsHide: true,
+        });
       } catch {
         log.info('Browser login failed or unavailable, falling back to device code flow...');
         log.info('A code will be displayed — open the URL on any device to authenticate.');
@@ -694,6 +704,7 @@ async function startTunnel(port, options = {}) {
         }
         const createOut = execFileSync(devtunnelCmd, ['create', '--expiration', '30d', '--json'], {
           encoding: 'utf-8',
+          windowsHide: true,
         });
         const tunnelData = JSON.parse(createOut);
         tunnelId = tunnelData.tunnel.tunnelId;
@@ -706,6 +717,7 @@ async function startTunnel(port, options = {}) {
       // Ephemeral tunnel — create fresh, will be deleted on shutdown
       const createOut = execFileSync(devtunnelCmd, ['create', '--expiration', '1d', '--json'], {
         encoding: 'utf-8',
+        windowsHide: true,
       });
       const tunnelData = JSON.parse(createOut);
       tunnelId = tunnelData.tunnel.tunnelId;
@@ -717,7 +729,7 @@ async function startTunnel(port, options = {}) {
       execFileSync(
         devtunnelCmd,
         ['port', 'create', tunnelId, '-p', String(port), '--protocol', 'http'],
-        { stdio: 'pipe' },
+        { stdio: 'pipe', windowsHide: true },
       );
     } catch {}
     // Set tunnel access: public (anonymous) or private (owner-only via Microsoft login)
@@ -726,7 +738,7 @@ async function startTunnel(port, options = {}) {
         execFileSync(
           devtunnelCmd,
           ['access', 'create', tunnelId, '-p', String(port), '--anonymous'],
-          { stdio: 'pipe' },
+          { stdio: 'pipe', windowsHide: true },
         );
       } catch {}
       log.info('Tunnel access: public (anonymous)');
@@ -735,6 +747,7 @@ async function startTunnel(port, options = {}) {
       try {
         execFileSync(devtunnelCmd, ['access', 'reset', tunnelId], {
           stdio: 'pipe',
+          windowsHide: true,
         });
       } catch {}
       log.info('Tunnel access: private (owner-only via Microsoft login)');
@@ -773,7 +786,11 @@ function cleanupTunnel() {
       log.info('Tunnel host stopped (tunnel preserved for reuse)');
     } else {
       try {
-        execFileSync(devtunnelCmd, ['delete', id, '-f'], { stdio: 'pipe', timeout: 10000 });
+        execFileSync(devtunnelCmd, ['delete', id, '-f'], {
+          stdio: 'pipe',
+          timeout: 10000,
+          windowsHide: true,
+        });
         log.info('Tunnel cleaned up');
       } catch {
         /* best effort — tunnel will expire on its own */

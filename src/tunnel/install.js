@@ -98,7 +98,7 @@ async function installDevtunnel() {
 function findInstalledBinary() {
   // Check PATH first
   try {
-    execSync('devtunnel --version', { stdio: 'pipe', timeout: 10000 });
+    execSync('devtunnel --version', { stdio: 'pipe', timeout: 10000, windowsHide: true });
     return 'devtunnel';
   } catch {}
 
@@ -110,6 +110,7 @@ function findInstalledBinary() {
         encoding: 'utf-8',
         stdio: 'pipe',
         timeout: 10000,
+        windowsHide: true,
       })
         .trim()
         .split(/\r?\n/)[0];
@@ -130,7 +131,7 @@ function findInstalledBinary() {
   const homeBin = path.join(os.homedir(), 'bin', getBinaryName());
   if (fs.existsSync(homeBin)) {
     try {
-      execFileSync(homeBin, ['--version'], { stdio: 'pipe', timeout: 10000 });
+      execFileSync(homeBin, ['--version'], { stdio: 'pipe', timeout: 10000, windowsHide: true });
       return homeBin;
     } catch {}
   }

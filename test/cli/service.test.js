@@ -4,6 +4,20 @@ const _fs = require('fs');
 const _path = require('path');
 const os = require('os');
 
+// On Windows, pm2Exec/installPm2Global route through cmd.exe /c pm2 ...
+// to avoid DEP0190. Normalize so test mocks see (cmd='pm2', args=[...]).
+function normalizeCmdExeCall(cmd, args) {
+  if (
+    os.platform() === 'win32' &&
+    (cmd === process.env.ComSpec || cmd === 'cmd.exe') &&
+    args &&
+    args[0] === '/c'
+  ) {
+    return { cmd: args[1], args: args.slice(2) };
+  }
+  return { cmd, args };
+}
+
 // We test the pure/exported functions — not the interactive prompts
 const {
   buildArgs,
@@ -203,7 +217,23 @@ function loadServiceWithMocks(mocks = {}) {
 
   const mockModules = {};
   if (mocks.childProcess) {
-    mockModules['child_process'] = { ...require('child_process'), ...mocks.childProcess };
+    const cp = { ...require('child_process'), ...mocks.childProcess };
+    // Wrap execFileSync/spawn mocks to normalize cmd.exe /c calls on Windows
+    if (mocks.childProcess.execFileSync) {
+      const orig = mocks.childProcess.execFileSync;
+      cp.execFileSync = (cmd, args, opts) => {
+        const n = normalizeCmdExeCall(cmd, args);
+        return orig(n.cmd, n.args, opts);
+      };
+    }
+    if (mocks.childProcess.spawn) {
+      const orig = mocks.childProcess.spawn;
+      cp.spawn = (cmd, args, opts) => {
+        const n = normalizeCmdExeCall(cmd, args);
+        return orig(n.cmd, n.args, opts);
+      };
+    }
+    mockModules['child_process'] = cp;
   }
   if (mocks.fs) {
     mockModules['fs'] = { ...require('fs'), ...mocks.fs };
@@ -520,7 +550,7 @@ describe('actionLogs', () => {
     assert.deepStrictEqual(spawnCalls[0].args, ['logs', 'termbeam', '--lines', '200']);
     assert.deepStrictEqual(spawnCalls[0].opts, {
       stdio: 'inherit',
-      shell: os.platform() === 'win32',
+      windowsHide: true,
     });
   });
 
