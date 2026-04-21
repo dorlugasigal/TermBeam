@@ -415,4 +415,4 @@ function parseArgs() {
   return config;
 }
 
-module.exports = { parseArgs, printHelp, isKnownShell, getWindowsAncestors };
+module.exports = { parseArgs, printHelp, isKnownShell, getWindowsAncestors, getDefaultShell };

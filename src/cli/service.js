@@ -355,8 +355,9 @@ async function actionInstall() {
   config.cwd = await ask(rl, 'Working directory:', process.cwd());
   decisions.push({ label: 'Directory', value: config.cwd });
 
-  // Shell — use current shell automatically
-  config.shell = process.env.SHELL || (os.platform() === 'win32' ? process.env.COMSPEC : '/bin/sh');
+  // Shell — detect the actual shell the user is running from
+  const { getDefaultShell } = require('./index');
+  config.shell = getDefaultShell();
   decisions.push({ label: 'Shell', value: config.shell });
 
   // Log level

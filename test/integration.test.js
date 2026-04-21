@@ -462,9 +462,11 @@ describe('Integration', () => {
         'Should print banner, got: ' + output.slice(0, 300),
       );
 
-      // Debug output should show it detected "node" and fell back
+      // Debug output should show it detected "node" and fell back or detected via heuristic
       assert.ok(
-        output.includes('not a known shell') || output.includes('Falling back'),
+        output.includes('not a known shell') ||
+          output.includes('Falling back') ||
+          output.includes('via PSModulePath'),
         'Should log shell detection fallback, got: ' + output.slice(0, 500),
       );
     });
