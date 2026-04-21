@@ -79,7 +79,7 @@ function getWindowsAncestors(startPid, maxDepth = 4) {
     const result = execFileSync(
       'wmic',
       ['process', 'get', 'Name,ParentProcessId,ProcessId', '/format:csv'],
-      { stdio: ['pipe', 'pipe', 'ignore'], encoding: 'utf8', timeout: 5000 },
+      { stdio: ['pipe', 'pipe', 'ignore'], encoding: 'utf8', timeout: 5000, windowsHide: true },
     );
 
     // Parse CSV output — first non-empty line is the header

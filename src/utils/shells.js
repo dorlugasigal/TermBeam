@@ -25,6 +25,7 @@ function detectWindowsShells() {
         stdio: ['pipe', 'pipe', 'ignore'],
         encoding: 'utf8',
         timeout: 3000,
+        windowsHide: true,
       });
       const fullPath = result.trim().split('\n')[0].trim();
       if (fullPath) {

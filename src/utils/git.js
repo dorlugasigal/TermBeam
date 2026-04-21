@@ -3,7 +3,9 @@ const path = require('path');
 const log = require('./logger');
 
 function git(cmd, cwd) {
-  return execSync(`git ${cmd}`, { cwd, stdio: 'pipe', timeout: 3000 }).toString().trim();
+  return execSync(`git ${cmd}`, { cwd, stdio: 'pipe', timeout: 3000, windowsHide: true })
+    .toString()
+    .trim();
 }
 
 function getGitInfo(cwd) {
@@ -144,7 +146,7 @@ async function getGitRoot(cwd) {
       require('child_process').execFile(
         'git',
         ['rev-parse', '--show-toplevel'],
-        { cwd, timeout: GIT_TIMEOUT },
+        { cwd, timeout: GIT_TIMEOUT, windowsHide: true },
         (err, stdout) => {
           if (err) return reject(err);
           resolve(stdout.trim());
@@ -167,6 +169,7 @@ async function gitAsync(args, cwd, options = {}) {
         cwd,
         timeout: options.timeout || GIT_TIMEOUT,
         maxBuffer: options.maxBuffer || MAX_DIFF_BUFFER,
+        windowsHide: true,
       },
       (err, stdout) => {
         if (err) return reject(err);
@@ -343,6 +346,7 @@ async function getFileDiff(cwd, filePath, options = {}) {
             cwd: root,
             timeout: GIT_TIMEOUT,
             maxBuffer: MAX_DIFF_BUFFER,
+            windowsHide: true,
           },
           (err, stdout) => {
             // git diff --no-index exits with 1 when files differ — that's expected

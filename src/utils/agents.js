@@ -62,24 +62,29 @@ function tryDetectAgent(agent) {
     let remaining = candidates.length;
 
     for (const bin of candidates) {
-      child_process.execFile(bin, args, { timeout: 5000, encoding: 'utf8' }, (err, stdout) => {
-        remaining--;
-        if (resolved) return;
-        if (!err) {
-          resolved = true;
-          const version = (stdout || '').trim().split('\n')[0] || 'unknown';
-          resolve({
-            id: agent.id,
-            name: agent.name,
-            cmd: agent.cmd,
-            args: agent.args || [],
-            icon: agent.icon,
-            version,
-          });
-        } else if (remaining === 0) {
-          resolve(null);
-        }
-      });
+      child_process.execFile(
+        bin,
+        args,
+        { timeout: 5000, encoding: 'utf8', windowsHide: true },
+        (err, stdout) => {
+          remaining--;
+          if (resolved) return;
+          if (!err) {
+            resolved = true;
+            const version = (stdout || '').trim().split('\n')[0] || 'unknown';
+            resolve({
+              id: agent.id,
+              name: agent.name,
+              cmd: agent.cmd,
+              args: agent.args || [],
+              icon: agent.icon,
+              version,
+            });
+          } else if (remaining === 0) {
+            resolve(null);
+          }
+        },
+      );
     }
   });
 }
