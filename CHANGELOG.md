@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.21.1] - 2026-04-21
+
+- fix(windows): service wizard uses getDefaultShell instead of COMSPEC
+- fix(windows): use tasklist fallback when wmic unavailable for shell detection
+- fix(windows): add windowsHide to all child_process calls
+- fix(windows): hide devtunnel console windows and fix DEP0190 deprecation
+
 ## [1.21.0] - 2026-04-20
 
 - feat(review): add Review Mode to diff viewer + SessionsHub filter chips (#195)
