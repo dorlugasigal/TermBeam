@@ -10,6 +10,10 @@ updates:
       - dependencies
     commit-message:
       prefix: 'chore(deps):'
+    groups:
+      all-npm:
+        patterns:
+          - '*'
 
   - package-ecosystem: github-actions
     directory: /
@@ -22,6 +26,10 @@ updates:
       - ci
     commit-message:
       prefix: 'chore(ci):'
+    groups:
+      all-actions:
+        patterns:
+          - '*'
 
   - package-ecosystem: docker
     directory: /
@@ -33,3 +41,7 @@ updates:
       - dependencies
     commit-message:
       prefix: 'chore(deps):'
+    groups:
+      all-docker:
+        patterns:
+          - '*'
