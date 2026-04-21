@@ -75,6 +75,7 @@ function getWindowsAncestors(startPid, maxDepth = 4) {
   const safePid = parseInt(startPid, 10);
   if (!Number.isFinite(safePid) || safePid <= 0) return names;
 
+  // Strategy 1: wmic (available on older Windows builds)
   try {
     const result = execFileSync(
       'wmic',
@@ -82,41 +83,58 @@ function getWindowsAncestors(startPid, maxDepth = 4) {
       { stdio: ['pipe', 'pipe', 'ignore'], encoding: 'utf8', timeout: 5000, windowsHide: true },
     );
 
-    // Parse CSV output — first non-empty line is the header
     const lines = result.split(/\r?\n/).filter((l) => l.trim());
-    if (lines.length === 0) return names;
+    if (lines.length > 0) {
+      const header = lines[0].split(',').map((h) => h.trim());
+      const nameIdx = header.indexOf('Name');
+      const pidIdx = header.indexOf('ProcessId');
+      const ppidIdx = header.indexOf('ParentProcessId');
+      if (nameIdx !== -1 && pidIdx !== -1 && ppidIdx !== -1) {
+        const processes = new Map();
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',');
+          if (cols.length <= Math.max(nameIdx, pidIdx, ppidIdx)) continue;
+          const pid = parseInt(cols[pidIdx], 10);
+          if (Number.isFinite(pid)) {
+            processes.set(pid, {
+              name: cols[nameIdx].trim().toLowerCase(),
+              ppid: parseInt(cols[ppidIdx], 10),
+            });
+          }
+        }
 
-    const header = lines[0].split(',').map((h) => h.trim());
-    const nameIdx = header.indexOf('Name');
-    const pidIdx = header.indexOf('ProcessId');
-    const ppidIdx = header.indexOf('ParentProcessId');
-    if (nameIdx === -1 || pidIdx === -1 || ppidIdx === -1) return names;
-
-    const processes = new Map();
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',');
-      if (cols.length <= Math.max(nameIdx, pidIdx, ppidIdx)) continue;
-      const pid = parseInt(cols[pidIdx], 10);
-      if (Number.isFinite(pid)) {
-        processes.set(pid, {
-          name: cols[nameIdx].trim().toLowerCase(),
-          ppid: parseInt(cols[ppidIdx], 10),
-        });
+        let currentPid = safePid;
+        for (let i = 0; i < maxDepth; i++) {
+          const proc = processes.get(currentPid);
+          if (!proc) break;
+          log.debug(`Process tree: ${proc.name}`);
+          names.push(proc.name);
+          if (!Number.isFinite(proc.ppid) || proc.ppid === 0 || proc.ppid === currentPid) break;
+          currentPid = proc.ppid;
+        }
+        if (names.length > 0) return names;
       }
     }
+  } catch (err) {
+    log.debug(`wmic not available: ${err.message}`);
+  }
 
-    // Walk up the tree in memory — no more subprocess calls
-    let currentPid = safePid;
-    for (let i = 0; i < maxDepth; i++) {
-      const proc = processes.get(currentPid);
-      if (!proc) break;
-      log.debug(`Process tree: ${proc.name}`);
-      names.push(proc.name);
-      if (!Number.isFinite(proc.ppid) || proc.ppid === 0 || proc.ppid === currentPid) break;
-      currentPid = proc.ppid;
+  // Strategy 2: tasklist for direct parent name (always available on Windows)
+  try {
+    const result = execFileSync('tasklist', ['/FI', `PID eq ${safePid}`, '/FO', 'CSV', '/NH'], {
+      stdio: ['pipe', 'pipe', 'ignore'],
+      encoding: 'utf8',
+      timeout: 5000,
+      windowsHide: true,
+    });
+    const match = result.match(/"([^"]+)"/);
+    if (match) {
+      const name = match[1].toLowerCase();
+      log.debug(`Process tree (tasklist): ${name}`);
+      names.push(name);
     }
   } catch (err) {
-    log.debug(`Could not query process tree: ${err.message}`);
+    log.debug(`tasklist failed: ${err.message}`);
   }
 
   return names;
@@ -188,6 +206,19 @@ function getDefaultShell() {
       log.debug(`Using detected shell: cmd.exe`);
       return 'cmd.exe';
     }
+
+    // Heuristic: PSModulePath env var is set by PowerShell and inherited by children.
+    // When the tree walk only found intermediaries (node.exe), this detects the real shell.
+    const psModulePath = (process.env.PSModulePath || '').toLowerCase();
+    if (psModulePath.includes('\\powershell\\')) {
+      log.debug('Detected pwsh.exe via PSModulePath');
+      return 'pwsh.exe';
+    }
+    if (psModulePath.includes('\\windowspowershell\\')) {
+      log.debug('Detected powershell.exe via PSModulePath');
+      return 'powershell.exe';
+    }
+
     const fallback = process.env.COMSPEC || 'cmd.exe';
     log.debug(`Falling back to: ${fallback}`);
     return fallback;
