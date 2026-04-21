@@ -530,8 +530,10 @@ describe('CLI', () => {
       const origPlatform = os.platform;
       const origExecFileSync = child_process.execFileSync;
       const origComspec = process.env.COMSPEC;
+      const origPSModulePath = process.env.PSModulePath;
       os.platform = () => 'win32';
       process.env.COMSPEC = 'C:\\Windows\\System32\\cmd.exe';
+      delete process.env.PSModulePath;
       child_process.execFileSync = (cmd) => {
         if (cmd === 'wmic') {
           return ['Node,Name,ParentProcessId,ProcessId', `PC,explorer.exe,0,${process.ppid}`].join(
@@ -551,6 +553,8 @@ describe('CLI', () => {
         child_process.execFileSync = origExecFileSync;
         if (origComspec !== undefined) process.env.COMSPEC = origComspec;
         else delete process.env.COMSPEC;
+        if (origPSModulePath !== undefined) process.env.PSModulePath = origPSModulePath;
+        else delete process.env.PSModulePath;
       }
     });
   });

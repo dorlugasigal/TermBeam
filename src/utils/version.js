@@ -23,6 +23,7 @@ function getVersion() {
       cwd: path.join(__dirname, '..', '..'),
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
     }).trim();
 
     const tagMatch = gitDesc.match(/^v(\d+\.\d+\.\d+)(?:-(\d+)-g([0-9a-f]+))?(-dirty)?$/);

@@ -32,6 +32,7 @@ function findPm2() {
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore'],
       timeout: 5000,
+      windowsHide: true,
     });
     return result.trim().split('\n')[0].trim();
   } catch {
@@ -43,10 +44,13 @@ function installPm2Global() {
   log.info('Installing PM2 globally');
   console.log(yellow('\nInstalling PM2 globally...'));
   try {
-    execFileSync('npm', ['install', '-g', 'pm2'], {
+    const isWin = os.platform() === 'win32';
+    const cmd = isWin ? process.env.ComSpec || 'cmd.exe' : 'npm';
+    const cmdArgs = isWin ? ['/c', 'npm', 'install', '-g', 'pm2'] : ['install', '-g', 'pm2'];
+    execFileSync(cmd, cmdArgs, {
       stdio: 'inherit',
       timeout: 120000,
-      shell: os.platform() === 'win32',
+      windowsHide: true,
     });
     console.log(green('✓ PM2 installed successfully.\n'));
     return true;
@@ -141,13 +145,17 @@ function readEcosystemName() {
 
 function pm2Exec(args, opts = {}) {
   log.debug(`PM2 command: pm2 ${args.join(' ')}`);
+  const isWin = os.platform() === 'win32';
+  // Windows npm globals are .cmd wrappers — use cmd.exe /c to resolve them
+  // without shell:true (which triggers DEP0190 when combined with args).
+  const cmd = isWin ? process.env.ComSpec || 'cmd.exe' : 'pm2';
+  const cmdArgs = isWin ? ['/c', 'pm2', ...args] : args;
   try {
-    return execFileSync('pm2', args, {
+    return execFileSync(cmd, cmdArgs, {
       encoding: 'utf8',
       stdio: opts.inherit ? 'inherit' : ['pipe', 'pipe', 'pipe'],
       timeout: 30000,
-      // Windows npm globals are .cmd wrappers; execFileSync needs shell to resolve them
-      shell: os.platform() === 'win32',
+      windowsHide: true,
       ...opts,
     });
   } catch (err) {
@@ -347,8 +355,9 @@ async function actionInstall() {
   config.cwd = await ask(rl, 'Working directory:', process.cwd());
   decisions.push({ label: 'Directory', value: config.cwd });
 
-  // Shell — use current shell automatically
-  config.shell = process.env.SHELL || (os.platform() === 'win32' ? process.env.COMSPEC : '/bin/sh');
+  // Shell — detect the actual shell the user is running from
+  const { getDefaultShell } = require('./index');
+  config.shell = getDefaultShell();
   decisions.push({ label: 'Shell', value: config.shell });
 
   // Log level
@@ -665,9 +674,13 @@ function actionLogs() {
     process.exit(1);
   }
   const { spawn } = require('child_process');
-  const child = spawn('pm2', ['logs', readEcosystemName(), '--lines', '200'], {
+  const isWin = os.platform() === 'win32';
+  const cmd = isWin ? process.env.ComSpec || 'cmd.exe' : 'pm2';
+  const logsArgs = ['logs', readEcosystemName(), '--lines', '200'];
+  const cmdArgs = isWin ? ['/c', 'pm2', ...logsArgs] : logsArgs;
+  const child = spawn(cmd, cmdArgs, {
     stdio: 'inherit',
-    shell: os.platform() === 'win32',
+    windowsHide: true,
   });
   child.on('error', (err) => {
     console.error(red(`✗ Failed to stream logs: ${err.message}`));

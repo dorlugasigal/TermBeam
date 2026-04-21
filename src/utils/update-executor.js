@@ -339,15 +339,20 @@ function clearUpdateResult() {
 
 function execFilePromise(cmd, args, options = {}) {
   return new Promise((resolve, reject) => {
-    execFile(cmd, args, { encoding: 'utf8', ...options }, (err, stdout, stderr) => {
-      if (err) {
-        err.stdout = stdout;
-        err.stderr = stderr;
-        reject(err);
-      } else {
-        resolve({ stdout, stderr });
-      }
-    });
+    execFile(
+      cmd,
+      args,
+      { encoding: 'utf8', windowsHide: true, ...options },
+      (err, stdout, stderr) => {
+        if (err) {
+          err.stdout = stdout;
+          err.stderr = stderr;
+          reject(err);
+        } else {
+          resolve({ stdout, stderr });
+        }
+      },
+    );
   });
 }
 
