@@ -1,4 +1,4 @@
-FROM node:22-slim@sha256:9c2c405e3ff9b9afb2873232d24bb06367d649aa3e6259cbe314da59578e81e9
+FROM node:25-slim@sha256:435f3537a088a01fd208bb629a4b69c28d85deb9a60af8a710cafc3befd6e3be
 
 RUN apt-get update && apt-get install -y \
     python3 make g++ \
