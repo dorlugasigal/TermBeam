@@ -61,6 +61,7 @@ jobs:
           echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
 
       - name: Update CHANGELOG
+        id: changelog
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -78,13 +79,22 @@ jobs:
             COMMITS=$(git log --pretty=format:"- %s (%aN)" --no-merges)
           fi
           : "${COMMITS:=- Maintenance and improvements}"
+
+          SECTION="## [${NEW_VERSION}] - ${DATE}
+
+          ${COMMITS}"
+
+          {
+            echo "section<<CHANGELOG_EOF"
+            echo "$SECTION"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
           if [ -f CHANGELOG.md ]; then
             {
               head -1 CHANGELOG.md
               echo ""
-              echo "## [${NEW_VERSION}] - ${DATE}"
-              echo ""
-              echo "${COMMITS}"
+              echo "$SECTION"
               echo ""
               tail -n +2 CHANGELOG.md
             } > CHANGELOG.tmp
@@ -122,4 +132,5 @@ jobs:
         with:
           tag_name: v${{ steps.bump.outputs.new_version }}
           name: v${{ steps.bump.outputs.new_version }}
+          body: ${{ steps.changelog.outputs.section }}
           generate_release_notes: true
