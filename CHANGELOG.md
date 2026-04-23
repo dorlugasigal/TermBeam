@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.21.5] - 2026-04-23
+
+- fix(auth): constant-time password comparison (#204) (@TickTockBent)
+- fix(auth): use raw timingSafeEqual instead of HMAC for password compare (@dorlugasigal)
+- fix(auth): pad to fixed length in safeCompare instead of self-compare (@dorlugasigal)
+
 ## [1.21.4] - 2026-04-23
 
 - feat: add author attribution to changelog via gh api (@dorlugasigal)
