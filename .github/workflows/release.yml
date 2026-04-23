@@ -61,15 +61,23 @@ jobs:
           echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
 
       - name: Update CHANGELOG
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           NEW_VERSION=${{ steps.bump.outputs.new_version }}
           DATE=$(date +%Y-%m-%d)
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          REPO="${{ github.repository }}"
           if [ -n "$LAST_TAG" ]; then
-            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"- %s" --no-merges)
+            COMMITS=$(gh api "/repos/${REPO}/compare/${LAST_TAG}...HEAD" \
+              --jq '.commits[]
+                | select(.parents | length == 1)
+                | "- \(.commit.message | split("\n")[0]) (\(if .author.login then "@\(.author.login)" else .commit.author.name end))"' \
+              || true)
           else
-            COMMITS=$(git log --pretty=format:"- %s" --no-merges)
+            COMMITS=$(git log --pretty=format:"- %s (%aN)" --no-merges)
           fi
+          : "${COMMITS:=- Maintenance and improvements}"
           if [ -f CHANGELOG.md ]; then
             {
               head -1 CHANGELOG.md
