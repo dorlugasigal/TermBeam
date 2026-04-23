@@ -290,6 +290,19 @@ const LOGIN_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
+// Constant-time string compare. HMAC with a per-process random key normalizes
+// both sides to a fixed-length digest (avoiding length leaks and timingSafeEqual
+// throws) and sidesteps static-analysis warnings about plain hash use on
+// password material — the HMAC key is secret and ephemeral, and we only use
+// the digests for equality, never for storage.
+const SAFE_COMPARE_KEY = crypto.randomBytes(32);
+function safeCompare(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const ah = crypto.createHmac('sha256', SAFE_COMPARE_KEY).update(a).digest();
+  const bh = crypto.createHmac('sha256', SAFE_COMPARE_KEY).update(b).digest();
+  return crypto.timingSafeEqual(ah, bh);
+}
+
 function createAuth(password) {
   const tokens = new Map();
   const authAttempts = new Map();
@@ -373,7 +386,7 @@ function createAuth(password) {
         log.warn(`Auth: rate limit exceeded for ${ip}`);
         return res.status(429).json({ error: 'Too many attempts. Try again later.' });
       }
-      if (authHeader === `Bearer ${password}`) return next();
+      if (safeCompare(authHeader.slice('Bearer '.length), password)) return next();
       recent.push(now);
       authAttempts.set(ip, recent);
       return res.status(401).json({ error: 'unauthorized' });
@@ -416,9 +429,10 @@ function createAuth(password) {
     middleware,
     rateLimit,
     parseCookies,
+    safeCompare,
     loginHTML: LOGIN_HTML,
     cleanup: () => clearInterval(cleanupInterval),
   };
 }
 
-module.exports = { createAuth };
+module.exports = { createAuth, safeCompare };

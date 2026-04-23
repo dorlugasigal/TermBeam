@@ -6,10 +6,13 @@ const {
   sanitizeForReplay,
 } = require('../../src/server/websocket');
 
+const { safeCompare } = require('../../src/server/auth');
+
 function createMockAuth(password = null) {
   const tokens = new Set();
   return {
     password,
+    safeCompare,
     generateToken() {
       const t = 'tok_' + Math.random().toString(36).slice(2);
       tokens.add(t);

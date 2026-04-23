@@ -133,7 +133,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
   // Auth API
   app.post('/api/auth', auth.rateLimit, (req, res) => {
     const { password } = req.body || {};
-    if (password === auth.password) {
+    if (auth.safeCompare(password, auth.password)) {
       const token = auth.generateToken();
       res.cookie('pty_token', token, {
         httpOnly: true,

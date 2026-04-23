@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
-const { createAuth } = require('../../src/server/auth');
+const { createAuth, safeCompare } = require('../../src/server/auth');
 
 describe('Auth', () => {
   describe('createAuth', () => {
@@ -599,6 +599,47 @@ describe('Auth', () => {
         global.setInterval = realSetInterval;
         delete require.cache[require.resolve('../../src/server/auth')];
       }
+    });
+  });
+
+  describe('safeCompare', () => {
+    it('should return true for identical strings', () => {
+      assert.strictEqual(safeCompare('secret', 'secret'), true);
+      assert.strictEqual(safeCompare('', ''), true);
+    });
+
+    it('should return false for different strings', () => {
+      assert.strictEqual(safeCompare('secret', 'wrong'), false);
+      assert.strictEqual(safeCompare('a', 'b'), false);
+    });
+
+    it('should return false for strings of different lengths', () => {
+      assert.strictEqual(safeCompare('secret', 'secrets'), false);
+      assert.strictEqual(safeCompare('short', 'longer-password'), false);
+      assert.strictEqual(safeCompare('', 'x'), false);
+    });
+
+    it('should return false for non-string inputs', () => {
+      assert.strictEqual(safeCompare(undefined, 'secret'), false);
+      assert.strictEqual(safeCompare('secret', undefined), false);
+      assert.strictEqual(safeCompare(null, 'secret'), false);
+      assert.strictEqual(safeCompare('secret', null), false);
+      assert.strictEqual(safeCompare(123, 'secret'), false);
+      assert.strictEqual(safeCompare({}, 'secret'), false);
+    });
+
+    it('should handle unicode and special characters', () => {
+      assert.strictEqual(safeCompare('pässwörd', 'pässwörd'), true);
+      assert.strictEqual(safeCompare('pässwörd', 'password'), false);
+    });
+
+    it('should treat empty strings as equal to each other but not to any other value', () => {
+      // Documents current behavior: if the server password is configured as '',
+      // a client sending '' would match. Callers must gate on auth.password
+      // being truthy (as routes.js/websocket.js already do) to avoid this.
+      assert.strictEqual(safeCompare('', ''), true);
+      assert.strictEqual(safeCompare('', 'x'), false);
+      assert.strictEqual(safeCompare('x', ''), false);
     });
   });
 });

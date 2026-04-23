@@ -3,6 +3,7 @@
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert');
 const { setupWebSocket } = require('../../src/server/websocket');
+const { safeCompare } = require('../../src/server/auth');
 
 // --- Mock helpers (same pattern as websocket.test.js) ---
 
@@ -10,6 +11,7 @@ function createMockAuth(password = null) {
   const tokens = new Set();
   return {
     password,
+    safeCompare,
     generateToken() {
       const t = 'tok_' + Math.random().toString(36).slice(2);
       tokens.add(t);
