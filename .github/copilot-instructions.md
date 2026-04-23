@@ -169,7 +169,7 @@ CRF 0 is not supported by Remotion's H.264 encoder. Start with `--crf 18` for a 
 These are intentional design choices — not bugs:
 
 - **Cookie `secure` flag is off** — TermBeam runs over HTTP locally; TLS is handled at the tunnel proxy layer (DevTunnels). Setting `secure` would break cookie auth on LAN.
-- **Password compared in constant time?** No — the password is short-lived and auto-generated; rate limiting (5 attempts/min/IP) is the primary brute-force defense.
+- **Password compared in constant time** — `auth.safeCompare` SHA-256-hashes both sides and uses `crypto.timingSafeEqual` to prevent timing-based recovery. Rate limiting (5 attempts/min/IP) remains the primary brute-force defense.
 - **Tunnel is on by default** — makes the tool useful out of the box (phone on cellular), but this means the terminal is internet-accessible. Password auto-generation compensates.
 - **Default bind is `127.0.0.1`** — localhost only by default. Use `--lan` or `--host 0.0.0.0` for LAN access.
 - **`--no-password` exists** — for trusted localhost-only scenarios. Never combine with tunnel.

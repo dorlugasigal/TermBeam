@@ -57,6 +57,7 @@ Out of the box, TermBeam is configured conservatively:
 - ✅ **Ephemeral tunnel** — tunnel URL is deleted when TermBeam exits
 - ✅ **Security headers** — X-Frame-Options, CSP, no-store, nosniff on all responses
 - ✅ **Rate-limited login** — 5 attempts per minute per IP
+- ✅ **Constant-time password comparison** — prevents timing-based password recovery
 - ✅ **httpOnly cookies** — tokens not accessible to JavaScript
 - ✅ **WebSocket origin validation** — cross-origin connections rejected
 - ✅ **Shell path validation** — only detected shells allowed
