@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.21.4] - 2026-04-23
+
+- feat: add author attribution to changelog via gh api (@dorlugasigal)
+- chore(release): v1.21.3 [skip ci] (@github-actions[bot])
+- fix: pass changelog section as release body (@dorlugasigal)
+
 ## [1.21.3] - 2026-04-23
 
 - feat: add author attribution to changelog via gh api (@dorlugasigal)
