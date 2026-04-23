@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.21.3] - 2026-04-23
+
+- feat: add author attribution to changelog via gh api (@dorlugasigal)
+
 ## [1.21.2] - 2026-04-21
 
 - chore(deps): bump the all-npm group with 2 updates (#203)
