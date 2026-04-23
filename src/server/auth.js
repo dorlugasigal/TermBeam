@@ -293,18 +293,23 @@ const LOGIN_HTML = `<!DOCTYPE html>
 // Constant-time string compare using crypto.timingSafeEqual on raw bytes.
 // We intentionally do NOT hash the inputs: this is an equality check against
 // an in-memory secret (never stored), and hashing would trip CodeQL's
-// js/insufficient-password-hash rule which is aimed at password *storage*.
-// When lengths differ we still run timingSafeEqual on the longer buffer
-// against itself so the branch cost is roughly constant.
+// js/insufficient-password-hash rule which targets password *storage*.
+//
+// To avoid leaking length via early-return, both inputs are copied into
+// fixed-length zero-padded buffers before timingSafeEqual, and the final
+// result is AND-ed with a real length check.
+const SAFE_COMPARE_LEN = 256;
 function safeCompare(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
   const ab = Buffer.from(a, 'utf8');
   const bb = Buffer.from(b, 'utf8');
-  if (ab.length !== bb.length) {
-    crypto.timingSafeEqual(ab, ab);
-    return false;
-  }
-  return crypto.timingSafeEqual(ab, bb);
+  if (ab.length > SAFE_COMPARE_LEN || bb.length > SAFE_COMPARE_LEN) return false;
+  const ap = Buffer.alloc(SAFE_COMPARE_LEN);
+  const bp = Buffer.alloc(SAFE_COMPARE_LEN);
+  ab.copy(ap);
+  bb.copy(bp);
+  const bytesEqual = crypto.timingSafeEqual(ap, bp);
+  return bytesEqual && ab.length === bb.length;
 }
 
 function createAuth(password) {
