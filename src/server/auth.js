@@ -290,6 +290,15 @@ const LOGIN_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
+// Constant-time string compare. Hashing both sides first masks length
+// differences and guarantees equal-length buffers for timingSafeEqual.
+function safeCompare(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const ah = crypto.createHash('sha256').update(a).digest();
+  const bh = crypto.createHash('sha256').update(b).digest();
+  return crypto.timingSafeEqual(ah, bh);
+}
+
 function createAuth(password) {
   const tokens = new Map();
   const authAttempts = new Map();
@@ -373,7 +382,7 @@ function createAuth(password) {
         log.warn(`Auth: rate limit exceeded for ${ip}`);
         return res.status(429).json({ error: 'Too many attempts. Try again later.' });
       }
-      if (authHeader === `Bearer ${password}`) return next();
+      if (safeCompare(authHeader.slice('Bearer '.length), password)) return next();
       recent.push(now);
       authAttempts.set(ip, recent);
       return res.status(401).json({ error: 'unauthorized' });
@@ -416,9 +425,10 @@ function createAuth(password) {
     middleware,
     rateLimit,
     parseCookies,
+    safeCompare,
     loginHTML: LOGIN_HTML,
     cleanup: () => clearInterval(cleanupInterval),
   };
 }
 
-module.exports = { createAuth };
+module.exports = { createAuth, safeCompare };

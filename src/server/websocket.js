@@ -127,7 +127,7 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
             return;
           }
 
-          if (msg.password === auth.password || auth.validateToken(msg.token)) {
+          if (auth.safeCompare(msg.password, auth.password) || auth.validateToken(msg.token)) {
             authenticated = true;
             ws.send(JSON.stringify({ type: 'auth_ok' }));
             log.info('WS: auth success');
