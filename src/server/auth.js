@@ -290,12 +290,16 @@ const LOGIN_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-// Constant-time string compare. Hashing both sides first masks length
-// differences and guarantees equal-length buffers for timingSafeEqual.
+// Constant-time string compare. HMAC with a per-process random key normalizes
+// both sides to a fixed-length digest (avoiding length leaks and timingSafeEqual
+// throws) and sidesteps static-analysis warnings about plain hash use on
+// password material — the HMAC key is secret and ephemeral, and we only use
+// the digests for equality, never for storage.
+const SAFE_COMPARE_KEY = crypto.randomBytes(32);
 function safeCompare(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
-  const ah = crypto.createHash('sha256').update(a).digest();
-  const bh = crypto.createHash('sha256').update(b).digest();
+  const ah = crypto.createHmac('sha256', SAFE_COMPARE_KEY).update(a).digest();
+  const bh = crypto.createHmac('sha256', SAFE_COMPARE_KEY).update(b).digest();
   return crypto.timingSafeEqual(ah, bh);
 }
 
