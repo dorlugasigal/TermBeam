@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.21.6] - 2026-04-24
+
+- fix(deps): patch 9 vulnerabilities reported by OpenSSF Scorecard (#206) (@dorlugasigal)
+
 ## [1.21.5] - 2026-04-23
 
 - fix(auth): constant-time password comparison (#204) (@TickTockBent)
