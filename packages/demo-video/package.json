@@ -20,6 +20,10 @@
     "prettier": "3.6.0",
     "typescript": "5.9.3"
   },
+  "overrides": {
+    "brace-expansion@>=1.0.0 <2.0.0": "^1.1.13",
+    "brace-expansion@>=2.0.0 <3.0.0": "^2.0.3"
+  },
   "scripts": {
     "dev": "remotion studio",
     "build": "remotion bundle",
