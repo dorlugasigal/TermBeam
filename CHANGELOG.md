@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.22.0] - 2026-04-25
+
+- feat(site): unify landing + docs into Astro Starlight site (#209) (@dorlugasigal)
+
 ## [1.21.8] - 2026-04-25
 
 - fix(mobile): stabilize bottom touchbar across iOS PWA orientation changes (@dorlugasigal)
