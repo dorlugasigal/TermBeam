@@ -5,7 +5,7 @@ description: Learn how to use TermBeam's terminal UI — tabs, split view, searc
 
 # Usage Guide
 
-Once you've [started TermBeam](/getting-started/) and connected from your device, here's how to make the most of the terminal UI.
+Once you've [started TermBeam](../getting-started/) and connected from your device, here's how to make the most of the terminal UI.
 
 ## Terminal View
 
@@ -122,6 +122,6 @@ TermBeam includes 30 color themes: Dark, Light, Monokai, Solarized Dark, Solariz
 
 ## See Also
 
-- **[Getting Started](/getting-started/)** — installation and first run
-- **[Configuration](/configuration/)** — CLI flags, environment variables, and defaults
-- **[Resume & List](/resume/)** — reconnect to running sessions from your terminal
+- **[Getting Started](../getting-started/)** — installation and first run
+- **[Configuration](../configuration/)** — CLI flags, environment variables, and defaults
+- **[Resume & List](../resume/)** — reconnect to running sessions from your terminal

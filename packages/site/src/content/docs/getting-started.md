@@ -81,7 +81,7 @@ Or start directly with defaults:
 - Use the **folder browser** to pick a working directory
 - Optionally set an **initial command** that runs when the session starts — useful for launching tools like `htop`, `vim`, `docker logs -f`, or any long-running command
 
-For a walkthrough of the terminal UI — tabs, split view, search, touch controls, and more — see the [Usage Guide](/usage-guide/).
+For a walkthrough of the terminal UI — tabs, split view, search, touch controls, and more — see the [Usage Guide](../usage-guide/).
 
 ## Running as a Service
 
@@ -91,13 +91,13 @@ Want TermBeam always available in the background? The built-in service installer
 termbeam service install
 ```
 
-After installation, manage the service with `termbeam service status`, `logs`, `restart`, or `uninstall`. For the full setup guide and alternative methods (systemd, launchd, Windows), see [Running in Background](/running-in-background/).
+After installation, manage the service with `termbeam service status`, `logs`, `restart`, or `uninstall`. For the full setup guide and alternative methods (systemd, launchd, Windows), see [Running in Background](../running-in-background/).
 
 ---
 
 ## See Also
 
-- **[Usage Guide](/usage-guide/)** — tabs, split view, search, touch controls, themes, and more
-- **[Configuration](/configuration/)** — CLI flags, environment variables, and defaults
-- **[Resume & List](/resume/)** — reconnect to running sessions from your terminal
-- **[Running in Background](/running-in-background/)** — keep TermBeam always available with PM2, systemd, or launchd
+- **[Usage Guide](../usage-guide/)** — tabs, split view, search, touch controls, themes, and more
+- **[Configuration](../configuration/)** — CLI flags, environment variables, and defaults
+- **[Resume & List](../resume/)** — reconnect to running sessions from your terminal
+- **[Running in Background](../running-in-background/)** — keep TermBeam always available with PM2, systemd, or launchd

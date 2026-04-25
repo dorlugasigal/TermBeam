@@ -57,7 +57,7 @@ TermBeam follows a one-responsibility-per-file pattern. Key modules:
 - **`src/websocket.js`** — WebSocket message handling
 - **`public/`** — vanilla HTML/JS frontend using xterm.js
 
-For the full architecture, see [Architecture](/architecture/).
+For the full architecture, see [Architecture](../architecture/).
 
 ### Documentation
 

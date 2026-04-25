@@ -1276,5 +1276,5 @@ Broadcast when the tunnel connection state changes. Allows the frontend to show 
 
 ## See Also
 
-- **[Architecture](/architecture/)** — system design, module responsibilities, and data flow
-- **[Security](/security/)** — threat model, safe usage, and security features
+- **[Architecture](../architecture/)** — system design, module responsibilities, and data flow
+- **[Security](../security/)** — threat model, safe usage, and security features

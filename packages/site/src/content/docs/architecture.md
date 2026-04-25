@@ -202,5 +202,5 @@ Implements the `termbeam resume [name]` (alias: `termbeam attach`) and `termbeam
 
 ## See Also
 
-- **[API Reference](/api/)** — REST and WebSocket endpoint documentation
-- **[Contributing](/contributing/)** — development setup, testing, and pull request guidelines
+- **[API Reference](../api/)** — REST and WebSocket endpoint documentation
+- **[Contributing](../contributing/)** — development setup, testing, and pull request guidelines

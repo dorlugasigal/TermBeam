@@ -207,5 +207,5 @@ Without authentication, anyone on the network can access your terminal with your
 
 ## See Also
 
-- **[Configuration](/configuration/)** — CLI flags, environment variables, and defaults
-- **[Getting Started](/getting-started/)** — install and run TermBeam in under a minute
+- **[Configuration](../configuration/)** — CLI flags, environment variables, and defaults
+- **[Getting Started](../getting-started/)** — install and run TermBeam in under a minute

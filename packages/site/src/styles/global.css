@@ -64,7 +64,6 @@
   --accent-glow: var(--color-accent-soft);
   --font: var(--font-sans);
   --mono: var(--font-mono);
-  --radius: var(--radius);
   --max-w: var(--container);
 }
 

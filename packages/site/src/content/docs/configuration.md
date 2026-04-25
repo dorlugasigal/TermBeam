@@ -184,7 +184,7 @@ Requirements:
 
 ## See Also
 
-- **[Usage Guide](/usage-guide/)** — tabs, split view, search, touch controls, and more
-- **[Getting Started](/getting-started/)** — install and run TermBeam in under a minute
-- **[Security](/security/)** — threat model, safe usage, and security features
-- **[Running in Background](/running-in-background/)** — keep TermBeam always available with PM2, systemd, or launchd
+- **[Usage Guide](../usage-guide/)** — tabs, split view, search, touch controls, and more
+- **[Getting Started](../getting-started/)** — install and run TermBeam in under a minute
+- **[Security](../security/)** — threat model, safe usage, and security features
+- **[Running in Background](../running-in-background/)** — keep TermBeam always available with PM2, systemd, or launchd

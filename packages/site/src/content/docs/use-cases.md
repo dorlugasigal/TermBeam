@@ -23,7 +23,7 @@ termbeam --port 3000
 
 :::tip
 :::
-Use `termbeam service install` to run TermBeam as a background service so it's always available when you need it. See [Running in Background](/running-in-background/) for details.
+Use `termbeam service install` to run TermBeam as a background service so it's always available when you need it. See [Running in Background](../running-in-background/) for details.
 
 ---
 
@@ -79,7 +79,7 @@ termbeam service install --password "$ONCALL_PASSWORD" --port 4000
 
 :::tip
 :::
-Pair TermBeam with a process manager like PM2 or systemd so the service restarts automatically if the host reboots. See [Running in Background](/running-in-background/).
+Pair TermBeam with a process manager like PM2 or systemd so the service restarts automatically if the host reboots. See [Running in Background](../running-in-background/).
 
 ---
 

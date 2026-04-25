@@ -126,7 +126,7 @@ TermBeam has two layers of documentation that must stay in sync with code change
   - `architecture.md` — system design
   - `getting-started.md` — installation and first run
 
-Use Starlight admonition syntax (`:::note`, `:::tip`, `:::caution`, `:::danger`) — not MkDocs `!!!` blocks. Cross-link with slug-based URLs (e.g. `[text](/configuration/)`), not `.md` paths.
+Use Starlight admonition syntax (`:::note`, `:::tip`, `:::caution`, `:::danger`) — not MkDocs `!!!` blocks. Cross-link with `.md` paths (e.g. `[text](configuration.md)`) — Astro rewrites these to slug URLs and respects the `base: '/TermBeam'` prefix. Never use root-absolute paths like `/configuration/` — they bypass the base prefix and 404 on GitHub Pages.
 
 Preview locally: `cd packages/site && npm install && npm run dev`. Build: `npm run build` (outputs to `packages/site/dist/`).
 

@@ -77,9 +77,9 @@ flowchart LR
 
 ## Learn More
 
-- **[Getting Started](/getting-started/)** — install and run TermBeam in under a minute
-- **[Usage Guide](/usage-guide/)** — tabs, split view, search, touch controls, and more
-- **[Configuration](/configuration/)** — CLI flags, environment variables, and defaults
-- **[Security](/security/)** — threat model, safe usage, and security features
-- **[API Reference](/api/)** — REST and WebSocket API documentation
-- **[Architecture](/architecture/)** — how TermBeam works under the hood
+- **[Getting Started](../getting-started/)** — install and run TermBeam in under a minute
+- **[Usage Guide](../usage-guide/)** — tabs, split view, search, touch controls, and more
+- **[Configuration](../configuration/)** — CLI flags, environment variables, and defaults
+- **[Security](../security/)** — threat model, safe usage, and security features
+- **[API Reference](../api/)** — REST and WebSocket API documentation
+- **[Architecture](../architecture/)** — how TermBeam works under the hood

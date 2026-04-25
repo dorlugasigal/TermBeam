@@ -282,5 +282,5 @@ TermBeam requires Node.js 20 or higher. Verify with `node --version` before sett
 
 ## See Also
 
-- **[Configuration](/configuration/)** — CLI flags, environment variables, and defaults
-- **[Resume & List](/resume/)** — reconnect to running sessions from your terminal
+- **[Configuration](../configuration/)** — CLI flags, environment variables, and defaults
+- **[Resume & List](../resume/)** — reconnect to running sessions from your terminal

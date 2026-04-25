@@ -173,6 +173,6 @@ termbeam list
 
 ## See Also
 
-- **[Getting Started](/getting-started/)** — install and run TermBeam in under a minute
-- **[Configuration](/configuration/)** — CLI flags, environment variables, and defaults
-- **[Running in Background](/running-in-background/)** — keep TermBeam always available with PM2, systemd, or launchd
+- **[Getting Started](../getting-started/)** — install and run TermBeam in under a minute
+- **[Configuration](../configuration/)** — CLI flags, environment variables, and defaults
+- **[Running in Background](../running-in-background/)** — keep TermBeam always available with PM2, systemd, or launchd
