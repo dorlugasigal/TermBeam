@@ -1,0 +1,535 @@
+---
+import MarketingLayout from '../layouts/MarketingLayout.astro';
+import FeatureSection from '../components/FeatureSection.astro';
+
+const base = import.meta.env.BASE_URL.replace(/\/+$/, '');
+const docsLink = `${base}/getting-started/`;
+
+const features = [
+  {
+    num: '01',
+    title: 'One command, instant access',
+    description:
+      'Run <code>npx termbeam</code> → scan QR → done. No SSH keys, no port forwarding, no config files.',
+    tags: ['Zero Config', 'QR Auto-Login', 'Instant Access'],
+    videoSrc: 'showcase/hub-mobile.mp4',
+    posterSrc: 'showcase/hub-mobile.png',
+    device: 'phone' as const,
+    layout: 'center' as const,
+  },
+  {
+    num: '02',
+    title: 'AI agents, built in',
+    description:
+      'Launch GitHub Copilot, Claude Code, or OpenCode right from the new session modal. Your AI pair programmer, one click away.',
+    tags: ['GitHub Copilot', 'Claude Code', 'OpenCode'],
+    videoSrc: 'showcase/agents-desktop.mp4',
+    posterSrc: 'showcase/agents-desktop.png',
+    device: 'browser' as const,
+    layout: 'split' as const,
+  },
+  {
+    num: '03',
+    title: 'Designed for your thumbs',
+    description:
+      'Purpose-built touch bar with every key you need — Ctrl, Alt, Tab, arrows. Swipe gestures and a UI that feels native on mobile.',
+    tags: ['Touch Bar', 'Swipe Gestures', 'Mobile-First'],
+    videoSrc: 'showcase/terminal-mobile.mp4',
+    posterSrc: 'showcase/terminal-mobile.png',
+    device: 'phone' as const,
+    layout: 'split-reverse' as const,
+  },
+  {
+    num: '04',
+    title: 'Talk to your terminal',
+    description:
+      'Tap the mic and dictate commands with your voice. Lock it on with a swipe — hands-free terminal on the go.',
+    tags: ['Voice Input', 'Dictation', 'Hands-Free'],
+    videoSrc: 'showcase/voice-mobile.mp4',
+    posterSrc: 'showcase/voice-mobile.png',
+    device: 'phone' as const,
+    layout: 'split' as const,
+  },
+  {
+    num: '05',
+    title: 'A workspace, not just a terminal',
+    description:
+      'Tabs, split view, drag to reorder. Manage multiple sessions like a pro — all in your browser.',
+    tags: ['Multi-Session', 'Tabs', 'Split View'],
+    videoSrc: 'showcase/sessions-desktop.mp4',
+    posterSrc: 'showcase/sessions-desktop.png',
+    device: 'browser' as const,
+    layout: 'center' as const,
+  },
+  {
+    num: '06',
+    title: 'Resume sessions anywhere',
+    description:
+      'Pick up exactly where you left off. Browse, search, and reconnect to any previous session from any device.',
+    tags: ['Session Resume', 'Persistence', 'Cross-Device'],
+    videoSrc: 'showcase/resume-desktop.mp4',
+    posterSrc: 'showcase/resume-desktop.png',
+    device: 'browser' as const,
+    layout: 'split-reverse' as const,
+  },
+  {
+    num: '07',
+    title: 'Git diffs at a glance',
+    description:
+      'See staged, modified, and untracked files. Review diffs line-by-line with additions and deletions highlighted.',
+    tags: ['Git Status', 'Diff Viewer', 'Branch Info'],
+    videoSrc: 'showcase/gitdiff-desktop.mp4',
+    posterSrc: 'showcase/gitdiff-desktop.png',
+    device: 'browser' as const,
+    layout: 'split' as const,
+  },
+  {
+    num: '08',
+    title: 'Browse &amp; manage files',
+    description:
+      'Browse the file system, view source code, upload via drag-and-drop, and download anything — all from your browser.',
+    tags: ['File Browser', 'Drag &amp; Drop', 'Download'],
+    videoSrc: 'showcase/upload-desktop.mp4',
+    posterSrc: 'showcase/upload-desktop.png',
+    device: 'browser' as const,
+    layout: 'center' as const,
+  },
+  {
+    num: '09',
+    title: '40 themes, your style',
+    description:
+      'Dracula, Nord, Cyberpunk, Catppuccin, Tokyo Night — pick a theme and the entire UI transforms instantly. Your choice persists across sessions.',
+    tags: ['40 Themes', 'Instant Switch', 'Persistent'],
+    videoSrc: 'showcase/themes-mobile.mp4',
+    posterSrc: 'showcase/hub-mobile.png',
+    device: 'phone' as const,
+    layout: 'split' as const,
+    xl: false,
+  },
+];
+---
+
+<MarketingLayout>
+  <nav class="nav" id="nav" aria-label="Main">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">
+        <span class="nav-logo-beam">▸</span>
+        <span>TermBeam</span>
+      </a>
+      <ul class="nav-links" id="nav-links" role="list">
+        <li><a href="#showcase">Features</a></li>
+        <li><a href="#how-it-works">How it works</a></li>
+        <li>
+          <a href={docsLink}>Docs</a>
+        </li>
+        <li>
+          <a
+            href="https://github.com/dorlugasigal/TermBeam"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="nav-github"
+            aria-label="GitHub (opens in new tab)"
+          >
+            <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+              ></path>
+            </svg>
+          </a>
+        </li>
+      </ul>
+      <button
+        type="button"
+        class="nav-toggle"
+        id="nav-toggle"
+        aria-label="Menu"
+        aria-expanded="false"
+        aria-controls="nav-links"
+      >
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <main id="main-content">
+    <!-- HERO -->
+    <section class="hero" id="hero">
+      <div class="hero-content">
+        <div class="hero-badge" data-reveal>
+          <span class="badge-dot"></span>
+          Open Source · MIT Licensed
+          <a
+            href="https://github.com/dorlugasigal/TermBeam"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="stars-badge"
+            id="stars-badge"
+            aria-label="Star TermBeam on GitHub"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M12 .587l3.668 7.431L24 9.168l-6 5.847L19.335 24 12 19.897 4.665 24 6 15.015 0 9.168l8.332-1.15z"
+              ></path>
+            </svg>
+            <span>Star</span>
+          </a>
+        </div>
+
+        <h1 class="hero-heading" id="hero-heading">Beam your terminal to any device</h1>
+
+        <p class="hero-sub" data-reveal>
+          One command turns your terminal into a secure, mobile-optimized web app.<br
+            class="hide-mobile"
+          />
+          No SSH, no port forwarding — just scan the QR code.
+        </p>
+
+        <div class="hero-actions" data-reveal>
+          <a href={docsLink} class="btn btn-primary">
+            Get Started
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M5 12h14M12 5l7 7-7 7"></path>
+            </svg>
+          </a>
+          <button
+            class="btn btn-install"
+            id="install-btn"
+            aria-label="Copy install command: npx termbeam"
+          >
+            <span class="btn-dollar">$</span> npx termbeam
+            <span class="btn-copy" id="copy-btn">
+              <svg
+                class="copy-icon"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+              </svg>
+              <svg
+                class="check-icon"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </span>
+          </button>
+        </div>
+
+        <div class="hero-devices" id="hero-devices">
+          <div class="device-browser" id="device-browser">
+            <div class="browser-chrome">
+              <span class="chrome-dot" style="background: #ff5f57"></span>
+              <span class="chrome-dot" style="background: #febc2e"></span>
+              <span class="chrome-dot" style="background: #28c840"></span>
+              <span class="browser-url">localhost:3456/terminal</span>
+            </div>
+            <div class="browser-viewport">
+              <img
+                src={`${base}/showcase/hero-desktop.png`}
+                alt="TermBeam desktop terminal"
+                width="2560"
+                height="1440"
+                loading="eager"
+                fetchpriority="high"
+              />
+            </div>
+          </div>
+          <div class="device-phone" id="device-phone">
+            <div class="phone-notch"></div>
+            <div class="phone-screen">
+              <img
+                src={`${base}/mobile-terminal.jpeg`}
+                alt="TermBeam mobile terminal"
+                width="1170"
+                height="2532"
+                loading="eager"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="scroll-hint" aria-hidden="true">
+        <span>Scroll to explore</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M7 13l5 5 5-5M7 7l5 5 5-5"></path>
+        </svg>
+      </div>
+    </section>
+
+    <!-- FEATURE SHOWCASE -->
+    <section class="features" id="showcase">
+      <div class="features-header" data-reveal>
+        <span class="section-label">Features</span>
+        <h2>Everything you need,<br /><span class="text-gradient">nothing you don't</span></h2>
+      </div>
+
+      {features.map((f) => <FeatureSection {...f} />)}
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section class="how-it-works" id="how-it-works">
+      <div class="section-inner">
+        <span class="section-label" data-reveal>How it works</span>
+        <h2 data-reveal>Three steps. That's it.</h2>
+
+        <div class="steps">
+          <div class="step" data-reveal>
+            <div class="step-number"><span>1</span></div>
+            <div class="step-connector"><div class="connector-gradient"></div></div>
+            <h3>Run the command</h3>
+            <p>
+              <code>npx termbeam</code> starts a secure server and generates a public URL + QR code.
+            </p>
+          </div>
+          <div class="step" data-reveal>
+            <div class="step-number"><span>2</span></div>
+            <div class="step-connector"><div class="connector-gradient"></div></div>
+            <h3>Scan the QR code</h3>
+            <p>
+              Point your phone camera at the screen. The QR code includes the password — zero typing
+              needed.
+            </p>
+          </div>
+          <div class="step" data-reveal>
+            <div class="step-number"><span>3</span></div>
+            <h3>You're in</h3>
+            <p>
+              A full terminal in your browser — with touch bar, tabs, file browser, and everything you
+              need.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMPARISON -->
+    <section class="comparison">
+      <div class="section-inner">
+        <span class="section-label" data-reveal>Why TermBeam?</span>
+        <h2 data-reveal>The old way vs. <span class="text-gradient">the beam way</span></h2>
+
+        <div class="compare-grid">
+          <div class="compare-card compare-old" data-reveal>
+            <div class="compare-header">
+              <span class="compare-icon compare-icon-old">✕</span>
+              <h3>Without TermBeam</h3>
+            </div>
+            <ul role="list">
+              <li><span class="sr-only">Not included: </span>Generate SSH keys, copy to server</li>
+              <li><span class="sr-only">Not included: </span>Configure port forwarding</li>
+              <li><span class="sr-only">Not included: </span>Install terminal app on each device</li>
+              <li><span class="sr-only">Not included: </span>No touch-friendly controls</li>
+              <li><span class="sr-only">Not included: </span>No file browser</li>
+              <li><span class="sr-only">Not included: </span>One session at a time</li>
+            </ul>
+          </div>
+          <div class="compare-card compare-new" data-reveal>
+            <div class="compare-header">
+              <span class="compare-icon compare-icon-new">✓</span>
+              <h3>With TermBeam</h3>
+            </div>
+            <ul role="list">
+              <li><span class="sr-only">Included: </span>One command: <code>npx termbeam</code></li>
+              <li><span class="sr-only">Included: </span>Auto tunnel with public URL</li>
+              <li><span class="sr-only">Included: </span>Works in any browser, any device</li>
+              <li><span class="sr-only">Included: </span>Touch bar + swipe gestures</li>
+              <li><span class="sr-only">Included: </span>Built-in file browser + upload</li>
+              <li><span class="sr-only">Included: </span>Multi-session tabs + split view</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WORKS WITH -->
+    <section class="works-with">
+      <div class="section-inner">
+        <span class="section-label" data-reveal>Integrations</span>
+        <h2 data-reveal>Works with your <span class="text-gradient">favorite tools</span></h2>
+        <div class="tools-grid" data-reveal>
+          <div class="tool-card">
+            <div class="tool-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path
+                  d="M23.922 16.997C23.061 18.492 18.063 22.02 12 22.02 5.937 22.02.939 18.492.078 16.997A.641.641 0 0 1 0 16.741v-2.869a.883.883 0 0 1 .053-.22c.372-.935 1.347-2.292 2.605-2.656.167-.429.414-1.055.644-1.517a10.098 10.098 0 0 1-.052-1.086c0-1.331.282-2.499 1.132-3.368.397-.406.89-.717 1.474-.952C7.255 2.937 9.248 1.98 11.978 1.98c2.731 0 4.767.957 6.166 2.093.584.235 1.077.546 1.474.952.85.869 1.132 2.037 1.132 3.368 0 .368-.014.733-.052 1.086.23.462.477 1.088.644 1.517 1.258.364 2.233 1.721 2.605 2.656a.841.841 0 0 1 .053.22v2.869a.641.641 0 0 1-.078.256Zm-11.75-5.992h-.344a4.359 4.359 0 0 1-.355.508c-.77.947-1.918 1.492-3.508 1.492-1.725 0-2.989-.359-3.782-1.259a2.137 2.137 0 0 1-.085-.104L4 11.746v6.585c1.435.779 4.514 2.179 8 2.179 3.486 0 6.565-1.4 8-2.179v-6.585l-.098-.104s-.033.045-.085.104c-.793.9-2.057 1.259-3.782 1.259-1.59 0-2.738-.545-3.508-1.492a4.359 4.359 0 0 1-.355-.508Zm2.328 3.25c.549 0 1 .451 1 1v2c0 .549-.451 1-1 1-.549 0-1-.451-1-1v-2c0-.549.451-1 1-1Zm-5 0c.549 0 1 .451 1 1v2c0 .549-.451 1-1 1-.549 0-1-.451-1-1v-2c0-.549.451-1 1-1Zm3.313-6.185c.136 1.057.403 1.913.878 2.497.442.544 1.134.938 2.344.938 1.573 0 2.292-.337 2.657-.751.384-.435.558-1.15.558-2.361 0-1.14-.243-1.847-.705-2.319-.477-.488-1.319-.862-2.824-1.025-1.487-.161-2.192.138-2.533.529-.269.307-.437.808-.438 1.578v.021c0 .265.021.562.063.893Zm-1.626 0c.042-.331.063-.628.063-.894v-.02c-.001-.77-.169-1.271-.438-1.578-.341-.391-1.046-.69-2.533-.529-1.505.163-2.347.537-2.824 1.025-.462.472-.705 1.179-.705 2.319 0 1.211.175 1.926.558 2.361.365.414 1.084.751 2.657.751 1.21 0 1.902-.394 2.344-.938.475-.584.742-1.44.878-2.497Z"
+                ></path>
+              </svg>
+            </div>
+            <span class="tool-name">GitHub Copilot</span>
+          </div>
+          <div class="tool-card">
+            <div class="tool-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path
+                  d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"
+                ></path>
+              </svg>
+            </div>
+            <span class="tool-name">Claude Code</span>
+          </div>
+          <div class="tool-card">
+            <div class="tool-icon">
+              <svg width="28" height="28" viewBox="0 6 24 30" fill="currentColor" aria-hidden="true">
+                <path d="M18 30H6V18H18V30Z" opacity="0.4"></path>
+                <path d="M18 12H6V30H18V12ZM24 36H0V6H24V36Z"></path>
+              </svg>
+            </div>
+            <span class="tool-name">OpenCode</span>
+          </div>
+          <div class="tool-card">
+            <div class="tool-icon">
+              <svg
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <rect x="2" y="3" width="20" height="18" rx="2"></rect>
+                <path d="M7 8l5 4-5 4M13 16h4"></path>
+              </svg>
+            </div>
+            <span class="tool-name">Any CLI Tool</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+      <div class="section-inner">
+        <div class="cta-glow"></div>
+        <h2 data-reveal>
+          Your terminal, anywhere.<br /><span class="text-gradient">One command away.</span>
+        </h2>
+        <p data-reveal>
+          Install in seconds. No account, no signup, no credit card — just
+          <code>npx termbeam</code> and go.
+        </p>
+        <div class="cta-actions" data-reveal>
+          <a href={docsLink} class="btn btn-primary btn-lg">
+            Get Started
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M5 12h14M12 5l7 7-7 7"></path>
+            </svg>
+          </a>
+          <button
+            class="btn btn-install btn-lg"
+            id="cta-install-btn"
+            aria-label="Copy install command: npx termbeam"
+          >
+            <span class="btn-dollar">$</span> npx termbeam
+            <span class="btn-copy" id="cta-copy-btn">
+              <svg
+                class="copy-icon"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+              </svg>
+              <svg
+                class="check-icon"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </span>
+          </button>
+        </div>
+        <div class="cta-platforms" data-reveal>
+          <span class="cta-platform-label">Works on</span>
+          <span class="cta-platform">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"
+              ></path>
+            </svg>
+            macOS
+          </span>
+          <span class="cta-platform">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M14.62 8.35c-.42.28-1.75 1.04-1.95 1.19-.39.31-.75.29-1.14-.01-.2-.16-1.53-.92-1.95-1.19-.48-.31-.45-.7.08-.92 1.64-.69 3.28-.64 4.88.01.49.21.5.61.08.92zm7.22 4.04c-.43-1.17-.37-1.76.19-2.83.3-.6.15-.87-.54-.87-3.95 0-4.61 2.82-8.49 2.82-3.88 0-4.42-2.73-8.37-2.82-.72-.01-.87.27-.56.88.56 1.08.62 1.67.18 2.85-.91 2.46.16 5.58 2.86 7.63 1.38 1.05 2.86 1.42 4.42.79.43-.18.87-.37 1.47-.37s1.04.19 1.47.37c1.56.63 3.04.26 4.42-.79 2.64-2.03 3.74-5.12 2.95-7.66zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
+              ></path>
+            </svg>
+            Linux
+          </span>
+          <span class="cta-platform">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M3 5.557A11.954 11.954 0 0112 2c3.292 0 6.259 1.33 8.418 3.48L18.41 7.49A9.556 9.556 0 0012 4.396 9.558 9.558 0 005.007 7.49L3 5.557zm2.586 2.586A7.97 7.97 0 0112 5.994a7.97 7.97 0 016.414 3.239l-2.007 2.007A5.577 5.577 0 0012 8.994a5.577 5.577 0 00-4.407 2.246L5.586 8.143zm4.828 4.829A3.583 3.583 0 0112 11.994c.603 0 1.174.15 1.676.417l1.586 5.589H8.738l1.676-5.589z"
+              ></path>
+            </svg>
+            Windows
+          </span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand"><span class="nav-logo-beam">▸</span> TermBeam</div>
+      <div class="footer-links">
+        <a href={docsLink}>Documentation</a>
+        <a href="https://github.com/dorlugasigal/TermBeam" target="_blank" rel="noopener noreferrer"
+          >GitHub</a
+        >
+        <a href="https://www.npmjs.com/package/termbeam" target="_blank" rel="noopener noreferrer"
+          >npm</a
+        >
+        <a
+          href="https://github.com/dorlugasigal/TermBeam/blob/main/CHANGELOG.md"
+          target="_blank"
+          rel="noopener noreferrer">Changelog</a
+        >
+      </div>
+      <div class="footer-copy">
+        MIT License · Made with <span class="footer-heart">♥</span> for developers who code on the go
+      </div>
+    </div>
+  </footer>
+</MarketingLayout>

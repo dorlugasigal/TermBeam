@@ -1,0 +1,371 @@
+---
+import '../styles/global.css';
+import '../styles/landing.css';
+
+export interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = 'TermBeam — Beam Your Terminal to Any Device',
+  description = 'Access your terminal from your phone, tablet, or any browser. No SSH, no config — one command and a QR code.',
+} = Astro.props;
+
+const base = import.meta.env.BASE_URL.replace(/\/+$/, '');
+const ogImage = new URL(`${base}/mobile-terminal.jpeg`.replace(/\/+/g, '/'), Astro.site).toString();
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="theme-color" content="#09090b" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+    <link rel="preload" as="image" href={`${base}/showcase/hero-desktop.png`} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <script type="application/ld+json" set:html={JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareApplication',
+      name: 'TermBeam',
+      description:
+        'Beam your terminal to any device — mobile-optimized web terminal with multi-session support',
+      url: Astro.site?.toString(),
+      applicationCategory: 'DeveloperApplication',
+      operatingSystem: 'Windows, macOS, Linux',
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      license: 'https://opensource.org/licenses/MIT',
+      codeRepository: 'https://github.com/dorlugasigal/TermBeam',
+    })} />
+  </head>
+  <body>
+    <a href="#main-content" class="skip-nav">Skip to content</a>
+
+    <div class="noise-overlay" aria-hidden="true"></div>
+    <div class="gradient-mesh" aria-hidden="true">
+      <div class="mesh-blob mesh-blob-1"></div>
+      <div class="mesh-blob mesh-blob-2"></div>
+      <div class="mesh-blob mesh-blob-3"></div>
+    </div>
+
+    <slot />
+
+    <span aria-live="polite" class="sr-only" id="copy-status"></span>
+
+    <script>
+      // ─── Scroll manager ────────────────────────────────────
+      const scrollManager = {
+        handlers: [] as Array<() => void>,
+        ticking: false,
+        init() {
+          window.addEventListener(
+            'scroll',
+            () => {
+              if (!this.ticking) {
+                requestAnimationFrame(() => {
+                  this.handlers.forEach((fn) => fn());
+                  this.ticking = false;
+                });
+                this.ticking = true;
+              }
+            },
+            { passive: true },
+          );
+        },
+        add(fn: () => void) {
+          this.handlers.push(fn);
+        },
+      };
+
+      function initWordReveal() {
+        const heading = document.getElementById('hero-heading');
+        if (!heading) return;
+        const text = (heading.textContent || '').trim();
+        const words = text.split(/\s+/);
+        heading.innerHTML = '';
+        words.forEach((word, i) => {
+          const span = document.createElement('span');
+          span.className = 'word';
+          const inner = document.createElement('span');
+          inner.className = 'word-inner';
+          inner.textContent = word;
+          inner.style.animationDelay = `${0.15 + i * 0.08}s`;
+          span.appendChild(inner);
+          heading.appendChild(span);
+          if (i < words.length - 1) heading.appendChild(document.createTextNode(' '));
+        });
+      }
+
+      function initDeviceTilt() {
+        const heroDevices = document.getElementById('hero-devices');
+        if (!heroDevices || window.innerWidth < 768) return;
+        let targetX = 0,
+          targetY = 0,
+          currentX = 0,
+          currentY = 0;
+        let rafId: number | null = null;
+        const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+        function animate() {
+          currentX = lerp(currentX, targetX, 0.08);
+          currentY = lerp(currentY, targetY, 0.08);
+          if (
+            Math.abs(currentX - targetX) < 0.001 &&
+            Math.abs(currentY - targetY) < 0.001
+          ) {
+            currentX = targetX;
+            currentY = targetY;
+            rafId = null;
+            return;
+          }
+          heroDevices!.style.transform = `perspective(1200px) rotateY(${currentX * 10}deg) rotateX(${-currentY * 10}deg)`;
+          rafId = requestAnimationFrame(animate);
+        }
+        const startAnimation = () => {
+          if (!rafId) rafId = requestAnimationFrame(animate);
+        };
+        heroDevices.addEventListener('mousemove', (e) => {
+          const rect = heroDevices.getBoundingClientRect();
+          targetX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+          targetY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+          startAnimation();
+        });
+        heroDevices.addEventListener('mouseleave', () => {
+          targetX = 0;
+          targetY = 0;
+          startAnimation();
+        });
+        startAnimation();
+      }
+
+      function initHeroParallax() {
+        const heroDevices = document.getElementById('hero-devices');
+        const heroHeading = document.getElementById('hero-heading');
+        const hero = document.getElementById('hero');
+        const browser = document.getElementById('device-browser');
+        const phone = document.getElementById('device-phone');
+        if (!heroDevices || !hero) return;
+        scrollManager.add(() => {
+          const scrollY = window.scrollY;
+          const heroHeight = hero.offsetHeight;
+          const progress = Math.min(scrollY / heroHeight, 1);
+          heroDevices.style.opacity = String(1 - progress * 0.6);
+          if (browser) {
+            const scale = 1 - progress * 0.15;
+            const translateY = -progress * 60;
+            browser.style.transform = `scale(${scale}) translateY(${translateY}px)`;
+          }
+          if (phone && window.innerWidth >= 768) {
+            const phoneRotate = Math.sin(progress * Math.PI) * 5;
+            const phoneLift = -progress * 20;
+            const phoneScale = 1 - progress * 0.1;
+            phone.style.transform = `rotate(${phoneRotate}deg) translateY(${phoneLift}px) scale(${phoneScale})`;
+          }
+          if (heroHeading) {
+            heroHeading.style.opacity = String(1 - progress * 1.5);
+            heroHeading.style.transform = `translateY(${-progress * 30}px)`;
+          }
+        });
+      }
+
+      function initShowcase() {
+        const features = document.querySelectorAll('[data-feature]');
+        if (!features.length) return;
+        const observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('in-view');
+                observer.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.1, rootMargin: '0px 0px -60px 0px' },
+        );
+        features.forEach((f) => observer.observe(f));
+      }
+
+      function initScrollReveal() {
+        const elements = document.querySelectorAll('[data-reveal]');
+        const observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                observer.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.12 },
+        );
+        elements.forEach((el) => observer.observe(el));
+      }
+
+      function initNavScroll() {
+        const nav = document.getElementById('nav');
+        if (!nav) return;
+        scrollManager.add(() => {
+          nav.classList.toggle('scrolled', window.scrollY > 40);
+        });
+      }
+
+      function initCopyButton() {
+        const copyStatus = document.getElementById('copy-status');
+        function bindCopy(installBtnId: string, copyBtnId: string) {
+          const installBtn = document.getElementById(installBtnId);
+          const copyBtn = document.getElementById(copyBtnId);
+          if (!installBtn || !copyBtn) return;
+          installBtn.addEventListener('click', () => {
+            navigator.clipboard
+              .writeText('npx termbeam')
+              .then(() => {
+                installBtn.classList.add('copied');
+                copyBtn.classList.add('copied');
+                if (copyStatus) copyStatus.textContent = 'Copied to clipboard';
+                setTimeout(() => {
+                  installBtn.classList.remove('copied');
+                  copyBtn.classList.remove('copied');
+                  if (copyStatus) copyStatus.textContent = '';
+                }, 2000);
+              })
+              .catch(() => {
+                if (copyStatus) copyStatus.textContent = 'Copy failed — select the command manually';
+                setTimeout(() => {
+                  if (copyStatus) copyStatus.textContent = '';
+                }, 3000);
+              });
+          });
+        }
+        bindCopy('install-btn', 'copy-btn');
+        bindCopy('cta-install-btn', 'cta-copy-btn');
+      }
+
+      function initMobileNav() {
+        const toggle = document.getElementById('nav-toggle');
+        const links = document.getElementById('nav-links');
+        if (!toggle || !links) return;
+        const overlay = document.createElement('div');
+        overlay.className = 'nav-overlay';
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(overlay);
+        const mainContent = document.getElementById('main-content');
+        const openMenu = () => {
+          toggle.classList.add('open');
+          links.classList.add('open');
+          overlay.classList.add('visible');
+          toggle.setAttribute('aria-expanded', 'true');
+          document.body.classList.add('nav-open');
+          if (mainContent) (mainContent as any).inert = true;
+        };
+        const closeMenu = () => {
+          toggle.classList.remove('open');
+          links.classList.remove('open');
+          overlay.classList.remove('visible');
+          toggle.setAttribute('aria-expanded', 'false');
+          document.body.classList.remove('nav-open');
+          if (mainContent) (mainContent as any).inert = false;
+          toggle.focus();
+        };
+        toggle.addEventListener('click', () => {
+          toggle.classList.contains('open') ? closeMenu() : openMenu();
+        });
+        links.querySelectorAll('a').forEach((a) => a.addEventListener('click', closeMenu));
+        overlay.addEventListener('click', closeMenu);
+        document.addEventListener('keydown', (e) => {
+          if (!toggle.classList.contains('open')) return;
+          if (e.key === 'Escape') closeMenu();
+        });
+      }
+
+      function initStarCount() {
+        const badge = document.getElementById('stars-badge');
+        if (!badge) return;
+        const span = badge.querySelector('span');
+        if (!span) return;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        fetch('https://api.github.com/repos/dorlugasigal/TermBeam', {
+          headers: { Accept: 'application/vnd.github.v3+json' },
+          signal: controller.signal,
+        })
+          .then((r) => {
+            clearTimeout(timeoutId);
+            return r.ok ? r.json() : null;
+          })
+          .then((data) => {
+            if (data && typeof data.stargazers_count === 'number') {
+              const count = data.stargazers_count;
+              span.textContent =
+                count >= 1000 ? (count / 1000).toFixed(1) + 'k' : String(count);
+            }
+          })
+          .catch(() => {});
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        document.documentElement.classList.add('js');
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        scrollManager.init();
+        initWordReveal();
+        initScrollReveal();
+        initNavScroll();
+        initShowcase();
+        if (reducedMotion) {
+          document.querySelectorAll('video[autoplay]').forEach((v) => {
+            v.removeAttribute('autoplay');
+            (v as HTMLVideoElement).pause();
+          });
+        }
+        if (!reducedMotion) {
+          initDeviceTilt();
+          initHeroParallax();
+          const videoObserver = new IntersectionObserver(
+            (entries) => {
+              entries.forEach((entry) => {
+                if (entry.target.tagName === 'VIDEO') {
+                  if (entry.isIntersecting) {
+                    (entry.target as HTMLVideoElement).play().catch(() => {});
+                  } else {
+                    (entry.target as HTMLVideoElement).pause();
+                  }
+                }
+              });
+            },
+            { threshold: 0.25 },
+          );
+          document.querySelectorAll('.feature video').forEach((v) => videoObserver.observe(v));
+        }
+        initCopyButton();
+        initMobileNav();
+        initStarCount();
+
+        const hero = document.querySelector('.hero') as HTMLElement | null;
+        if (hero && !reducedMotion) {
+          let spotlightRaf: number | null = null;
+          hero.addEventListener('mousemove', (e) => {
+            if (spotlightRaf) return;
+            spotlightRaf = requestAnimationFrame(() => {
+              hero.style.setProperty('--mouse-x', e.clientX + 'px');
+              hero.style.setProperty('--mouse-y', e.clientY + 'px');
+              spotlightRaf = null;
+            });
+          });
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,101 @@
+---
+export interface Props {
+  num: string;
+  title: string;
+  description: string;
+  tags: string[];
+  videoSrc: string;
+  posterSrc: string;
+  device: 'browser' | 'phone';
+  layout: 'center' | 'split' | 'split-reverse';
+  xl?: boolean;
+}
+
+const {
+  num,
+  title,
+  description,
+  tags,
+  videoSrc,
+  posterSrc,
+  device,
+  layout,
+  xl = true,
+} = Astro.props;
+
+const base = import.meta.env.BASE_URL.replace(/\/+$/, '');
+const layoutClass =
+  layout === 'center'
+    ? 'feature--center'
+    : layout === 'split-reverse'
+      ? 'feature--split feature--reverse'
+      : 'feature--split';
+
+const deviceXL =
+  device === 'browser'
+    ? xl
+      ? 'device-browser device-browser--xl'
+      : 'device-browser'
+    : xl
+      ? 'device-phone device-phone--xl'
+      : 'device-phone';
+---
+
+<article class={`feature ${layoutClass}`} data-feature>
+  <div class="feature-inner">
+    <div class="feature-text" data-reveal>
+      <span class="feature-num">{num}</span>
+      <h3>{title}</h3>
+      <p set:html={description}></p>
+      <div class="feature-tags">
+        {tags.map((t) => <span set:html={t} />)}
+      </div>
+    </div>
+    <div class="feature-visual">
+      <div class={deviceXL}>
+        {
+          device === 'browser' ? (
+            <>
+              <div class="browser-chrome">
+                <span class="chrome-dot" style="background: #ff5f57"></span>
+                <span class="chrome-dot" style="background: #febc2e"></span>
+                <span class="chrome-dot" style="background: #28c840"></span>
+                <span class="browser-url">localhost:3456</span>
+              </div>
+              <div class="browser-viewport">
+                <video
+                  src={`${base}/${videoSrc}`}
+                  poster={`${base}/${posterSrc}`}
+                  autoplay
+                  muted
+                  loop
+                  playsinline
+                  width="2560"
+                  height="1440"
+                  preload="metadata"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div class="phone-notch" />
+              <div class="phone-screen">
+                <video
+                  src={`${base}/${videoSrc}`}
+                  poster={`${base}/${posterSrc}`}
+                  autoplay
+                  muted
+                  loop
+                  playsinline
+                  width="1170"
+                  height="2532"
+                  preload="metadata"
+                />
+              </div>
+            </>
+          )
+        }
+      </div>
+    </div>
+  </div>
+</article>

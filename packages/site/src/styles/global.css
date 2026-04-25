@@ -1,0 +1,74 @@
+/* Design tokens — TermBeam unified site
+ * Restored from packages/landing/style.css (sha 168f67b).
+ */
+
+:root {
+  --color-bg: #0a0a0a;
+  --color-bg-soft: #111111;
+  --color-bg-elev: #161616;
+  --color-bg-card: rgba(22, 22, 22, 0.6);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.14);
+
+  --color-fg: #fafafa;
+  --color-fg-muted: #a1a1aa;
+  --color-fg-dim: #71717a;
+
+  --color-accent: #3b82f6;
+  --color-accent-soft: rgba(59, 130, 246, 0.18);
+  --color-accent-glow: rgba(59, 130, 246, 0.35);
+  --color-accent-2: #8b5cf6;
+
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  --mesh-1: rgba(59, 130, 246, 0.18);
+  --mesh-2: rgba(139, 92, 246, 0.14);
+  --mesh-3: rgba(34, 211, 238, 0.10);
+
+  --font-sans:
+    'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono:
+    'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --fs-hero: clamp(2.5rem, 5.5vw, 4.5rem);
+
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.32);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --shadow-glow: 0 0 80px var(--color-accent-glow);
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --container: 1200px;
+  --container-wide: 1320px;
+
+  /* Legacy aliases used by landing.css (recovered from packages/landing) */
+  --bg: var(--color-bg);
+  --bg-subtle: var(--color-bg-soft);
+  --surface: var(--color-bg-elev);
+  --border: var(--color-border);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --text: var(--color-fg);
+  --text-secondary: var(--color-fg-muted);
+  --text-muted: var(--color-fg-dim);
+  --accent: var(--color-accent);
+  --accent-light: #60a5fa;
+  --accent-glow: var(--color-accent-soft);
+  --font: var(--font-sans);
+  --mono: var(--font-mono);
+  --max-w: var(--container);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
