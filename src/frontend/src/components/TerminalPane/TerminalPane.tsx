@@ -32,6 +32,29 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   const hadConnectedRef = useRef(false);
   const [reconnectGraceExpired, setReconnectGraceExpired] = useState(false);
 
+  // iOS soft-keyboard flicker guard: tracks when the user last performed a
+  // touch gesture that focused the textarea. iOS takes ~200–500ms to fire
+  // visualViewport.resize after a tap, and any programmatic .focus() call
+  // during that window can be interpreted as a non-gesture re-focus and
+  // dismiss the just-opening keyboard. We use this ref to suppress every
+  // programmatic refocus path on touch devices for a short window after the
+  // user-gesture focus, regardless of whether keyboardOpen has flipped yet.
+  const lastTouchFocusAtRef = useRef(0);
+  const TOUCH_FOCUS_GUARD_MS = 700;
+  const isTouchDeviceRef = useRef(
+    typeof window !== 'undefined' &&
+      ('ontouchstart' in window || navigator.maxTouchPoints > 0),
+  );
+  // True when on a touch device and the user-gesture focus happened recently —
+  // any programmatic .focus() during this window risks dismissing iOS's soft
+  // keyboard mid-animation.
+  const inTouchFocusWindow = useCallback(
+    () =>
+      isTouchDeviceRef.current &&
+      Date.now() - lastTouchFocusAtRef.current < TOUCH_FOCUS_GUARD_MS,
+    [],
+  );
+
   // Refs to hold latest WS send functions so xterm callbacks stay stable
   const sendRef = useRef<(data: string) => void>(() => {});
   const sendResizeRef = useRef<(cols: number, rows: number) => void>(() => {});
@@ -98,7 +121,15 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
         }, 200);
         // Focus terminal — works on desktop; on mobile, the gesture-based
         // listener below handles it since programmatic focus is restricted.
-        const focusTimer = setTimeout(() => terminal.focus(), 50);
+        // Skip the programmatic focus on touch devices when the user just
+        // tapped — re-focusing during iOS's keyboard-open animation is the
+        // primary cause of the keyboard-flicker (open then immediately close)
+        // bug, so we let the user-gesture focus call from the touchend handler
+        // be the only focus attempt.
+        const focusTimer = setTimeout(() => {
+          if (inTouchFocusWindow()) return;
+          terminal.focus();
+        }, 50);
         return () => {
           clearTimeout(timer);
           clearTimeout(focusTimer);
@@ -150,13 +181,24 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
         // mobile keyboard.
         if (startTarget && terminalRef.current?.contains(startTarget)) {
           if (!active) setActiveId(sessionId);
+          // Mark this as a user-gesture focus so all programmatic refocus
+          // paths skip for the next ~700ms — iOS dismisses the keyboard if
+          // any non-gesture .focus() lands during the open animation.
+          lastTouchFocusAtRef.current = Date.now();
           terminal.focus();
-          terminal.textarea?.focus(); // xterm.js #789 workaround
+          terminal.textarea?.focus({ preventScroll: true }); // xterm.js #789 workaround
 
           // Forward tap as synthetic mouse events so xterm.js can report
           // click coordinates to TUI apps (gh, vim, fzf, etc.) that have
           // enabled mouse tracking mode. When no app has mouse mode active,
           // xterm.js ignores the mouse event — no side effects.
+          //
+          // CRITICAL: defer this past the iOS keyboard-open animation
+          // (~250-500ms). Dispatching mouse events synchronously triggers
+          // xterm internal DOM/focus churn that races with iOS's keyboard
+          // animation and dismisses the just-opened keyboard, especially
+          // on bottom-half taps where iOS is also trying to scroll the
+          // tap target into view.
           const xtermEl = terminal.element;
           if (xtermEl) {
             const mouseOpts: MouseEventInit = {
@@ -167,9 +209,28 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
               bubbles: true,
               cancelable: true,
             };
-            xtermEl.dispatchEvent(new MouseEvent('mousedown', mouseOpts));
-            xtermEl.dispatchEvent(new MouseEvent('mouseup', { ...mouseOpts, buttons: 0 }));
+            setTimeout(() => {
+              // Skip if user has interacted again in the meantime — another
+              // touch-focus would be in progress and re-dispatching mouse
+              // events would fire xterm's INTERNAL .focus() (xterm's own
+              // mousedown handler calls this.focus() unconditionally),
+              // bypassing our focus guards and dismissing iOS's keyboard.
+              if (inTouchFocusWindow()) return;
+              // Also bail if textarea no longer has focus — the user moved
+              // on (overlay opened, switched panes, etc.) and forwarding the
+              // tap as a mouse event would steal focus back.
+              if (document.activeElement !== terminal.textarea) return;
+              xtermEl.dispatchEvent(new MouseEvent('mousedown', mouseOpts));
+              xtermEl.dispatchEvent(new MouseEvent('mouseup', { ...mouseOpts, buttons: 0 }));
+            }, TOUCH_FOCUS_GUARD_MS + 150);
           }
+
+          // CRITICAL: prevent iOS from synthesizing a click event ~300ms later.
+          // That synthetic click would fire handlePaneClick which calls
+          // terminal.focus() AGAIN — landing mid-flight in iOS's keyboard-open
+          // animation and causing the keyboard to flicker open then close.
+          // The focus is already done above; we don't need the click.
+          e.preventDefault();
         }
       }
     };
@@ -220,11 +281,15 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
         fit();
         terminal.refresh(0, terminal.rows - 1);
         terminal.scrollToBottom();
-        terminal.focus();
+        // On touch devices, skip the programmatic focus when the user just
+        // tapped — the touchend handler already focused under the user
+        // gesture, and a second non-gesture .focus() during iOS's keyboard
+        // animation can cause the keyboard to flicker (open→dismiss).
+        if (!inTouchFocusWindow()) terminal.focus();
       });
       return () => cancelAnimationFrame(rafId);
     }
-  }, [active, terminal, fit]);
+  }, [active, terminal, fit, inTouchFocusWindow]);
 
   // Refocus terminal when overlays close (command palette, search bar, etc.)
   const commandPaletteOpen = useUIStore((s) => s.commandPaletteOpen);
@@ -236,11 +301,14 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
 
   useEffect(() => {
     if (prevOverlayRef.current && !anyOverlayOpen && active && terminal) {
-      // An overlay just closed — refocus terminal
-      requestAnimationFrame(() => terminal.focus());
+      // An overlay just closed — refocus terminal. Skip if the user just
+      // tapped to focus (avoids fighting iOS's keyboard-open animation).
+      if (!inTouchFocusWindow()) {
+        requestAnimationFrame(() => terminal.focus());
+      }
     }
     prevOverlayRef.current = anyOverlayOpen;
-  }, [anyOverlayOpen, active, terminal]);
+  }, [anyOverlayOpen, active, terminal, inTouchFocusWindow]);
 
   // xterm.js bug workaround (#789): TUI apps that enable mouse tracking
   // (bubbletea, vim, htop) can cause xterm.js to lose its internal focus
@@ -255,17 +323,20 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     const disposable = terminal.buffer.onBufferChange((buf) => {
       const isAlt = buf.type === 'alternate';
       if (wasAltScreenRef.current && !isAlt) {
-        // TUI app just exited alt-screen — force focus restoration
-        requestAnimationFrame(() => {
-          terminal.focus();
-          terminal.textarea?.focus();
-        });
+        // TUI app just exited alt-screen — force focus restoration unless
+        // the user just tapped (iOS keyboard-open animation guard).
+        if (!inTouchFocusWindow()) {
+          requestAnimationFrame(() => {
+            terminal.focus();
+            terminal.textarea?.focus({ preventScroll: true });
+          });
+        }
       }
       wasAltScreenRef.current = isAlt;
     });
 
     return () => disposable.dispose();
-  }, [terminal, active]);
+  }, [terminal, active, inTouchFocusWindow]);
 
   // Mobile focus guard: when the terminal textarea loses focus unexpectedly
   // (e.g. PTY resize reflow after another client disconnects, or xterm.js
@@ -273,6 +344,20 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   // programmatic .focus() from timers/callbacks, but within a blur event
   // handler we get a brief window where re-focusing still works.
   // Only active when the pane is focused and no overlay is stealing focus.
+  const { keyboardOpen } = useMobileKeyboard();
+  // Track when the keyboard last toggled, so the focus guard can skip its
+  // refocus attempt during the iOS keyboard open/close animation. Re-focusing
+  // mid-animation triggers the very flicker we're trying to avoid (the OS
+  // dismisses the keyboard if it sees a programmatic focus during transition).
+  const kbToggleAtRef = useRef(0);
+  const prevKbOpenRef = useRef(keyboardOpen);
+  useEffect(() => {
+    if (prevKbOpenRef.current !== keyboardOpen) {
+      kbToggleAtRef.current = Date.now();
+      prevKbOpenRef.current = keyboardOpen;
+    }
+  }, [keyboardOpen]);
+
   useEffect(() => {
     if (!terminal || !active) return;
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -292,15 +377,30 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
       const next = (ev.relatedTarget as HTMLElement | null) ?? null;
       if (isEditable(next)) return;
 
+      // Skip refocus during a keyboard open/close transition. iOS fires blur
+      // as part of its animation; refocusing at this moment causes the OS to
+      // dismiss the keyboard right after it appears (the bottom-half tap
+      // flicker). Wait for the transition to settle before guarding focus.
+      // Two windows are considered:
+      //  - kbToggleAtRef: time since visualViewport.resize fired
+      //  - lastTouchFocusAtRef: time since the user-gesture focus (covers
+      //    the gap *before* visualViewport fires, which is the main flicker
+      //    window — iOS animation is ~250–500ms).
+      if (Date.now() - kbToggleAtRef.current < TOUCH_FOCUS_GUARD_MS) return;
+      if (Date.now() - lastTouchFocusAtRef.current < TOUCH_FOCUS_GUARD_MS) return;
+
       // Delay the re-focus check. On iOS, relatedTarget can be null during
       // focus transitions — we need to check document.activeElement after
       // the browser has settled on the new focus target.
       if (refocusTimer) clearTimeout(refocusTimer);
       refocusTimer = setTimeout(() => {
         refocusTimer = null;
+        // Bail out if a keyboard transition started after the blur fired.
+        if (Date.now() - kbToggleAtRef.current < TOUCH_FOCUS_GUARD_MS) return;
+        if (Date.now() - lastTouchFocusAtRef.current < TOUCH_FOCUS_GUARD_MS) return;
         if (isEditable(document.activeElement as HTMLElement | null)) return;
         if (document.activeElement !== ta) {
-          ta.focus();
+          ta.focus({ preventScroll: true });
         }
       }, 50);
     };
@@ -573,19 +673,20 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   }, [terminal]);
 
   // Fit and scroll when mobile keyboard opens/closes.
-  // Uses a short RAF delay so the container has settled at its new size
-  // before we refit — avoids a flicker from fitting at an intermediate size.
-  const { keyboardOpen } = useMobileKeyboard();
+  // When opening, we wait long enough for the iOS keyboard animation to finish
+  // (~250ms) before refitting xterm — fitting mid-animation can blur the
+  // textarea and dismiss the keyboard right after it appears.
   useEffect(() => {
     if (terminal && (visible ?? active)) {
-      const rafId = requestAnimationFrame(() => {
+      const delay = keyboardOpen ? 320 : 16;
+      const timerId = setTimeout(() => {
         fit();
         terminal.refresh(0, terminal.rows - 1);
         if (keyboardOpen) {
           terminal.scrollToBottom();
         }
-      });
-      return () => cancelAnimationFrame(rafId);
+      }, delay);
+      return () => clearTimeout(timerId);
     }
   }, [keyboardOpen, terminal, fit, visible, active]);
 
@@ -655,12 +756,24 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
 
   const handlePaneClick = useCallback(() => {
     if (!active) setActiveId(sessionId);
+    // On touch devices, if the user just tapped (touchend handler already
+    // focused), skip the focus call here — iOS may dispatch a synthesized
+    // click event ~300ms after touchend, landing mid-flight in the keyboard-
+    // open animation. Re-focusing then dismisses the keyboard. The touchend
+    // handler also calls preventDefault() to suppress this synthetic click,
+    // but this is a defensive guard in case that fails.
+    if (inTouchFocusWindow()) return;
     // Belt-and-suspenders: focus both the terminal and its internal textarea.
     // xterm.js bug #789 can leave the textarea unfocused after mouse-mode TUI
     // interactions, making terminal.focus() alone insufficient.
+    // Stamp lastTouchFocusAtRef on touch devices so subsequent programmatic
+    // refocus paths skip during the iOS keyboard-open animation window.
+    if (isTouchDeviceRef.current) {
+      lastTouchFocusAtRef.current = Date.now();
+    }
     terminal?.focus();
-    terminal?.textarea?.focus();
-  }, [terminal, active, sessionId, setActiveId]);
+    terminal?.textarea?.focus({ preventScroll: true });
+  }, [terminal, active, sessionId, setActiveId, inTouchFocusWindow]);
 
   const showReconnectOverlay = !connected && !exited && hadConnectedRef.current;
   const showReconnectingIndicator = showReconnectOverlay && reconnecting && !reconnectGraceExpired;

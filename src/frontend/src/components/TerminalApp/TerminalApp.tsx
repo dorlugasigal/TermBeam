@@ -71,14 +71,6 @@ export function TerminalApp() {
 
   const { keyboardOpen, keyboardHeight } = useMobileKeyboard();
 
-  // Reset page scroll when keyboard opens (iOS can scroll body)
-  useEffect(() => {
-    if (keyboardOpen) {
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-    }
-  }, [keyboardOpen]);
-
   async function handleNewSessionCreated(id: string, type?: 'terminal' | 'copilot', ptySessionId?: string | null, model?: string) {
     // Add a placeholder immediately so the pane mounts right away
     const store = useSessionStore.getState();

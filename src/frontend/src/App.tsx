@@ -4,6 +4,8 @@ import LoginPage from '@/components/LoginPage/LoginPage';
 import SessionsHub from '@/components/SessionsHub/SessionsHub';
 import { TerminalApp } from '@/components/TerminalApp/TerminalApp';
 import CodeViewer from '@/components/CodeViewer/CodeViewer';
+import { useThemeStore } from '@/stores/themeStore';
+import { THEMES } from '@/themes/terminalThemes';
 
 function getPath() {
   return window.location.pathname;
@@ -26,6 +28,24 @@ function normalizeSessionParam() {
   }
 }
 
+/**
+ * Update the iOS browser-chrome color (status-bar + home-indicator zone) to
+ * match the visible content of the current screen, so there's no visible
+ * seam between our content and the OS chrome.
+ *  - Terminal screen: surface (TouchBar bottom color)
+ *  - Sessions hub / Code viewer: bg (page background)
+ */
+function useChromeColor(screen: 'terminal' | 'main') {
+  const themeId = useThemeStore((s) => s.themeId);
+  useEffect(() => {
+    const theme = THEMES.find((t) => t.id === themeId) ?? THEMES[0]!;
+    const color = screen === 'terminal' ? theme.surface : theme.bg;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', color);
+    document.body.style.background = color;
+  }, [screen, themeId]);
+}
+
 export default function App() {
   const { authenticated, passwordRequired, login, loading } = useAuth();
   const [path, setPath] = useState(getPath);
@@ -39,6 +59,10 @@ export default function App() {
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
+
+  const codeSessionId = getCodeSessionId();
+  const isTerminalScreen = path === '/terminal' && !codeSessionId;
+  useChromeColor(isTerminalScreen ? 'terminal' : 'main');
 
   // Still checking auth
   if (authenticated === null) {
@@ -100,12 +124,11 @@ export default function App() {
   }
 
   // Authenticated — route by pathname
-  const codeSessionId = getCodeSessionId();
   if (codeSessionId) {
     return <CodeViewer sessionId={codeSessionId} />;
   }
 
-  if (path === '/terminal') {
+  if (isTerminalScreen) {
     return <TerminalApp />;
   }
 

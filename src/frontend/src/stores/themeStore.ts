@@ -25,18 +25,13 @@ export const useThemeStore = create<ThemeState>((set) => ({
       // Storage unavailable
     }
     document.documentElement.setAttribute('data-theme', id);
-    const theme = THEMES.find((t) => t.id === id) ?? THEMES[0]!;
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', theme.bg);
     set({ themeId: id });
+    // Note: meta theme-color (iOS chrome) is updated by App.tsx via
+    // useChromeColor, so it can pick the right color (--bg or --surface)
+    // based on the active screen.
   },
 }));
 
-// Apply theme on module load
+// Apply theme on module load (chrome color is set by App.tsx useChromeColor)
 const initialTheme = getSavedTheme();
 document.documentElement.setAttribute('data-theme', initialTheme);
-const meta = document.querySelector('meta[name="theme-color"]');
-if (meta) {
-  const theme = THEMES.find((t) => t.id === initialTheme) ?? THEMES[0]!;
-  meta.setAttribute('content', theme.bg);
-}

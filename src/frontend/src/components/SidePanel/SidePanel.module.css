@@ -24,7 +24,7 @@
   overflow: hidden;
   padding-top: env(safe-area-inset-top, 0px);
   padding-left: env(safe-area-inset-left, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: min(env(safe-area-inset-bottom, 0px), 2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   animation: slide-in-left 0.25s ease-out;
 }

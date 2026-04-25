@@ -459,15 +459,11 @@ export default function TouchBar() {
     </button>
   );
 
-  // When keyboard is open, extend the touchbar downward to fill the gap
-  // between the key buttons and the keyboard (no floating look)
-  const touchBarStyle: React.CSSProperties =
-    keyboardHeight > 0
-      ? {
-          height: `${80 + keyboardHeight}px`,
-          paddingBottom: `${keyboardHeight}px`,
-        }
-      : {};
+  // No inline height adjustment when the keyboard opens: the viewport meta
+  // `interactive-widget=resizes-content` already shrinks the layout viewport,
+  // so the fixed-position touchbar naturally sits flush against the keyboard.
+  // Adding extra height here previously caused a safe-area-sized gap between
+  // the terminal bottom and the touchbar top.
 
   // In tight landscape, hide the touchbar when the keyboard is open to
   // maximize terminal space. The on-screen keyboard already provides keys.
@@ -551,7 +547,7 @@ export default function TouchBar() {
   if (isAgentMode && !showingAgentTerminal) return null;
 
   return (
-    <div className={styles.touchBar} style={touchBarStyle}>
+    <div className={styles.touchBar}>
       <div className={styles.row}>{ROW1.map(renderKey)}</div>
       <div className={styles.row}>
         {ROW2.map(renderKey)}

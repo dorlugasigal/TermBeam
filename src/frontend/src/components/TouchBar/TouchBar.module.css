@@ -1,13 +1,19 @@
 .touchBar {
   position: fixed;
-  bottom: 0;
+  /* Sit above the on-screen keyboard. iOS Safari does NOT support
+     `interactive-widget=resizes-content`, so the layout viewport does not
+     shrink — we must explicitly offset by the visualViewport-based keyboard
+     height (set as --keyboard-height on .layout by useMobileKeyboard). */
+  bottom: var(--keyboard-height, 0px);
   left: 0;
   right: 0;
   z-index: 50;
-  height: calc(80px + env(safe-area-inset-bottom, 0px));
-  padding: 6px 4px;
-  padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
-  background: var(--surface);
+  /* Compact bar height + capped home-indicator gap (saves screen real estate). */
+  height: calc(71px + min(env(safe-area-inset-bottom, 0px), 2px));
+  padding: 3px 4px;
+  padding-bottom: min(env(safe-area-inset-bottom, 0px), 2px);
+  transition: bottom 0.15s ease-out;
+  background: linear-gradient(to bottom, var(--bg) 0%, var(--surface) 100%);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -16,6 +22,31 @@
   -webkit-user-select: none;
   touch-action: none;
   overscroll-behavior: none;
+}
+
+/* Backfill the area below the TouchBar (the keyboard zone) with --bg so it
+   blends with the dark iOS keyboard chrome. Without this the body bg can
+   leak through gaps around the iOS accessory bar. */
+.touchBar::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: var(--keyboard-height, 0px);
+  background: var(--bg);
+  pointer-events: none;
+}
+
+/* When the keyboard is open, drop the gradient and the keyboard-area
+   backfill — the body bg already paints the area dark, and a plain
+   transparent TouchBar lets the buttons (with their drop shadow) read
+   as floating chips above the keyboard. */
+:global([data-keyboard-open]) .touchBar {
+  background: transparent;
+}
+:global([data-keyboard-open]) .touchBar::after {
+  display: none;
 }
 
 .row {
@@ -27,7 +58,7 @@
 
 .keyBtn {
   min-width: 0;
-  height: 34px;
+  height: 32px;
   background: var(--key-bg);
   color: var(--text);
   border: 1px solid var(--key-border);
@@ -38,7 +69,11 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 1px 0 var(--key-shadow);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 1px 0 var(--key-shadow),
+    0 2px 6px rgba(0, 0, 0, 0.45),
+    0 4px 12px rgba(0, 0, 0, 0.35);
   -webkit-tap-highlight-color: transparent;
   font-family: inherit;
   transition: background 0.08s;
@@ -179,9 +214,9 @@
 /* Landscape on short screens: single compact row */
 @media (orientation: landscape) and (max-height: 500px) {
   .touchBar {
-    height: calc(44px + env(safe-area-inset-bottom, 0px));
+    height: calc(44px + min(env(safe-area-inset-bottom, 0px), 2px));
     padding: 4px 4px;
-    padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: min(env(safe-area-inset-bottom, 0px), 2px);
   }
   .keyBtn {
     height: 28px;
