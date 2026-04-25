@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.21.8] - 2026-04-25
+
+- fix(mobile): stabilize bottom touchbar across iOS PWA orientation changes (@dorlugasigal)
+
 ## [1.21.7] - 2026-04-25
 
 - fix(frontend): iOS keyboard flicker, chrome blending, and TouchBar polish (@dorlugasigal)
