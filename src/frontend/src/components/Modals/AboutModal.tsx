@@ -95,14 +95,6 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
               >
                 Docs
               </a>
-              <a
-                href="https://termbeam.pages.dev"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: 'var(--accent)', fontSize: '0.9rem' }}
-              >
-                Website
-              </a>
             </div>
 
             <div className={styles.actions} style={{ justifyContent: 'flex-start' }}>

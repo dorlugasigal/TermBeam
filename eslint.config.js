@@ -9,7 +9,6 @@ module.exports = [
       'public/',
       'playwright-report/',
       'test-results/',
-      'packages/landing/',
       'packages/demo-video/',
       'src/frontend/',
     ],

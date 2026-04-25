@@ -1,1 +1,7 @@
 mkdocs-material==9.7.4
+# Pin pygments and pymdown-extensions to known-good versions.
+# pygments 2.20.0 + pymdown-extensions 10.21 trigger an html.escape(None)
+# crash on filename=None (see html.py: html.escape(filename) where filename
+# defaults to None). 2.19.1 is None-tolerant.
+pygments==2.19.1
+pymdown-extensions==10.21.2

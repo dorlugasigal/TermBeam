@@ -135,7 +135,7 @@ Changes to `docs/` or `mkdocs.yml` pushed to `main` auto-deploy to GitHub Pages.
 - Release workflow: `.github/workflows/release.yml` bumps version, updates `CHANGELOG.md`, tags, and publishes to npm.
 - `prepublishOnly` runs `npm run build:frontend && npm test` before publish.
 - `postinstall` fixes `node-pty` prebuild permissions (spawn-helper).
-- Landing site (`packages/landing/`) deploys via `.github/workflows/landing.yml`.
+- Landing site has been merged into the unified MkDocs documentation site at `docs/` (deployed via `.github/workflows/pages.yml`).
 - Docs deploy via `.github/workflows/pages.yml`.
 
 **IMPORTANT:** When asked to create a PR, open a PR, push to main, publish, release, or submit changes, **always use the `publish` skill**. It orchestrates the full workflow: local tests, lint, coverage, docs check, commit, push (or PR flow with proper branch naming), CI verification, and release. Do not manually run `gh pr create` or `git push origin main` — the skill handles all of this with the correct conventions.

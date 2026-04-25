@@ -50,9 +50,16 @@ theme:
   icon:
     repo: fontawesome/brands/github
     logo: material/console
+  favicon: assets/favicon.svg
   font:
     text: Inter
     code: JetBrains Mono
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/extra.js
 
 markdown_extensions:
   - admonition
@@ -70,6 +77,9 @@ markdown_extensions:
   - attr_list
   - md_in_html
   - tables
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - toc:
       permalink: true
 

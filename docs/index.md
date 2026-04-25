@@ -1,73 +1,142 @@
 ---
-title: TermBeam — Access Your Terminal from Any Device
+title: TermBeam — Beam Your Terminal to Any Device
 description: >-
-  TermBeam is a mobile-optimized web terminal that lets you access your
-  terminal from a phone, tablet, or any browser. No SSH needed — just run
-  one command and scan the QR code.
+  Access your terminal from your phone, tablet, or any browser. No SSH, no
+  config — one command and a QR code.
+hide:
+  - navigation
+  - toc
 ---
 
-# TermBeam
+<section class="tb-hero" markdown>
 
-**Beam your terminal to any device — no SSH, no config, one command.**
+<p class="tb-eyebrow">
+<span class="tb-eyebrow-dot"></span> Open source · MIT licensed
+</p>
 
-TermBeam is a mobile-optimized **web terminal** that lets you access your terminal from your phone, tablet, or any browser. It supports multiple sessions, touch-friendly controls, and works over a secure tunnel — all from a single `npx` command.
+<h1 class="tb-hero-title">
+Beam your terminal<br>to <span class="tb-grad">any device</span>.
+</h1>
 
-Built for developers who need quick remote terminal access without the hassle of SSH clients on mobile.
+<p class="tb-hero-sub">
+One command turns your terminal into a secure, mobile-optimized web app.<br class="tb-only-desktop">
+No SSH, no port forwarding — just scan the QR code.
+</p>
 
-## Why TermBeam?
+<div class="tb-hero-actions" markdown>
 
-### Mobile-First
+[Get started :material-arrow-right:](getting-started.md){ .md-button .md-button--primary .tb-btn-primary }
 
-- **No SSH client needed** — just open a web browser on any device
-- **Touch-optimized key bar** — arrows, Tab, Enter, Ctrl, Esc, and more
-- **Copy & paste** — text overlay for finger selection + clipboard API with fallback
-- **Swipe scrolling**, pinch zoom, and iPhone PWA safe-area support
-- **Image paste** from clipboard, uploaded to server
+<button class="tb-install-btn" id="tb-copy" type="button" aria-label="Copy install command">
+  <span class="tb-install-prompt">$</span><span class="tb-install-cmd">npx termbeam</span>
+  <span class="tb-install-icon" aria-hidden="true">⧉</span>
+</button>
 
-### Multi-Session
+</div>
 
-- **Tabbed sessions** — switch, reorder, and manage multiple terminals
-- **Split view** — two sessions side-by-side (horizontal desktop / vertical mobile)
-- **Session colors & activity indicators** for at-a-glance status
-- **Tab previews** on hover or long-press; **side panel** on mobile
-- **Folder browser** and optional **initial command** per session
+<div class="tb-hero-shot" markdown>
 
-### Productivity
+![TermBeam desktop terminal](assets/showcase/hero-desktop.png){ .tb-desktop-shot loading=eager }
 
-- **Terminal search** — <kbd>Ctrl+F</kbd> / <kbd>Cmd+F</kbd> with regex support
-- **Command palette** — <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd> for quick access to all actions
-- **File upload** — send files from your phone to the session's working directory via the command palette
-- **File browser & download** — browse files in a session's working directory from the side panel and download them to your device
-- **Markdown viewer** — preview `.md` files rendered with GitHub Flavored Markdown directly in the browser
-- **Command completion notifications** — browser alerts when commands finish in background tabs
-- **30 color themes** (dark, light, monokai, nord, dracula…) with adjustable font size
-- **Port preview** — reverse-proxy a local web server through TermBeam
-- **Share & refresh** actions for easy link sharing and PWA cache updates
+![TermBeam on mobile](assets/mobile-terminal.jpeg){ .tb-mobile-shot loading=eager }
 
-### Secure by Default
+</div>
 
-- **One command to start** — `npx termbeam`
-- **Password auth** with auto-generation, rate limiting, and httpOnly cookies
-- **QR code auto-login** with single-use share tokens (5-min expiry)
-- **Shell validation** — only detected shells are allowed
-- **Interactive setup wizard** — run `termbeam -i` for guided configuration
+</section>
 
-## Quick Start
+<section class="tb-section" markdown>
 
-```bash
-npx termbeam
-```
+## Why TermBeam { .tb-section-title }
 
-Scan the QR code printed in your terminal, or open the URL on your phone. That's it.
+<p class="tb-section-lead" markdown>
+A terminal that goes wherever you do. Multi-session, touch-first, secure by default.
+</p>
 
-## How It Works
+<div class="tb-feature-grid" markdown>
 
-TermBeam starts a lightweight web server that:
+<div class="tb-feature" markdown>
 
-1. Spawns a PTY (pseudo-terminal) process with your shell
-2. Serves a mobile-optimized web UI via Express
-3. Bridges the browser and PTY via WebSocket
-4. Renders the terminal using [xterm.js](https://xtermjs.org/)
+### :material-cellphone: Mobile-first
+
+No SSH client needed. Touch-optimized key bar with arrows, Tab, Enter, Ctrl, Esc. Swipe scrolling, pinch zoom, image paste, and iPhone PWA safe areas.
+
+</div>
+
+<div class="tb-feature" markdown>
+
+### :material-tab-plus: Multi-session
+
+Tabbed sessions, split view (horizontal on desktop, vertical on mobile), session colors, activity indicators, hover/long-press previews, and a folder browser.
+
+</div>
+
+<div class="tb-feature" markdown>
+
+### :material-magnify: Productivity
+
+Terminal search with regex (<kbd>Ctrl+F</kbd>), command palette (<kbd>Ctrl+K</kbd>), file upload &amp; download, markdown viewer, completion notifications, 30 themes.
+
+</div>
+
+<div class="tb-feature" markdown>
+
+### :material-shield-lock: Secure by default
+
+Password auth with auto-generation and rate limiting. httpOnly cookies. QR code auto-login with single-use share tokens. Validated shells. Optional secure tunnel.
+
+</div>
+
+<div class="tb-feature" markdown>
+
+### :material-robot: AI agent ready
+
+Auto-detects Copilot CLI, Claude, Aider, and Codex. Launch them from the agent picker — your phone becomes a remote control for AI coding sessions.
+
+</div>
+
+<div class="tb-feature" markdown>
+
+### :material-flash: One command
+
+`npx termbeam` and you're online. Optional secure tunnel for cellular access. Or run on LAN, or fully local. Interactive setup wizard with `termbeam -i`.
+
+</div>
+
+</div>
+
+</section>
+
+<section class="tb-section tb-section--alt" markdown>
+
+## How it works { .tb-section-title }
+
+<div class="tb-how-grid" markdown>
+
+<div class="tb-how-step" markdown>
+
+#### 1 · Spawn
+
+A lightweight server starts a PTY with your shell — `zsh`, `bash`, `pwsh`, or `cmd`.
+
+</div>
+
+<div class="tb-how-step" markdown>
+
+#### 2 · Bridge
+
+The browser connects via WebSocket. Input and output stream in real time over xterm.js.
+
+</div>
+
+<div class="tb-how-step" markdown>
+
+#### 3 · Beam
+
+A QR code (or link) opens the terminal on your phone. Use a tunnel for cellular, or stay on LAN.
+
+</div>
+
+</div>
 
 ```mermaid
 flowchart LR
@@ -75,11 +144,21 @@ flowchart LR
   B <-->|PTY| C["Shell<br>(zsh/bash)"]
 ```
 
-## Learn More
+</section>
 
-- **[Getting Started](getting-started.md)** — install and run TermBeam in under a minute
-- **[Usage Guide](usage-guide.md)** — tabs, split view, search, touch controls, and more
-- **[Configuration](configuration.md)** — CLI flags, environment variables, and defaults
-- **[Security](security.md)** — threat model, safe usage, and security features
-- **[API Reference](api.md)** — REST and WebSocket API documentation
-- **[Architecture](architecture.md)** — how TermBeam works under the hood
+<section class="tb-section tb-cta" markdown>
+
+## Ready in 30 seconds { .tb-section-title }
+
+<p class="tb-section-lead">
+Free. Open source. No account, no signup, no telemetry.
+</p>
+
+<div class="tb-cta-actions" markdown>
+
+[Read the docs :material-book-open-variant:](getting-started.md){ .md-button .md-button--primary }
+[Star on GitHub :material-github:](https://github.com/dorlugasigal/TermBeam){ .md-button }
+
+</div>
+
+</section>

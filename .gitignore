@@ -16,3 +16,6 @@ public/
 *.tsbuildinfo
 .playwright-mcp/
 test-diff.md
+
+# MkDocs build output
+site/

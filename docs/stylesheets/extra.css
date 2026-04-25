@@ -1,0 +1,466 @@
+/* ═══════════════════════════════════════════════════════════
+   TermBeam Docs — unified landing + docs styling
+   Polished dark zinc + teal/cyan accent · inspired by the
+   former landing page, restyled to fit MkDocs Material.
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  --tb-bg: #09090b;
+  --tb-bg-elev: #111114;
+  --tb-surface: #18181b;
+  --tb-surface-strong: #1f1f23;
+  --tb-border: rgba(255, 255, 255, 0.06);
+  --tb-border-strong: rgba(255, 255, 255, 0.12);
+  --tb-text: #fafafa;
+  --tb-text-soft: #d4d4d8;
+  --tb-text-muted: #a1a1aa;
+  --tb-text-faint: #71717a;
+  --tb-accent: #2dd4bf;
+  --tb-accent-soft: #5eead4;
+  --tb-accent-glow: rgba(45, 212, 191, 0.16);
+  --tb-cyan: #22d3ee;
+  --tb-radius: 14px;
+  --tb-radius-lg: 22px;
+  --tb-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --tb-shadow-lg: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+
+/* ─── Material palette (slate / dark) overrides ───────── */
+[data-md-color-scheme='slate'] {
+  --md-default-bg-color: var(--tb-bg);
+  --md-default-fg-color: var(--tb-text);
+  --md-default-fg-color--light: var(--tb-text-soft);
+  --md-default-fg-color--lighter: var(--tb-text-muted);
+  --md-default-fg-color--lightest: var(--tb-text-faint);
+  --md-primary-fg-color: var(--tb-bg);
+  --md-primary-fg-color--light: var(--tb-bg-elev);
+  --md-primary-fg-color--dark: #050507;
+  --md-primary-bg-color: var(--tb-text);
+  --md-accent-fg-color: var(--tb-accent);
+  --md-accent-fg-color--transparent: var(--tb-accent-glow);
+  --md-code-bg-color: var(--tb-surface);
+  --md-code-fg-color: var(--tb-text);
+  --md-typeset-a-color: var(--tb-accent);
+}
+
+/* ─── Light scheme: keep readable, accent stays teal ──── */
+[data-md-color-scheme='default'] {
+  --md-accent-fg-color: #0d9488;
+  --md-typeset-a-color: #0d9488;
+}
+
+/* ─── Body ambient gradient (slate only) ──────────────── */
+[data-md-color-scheme='slate'] body {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(45, 212, 191, 0.07), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 30%, rgba(34, 211, 238, 0.05), transparent 60%),
+    linear-gradient(180deg, #0a0a0d 0%, var(--tb-bg) 100%);
+}
+
+/* ─── Header / chrome polish ──────────────────────────── */
+.md-header {
+  background: rgba(9, 9, 11, 0.72);
+  backdrop-filter: saturate(140%) blur(14px);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  border-bottom: 1px solid var(--tb-border);
+  box-shadow: none;
+}
+
+[data-md-color-scheme='default'] .md-header {
+  background: rgba(255, 255, 255, 0.78);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.md-tabs {
+  background: transparent;
+  border-bottom: 1px solid var(--tb-border);
+}
+
+.md-search__form {
+  background: var(--tb-surface);
+  border: 1px solid var(--tb-border);
+  border-radius: 999px;
+}
+.md-search__form:hover,
+.md-search__input:focus + .md-search__form {
+  background: var(--tb-surface-strong);
+}
+
+/* ─── Typography ──────────────────────────────────────── */
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+.md-typeset h1 {
+  font-weight: 800;
+}
+.md-typeset h2 {
+  margin-top: 2.6rem;
+}
+
+/* ─── Material buttons ────────────────────────────────── */
+.md-typeset .md-button {
+  border-radius: 999px;
+  border: 1px solid var(--tb-border-strong);
+  background: var(--tb-surface);
+  color: var(--tb-text);
+  font-weight: 600;
+  padding: 0.55em 1.25em;
+  transition:
+    transform 160ms var(--tb-ease),
+    background 160ms var(--tb-ease),
+    border-color 160ms var(--tb-ease);
+}
+.md-typeset .md-button:hover {
+  background: var(--tb-surface-strong);
+  border-color: var(--tb-accent);
+  color: var(--tb-text);
+  transform: translateY(-1px);
+}
+.md-typeset .md-button--primary,
+.md-typeset .tb-btn-primary {
+  background: linear-gradient(180deg, var(--tb-accent-soft), var(--tb-accent));
+  border-color: transparent;
+  color: #062a26;
+  box-shadow:
+    0 12px 32px var(--tb-accent-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.md-typeset .md-button--primary:hover,
+.md-typeset .tb-btn-primary:hover {
+  color: #042020;
+  border-color: transparent;
+  filter: brightness(1.05);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HOMEPAGE — landing-style hero & sections
+   Wrapped in `.tb-hero`, `.tb-section`, etc. so they only
+   apply on index.md (which sets `hide: [navigation, toc]`).
+   ═══════════════════════════════════════════════════════════ */
+
+/* On the homepage, push the article wider since nav+TOC are hidden. */
+.md-typeset .tb-hero,
+.md-typeset .tb-section {
+  max-width: 1180px;
+  margin-inline: auto;
+}
+
+/* Hero -------------------------------------------------------- */
+.md-typeset .tb-hero {
+  position: relative;
+  padding: 4.5rem 1rem 2rem;
+  text-align: center;
+}
+
+.md-typeset .tb-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  padding: 0.35em 0.9em;
+  margin-bottom: 1.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--tb-border-strong);
+  background: var(--tb-surface);
+  color: var(--tb-text-soft);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.md-typeset .tb-eyebrow-dot {
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 999px;
+  background: var(--tb-accent);
+  box-shadow: 0 0 0 4px var(--tb-accent-glow);
+  animation: tb-pulse 2.4s var(--tb-ease) infinite;
+}
+@keyframes tb-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px var(--tb-accent-glow);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(45, 212, 191, 0.04);
+  }
+}
+
+.md-typeset .tb-hero-title {
+  font-size: clamp(2.4rem, 5.6vw, 4.4rem);
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  font-weight: 800;
+  margin: 0 auto 1.4rem;
+  max-width: 18ch;
+}
+.md-typeset .tb-grad {
+  background: linear-gradient(120deg, var(--tb-accent) 0%, var(--tb-cyan) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.md-typeset .tb-hero-sub {
+  max-width: 42rem;
+  margin: 0 auto 2rem;
+  font-size: clamp(1rem, 1.6vw, 1.18rem);
+  line-height: 1.55;
+  color: var(--tb-text-muted);
+}
+@media (max-width: 720px) {
+  .tb-only-desktop {
+    display: none;
+  }
+}
+
+.md-typeset .tb-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.85rem;
+  margin-bottom: 3rem;
+}
+
+/* install button */
+.tb-install-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.55em 1.2em;
+  border-radius: 999px;
+  border: 1px solid var(--tb-border-strong);
+  background: var(--tb-surface);
+  color: var(--tb-text);
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 160ms var(--tb-ease),
+    border-color 160ms var(--tb-ease),
+    transform 160ms var(--tb-ease);
+}
+.tb-install-btn:hover {
+  background: var(--tb-surface-strong);
+  border-color: var(--tb-accent);
+  transform: translateY(-1px);
+}
+.tb-install-prompt {
+  color: var(--tb-accent);
+  font-weight: 700;
+}
+.tb-install-icon {
+  margin-left: 0.2em;
+  color: var(--tb-text-faint);
+  font-size: 0.95em;
+  transition: color 160ms var(--tb-ease);
+}
+.tb-install-btn.is-copied .tb-install-icon {
+  color: var(--tb-accent);
+}
+.tb-install-btn.is-copied .tb-install-icon::before {
+  content: '✓';
+}
+.tb-install-btn.is-copied .tb-install-icon {
+  font-size: 1em;
+}
+
+/* Hero device shots */
+.md-typeset .tb-hero-shot {
+  position: relative;
+  margin: 1rem auto 0;
+  max-width: 1100px;
+  border-radius: var(--tb-radius-lg);
+  overflow: visible;
+  isolation: isolate;
+}
+.md-typeset .tb-hero-shot::before {
+  content: '';
+  position: absolute;
+  inset: -8% -4% -12%;
+  background:
+    radial-gradient(60% 50% at 30% 40%, rgba(45, 212, 191, 0.18), transparent 70%),
+    radial-gradient(50% 50% at 75% 50%, rgba(34, 211, 238, 0.12), transparent 70%);
+  z-index: -1;
+  filter: blur(10px);
+  pointer-events: none;
+}
+.md-typeset .tb-hero-shot img {
+  display: block;
+  margin: 0;
+}
+.md-typeset .tb-desktop-shot {
+  width: 100%;
+  border-radius: var(--tb-radius);
+  border: 1px solid var(--tb-border-strong);
+  box-shadow: var(--tb-shadow-lg);
+  background: var(--tb-bg-elev);
+}
+.md-typeset .tb-mobile-shot {
+  position: absolute;
+  right: -1.2rem;
+  bottom: -2.2rem;
+  width: clamp(120px, 22%, 220px);
+  border-radius: 28px;
+  border: 4px solid #0a0a0d;
+  box-shadow:
+    var(--tb-shadow-lg),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+  background: #000;
+}
+@media (max-width: 720px) {
+  .md-typeset .tb-mobile-shot {
+    position: static;
+    width: 60%;
+    margin: 1.2rem auto 0;
+    display: block;
+  }
+}
+
+/* Sections ---------------------------------------------------- */
+.md-typeset .tb-section {
+  padding: 3.4rem 1rem;
+}
+.md-typeset .tb-section--alt {
+  border-top: 1px solid var(--tb-border);
+  border-bottom: 1px solid var(--tb-border);
+  background: radial-gradient(80% 60% at 50% 0%, rgba(45, 212, 191, 0.04), transparent 60%);
+}
+.md-typeset .tb-section-title {
+  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  letter-spacing: -0.025em;
+  margin: 0 auto 0.8rem;
+  text-align: center;
+}
+.md-typeset .tb-section-lead {
+  max-width: 42rem;
+  margin: 0 auto 2.2rem;
+  text-align: center;
+  color: var(--tb-text-muted);
+  font-size: 1.05rem;
+}
+
+/* Feature grid */
+.md-typeset .tb-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+.md-typeset .tb-feature {
+  padding: 1.4rem 1.4rem 1.5rem;
+  border: 1px solid var(--tb-border);
+  border-radius: var(--tb-radius);
+  background: linear-gradient(180deg, var(--tb-bg-elev) 0%, var(--tb-surface) 100%);
+  transition:
+    border-color 200ms var(--tb-ease),
+    transform 200ms var(--tb-ease);
+}
+.md-typeset .tb-feature:hover {
+  border-color: var(--tb-accent);
+  transform: translateY(-2px);
+}
+.md-typeset .tb-feature h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+}
+.md-typeset .tb-feature h3 .twemoji,
+.md-typeset .tb-feature h3 svg {
+  width: 1.2em;
+  height: 1.2em;
+  color: var(--tb-accent);
+  flex-shrink: 0;
+}
+.md-typeset .tb-feature p {
+  margin: 0;
+  color: var(--tb-text-muted);
+  font-size: 0.96rem;
+  line-height: 1.55;
+}
+.md-typeset .tb-feature kbd {
+  font-size: 0.85em;
+}
+
+/* How it works */
+.md-typeset .tb-how-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+.md-typeset .tb-how-step {
+  padding: 1.3rem;
+  border: 1px solid var(--tb-border);
+  border-radius: var(--tb-radius);
+  background: var(--tb-bg-elev);
+}
+.md-typeset .tb-how-step h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tb-accent);
+  font-weight: 700;
+}
+.md-typeset .tb-how-step p {
+  margin: 0;
+  color: var(--tb-text-soft);
+}
+
+/* Mermaid diagram on home */
+.md-typeset .tb-section .mermaid {
+  max-width: 720px;
+  margin: 1rem auto 0;
+}
+
+/* CTA --------------------------------------------------------- */
+.md-typeset .tb-cta {
+  padding-bottom: 5rem;
+  text-align: center;
+}
+.md-typeset .tb-cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+/* ─── Light mode tweaks for hero/sections ─────────────── */
+[data-md-color-scheme='default'] .md-typeset .tb-feature,
+[data-md-color-scheme='default'] .md-typeset .tb-how-step {
+  background: #fff;
+  border-color: rgba(0, 0, 0, 0.06);
+}
+[data-md-color-scheme='default'] .md-typeset .tb-eyebrow {
+  background: #fff;
+  color: #0a0a0d;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+[data-md-color-scheme='default'] .md-typeset .tb-feature p,
+[data-md-color-scheme='default'] .md-typeset .tb-section-lead,
+[data-md-color-scheme='default'] .md-typeset .tb-hero-sub {
+  color: #52525b;
+}
+[data-md-color-scheme='default'] .md-typeset .tb-desktop-shot {
+  background: #fff;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+[data-md-color-scheme='default'] .md-typeset .tb-section--alt {
+  background: rgba(45, 212, 191, 0.05);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+/* ─── Reduce motion ───────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
