@@ -64,11 +64,11 @@ git --no-pager diff HEAD
 Compare the changes against the documentation files. Check:
 
 - **`README.md`** — if any CLI flags, features, or defaults changed, README must reflect them.
-- **`docs/configuration.md`** — if CLI flags or env vars changed.
-- **`docs/security.md`** — if auth, headers, or security behavior changed.
-- **`docs/api.md`** — if HTTP or WebSocket API changed.
-- **`docs/architecture.md`** — if system design or module responsibilities changed.
-- **`docs/getting-started.md`** — if installation or first-run steps changed.
+- **`packages/site/src/content/docs/configuration.md`** — if CLI flags or env vars changed.
+- **`packages/site/src/content/docs/security.md`** — if auth, headers, or security behavior changed.
+- **`packages/site/src/content/docs/api.md`** — if HTTP or WebSocket API changed.
+- **`packages/site/src/content/docs/architecture.md`** — if system design or module responsibilities changed.
+- **`packages/site/src/content/docs/getting-started.md`** — if installation or first-run steps changed.
   and any other docs files relevant to the changes.
 
 Use read-only subagents to verify documentation accuracy. Assign each subagent
@@ -231,7 +231,7 @@ If CI or Security fails:
 
 ## Step 7 — Wait for docs pages deployment (if applicable)
 
-Only if docs files (`docs/**` or `mkdocs.yml`) were changed in the push:
+Only if site files (`packages/site/**`) were changed in the push:
 
 ```bash
 gh run list --workflow=pages.yml --branch=main --limit=1 --json databaseId,status,conclusion

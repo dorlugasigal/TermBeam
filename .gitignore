@@ -16,3 +16,8 @@ public/
 *.tsbuildinfo
 .playwright-mcp/
 test-diff.md
+
+# Astro Starlight site (packages/site/)
+packages/site/.astro/
+packages/site/dist/
+packages/site/node_modules/

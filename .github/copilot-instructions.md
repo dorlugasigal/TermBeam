@@ -118,25 +118,26 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 TermBeam has two layers of documentation that must stay in sync with code changes:
 
 - **`README.md`** — user-facing quick reference (features, CLI flags, security summary). Update when adding/removing CLI flags, features, or changing defaults.
-- **`docs/`** — full MkDocs Material site deployed to GitHub Pages. Navigation defined in `mkdocs.yml`. Update the relevant page when changing behavior:
-  - `docs/configuration.md` — CLI flags and env vars
-  - `docs/resume.md` — `termbeam resume` and `termbeam list` commands
-  - `docs/security.md` — auth, headers, threat model
-  - `docs/api.md` — HTTP and WebSocket API
-  - `docs/architecture.md` — system design
-  - `docs/getting-started.md` — installation and first run
+- **`packages/site/`** — unified Astro Starlight site (landing + docs) deployed to GitHub Pages. Navigation defined in `packages/site/astro.config.mjs` (sidebar groups). Docs content lives in `packages/site/src/content/docs/`. Update the relevant page when changing behavior:
+  - `configuration.md` — CLI flags and env vars
+  - `resume.md` — `termbeam resume` and `termbeam list` commands
+  - `security.md` — auth, headers, threat model
+  - `api.md` — HTTP and WebSocket API
+  - `architecture.md` — system design
+  - `getting-started.md` — installation and first run
 
-Preview docs locally: `pip install mkdocs-material && mkdocs serve`
+Use Starlight admonition syntax (`:::note`, `:::tip`, `:::caution`, `:::danger`) — not MkDocs `!!!` blocks. Cross-link with slug-based URLs (e.g. `[text](/configuration/)`), not `.md` paths.
 
-Changes to `docs/` or `mkdocs.yml` pushed to `main` auto-deploy to GitHub Pages.
+Preview locally: `cd packages/site && npm install && npm run dev`. Build: `npm run build` (outputs to `packages/site/dist/`).
+
+Changes to `packages/site/**` pushed to `main` auto-deploy to GitHub Pages.
 
 ## CI and Publishing
 
 - Release workflow: `.github/workflows/release.yml` bumps version, updates `CHANGELOG.md`, tags, and publishes to npm.
 - `prepublishOnly` runs `npm run build:frontend && npm test` before publish.
 - `postinstall` fixes `node-pty` prebuild permissions (spawn-helper).
-- Landing site (`packages/landing/`) deploys via `.github/workflows/landing.yml`.
-- Docs deploy via `.github/workflows/pages.yml`.
+- Site (landing + docs) deploys via `.github/workflows/pages.yml` from `packages/site/`.
 
 **IMPORTANT:** When asked to create a PR, open a PR, push to main, publish, release, or submit changes, **always use the `publish` skill**. It orchestrates the full workflow: local tests, lint, coverage, docs check, commit, push (or PR flow with proper branch naming), CI verification, and release. Do not manually run `gh pr create` or `git push origin main` — the skill handles all of this with the correct conventions.
 

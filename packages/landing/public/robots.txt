@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://termbeam.pages.dev/sitemap.xml
