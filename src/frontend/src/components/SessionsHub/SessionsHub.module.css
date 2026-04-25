@@ -197,7 +197,7 @@
   display: flex;
   flex-direction: column;
   padding: 16px;
-  padding-bottom: calc(80px + min(env(safe-area-inset-bottom, 0px), 2px));
+  padding-bottom: calc(82px + var(--safe-bottom));
   gap: 12px;
 }
 
@@ -242,11 +242,10 @@
 
 .hubFooter {
   position: fixed;
-  bottom: 0;
+  bottom: var(--safe-bottom);
   left: 0;
   right: 0;
-  padding: 8px calc(16px + env(safe-area-inset-left, 0px))
-    calc(8px + min(env(safe-area-inset-bottom, 0px), 2px))
+  padding: 4px calc(16px + env(safe-area-inset-left, 0px)) 4px
     calc(16px + env(safe-area-inset-right, 0px));
   background: var(--bg);
   display: flex;

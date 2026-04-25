@@ -635,7 +635,7 @@
 .inputBar {
   flex-shrink: 0;
   padding: 8px 16px;
-  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(8px + var(--safe-bottom));
   background: var(--bg);
 }
 

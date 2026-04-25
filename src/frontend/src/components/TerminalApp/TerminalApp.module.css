@@ -180,11 +180,7 @@
 .terminalArea {
   position: absolute;
   top: calc(40px + env(safe-area-inset-top, 0px));
-  /* TouchBar height (71px) + capped home-indicator gap + keyboard height.
-     iOS Safari does not shrink the layout viewport when the keyboard opens,
-     so we must explicitly offset by --keyboard-height (set by
-     useMobileKeyboard via visualViewport). */
-  bottom: calc(71px + min(env(safe-area-inset-bottom, 0px), 2px) + var(--keyboard-height, 0px));
+  bottom: calc(75px + var(--keyboard-height, 0px));
   left: 0;
   right: 0;
   display: flex;
@@ -195,14 +191,13 @@
 /* When the keyboard is open, the touchbar's home-indicator padding is
    covered by the keyboard, so the terminal can sit directly on top of the
    71px touchbar core (above the keyboard). */
+/* Keyboard open: bar drops to sit on keyboard (no safe-area lift). */
 .layout[data-keyboard-open] .terminalArea {
-  bottom: calc(71px + var(--keyboard-height, 0px));
+  bottom: calc(75px + var(--keyboard-height, 0px));
 }
 
-/* Copilot chat hides the TouchBar — reclaim its space (no keyboard offset
-   needed because TerminalPane handles its own resize/scroll-into-view). */
 .layout[data-hide-touchbar] .terminalArea {
-  bottom: calc(min(env(safe-area-inset-bottom, 0px), 2px) + var(--keyboard-height, 0px));
+  bottom: var(--keyboard-height, 0px);
 }
 
 .split {
@@ -269,14 +264,11 @@
   }
   .terminalArea {
     top: calc(32px + env(safe-area-inset-top, 0px));
-    bottom: calc(44px + min(env(safe-area-inset-bottom, 0px), 2px) + var(--keyboard-height, 0px));
+    bottom: calc(48px + var(--keyboard-height, 0px));
   }
-  /* TouchBar hides when keyboard is open in landscape — sit directly on
-     top of the keyboard, no touchbar offset. */
   .layout[data-keyboard-open] .terminalArea {
     bottom: var(--keyboard-height, 0px);
   }
-  /* Copilot chat hides TouchBar — reclaim its space */
   .layout[data-hide-touchbar] .terminalArea {
     bottom: var(--keyboard-height, 0px);
   }

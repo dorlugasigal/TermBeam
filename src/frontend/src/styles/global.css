@@ -6,6 +6,15 @@
   padding: 0;
 }
 
+:root {
+  /* Bottom safe zone for iOS home-indicator. Default 0; useSafeArea()
+     populates this with the cached env(safe-area-inset-bottom) value so
+     the iOS PWA rotation bug (env() returning 0 post-rotation) can't
+     collapse it. */
+  --safe-bottom: 0px;
+  --safe-top: 0px;
+}
+
 html,
 body {
   height: 100vh;

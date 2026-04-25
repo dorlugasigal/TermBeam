@@ -124,7 +124,7 @@
   padding: 0 16px;
   padding-left: max(16px, env(safe-area-inset-left, 0));
   padding-right: max(16px, env(safe-area-inset-right, 0));
-  padding-bottom: max(20px, env(safe-area-inset-bottom, 0));
+  padding-bottom: max(20px, var(--safe-bottom));
   display: flex;
   flex-direction: column;
   gap: 8px;

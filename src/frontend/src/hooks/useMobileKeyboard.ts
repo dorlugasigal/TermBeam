@@ -23,8 +23,42 @@ export function useMobileKeyboard(): MobileKeyboardState {
     if (!vv) return;
 
     baseHeightRef.current = vv.height;
+    let baseWidth = vv.width;
+
+    // While a rotation is in flight, vv.height changes by hundreds of pixels
+    // and would otherwise be mistaken for a keyboard opening. Suppress resize
+    // events during this window and force a clean baseline afterward.
+    let rotating = false;
+    let rotationTimer: ReturnType<typeof setTimeout> | undefined;
+
+    function startRotation() {
+      rotating = true;
+      // Force a clean state immediately so any stale --keyboard-height clears.
+      setState({ keyboardOpen: false, keyboardHeight: 0 });
+      clearTimeout(rotationTimer);
+      rotationTimer = setTimeout(() => {
+        baseHeightRef.current = vv!.height;
+        baseWidth = vv!.width;
+        rotating = false;
+        // Re-evaluate after rotation settles in case a real keyboard is open.
+        const diff = baseHeightRef.current - vv!.height;
+        const isOpen = diff > KEYBOARD_THRESHOLD;
+        setState({
+          keyboardOpen: isOpen,
+          keyboardHeight: isOpen ? diff : 0,
+        });
+      }, 500);
+    }
 
     function onResize() {
+      // Width change ⇒ this is a rotation, not a keyboard event. iOS PWA
+      // doesn't reliably fire orientationchange, so detect it from the
+      // viewport directly.
+      if (vv!.width !== baseWidth) {
+        startRotation();
+        return;
+      }
+      if (rotating) return;
       const currentHeight = vv!.height;
       const diff = baseHeightRef.current - currentHeight;
       const isOpen = diff > KEYBOARD_THRESHOLD;
@@ -34,16 +68,8 @@ export function useMobileKeyboard(): MobileKeyboardState {
       });
     }
 
-    // On orientation change, the viewport height changes without a keyboard
-    // event. Reset the baseline so the diff calculation stays correct.
-    let orientationTimer: ReturnType<typeof setTimeout> | undefined;
     function onOrientationChange() {
-      // Short delay — browsers need a frame to settle the new viewport size
-      clearTimeout(orientationTimer);
-      orientationTimer = setTimeout(() => {
-        baseHeightRef.current = vv!.height;
-        setState({ keyboardOpen: false, keyboardHeight: 0 });
-      }, 200);
+      startRotation();
     }
 
     vv.addEventListener('resize', onResize);
@@ -56,7 +82,7 @@ export function useMobileKeyboard(): MobileKeyboardState {
     window.addEventListener('orientationchange', onOrientationChange);
 
     return () => {
-      clearTimeout(orientationTimer);
+      clearTimeout(rotationTimer);
       vv.removeEventListener('resize', onResize);
       if (orientation) {
         orientation.removeEventListener('change', onOrientationChange);
