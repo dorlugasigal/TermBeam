@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.21.7] - 2026-04-25
+
+- fix(frontend): iOS keyboard flicker, chrome blending, and TouchBar polish (@dorlugasigal)
+
 ## [1.21.6] - 2026-04-24
 
 - fix(deps): patch 9 vulnerabilities reported by OpenSSF Scorecard (#206) (@dorlugasigal)
