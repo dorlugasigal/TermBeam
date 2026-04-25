@@ -22,8 +22,8 @@ termbeam --port 3000
 ```
 
 :::tip
-:::
 Use `termbeam service install` to run TermBeam as a background service so it's always available when you need it. See [Running in Background](../running-in-background/) for details.
+:::
 
 ---
 
@@ -46,8 +46,8 @@ termbeam
 ```
 
 :::tip
-:::
 All connected clients see the same output in real time. Input from any client is sent to the same PTY, so coordinate who's typing — or use separate sessions via tabs.
+:::
 
 ---
 
@@ -62,8 +62,8 @@ termbeam --password workshop2025
 ```
 
 :::caution
-:::
 When sharing with a group, everyone who has the password can send input to the terminal. For read-only demos, ask participants not to type — there's no built-in read-only mode yet.
+:::
 
 ---
 
@@ -78,8 +78,8 @@ termbeam service install --password "$ONCALL_PASSWORD" --port 4000
 ```
 
 :::tip
-:::
 Pair TermBeam with a process manager like PM2 or systemd so the service restarts automatically if the host reboots. See [Running in Background](../running-in-background/).
+:::
 
 ---
 
@@ -94,5 +94,6 @@ npx termbeam --lan --port 3000
 ```
 
 :::tip
-:::
 For devices behind NAT or on a different network, omit `--lan` to use the built-in tunnel and access the device over the internet.
+
+:::

@@ -59,8 +59,8 @@ The file browser lets you browse and download files from a session's working dir
 6. Tap **←** to return to the sessions list
 
 :::note
-:::
 Browsing is restricted to the session's working directory and its subdirectories — you cannot navigate above it. Files up to 100 MB can be downloaded. Hidden files (starting with `.`) are not shown.
+:::
 
 ### Markdown Viewer
 
@@ -73,8 +73,8 @@ Markdown files (`.md`, `.markdown`) can be previewed directly in the file browse
 5. Tap **←** to return to the file listing
 
 :::note
-:::
 The viewer loads files up to 2 MB. For larger files, use the download button instead.
+:::
 
 ### Notifications
 
@@ -92,7 +92,7 @@ The viewer loads files up to 2 MB. For larger files, use the download button ins
 
 If you're running a local web server (e.g., on port 8080), you can preview it through TermBeam without exposing a separate port. Use the **port preview** feature in the command palette (<kbd>Ctrl+K</kbd>) to reverse-proxy any local port through your TermBeam URL.
 
-See the [API Reference](/api/#port-preview) for the underlying REST endpoints.
+See the [API Reference](../api/#port-preview) for the underlying REST endpoints.
 
 ## Touch Controls
 

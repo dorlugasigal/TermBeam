@@ -1,5 +1,5 @@
 ---
-title: Ai Agents
+title: AI Agents
 ---
 
 # AI Agent Launch

@@ -13,6 +13,7 @@ frontend/node_modules/
 
 # Build output from src/frontend/ (rebuilt by prepublishOnly)
 public/
+!packages/site/public/
 *.tsbuildinfo
 .playwright-mcp/
 test-diff.md

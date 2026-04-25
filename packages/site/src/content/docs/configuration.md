@@ -84,7 +84,7 @@ TermBeam includes a `service` subcommand for managing a PM2-based background ser
 The wizard saves its configuration to `~/.termbeam/ecosystem.config.js`. You can edit this file manually and run `termbeam service restart` to apply changes.
 :::
 
-For a full walkthrough of the wizard steps and each subcommand, see [Running in Background](/running-in-background/#interactive-setup-easiest).
+For a full walkthrough of the wizard steps and each subcommand, see [Running in Background](../running-in-background/#interactive-setup-easiest).
 
 ## Examples
 

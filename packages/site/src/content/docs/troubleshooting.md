@@ -20,8 +20,8 @@ This usually means the server isn't running or you're hitting the wrong address.
 - If using the default `--host 127.0.0.1`, only `localhost` connections work — you can't open it from another device
 
 :::tip[Need LAN access?]
-:::
 Use `termbeam --lan` or `termbeam --host 0.0.0.0` to bind to all interfaces so other devices on your network can connect.
+:::
 
 ### WebSocket disconnects or "WebSocket error"
 
@@ -32,8 +32,8 @@ WebSocket connections can drop due to network instability, especially on mobile 
 - **Persisted tunnels:** use `--persisted-tunnel` for more stable, long-lived connections
 
 :::tip
-:::
 If you're frequently disconnecting over a tunnel, switch to `--persisted-tunnel` for a connection that survives brief network interruptions.
+:::
 
 ### Can't connect from another device on LAN
 
@@ -79,8 +79,8 @@ devtunnel user login
 - Persisted tunnel IDs are saved to `~/.termbeam/tunnel.json` and expire after 30 days
 
 :::caution
-:::
 If a persisted tunnel stops working after ~30 days, delete `~/.termbeam/tunnel.json` and restart TermBeam to create a fresh tunnel.
+:::
 
 ### Tunnel died overnight / after sleep
 
@@ -102,8 +102,8 @@ TermBeam auto-generates a new password each time the server starts.
 - **QR code tokens:** the QR code contains a single-use share token that expires after 5 minutes — rescan if it's expired
 
 :::tip
-:::
 The easiest way to connect is to scan the QR code from the terminal output. It includes the URL and a one-time auth token.
+:::
 
 ### "Unauthorized" on API requests
 
@@ -189,8 +189,8 @@ termbeam service uninstall && termbeam service install
 ```
 
 :::tip
-:::
 If PM2 processes are in an error state, `pm2 kill` will reset everything. Then reinstall with `termbeam service install`.
+:::
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: Api
+title: API
 ---
 
 # API Reference

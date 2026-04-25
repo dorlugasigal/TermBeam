@@ -12,7 +12,7 @@ const {
   description = 'Access your terminal from your phone, tablet, or any browser. No SSH, no config — one command and a QR code.',
 } = Astro.props;
 
-const base = import.meta.env.BASE_URL;
+const base = import.meta.env.BASE_URL.replace(/\/+$/, '');
 const ogImage = new URL(`${base}/mobile-terminal.jpeg`.replace(/\/+/g, '/'), Astro.site).toString();
 ---
 
@@ -243,7 +243,7 @@ const ogImage = new URL(`${base}/mobile-terminal.jpeg`.replace(/\/+/g, '/'), Ast
                 }, 2000);
               })
               .catch(() => {
-                if (copyStatus) copyStatus.textContent = 'Press Ctrl+C to copy';
+                if (copyStatus) copyStatus.textContent = 'Copy failed — select the command manually';
                 setTimeout(() => {
                   if (copyStatus) copyStatus.textContent = '';
                 }, 3000);
