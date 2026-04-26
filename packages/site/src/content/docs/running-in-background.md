@@ -353,7 +353,8 @@ TermBeam requires Node.js 20 or higher. Verify with `node --version` before sett
 - **Dev machine?** → PM2 (easiest setup, great logs)
 - **Server/always-on?** → systemd or launchd (OS-native, starts on boot)
 - **Windows?** → Task Scheduler or NSSM
-  :::
+
+:::
 
 ---
 
