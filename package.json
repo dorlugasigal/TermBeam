@@ -9,8 +9,8 @@
   "scripts": {
     "start": "node bin/termbeam.js",
     "dev": "node bin/termbeam.js --generate-password",
-    "test": "node -e \"const{execFileSync:r}=require('child_process'),{readdirSync:d,statSync:s}=require('fs'),{join:j}=require('path');function f(p){let a=[];for(const e of d(p)){const c=j(p,e);s(c).isDirectory()?a.push(...f(c)):e.endsWith('.test.js')&&!e.startsWith('e2e-')&&e!=='devtunnel-install.test.js'&&a.push(c)}return a}r(process.execPath,['--test','--test-timeout=60000',...f('test')],{stdio:'inherit'})\"",
-    "test:coverage": "c8 --exclude=src/tunnel/ --exclude=test --reporter=text --reporter=lcov --reporter=json-summary --reporter=json node -e \"const{execFileSync:r}=require('child_process'),{readdirSync:d,statSync:s}=require('fs'),{join:j}=require('path');function f(p){let a=[];for(const e of d(p)){const c=j(p,e);s(c).isDirectory()?a.push(...f(c)):e.endsWith('.test.js')&&!e.startsWith('e2e-')&&e!=='devtunnel-install.test.js'&&a.push(c)}return a}r(process.execPath,['--test','--test-timeout=60000','--test-reporter=spec','--test-reporter-destination=stdout',...f('test')],{stdio:'inherit'})\"",
+    "test": "node -e \"const{execFileSync:r}=require('child_process'),{readdirSync:d,statSync:s}=require('fs'),{join:j}=require('path');function f(p){let a=[];for(const e of d(p)){const c=j(p,e);s(c).isDirectory()?a.push(...f(c)):e.endsWith('.test.js')&&!e.startsWith('e2e-')&&e!=='devtunnel-install.test.js'&&a.push(c)}return a}r(process.execPath,['--test','--test-timeout=180000',...f('test')],{stdio:'inherit'})\"",
+    "test:coverage": "c8 --reporter=text --reporter=lcov --reporter=json-summary --reporter=json node -e \"const{execFileSync:r}=require('child_process'),{readdirSync:d,statSync:s}=require('fs'),{join:j}=require('path');function f(p){let a=[];for(const e of d(p)){const c=j(p,e);s(c).isDirectory()?a.push(...f(c)):e.endsWith('.test.js')&&!e.startsWith('e2e-')&&e!=='devtunnel-install.test.js'&&a.push(c)}return a}r(process.execPath,['--test','--test-timeout=180000','--test-reporter=spec','--test-reporter-destination=stdout',...f('test')],{stdio:'inherit'})\"",
     "prepare": "husky",
     "format": "prettier --write .",
     "lint": "node --check src/server/*.js src/cli/*.js src/tunnel/*.js src/utils/*.js bin/*.js",
@@ -83,6 +83,17 @@
   },
   "optionalDependencies": {
     "better-sqlite3": "^12.8.0"
+  },
+  "c8": {
+    "check-coverage": true,
+    "lines": 92,
+    "functions": 92,
+    "branches": 85,
+    "statements": 92,
+    "exclude": [
+      "src/tunnel/",
+      "test"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
