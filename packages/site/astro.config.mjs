@@ -2,10 +2,22 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
+// Build target is driven by env so the same source can ship to multiple hosts:
+//   DEPLOY_TARGET=github-pages  (default) — base /TermBeam, site dorlugasigal.github.io
+//   DEPLOY_TARGET=cloudflare              — base /, site from SITE_URL or termbeam.dev
+const target = process.env.DEPLOY_TARGET || 'github-pages';
+const isCF = target === 'cloudflare';
+
+const site = isCF
+  ? process.env.SITE_URL || 'https://termbeam.dev'
+  : 'https://dorlugasigal.github.io';
+const base = isCF ? '/' : '/TermBeam';
+const ogImage = `${site.replace(/\/$/, '')}${base === '/' ? '' : base}/og-image.png`;
+
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://dorlugasigal.github.io',
-  base: '/TermBeam',
+  site,
+  base,
   trailingSlash: 'ignore',
   integrations: [
     starlight({
@@ -17,7 +29,7 @@ export default defineConfig({
           tag: 'meta',
           attrs: {
             property: 'og:image',
-            content: 'https://dorlugasigal.github.io/TermBeam/og-image.png',
+            content: ogImage,
           },
         },
         {
@@ -31,7 +43,7 @@ export default defineConfig({
           tag: 'meta',
           attrs: {
             name: 'twitter:image',
-            content: 'https://dorlugasigal.github.io/TermBeam/og-image.png',
+            content: ogImage,
           },
         },
         {
