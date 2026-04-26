@@ -100,43 +100,16 @@ header.header {
   .sl-markdown-content table {
     display: block;
     width: 100%;
-    border: none;
-    border-collapse: separate;
-    border-spacing: 0 12px;
-  }
-  .sl-markdown-content thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-  .sl-markdown-content tbody,
-  .sl-markdown-content tr {
-    display: block;
-    width: 100%;
-  }
-  .sl-markdown-content tr {
-    background: var(--sl-color-bg-sidebar);
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     border: 1px solid var(--sl-color-hairline);
     border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 0;
+    background: var(--sl-color-bg-sidebar);
   }
-  .sl-markdown-content td {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 6px 0;
-    border: none;
-  }
-  .sl-markdown-content td::before {
-    content: attr(data-label);
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--sl-color-text-accent);
+  .sl-markdown-content table th,
+  .sl-markdown-content table td {
+    white-space: nowrap;
+    font-size: 0.875rem;
   }
 }

@@ -247,11 +247,19 @@ const siteUrl = new URL(`${base}/`.replace(/\/+/g, '/'), Astro.site).toString();
 
       function initCopyButton() {
         const copyStatus = document.getElementById('copy-status');
+        let copyHideTimer: ReturnType<typeof setTimeout> | null = null;
         function bindCopy(installBtnId: string, copyBtnId: string) {
           const installBtn = document.getElementById(installBtnId);
           const copyBtn = document.getElementById(copyBtnId);
           if (!installBtn || !copyBtn) return;
           installBtn.addEventListener('click', () => {
+            if (copyHideTimer) {
+              clearTimeout(copyHideTimer);
+              copyHideTimer = null;
+            }
+            if (copyStatus) {
+              copyStatus.classList.remove('error');
+            }
             navigator.clipboard
               .writeText('npx termbeam')
               .then(() => {
@@ -259,15 +267,17 @@ const siteUrl = new URL(`${base}/`.replace(/\/+/g, '/'), Astro.site).toString();
                 copyBtn.classList.add('copied');
                 if (copyStatus) {
                   copyStatus.textContent = 'Copied to clipboard';
+                  copyStatus.classList.remove('error');
                   copyStatus.classList.add('visible');
                 }
-                setTimeout(() => {
+                copyHideTimer = setTimeout(() => {
                   installBtn.classList.remove('copied');
                   copyBtn.classList.remove('copied');
                   if (copyStatus) {
                     copyStatus.textContent = '';
                     copyStatus.classList.remove('visible');
                   }
+                  copyHideTimer = null;
                 }, 2000);
               })
               .catch(() => {
@@ -275,11 +285,12 @@ const siteUrl = new URL(`${base}/`.replace(/\/+/g, '/'), Astro.site).toString();
                   copyStatus.textContent = 'Copy failed — select the command manually';
                   copyStatus.classList.add('visible', 'error');
                 }
-                setTimeout(() => {
+                copyHideTimer = setTimeout(() => {
                   if (copyStatus) {
                     copyStatus.textContent = '';
                     copyStatus.classList.remove('visible', 'error');
                   }
+                  copyHideTimer = null;
                 }, 3000);
               });
           });
