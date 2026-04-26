@@ -1679,14 +1679,25 @@ section[id] {
   .feature--center .feature-text {
     margin-bottom: 20px;
   }
-  /* Cap visual height so videos don't dominate the page on narrow viewports */
+  /* Allow visual to size to its content (phones are tall by nature). */
   .feature-visual {
-    max-height: 240px;
+    width: 100%;
+    align-self: stretch;
+  }
+  .feature-visual .device-browser--xl {
+    width: 100%;
+    max-width: 100%;
+  }
+  /* Phone aspect on small screens — kept compact so cards don't dominate. */
+  .device-phone--xl,
+  .feature--center .device-phone--xl {
+    width: min(60vw, 220px);
   }
   .feature-visual video {
-    max-height: 240px;
-    width: auto;
-    object-fit: contain;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
   }
   /* Tighten text rhythm to keep mobile feature stack short */
   .feature-text {
@@ -1702,16 +1713,20 @@ section[id] {
   .features-header {
     padding-bottom: 16px;
   }
-  .device-phone--xl {
-    width: 220px;
-  }
-  .feature--center .device-phone--xl {
-    width: 240px;
-  }
   .feature-visual .device-phone--overlay {
     width: 140px;
     right: -5px;
     bottom: -15px;
+  }
+  /* Faster, gentler reveal on mobile — avoids cards looking empty mid-scroll. */
+  .js .feature .feature-text,
+  .js .feature .feature-visual {
+    transition-duration: 0.4s;
+    transform: translateY(16px);
+  }
+  .js .feature .feature-visual {
+    transform: translateY(20px) scale(0.99);
+    transition-delay: 0.05s;
   }
 
   .how-it-works {
