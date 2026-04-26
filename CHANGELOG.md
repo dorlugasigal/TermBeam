@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.22.4] - 2026-04-26
+
+- perf(test): parallelize e2e suite via shared server + workers (#214) (@dorlugasigal)
+- fix(security): add inline path validation guards for CodeQL (#216) (@dorlugasigal)
+- fix(deps): update vulnerable dependencies and pin Docker image (#218) (@dorlugasigal)
+- refactor(site): clean up landing page design and optimize CI (#220) (@dorlugasigal)
+
 ## [1.22.3] - 2026-04-26
 
 - fix(site): auto-detect Cloudflare Pages build target (@dorlugasigal)
