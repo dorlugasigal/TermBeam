@@ -1,0 +1,48 @@
+name: Deploy site to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - packages/site/**
+      - .github/workflows/site-cloudflare.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: cloudflare-pages
+      url: https://termbeam.pages.dev
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: packages/site/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: packages/site
+
+      - name: Build (Cloudflare target)
+        env:
+          DEPLOY_TARGET: cloudflare
+          SITE_URL: https://termbeam.pages.dev
+        run: npm run build
+        working-directory: packages/site
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy packages/site/dist --project-name=termbeam --branch=main
