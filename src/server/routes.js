@@ -860,7 +860,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
 
     const rootDir = path.resolve(sessions.getSessionCwd(req.params.id));
     const dir = safePath(rootDir, req.query.dir || '.');
-    if (!dir || !dir.startsWith(rootDir)) {
+    if (!dir || (dir !== rootDir && !dir.startsWith(rootDir + path.sep))) {
       return res.status(403).json({ error: 'Path is outside session directory' });
     }
 
@@ -930,7 +930,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
     let startDir = rootDir;
     if (typeof req.query.path === 'string' && req.query.path.length > 0) {
       const resolved = safePath(rootDir, req.query.path);
-      if (!resolved || !resolved.startsWith(rootDir)) {
+      if (!resolved || (resolved !== rootDir && !resolved.startsWith(rootDir + path.sep))) {
         return res.status(403).json({ error: 'Path is outside session directory' });
       }
       try {
@@ -1040,7 +1040,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
 
     const rootDir = path.resolve(sessions.getSessionCwd(req.params.id));
     const filePath = safePath(rootDir, file);
-    if (!filePath || !filePath.startsWith(rootDir)) {
+    if (!filePath || (filePath !== rootDir && !filePath.startsWith(rootDir + path.sep))) {
       return res.status(403).json({ error: 'Path is outside session directory' });
     }
 
@@ -1074,7 +1074,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
 
     const rootDir = path.resolve(sessions.getSessionCwd(req.params.id));
     const filePath = safePath(rootDir, file);
-    if (!filePath || !filePath.startsWith(rootDir)) {
+    if (!filePath || (filePath !== rootDir && !filePath.startsWith(rootDir + path.sep))) {
       return res.status(403).json({ error: 'Path is outside session directory' });
     }
 
@@ -1108,7 +1108,7 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
 
     const rootDir = path.resolve(sessions.getSessionCwd(req.params.id));
     const filePath = safePath(rootDir, file);
-    if (!filePath || !filePath.startsWith(rootDir)) {
+    if (!filePath || (filePath !== rootDir && !filePath.startsWith(rootDir + path.sep))) {
       return res.status(403).json({ error: 'Path is outside session directory' });
     }
 
