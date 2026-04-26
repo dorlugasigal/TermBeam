@@ -3,8 +3,6 @@ title: TermBeam Configuration
 description: All TermBeam CLI flags and options — ports, passwords, tunnels, shells, and more.
 ---
 
-# Configuration
-
 ## CLI Flags
 
 | Flag                  | Description                                                                                                   | Default        |

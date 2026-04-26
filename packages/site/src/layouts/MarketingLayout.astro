@@ -13,7 +13,9 @@ const {
 } = Astro.props;
 
 const base = import.meta.env.BASE_URL.replace(/\/+$/, '');
-const ogImage = new URL(`${base}/mobile-terminal.jpeg`.replace(/\/+/g, '/'), Astro.site).toString();
+const ogImage = new URL(`${base}/og-image.png`.replace(/\/+/g, '/'), Astro.site).toString();
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site).toString();
+const siteUrl = new URL(`${base}/`.replace(/\/+/g, '/'), Astro.site).toString();
 ---
 
 <!doctype html>
@@ -30,9 +32,29 @@ const ogImage = new URL(`${base}/mobile-terminal.jpeg`.replace(/\/+/g, '/'), Ast
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content={ogImage} />
     <meta name="theme-color" content="#09090b" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="dark light" />
+    <meta property="og:url" content={canonicalUrl} />
+    <link rel="canonical" href={canonicalUrl} />
     <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
-    <link rel="preload" as="image" href={`${base}/showcase/hero-desktop.png`} />
+    <script is:inline>
+      // Sync theme with Starlight (key: starlight-theme — values: light | dark | auto)
+      (function () {
+        try {
+          var stored = localStorage.getItem('starlight-theme');
+          if (stored === '' || stored == null) {
+            stored = 'auto';
+            try { localStorage.setItem('starlight-theme', 'auto'); } catch (_e) {}
+          }
+          var theme = stored;
+          if (theme === 'auto') {
+            theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          document.documentElement.dataset.theme = theme;
+        } catch (e) {
+          document.documentElement.dataset.theme = 'dark';
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -45,7 +67,7 @@ const ogImage = new URL(`${base}/mobile-terminal.jpeg`.replace(/\/+/g, '/'), Ast
       name: 'TermBeam',
       description:
         'Beam your terminal to any device — mobile-optimized web terminal with multi-session support',
-      url: Astro.site?.toString(),
+      url: siteUrl,
       applicationCategory: 'DeveloperApplication',
       operatingSystem: 'Windows, macOS, Linux',
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
@@ -65,7 +87,7 @@ const ogImage = new URL(`${base}/mobile-terminal.jpeg`.replace(/\/+/g, '/'), Ast
 
     <slot />
 
-    <span aria-live="polite" class="sr-only" id="copy-status"></span>
+    <div aria-live="polite" id="copy-status" class="copy-toast" role="status"></div>
 
     <script>
       // ─── Scroll manager ────────────────────────────────────
@@ -235,17 +257,29 @@ const ogImage = new URL(`${base}/mobile-terminal.jpeg`.replace(/\/+/g, '/'), Ast
               .then(() => {
                 installBtn.classList.add('copied');
                 copyBtn.classList.add('copied');
-                if (copyStatus) copyStatus.textContent = 'Copied to clipboard';
+                if (copyStatus) {
+                  copyStatus.textContent = 'Copied to clipboard';
+                  copyStatus.classList.add('visible');
+                }
                 setTimeout(() => {
                   installBtn.classList.remove('copied');
                   copyBtn.classList.remove('copied');
-                  if (copyStatus) copyStatus.textContent = '';
+                  if (copyStatus) {
+                    copyStatus.textContent = '';
+                    copyStatus.classList.remove('visible');
+                  }
                 }, 2000);
               })
               .catch(() => {
-                if (copyStatus) copyStatus.textContent = 'Copy failed — select the command manually';
+                if (copyStatus) {
+                  copyStatus.textContent = 'Copy failed — select the command manually';
+                  copyStatus.classList.add('visible', 'error');
+                }
                 setTimeout(() => {
-                  if (copyStatus) copyStatus.textContent = '';
+                  if (copyStatus) {
+                    copyStatus.textContent = '';
+                    copyStatus.classList.remove('visible', 'error');
+                  }
                 }, 3000);
               });
           });
@@ -309,11 +343,47 @@ const ogImage = new URL(`${base}/mobile-terminal.jpeg`.replace(/\/+/g, '/'), Ast
           .then((data) => {
             if (data && typeof data.stargazers_count === 'number') {
               const count = data.stargazers_count;
-              span.textContent =
+              const display =
                 count >= 1000 ? (count / 1000).toFixed(1) + 'k' : String(count);
+              span.textContent = display;
+              badge.setAttribute('aria-label', `Star TermBeam on GitHub — ${count} stars`);
             }
           })
           .catch(() => {});
+      }
+
+      function initThemeToggle() {
+        const toggleBtn = document.getElementById('theme-toggle');
+        if (!toggleBtn) return;
+        const apply = (theme: string) => {
+          const resolved =
+            theme === 'auto'
+              ? window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+              : theme;
+          document.documentElement.dataset.theme = resolved;
+          toggleBtn.setAttribute(
+            'aria-label',
+            resolved === 'dark' ? 'Switch to light mode' : 'Switch to dark mode',
+          );
+          toggleBtn.dataset.theme = resolved;
+        };
+        let stored: string;
+        try {
+          stored = localStorage.getItem('starlight-theme') || 'dark';
+        } catch (_e) {
+          stored = 'dark';
+        }
+        apply(stored);
+        toggleBtn.addEventListener('click', () => {
+          const current = document.documentElement.dataset.theme || 'dark';
+          const next = current === 'dark' ? 'light' : 'dark';
+          try {
+            localStorage.setItem('starlight-theme', next);
+          } catch (_e) {}
+          apply(next);
+        });
       }
 
       document.addEventListener('DOMContentLoaded', () => {
@@ -345,13 +415,33 @@ const ogImage = new URL(`${base}/mobile-terminal.jpeg`.replace(/\/+/g, '/'), Ast
                 }
               });
             },
-            { threshold: 0.25 },
+            { threshold: 0.01, rootMargin: '100px 0px' },
           );
           document.querySelectorAll('.feature video').forEach((v) => videoObserver.observe(v));
+
+          // Replay overlay: show ▶ when a feature video is paused mid-feature.
+          document.querySelectorAll('.feature').forEach((feat) => {
+            const video = feat.querySelector('video') as HTMLVideoElement | null;
+            const replay = feat.querySelector('.video-replay') as HTMLButtonElement | null;
+            if (!video || !replay) return;
+            const sync = () => {
+              const ended = video.ended || (video.paused && video.currentTime > 0.05);
+              replay.hidden = !ended;
+            };
+            video.addEventListener('pause', sync);
+            video.addEventListener('ended', sync);
+            video.addEventListener('play', sync);
+            replay.addEventListener('click', () => {
+              video.currentTime = 0;
+              video.play().catch(() => {});
+              replay.hidden = true;
+            });
+          });
         }
         initCopyButton();
         initMobileNav();
         initStarCount();
+        initThemeToggle();
 
         const hero = document.querySelector('.hero') as HTMLElement | null;
         if (hero && !reducedMotion) {

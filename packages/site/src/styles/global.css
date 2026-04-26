@@ -67,6 +67,45 @@
   --max-w: var(--container);
 }
 
+/* Light mode — synced via Starlight (data-theme="light") */
+:root[data-theme='light'] {
+  --color-bg: #ffffff;
+  --color-bg-soft: #f8fafc;
+  --color-bg-elev: #f1f5f9;
+  --color-bg-card: rgba(248, 250, 252, 0.85);
+  --color-border: rgba(15, 23, 42, 0.10);
+  --color-border-strong: rgba(15, 23, 42, 0.18);
+
+  --color-fg: #0a0a0a;
+  --color-fg-muted: #475569;
+  --color-fg-dim: #64748b;
+
+  --color-accent: #1d4ed8;
+  --color-accent-soft: rgba(29, 78, 216, 0.12);
+  --color-accent-glow: rgba(29, 78, 216, 0.22);
+  --color-accent-2: #6d28d9;
+
+  --mesh-1: rgba(29, 78, 216, 0.10);
+  --mesh-2: rgba(109, 40, 217, 0.08);
+  --mesh-3: rgba(8, 145, 178, 0.07);
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.10);
+  --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.14);
+
+  --bg: var(--color-bg);
+  --bg-subtle: var(--color-bg-soft);
+  --surface: var(--color-bg-elev);
+  --border: var(--color-border);
+  --border-subtle: rgba(15, 23, 42, 0.05);
+  --text: var(--color-fg);
+  --text-secondary: var(--color-fg-muted);
+  --text-muted: var(--color-fg-dim);
+  --accent: var(--color-accent);
+  --accent-light: #2563eb;
+  --accent-glow: var(--color-accent-soft);
+}
+
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

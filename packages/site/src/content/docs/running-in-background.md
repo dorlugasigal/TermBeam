@@ -1,8 +1,7 @@
 ---
 title: Running In Background
+description: Run TermBeam as a long-lived service with PM2, systemd, launchd, nohup, or Windows Task Scheduler.
 ---
-
-# Running in Background
 
 TermBeam is designed as a lightweight, on-demand tool — start it when you need terminal access, stop it when you're done. But if you want it **always available** (e.g., on a home server or dev machine), here's how to keep it running reliably using standard process managers.
 
@@ -262,7 +261,7 @@ Since TermBeam auto-generates a password by default, background services **must*
 
 <!-- prettier-ignore -->
 :::tip[Pairing with DevTunnel]
-If you use `--tunnel` with a background service, consider the persistent tunnel feature (when available) so your tunnel URL stays the same across restarts.
+If you use `--tunnel` with a background service, pass `--persisted-tunnel` so the same tunnel URL is reused across restarts. Without it, every restart produces a new public URL.
 :::
 
 <!-- prettier-ignore -->

@@ -6,8 +6,6 @@ description: >-
   one command and scan the QR code.
 ---
 
-# TermBeam
-
 **Beam your terminal to any device — no SSH, no config, one command.**
 
 TermBeam is a mobile-optimized **web terminal** that lets you access your terminal from your phone, tablet, or any browser. It supports multiple sessions, touch-friendly controls, and works over a secure tunnel — all from a single `npx` command.
@@ -40,7 +38,7 @@ Built for developers who need quick remote terminal access without the hassle of
 - **File browser & download** — browse files in a session's working directory from the side panel and download them to your device
 - **Markdown viewer** — preview `.md` files rendered with GitHub Flavored Markdown directly in the browser
 - **Command completion notifications** — browser alerts when commands finish in background tabs
-- **30 color themes** (dark, light, monokai, nord, dracula…) with adjustable font size
+- **38 color themes** (dark, light, monokai, nord, dracula…) with adjustable font size
 - **Port preview** — reverse-proxy a local web server through TermBeam
 - **Share & refresh** actions for easy link sharing and PWA cache updates
 

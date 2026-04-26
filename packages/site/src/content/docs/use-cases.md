@@ -5,8 +5,6 @@ description: >-
   programming, teaching, on-call incident response, and IoT device access.
 ---
 
-# Use Cases
-
 TermBeam is built for situations where you need terminal access fast, from any device, without installing anything on the client side. Here are the most common scenarios.
 
 ---
@@ -74,7 +72,8 @@ Respond to incidents from your mobile device — check logs, restart services, a
 TermBeam's tunnel support means you can reach your terminal from anywhere, even on cellular data. Combined with `termbeam service`, you can have a persistent TermBeam instance ready on your jump host or bastion server, waiting for when you need it.
 
 ```bash
-termbeam service install --password "$ONCALL_PASSWORD" --port 4000
+# Run the interactive installer — it will prompt for password, port, and access mode.
+termbeam service install
 ```
 
 :::tip
@@ -97,3 +96,11 @@ npx termbeam --lan --port 3000
 For devices behind NAT or on a different network, omit `--lan` to use the built-in tunnel and access the device over the internet.
 
 :::
+---
+
+## See Also
+
+- **[Getting Started](../getting-started/)** — install and run TermBeam
+- **[Configuration](../configuration/)** — CLI flags and env vars referenced above
+- **[Running in Background](../running-in-background/)** — keep TermBeam running between reboots
+- **[Security](../security/)** — auth, tunnels, and the threat model

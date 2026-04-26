@@ -3,8 +3,6 @@ title: TermBeam Security
 description: How TermBeam secures your remote terminal — password auth, rate limiting, token cookies, and tunnel encryption.
 ---
 
-# Security
-
 ## Overview
 
 TermBeam provides access to a real shell on your machine. **Security is critical.**

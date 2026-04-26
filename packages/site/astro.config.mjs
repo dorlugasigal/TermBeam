@@ -12,6 +12,33 @@ export default defineConfig({
       title: 'TermBeam',
       description:
         'Access your terminal from any device. Mobile-optimized web terminal with multi-session support.',
+      head: [
+        {
+          tag: 'meta',
+          attrs: {
+            property: 'og:image',
+            content: 'https://dorlugasigal.github.io/TermBeam/og-image.png',
+          },
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            name: 'twitter:card',
+            content: 'summary_large_image',
+          },
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            name: 'twitter:image',
+            content: 'https://dorlugasigal.github.io/TermBeam/og-image.png',
+          },
+        },
+        {
+          tag: 'script',
+          content: `(function(){function fix(){var btn=document.querySelector('[data-open-modal][aria-label]');if(btn){btn.setAttribute('aria-label','Search docs (Ctrl+K)');}}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',fix);}else{fix();}setTimeout(fix,500);})();`,
+        },
+      ],
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/dorlugasigal/TermBeam' },
       ],
@@ -24,8 +51,8 @@ export default defineConfig({
           label: 'Start here',
           items: [
             { label: 'Getting Started', slug: 'getting-started' },
-            { label: 'Comparison', slug: 'comparison' },
             { label: 'Use Cases', slug: 'use-cases' },
+            { label: 'Comparison', slug: 'comparison' },
           ],
         },
         {

@@ -68,12 +68,17 @@ const deviceXL =
                   poster={`${base}/${posterSrc}`}
                   autoplay
                   muted
-                  loop
                   playsinline
                   width="2560"
                   height="1440"
                   preload="metadata"
+                  aria-label={`Demo of ${title}`}
                 />
+                <button class="video-replay" type="button" hidden aria-label={`Replay ${title} demo`}>
+                  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M8 5v14l11-7z" />
+                  </svg>
+                </button>
               </div>
             </>
           ) : (
@@ -85,12 +90,17 @@ const deviceXL =
                   poster={`${base}/${posterSrc}`}
                   autoplay
                   muted
-                  loop
                   playsinline
                   width="1170"
                   height="2532"
                   preload="metadata"
+                  aria-label={`Demo of ${title}`}
                 />
+                <button class="video-replay" type="button" hidden aria-label={`Replay ${title} demo`}>
+                  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M8 5v14l11-7z" />
+                  </svg>
+                </button>
               </div>
             </>
           )
