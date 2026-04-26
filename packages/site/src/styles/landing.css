@@ -29,7 +29,7 @@
   transition: top 0.2s var(--ease-out);
 }
 
-.skip-nav:focus {
+.skip-nav:focus-visible {
   top: 0;
 }
 
@@ -299,11 +299,50 @@ h2 {
 }
 
 .nav-github {
-  opacity: 0.6;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.7;
   transition: opacity 0.2s;
 }
 .nav-github:hover {
   opacity: 1;
+}
+.nav-github-label {
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+/* ─── Theme Toggle ─────────────────────────────────────── */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background 0.2s var(--ease-out),
+    border-color 0.2s var(--ease-out),
+    color 0.2s var(--ease-out);
+}
+.theme-toggle:hover {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border-strong, var(--border));
+}
+.theme-toggle .theme-icon {
+  display: none;
+}
+.theme-toggle[data-theme='dark'] .theme-icon-sun {
+  display: block;
+}
+.theme-toggle[data-theme='light'] .theme-icon-moon {
+  display: block;
 }
 
 /* ─── Mobile Nav Toggle ────────────────────────────────── */
@@ -776,9 +815,39 @@ section[id] {
 }
 
 /* ─── Individual Feature ──────────────────────────────── */
+.features-grid {
+  display: block;
+}
+
 .feature {
   padding: 100px 24px;
   position: relative;
+}
+
+@media (min-width: 1280px) {
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    max-width: var(--max-w);
+    margin: 0 auto;
+    padding: 0 12px;
+  }
+  .features-grid .feature {
+    padding: 64px 16px;
+  }
+  /* Inside the grid, force 1-column inner layout so each card is self-contained */
+  .features-grid .feature--split .feature-inner,
+  .features-grid .feature--reverse .feature-inner {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .features-grid .feature--reverse .feature-visual {
+    order: 0;
+  }
+  .features-grid .feature--center .feature-text {
+    margin-bottom: 32px;
+  }
 }
 
 .feature + .feature {
@@ -878,6 +947,46 @@ section[id] {
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative;
+}
+
+/* Replay overlay button — appears when a feature video is paused */
+.video-replay {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 64px;
+  height: 64px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+  z-index: 4;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition:
+    transform 0.15s var(--ease-out),
+    background 0.15s;
+}
+
+.video-replay:hover,
+.video-replay:focus-visible {
+  background: rgba(0, 0, 0, 0.8);
+  transform: scale(1.06);
+  outline: none;
+}
+
+/* Ensure [hidden] wins over the inline-flex display above */
+.video-replay[hidden] {
+  display: none !important;
+}
+
+.browser-viewport,
+.phone-screen {
   position: relative;
 }
 
@@ -1469,35 +1578,41 @@ section[id] {
   }
 
   .nav-links {
-    position: absolute;
-    top: 64px;
+    position: fixed;
+    top: 0;
     left: 0;
     right: 0;
-    background: rgba(9, 9, 11, 0.95);
+    bottom: 0;
+    width: 100%;
+    height: 100dvh;
+    background: var(--bg);
     backdrop-filter: blur(20px) saturate(1.8);
     -webkit-backdrop-filter: blur(20px) saturate(1.8);
     flex-direction: column;
     align-items: stretch;
+    justify-content: flex-start;
     gap: 0;
-    padding: 0;
+    padding: 80px 0 32px;
     border-bottom: 1px solid var(--border);
-    max-height: 0;
-    overflow: hidden;
-    transition:
-      max-height 0.35s var(--ease-out),
-      padding 0.35s var(--ease-out);
+    overflow-y: auto;
+    transform: translateY(-100%);
+    transition: transform 0.3s var(--ease-out);
     z-index: 999;
+    visibility: hidden;
   }
 
   .nav-links.open {
-    max-height: 300px;
-    padding: 8px 0;
+    transform: translateY(0);
+    visibility: visible;
   }
 
   .nav-links a {
-    padding: 14px 24px;
-    font-size: 1rem;
+    padding: 18px 24px;
+    font-size: 1.1rem;
     border-bottom: 1px solid var(--border-subtle);
+    min-height: 44px;
+    display: flex;
+    align-items: center;
   }
 
   .nav-links a:last-child {
@@ -1552,13 +1667,46 @@ section[id] {
     padding-bottom: 24px;
   }
   .feature {
-    padding: 48px 16px;
+    padding: 24px 16px;
+  }
+  /* Tighter inter-card gap when cards are stacked (single column) */
+  .features-grid .feature--split .feature-inner,
+  .features-grid .feature--reverse .feature-inner,
+  .feature--split .feature-inner,
+  .feature--reverse .feature-inner {
+    gap: 20px;
+  }
+  .feature--center .feature-text {
+    margin-bottom: 20px;
+  }
+  /* Cap visual height so videos don't dominate the page on narrow viewports */
+  .feature-visual {
+    max-height: 240px;
+  }
+  .feature-visual video {
+    max-height: 240px;
+    width: auto;
+    object-fit: contain;
+  }
+  /* Tighten text rhythm to keep mobile feature stack short */
+  .feature-text {
+    gap: 10px;
+  }
+  .feature-text h2 {
+    line-height: 1.15;
+  }
+  /* Tighten section paddings on mobile */
+  .features {
+    padding-top: 64px;
+  }
+  .features-header {
+    padding-bottom: 16px;
   }
   .device-phone--xl {
-    width: 240px;
+    width: 220px;
   }
   .feature--center .device-phone--xl {
-    width: 280px;
+    width: 240px;
   }
   .feature-visual .device-phone--overlay {
     width: 140px;
@@ -1696,4 +1844,93 @@ section[id] {
     animation: none;
     opacity: 0.15;
   }
+}
+
+/* ─── Copy Toast ───────────────────────────────────────── */
+.copy-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s var(--ease-out),
+    transform 0.2s var(--ease-out);
+  z-index: 10001;
+}
+.copy-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.copy-toast.error {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* ─── Light Mode Adjustments ───────────────────────────── */
+:root[data-theme='light'] body {
+  background: var(--bg);
+  color: var(--text);
+}
+:root[data-theme='light'] .mesh-blob {
+  opacity: 0.5;
+  filter: blur(110px) saturate(0.9);
+}
+:root[data-theme='light'] .noise {
+  opacity: 0.025;
+}
+:root[data-theme='light'] .nav {
+  background: rgba(255, 255, 255, 0.78);
+  border-bottom-color: var(--border);
+}
+:root[data-theme='light'] .browser-chrome {
+  background: #e2e8f0;
+  border-color: var(--border);
+}
+:root[data-theme='light'] .browser-url {
+  color: var(--text-secondary);
+}
+:root[data-theme='light'] .feature-tags span,
+:root[data-theme='light'] .hero-tag {
+  background: rgba(29, 78, 216, 0.08);
+  color: var(--accent);
+  border-color: rgba(29, 78, 216, 0.16);
+}
+:root[data-theme='light'] .code-block,
+:root[data-theme='light'] pre,
+:root[data-theme='light'] code {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+/* Subtle accent so feature cards have a visible identity in light mode */
+:root[data-theme='light'] .features-grid .feature {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+@media (max-width: 1279px) {
+  :root[data-theme='light'] .feature {
+    border-top: 3px solid var(--accent);
+  }
+}
+
+/* ─── Focus-visible for all interactive controls ──────── */
+.nav-toggle:focus-visible,
+.theme-toggle:focus-visible,
+.copy-btn:focus-visible,
+.nav-links a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

@@ -1,6 +1,8 @@
 ---
+import { Picture } from 'astro:assets';
 import MarketingLayout from '../layouts/MarketingLayout.astro';
 import FeatureSection from '../components/FeatureSection.astro';
+import heroDesktop from '../assets/hero-desktop.png';
 
 const base = import.meta.env.BASE_URL.replace(/\/+$/, '');
 const docsLink = `${base}/getting-started/`;
@@ -59,52 +61,18 @@ const features = [
     videoSrc: 'showcase/sessions-desktop.mp4',
     posterSrc: 'showcase/sessions-desktop.png',
     device: 'browser' as const,
-    layout: 'center' as const,
-  },
-  {
-    num: '06',
-    title: 'Resume sessions anywhere',
-    description:
-      'Pick up exactly where you left off. Browse, search, and reconnect to any previous session from any device.',
-    tags: ['Session Resume', 'Persistence', 'Cross-Device'],
-    videoSrc: 'showcase/resume-desktop.mp4',
-    posterSrc: 'showcase/resume-desktop.png',
-    device: 'browser' as const,
     layout: 'split-reverse' as const,
   },
   {
-    num: '07',
-    title: 'Git diffs at a glance',
-    description:
-      'See staged, modified, and untracked files. Review diffs line-by-line with additions and deletions highlighted.',
-    tags: ['Git Status', 'Diff Viewer', 'Branch Info'],
-    videoSrc: 'showcase/gitdiff-desktop.mp4',
-    posterSrc: 'showcase/gitdiff-desktop.png',
-    device: 'browser' as const,
-    layout: 'split' as const,
-  },
-  {
-    num: '08',
-    title: 'Browse &amp; manage files',
-    description:
-      'Browse the file system, view source code, upload via drag-and-drop, and download anything — all from your browser.',
-    tags: ['File Browser', 'Drag &amp; Drop', 'Download'],
-    videoSrc: 'showcase/upload-desktop.mp4',
-    posterSrc: 'showcase/upload-desktop.png',
-    device: 'browser' as const,
-    layout: 'center' as const,
-  },
-  {
-    num: '09',
-    title: '40 themes, your style',
+    num: '06',
+    title: '38 themes, your style',
     description:
       'Dracula, Nord, Cyberpunk, Catppuccin, Tokyo Night — pick a theme and the entire UI transforms instantly. Your choice persists across sessions.',
-    tags: ['40 Themes', 'Instant Switch', 'Persistent'],
+    tags: ['38 Themes', 'Instant Switch', 'Persistent'],
     videoSrc: 'showcase/themes-mobile.mp4',
-    posterSrc: 'showcase/hub-mobile.png',
+    posterSrc: 'showcase/theme-mobile.png',
     device: 'phone' as const,
     layout: 'split' as const,
-    xl: false,
   },
 ];
 ---
@@ -112,7 +80,7 @@ const features = [
 <MarketingLayout>
   <nav class="nav" id="nav" aria-label="Main">
     <div class="nav-inner">
-      <a href="#" class="nav-logo">
+      <a href={`${base}/`} class="nav-logo" aria-label="TermBeam home">
         <span class="nav-logo-beam">▸</span>
         <span>TermBeam</span>
       </a>
@@ -128,14 +96,31 @@ const features = [
             target="_blank"
             rel="noopener noreferrer"
             class="nav-github"
-            aria-label="GitHub (opens in new tab)"
+            aria-label="GitHub repository (opens in new tab)"
           >
             <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
               <path
                 d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
               ></path>
             </svg>
+            <span class="nav-github-label">GitHub</span>
           </a>
+        </li>
+        <li>
+          <button
+            type="button"
+            id="theme-toggle"
+            class="theme-toggle"
+            aria-label="Toggle theme"
+          >
+            <svg class="theme-icon theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+            </svg>
+            <svg class="theme-icon theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
         </li>
       </ul>
       <button
@@ -202,7 +187,7 @@ const features = [
           <button
             class="btn btn-install"
             id="install-btn"
-            aria-label="Copy install command: npx termbeam"
+            aria-label="Copy install command: npx termbeam (hero)"
           >
             <span class="btn-dollar">$</span> npx termbeam
             <span class="btn-copy" id="copy-btn">
@@ -244,11 +229,12 @@ const features = [
               <span class="browser-url">localhost:3456/terminal</span>
             </div>
             <div class="browser-viewport">
-              <img
-                src={`${base}/showcase/hero-desktop.png`}
+              <Picture
+                src={heroDesktop}
                 alt="TermBeam desktop terminal"
-                width="2560"
-                height="1440"
+                widths={[800, 1280, 2560]}
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 80vw, 1280px"
+                formats={['avif', 'webp']}
                 loading="eager"
                 fetchpriority="high"
               />
@@ -283,7 +269,9 @@ const features = [
         <h2>Everything you need,<br /><span class="text-gradient">nothing you don't</span></h2>
       </div>
 
-      {features.map((f) => <FeatureSection {...f} />)}
+      <div class="features-grid">
+        {features.map((f) => <FeatureSection {...f} />)}
+      </div>
     </section>
 
     <!-- HOW IT WORKS -->
@@ -446,7 +434,7 @@ const features = [
           <button
             class="btn btn-install btn-lg"
             id="cta-install-btn"
-            aria-label="Copy install command: npx termbeam"
+            aria-label="Copy install command: npx termbeam (footer)"
           >
             <span class="btn-dollar">$</span> npx termbeam
             <span class="btn-copy" id="cta-copy-btn">

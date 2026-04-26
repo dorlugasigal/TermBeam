@@ -3,8 +3,6 @@ title: Getting Started with TermBeam
 description: Install TermBeam and connect to your terminal from any device in under a minute.
 ---
 
-# Getting Started
-
 ## Prerequisites
 
 - **Node.js** 20 or higher
@@ -51,7 +49,7 @@ Or start directly with defaults:
         ██║   ███████╗██║  ██║██║ ╚═╝ ██║██████╔╝███████╗██║  ██║██║ ╚═╝ ██║
         ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝
 
-     Beam your terminal to any device 📡  v1.x.x
+     Beam your terminal to any device 📡  v1.22.0
 
      Shell:    /bin/zsh
      Session:  a1b2c3d4

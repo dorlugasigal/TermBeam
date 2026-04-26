@@ -1,8 +1,7 @@
 ---
 title: AI Agents
+description: Launch GitHub Copilot, Claude Code, Aider, Codex, or OpenCode in a TermBeam session with a single tap.
 ---
-
-# AI Agent Launch
 
 TermBeam can detect AI coding agents installed on your machine and launch them with a single tap — perfect for starting a Copilot, Claude, or Aider session from your phone.
 
@@ -15,6 +14,7 @@ TermBeam can detect AI coding agents installed on your machine and launch them w
 | **Claude Code**         | `claude`     | [docs.anthropic.com](https://docs.anthropic.com/en/docs/claude-code) |
 | **Aider**               | `aider`      | [aider.chat](https://aider.chat)                                     |
 | **Codex CLI**           | `codex`      | [github.com/openai/codex](https://github.com/openai/codex)           |
+| **OpenCode**            | `opencode`   | [opencode.ai](https://opencode.ai)                                   |
 
 TermBeam auto-detects which agents are available in your PATH on first request, with results cached for 60 seconds.
 
@@ -96,3 +96,11 @@ After installing, restart TermBeam or wait 60 seconds for the cache to refresh.
 - **Wake Lock** keeps your screen on during agent work
 - **Split View** lets you run an AI agent alongside a regular terminal
 - **Copy Overlay** makes it easy to copy agent output on mobile
+
+---
+
+## See Also
+
+- **[Usage Guide](../usage-guide/)** — sessions, panes, command palette, and the touch keyboard
+- **[Resume & List](../resume/)** — reconnect to an active agent session from a desktop
+- **[Configuration](../configuration/)** — env vars and CLI flags

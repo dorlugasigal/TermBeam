@@ -1,10 +1,24 @@
 ---
-title: API
+title: API Reference
+description: TermBeam HTTP and WebSocket API reference — auth, sessions, file ops, and message protocol.
 ---
 
-# API Reference
-
 TermBeam exposes a REST API and WebSocket interface.
+
+## Contents
+
+- [REST API](#rest-api)
+  - [Authentication](#authentication)
+  - [Sessions](#sessions)
+  - [File Operations](#file-operations)
+  - [Utilities](#utilities)
+  - [Git](#git)
+  - [Push Notifications](#push-notifications)
+  - [Tunnel](#tunnel)
+  - [Port Preview](#port-preview)
+- [AI Agents API](#ai-agents-api)
+- [WebSocket API](#websocket-api)
+- [See Also](#see-also)
 
 ## REST API
 

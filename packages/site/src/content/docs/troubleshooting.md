@@ -3,8 +3,6 @@ title: Troubleshooting
 description: Solutions to common TermBeam issues — connection problems, tunnel errors, authentication, and more.
 ---
 
-# Troubleshooting
-
 Common issues and how to fix them. If your problem isn't listed here, see [Still Need Help?](#still-need-help) at the bottom.
 
 ---
@@ -201,3 +199,12 @@ If your issue isn't listed here, please [open an issue on GitHub](https://github
 - Your **OS** and **Node.js version** (`node --version`)
 - The **full command** you ran
 - Any **error messages** from the terminal
+
+---
+
+## See Also
+
+- **[Configuration](../configuration/)** — every CLI flag and env var
+- **[Security](../security/)** — auth, headers, tunnels
+- **[Resume & List](../resume/)** — reconnect to active sessions if the browser tab dies
+- **[Contributing](../contributing/)** — how to file an issue with useful detail

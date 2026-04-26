@@ -1,8 +1,7 @@
 ---
 title: Architecture
+description: How TermBeam is organized — server modules, frontend, PTY sessions, and WebSocket protocol.
 ---
-
-# Architecture
 
 ## Project Structure
 
@@ -18,6 +17,7 @@ termbeam/
 │   │   ├── websocket.js         # WebSocket connection handling
 │   │   ├── sessions.js          # PTY session management
 │   │   ├── preview.js           # Port preview reverse proxy
+│   │   ├── copilot-sdk.js       # GitHub Copilot SDK client
 │   │   └── push.js              # Web Push notification manager
 │   ├── cli/                     # CLI subcommands & tools
 │   │   ├── index.js             # Argument parsing & help
@@ -36,6 +36,8 @@ termbeam/
 │   │   ├── version.js           # Smart version detection
 │   │   ├── update-check.js      # npm update checking & install method detection
 │   │   ├── update-executor.js   # In-app update engine (state machine, permissions)
+│   │   ├── agents.js            # AI agent (Copilot/Claude/etc) detection
+│   │   ├── agent-sessions.js    # Tracks active agent-launched sessions
 │   │   └── vapid.js             # VAPID key generation & persistence
 │   └── frontend/                # React 19 + Vite + TypeScript SPA
 │       ├── src/
@@ -62,10 +64,10 @@ termbeam/
 │   └── e2e-*.test.js            # Playwright E2E tests
 ├── packages/
 │   ├── landing/                 # Landing page (deployed separately)
+│   ├── site/                    # Astro + Starlight docs/marketing site
 │   └── demo-video/              # Remotion demo video
-├── docs/                        # MkDocs documentation
 ├── package.json
-└── mkdocs.yml
+└── README.md
 ```
 
 ## Module Responsibilities
