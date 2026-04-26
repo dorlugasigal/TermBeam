@@ -73,116 +73,13 @@ code {
   border-radius: 6px;
 }
 
-/* ─── Noise Overlay ────────────────────────────────────── */
-.noise-overlay {
-  position: fixed;
-  inset: -10%;
-  z-index: 100;
-  pointer-events: none;
-  opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 256px 256px;
-  animation: grain 1.5s steps(2) infinite;
-}
-
-@keyframes grain {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  25% {
-    transform: translate(-5%, 5%);
-  }
-  50% {
-    transform: translate(5%, -5%);
-  }
-  75% {
-    transform: translate(-2%, 2%);
-  }
-}
-
-/* ─── Gradient Mesh Background ─────────────────────────── */
-.gradient-mesh {
+/* ─── Hero Glow — single, anchored accent radial ──────── */
+.hero-glow {
   position: fixed;
   inset: 0;
   z-index: 0;
-  overflow: hidden;
   pointer-events: none;
-  contain: layout style paint;
-}
-
-.mesh-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.2;
-}
-
-.mesh-blob-1 {
-  width: 700px;
-  height: 700px;
-  background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
-  top: -20%;
-  left: -10%;
-  animation: drift1 20s ease-in-out infinite;
-}
-
-.mesh-blob-2 {
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
-  top: 10%;
-  right: -15%;
-  animation: drift2 25s ease-in-out infinite;
-}
-
-.mesh-blob-3 {
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, #06b6d4 0%, transparent 70%);
-  bottom: -10%;
-  left: 30%;
-  animation: drift3 22s ease-in-out infinite;
-}
-
-@keyframes drift1 {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  33% {
-    transform: translate(80px, 60px) scale(1.1);
-  }
-  66% {
-    transform: translate(-40px, 100px) scale(0.95);
-  }
-}
-
-@keyframes drift2 {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  33% {
-    transform: translate(-100px, 40px) scale(0.9);
-  }
-  66% {
-    transform: translate(60px, -60px) scale(1.05);
-  }
-}
-
-@keyframes drift3 {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  33% {
-    transform: translate(60px, -80px) scale(1.1);
-  }
-  66% {
-    transform: translate(-80px, 30px) scale(0.95);
-  }
+  background: radial-gradient(ellipse 70% 50% at 50% 0%, var(--mesh-1) 0%, transparent 70%);
 }
 
 /* ─── Typography ───────────────────────────────────────── */
@@ -201,11 +98,7 @@ h2 {
 }
 
 .text-gradient {
-  background: linear-gradient(135deg, #60a5fa 0%, #c084fc 50%, #22d3ee 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: brightness(1.1);
+  color: var(--accent-light);
 }
 
 .section-label {
@@ -923,23 +816,17 @@ section[id] {
 }
 
 .feature-tags span {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 500;
-  color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border);
-  border-radius: 100px;
-  padding: 5px 14px;
-  transition:
-    background 0.2s,
-    border-color 0.2s,
-    color 0.2s;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
 }
 
-.feature-tags span:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: var(--text);
+.feature-tags span + span::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--text-muted);
+  opacity: 0.5;
 }
 
 /* ─── Feature Visual ──────────────────────────────────── */
@@ -1087,7 +974,6 @@ section[id] {
     90deg,
     transparent,
     rgba(59, 130, 246, 0.3),
-    rgba(139, 92, 246, 0.3),
     transparent
   );
 }
@@ -1128,7 +1014,7 @@ section[id] {
   position: absolute;
   inset: -2px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  background: var(--accent);
   z-index: -1;
 }
 
@@ -1150,22 +1036,8 @@ section[id] {
 .connector-gradient {
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, var(--accent), #8b5cf6, var(--accent));
-  background-size: 200% 100%;
-  animation: gradient-sweep 3s ease-in-out infinite;
-  opacity: 0.5;
-}
-
-@keyframes gradient-sweep {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+  background: var(--accent);
+  opacity: 0.3;
 }
 
 .step h3 {
@@ -1201,7 +1073,6 @@ section[id] {
     90deg,
     transparent,
     rgba(59, 130, 246, 0.3),
-    rgba(139, 92, 246, 0.3),
     transparent
   );
 }
