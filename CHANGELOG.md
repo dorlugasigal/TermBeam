@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.22.3] - 2026-04-26
+
+- fix(site): auto-detect Cloudflare Pages build target (@dorlugasigal)
+- ci(site): restore Cloudflare Pages deploy workflow (@dorlugasigal)
+- ci(site): merge GitHub Pages and Cloudflare Pages into one workflow (@dorlugasigal)
+- chore(ci): enforce 92% coverage gate (#212) (@dorlugasigal)
+
 ## [1.22.2] - 2026-04-26
 
 - fix(site): repair mobile feature card rendering (@dorlugasigal)
