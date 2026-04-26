@@ -15,7 +15,7 @@
     "yaml": ">=2.8.3"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.2",
+    "@astrojs/check": "^0.9.8",
     "@astrojs/starlight": "^0.38.4",
     "astro": "^6.1.9",
     "sharp": "^0.33.5",
