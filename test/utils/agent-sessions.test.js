@@ -187,6 +187,257 @@ describe('Agent Sessions', () => {
       assert.strictEqual(typeof mod.getResumeCommand, 'function');
       assert.strictEqual(typeof mod.readCopilotSessions, 'function');
       assert.strictEqual(typeof mod.readClaudeSessions, 'function');
+      assert.strictEqual(typeof mod.readOpenCodeSessions, 'function');
+    });
+  });
+
+  describe('fixture-backed coverage', () => {
+    let tmpHome;
+    let origHome;
+    let origUserprofile;
+
+    beforeEach(() => {
+      tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'tb-agent-sessions-'));
+      origHome = process.env.HOME;
+      origUserprofile = process.env.USERPROFILE;
+      process.env.HOME = tmpHome;
+      process.env.USERPROFILE = tmpHome;
+      mock.method(os, 'homedir', () => tmpHome);
+    });
+
+    afterEach(() => {
+      if (origHome === undefined) delete process.env.HOME;
+      else process.env.HOME = origHome;
+      if (origUserprofile === undefined) delete process.env.USERPROFILE;
+      else process.env.USERPROFILE = origUserprofile;
+      try {
+        fs.rmSync(tmpHome, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
+    });
+
+    function maybeSqlite() {
+      try {
+        return require('better-sqlite3');
+      } catch {
+        return null;
+      }
+    }
+
+    it('readCopilotSessions returns rows from a populated DB', () => {
+      const Database = maybeSqlite();
+      if (!Database) return; // optional dep not installed
+      const dbDir = path.join(tmpHome, '.copilot');
+      fs.mkdirSync(dbDir, { recursive: true });
+      const dbPath = path.join(dbDir, 'session-store.db');
+      const db = new Database(dbPath);
+      db.exec(`
+        CREATE TABLE sessions (
+          id TEXT PRIMARY KEY,
+          summary TEXT,
+          cwd TEXT,
+          repository TEXT,
+          branch TEXT,
+          updated_at TEXT
+        );
+        CREATE TABLE turns (
+          session_id TEXT,
+          turn_index INTEGER,
+          user_message TEXT
+        );
+      `);
+      db.prepare(
+        `INSERT INTO sessions (id, summary, cwd, repository, branch, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run('s1', 'First session', '/tmp/work', 'org/repo', 'main', '2025-01-02T00:00:00Z');
+      db.prepare(
+        `INSERT INTO sessions (id, summary, cwd, repository, branch, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run('s2', null, null, null, null, '2025-01-01T00:00:00Z');
+      // s2 will have only first_msg fallback; s1 has both summary and turns
+      db.prepare(`INSERT INTO turns (session_id, turn_index, user_message) VALUES (?, ?, ?)`).run(
+        's1',
+        0,
+        'hello',
+      );
+      db.prepare(`INSERT INTO turns (session_id, turn_index, user_message) VALUES (?, ?, ?)`).run(
+        's2',
+        0,
+        'fallback summary',
+      );
+      db.close();
+
+      const { readCopilotSessions } = load();
+      const result = readCopilotSessions();
+      assert.ok(Array.isArray(result));
+      assert.strictEqual(result.length, 2);
+      const s1 = result.find((s) => s.id === 's1');
+      const s2 = result.find((s) => s.id === 's2');
+      assert.strictEqual(s1.agent, 'copilot');
+      assert.strictEqual(s1.summary, 'First session');
+      assert.strictEqual(s1.repo, 'org/repo');
+      assert.strictEqual(s2.summary, 'fallback summary');
+    });
+
+    it('readCopilotSessions returns [] on a corrupt DB', () => {
+      const Database = maybeSqlite();
+      if (!Database) return;
+      const dbDir = path.join(tmpHome, '.copilot');
+      fs.mkdirSync(dbDir, { recursive: true });
+      fs.writeFileSync(path.join(dbDir, 'session-store.db'), 'not a sqlite file');
+      const { readCopilotSessions } = load();
+      const result = readCopilotSessions();
+      assert.deepStrictEqual(result, []);
+    });
+
+    it('readClaudeSessions parses JSONL fixtures', () => {
+      const projDir = path.join(tmpHome, '.claude', 'projects', '-tmp-work');
+      fs.mkdirSync(projDir, { recursive: true });
+      const sessionId = 'aabbccdd-1122-3344-5566-778899aabbcc';
+      const lines = [
+        JSON.stringify({ type: 'system', cwd: '/tmp/work', gitBranch: 'feat/x' }),
+        JSON.stringify({ type: 'user', message: { content: 'A real user question to summarize' } }),
+        JSON.stringify({
+          type: 'user',
+          message: { content: [{ type: 'text', text: 'Another follow-up question here' }] },
+        }),
+        JSON.stringify({ type: 'user', message: { content: '<meta>skip me</meta>' } }),
+        'this-is-not-json',
+      ];
+      fs.writeFileSync(path.join(projDir, `${sessionId}.jsonl`), lines.join('\n'));
+
+      // Empty session (no user turns) — should be filtered out
+      const emptyId = '11111111-2222-3333-4444-555555555555';
+      fs.writeFileSync(
+        path.join(projDir, `${emptyId}.jsonl`),
+        JSON.stringify({ type: 'system' }) + '\n',
+      );
+
+      // Non-directory entry inside projects/ should be skipped
+      fs.writeFileSync(path.join(tmpHome, '.claude', 'projects', 'stray.txt'), 'ignore me');
+
+      const { readClaudeSessions } = load();
+      const result = readClaudeSessions();
+      assert.ok(Array.isArray(result));
+      const session = result.find((s) => s.id === sessionId);
+      assert.ok(session, 'expected session to be parsed');
+      assert.strictEqual(session.agent, 'claude');
+      assert.strictEqual(session.cwd, '/tmp/work');
+      assert.strictEqual(session.branch, 'feat/x');
+      assert.ok(session.summary && session.summary.length > 5);
+      assert.ok(session.turnCount >= 2);
+      assert.ok(!result.find((s) => s.id === emptyId), 'empty session should be filtered');
+    });
+
+    it('readClaudeSessions truncates files larger than 100KB', () => {
+      const projDir = path.join(tmpHome, '.claude', 'projects', '-tmp-big');
+      fs.mkdirSync(projDir, { recursive: true });
+      const sessionId = 'big11111-2222-3333-4444-555555555555';
+      const userLine =
+        JSON.stringify({
+          type: 'user',
+          message: { content: 'Large session probe message here' },
+        }) + '\n';
+      const padding = 'x'.repeat(120_000);
+      fs.writeFileSync(path.join(projDir, `${sessionId}.jsonl`), userLine + padding);
+      const { readClaudeSessions } = load();
+      const result = readClaudeSessions();
+      const session = result.find((s) => s.id === sessionId);
+      assert.ok(session, 'big session should still parse');
+      assert.ok(session.turnCount >= 1);
+    });
+
+    it('readOpenCodeSessions returns rows from a populated DB', () => {
+      const Database = maybeSqlite();
+      if (!Database) return;
+      const dbDir = path.join(tmpHome, '.local', 'share', 'opencode');
+      fs.mkdirSync(dbDir, { recursive: true });
+      const dbPath = path.join(dbDir, 'opencode.db');
+      const db = new Database(dbPath);
+      db.exec(`
+        CREATE TABLE session (
+          id TEXT PRIMARY KEY,
+          title TEXT,
+          directory TEXT,
+          time_created TEXT,
+          time_updated TEXT,
+          time_archived TEXT
+        );
+        CREATE TABLE message (
+          session_id TEXT
+        );
+      `);
+      db.prepare(
+        `INSERT INTO session (id, title, directory, time_created, time_updated, time_archived) VALUES (?, ?, ?, ?, ?, NULL)`,
+      ).run('ses_active', 'Active session', '/tmp/oc', '2025-01-01', '2025-01-02');
+      db.prepare(
+        `INSERT INTO session (id, title, directory, time_created, time_updated, time_archived) VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run('ses_archived', 'Archived', '/tmp/oc', '2025-01-01', '2025-01-02', '2025-01-03');
+      db.prepare(`INSERT INTO message (session_id) VALUES (?)`).run('ses_active');
+      db.prepare(`INSERT INTO message (session_id) VALUES (?)`).run('ses_archived');
+      db.close();
+
+      const { readOpenCodeSessions } = load();
+      const result = readOpenCodeSessions();
+      assert.strictEqual(result.length, 1);
+      assert.strictEqual(result[0].id, 'ses_active');
+      assert.strictEqual(result[0].agent, 'opencode');
+      assert.strictEqual(result[0].cwd, '/tmp/oc');
+    });
+
+    it('readOpenCodeSessions returns [] on a corrupt DB', () => {
+      const Database = maybeSqlite();
+      if (!Database) return;
+      const dbDir = path.join(tmpHome, '.local', 'share', 'opencode');
+      fs.mkdirSync(dbDir, { recursive: true });
+      fs.writeFileSync(path.join(dbDir, 'opencode.db'), 'not sqlite');
+      const { readOpenCodeSessions } = load();
+      const result = readOpenCodeSessions();
+      assert.deepStrictEqual(result, []);
+    });
+
+    it('getAgentSessions filters by search term', async () => {
+      const Database = maybeSqlite();
+      if (!Database) return;
+      const dbDir = path.join(tmpHome, '.copilot');
+      fs.mkdirSync(dbDir, { recursive: true });
+      const dbPath = path.join(dbDir, 'session-store.db');
+      const db = new Database(dbPath);
+      db.exec(`
+        CREATE TABLE sessions (
+          id TEXT PRIMARY KEY, summary TEXT, cwd TEXT,
+          repository TEXT, branch TEXT, updated_at TEXT
+        );
+        CREATE TABLE turns (session_id TEXT, turn_index INTEGER, user_message TEXT);
+      `);
+      db.prepare(
+        `INSERT INTO sessions VALUES ('a', 'find me alpha', '/cwd', 'org/r', 'main', '2025-01-02')`,
+      ).run();
+      db.prepare(
+        `INSERT INTO sessions VALUES ('b', 'beta thing', '/other', 'org/r', 'dev', '2025-01-01')`,
+      ).run();
+      db.prepare(`INSERT INTO turns VALUES ('a', 0, 'hi')`).run();
+      db.prepare(`INSERT INTO turns VALUES ('b', 0, 'hi')`).run();
+      db.close();
+
+      const { getAgentSessions } = load();
+      const filtered = await getAgentSessions({ search: 'alpha' });
+      assert.ok(filtered.every((s) => /alpha/i.test(s.summary || '')));
+      assert.ok(filtered.find((s) => s.id === 'a'));
+    });
+
+    it('getResumeCommand returns null for invalid session ids', () => {
+      const { getResumeCommand } = load();
+      assert.strictEqual(getResumeCommand({ agent: 'copilot', id: 'short' }), null);
+      assert.strictEqual(
+        getResumeCommand({ agent: 'copilot', id: 'has spaces and bad chars!' }),
+        null,
+      );
+    });
+
+    it('getResumeCommand returns command for opencode', () => {
+      const { getResumeCommand } = load();
+      const cmd = getResumeCommand({ agent: 'opencode', id: 'ses_abcdef123' });
+      assert.strictEqual(cmd, 'opencode --session ses_abcdef123');
     });
   });
 });
