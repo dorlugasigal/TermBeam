@@ -29,6 +29,7 @@ const features = [
     posterSrc: 'showcase/agents-desktop.png',
     device: 'browser' as const,
     layout: 'split' as const,
+    lazy: true,
   },
   {
     num: '03',
@@ -40,6 +41,7 @@ const features = [
     posterSrc: 'showcase/terminal-mobile.png',
     device: 'phone' as const,
     layout: 'split-reverse' as const,
+    lazy: true,
   },
   {
     num: '04',
@@ -51,6 +53,7 @@ const features = [
     posterSrc: 'showcase/voice-mobile.png',
     device: 'phone' as const,
     layout: 'split' as const,
+    lazy: true,
   },
   {
     num: '05',
@@ -62,6 +65,7 @@ const features = [
     posterSrc: 'showcase/sessions-desktop.png',
     device: 'browser' as const,
     layout: 'split-reverse' as const,
+    lazy: true,
   },
   {
     num: '06',
@@ -73,6 +77,7 @@ const features = [
     posterSrc: 'showcase/theme-mobile.png',
     device: 'phone' as const,
     layout: 'split' as const,
+    lazy: true,
   },
 ];
 ---
@@ -503,6 +508,8 @@ const features = [
       <div class="footer-brand"><span class="nav-logo-beam">▸</span> TermBeam</div>
       <div class="footer-links">
         <a href={docsLink}>Documentation</a>
+        <a href={`${base}/use-cases/`}>Use Cases</a>
+        <a href={`${base}/ai-agents/`}>AI Agents</a>
         <a href="https://github.com/dorlugasigal/TermBeam" target="_blank" rel="noopener noreferrer"
           >GitHub</a
         >

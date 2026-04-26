@@ -78,12 +78,7 @@ const siteUrl = new URL(`${base}/`.replace(/\/+/g, '/'), Astro.site).toString();
   <body>
     <a href="#main-content" class="skip-nav">Skip to content</a>
 
-    <div class="noise-overlay" aria-hidden="true"></div>
-    <div class="gradient-mesh" aria-hidden="true">
-      <div class="mesh-blob mesh-blob-1"></div>
-      <div class="mesh-blob mesh-blob-2"></div>
-      <div class="mesh-blob mesh-blob-3"></div>
-    </div>
+    <div class="hero-glow" aria-hidden="true"></div>
 
     <slot />
 
