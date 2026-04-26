@@ -137,6 +137,8 @@ The installer checks for [PM2](https://pm2.keymetrics.io/) (and offers to instal
 
 For systemd, launchd, and Windows Task Scheduler setup, see the [Running in Background docs](https://dorlugasigal.github.io/TermBeam/running-in-background/).
 
+> 💡 **Keep the host awake** so the service stays reachable while you're away. macOS: pair with [Amphetamine](https://apps.apple.com/app/amphetamine/id937984704) (process trigger on `node`) or wrap with `caffeinate -dims`. Windows: enable [PowerToys Awake](https://learn.microsoft.com/windows/powertoys/) and disable network adapter power saving. Linux: use `systemd-inhibit` in your unit file. See [Keeping the Host Awake](https://dorlugasigal.github.io/TermBeam/running-in-background/#keeping-the-host-awake-) for the full setup.
+
 ## Security
 
 TermBeam auto-generates a password and creates a secure tunnel by default, binding to `127.0.0.1` (localhost only). Auth uses httpOnly cookies with 24-hour expiry, login is rate-limited to 5 attempts per minute, QR codes contain single-use share tokens (5-min expiry), and security headers (X-Frame-Options, CSP, nosniff) are set on all responses.

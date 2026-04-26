@@ -250,6 +250,83 @@ On Windows, [NSSM](https://nssm.cc/) (Non-Sucking Service Manager) is a great al
 nssm install TermBeam node "C:\path\to\termbeam\bin\termbeam.js" --no-tunnel --password mysecret
 nssm start TermBeam
 ```
+
+:::
+
+## Keeping the Host Awake 💤
+
+A background service is only useful if the machine stays reachable. If your computer sleeps, the network adapter powers down, or the lid closes, your tunnel and LAN connection drop — even though TermBeam itself is configured to restart.
+
+Pick the lightest-touch option for your OS:
+
+### macOS 🍎
+
+**Recommended: Amphetamine (free, App Store)** — pair it with a **process trigger** so your Mac only stays awake while TermBeam is actually running.
+
+1. Install [Amphetamine](https://apps.apple.com/app/amphetamine/id937984704) → enable **Triggers** in Preferences.
+2. Add trigger: **"While a specific process is running"** → select `node` (or the full path to your `termbeam` binary — find it with `which termbeam`).
+3. In the trigger's session options:
+   - ✅ **Allow display sleep** (saves power; the screen doesn't need to be on)
+   - ❌ **Allow system sleep when display is closed** — keep this **off** for MacBooks (clamshell-mode safe)
+   - ✅ **Prevent system sleep when on battery** (only if you need it unplugged)
+
+**Alternative: built-in `caffeinate`** — no app needed. Bake it straight into your launchd plist or PM2 ecosystem config:
+
+```bash
+# Wrap termbeam so the system stays awake only while termbeam runs
+caffeinate -dims termbeam --tunnel --persisted-tunnel
+```
+
+For the **launchd** example above, replace the `ProgramArguments` with `caffeinate -dims /usr/local/bin/termbeam ...`. Flags: `-d` display, `-i` idle, `-m` disk, `-s` system (AC only).
+
+**TCP keepalive across brief sleeps** — recommended for tunnel stability:
+
+```bash
+sudo pmset -a tcpkeepalive 1
+pmset -g | grep -E 'sleep|womp|tcpkeepalive'   # verify
+```
+
+### Windows 🪟
+
+**Recommended: PowerToys Awake (free, Microsoft)** — official, integrates cleanly with the system tray, no third-party trust required.
+
+1. Install [PowerToys](https://learn.microsoft.com/windows/powertoys/) → enable the **Awake** module.
+2. Set mode to **Keep awake indefinitely** with **Keep screen on: off**.
+3. Optionally configure Awake to launch at startup so it pairs with your Task Scheduler / NSSM service.
+
+**Also disable network adapter power saving** (otherwise Wi-Fi sleeps even when the system doesn't):
+
+- Device Manager → Network adapters → your adapter → Properties → **Power Management** → uncheck **"Allow the computer to turn off this device to save power"**.
+- Settings → System → Power → Screen and sleep → **"When plugged in, put my device to sleep after"** → **Never**.
+
+**Alternative: built-in power plan only** — Control Panel → Power Options → choose **High performance** → set sleep to "Never" on AC. No extra software.
+
+### Linux 🐧
+
+For a dedicated server, mask the sleep targets entirely:
+
+```bash
+sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+```
+
+For laptops where you only want to inhibit sleep while TermBeam is running, use `systemd-inhibit` in your unit file's `ExecStart`:
+
+```ini
+ExecStart=/usr/bin/systemd-inhibit --what=sleep:idle --why="TermBeam is running" /usr/bin/env termbeam --host 0.0.0.0
+```
+
+For lid-close behavior, edit `/etc/systemd/logind.conf`:
+
+```ini
+HandleLidSwitch=ignore
+HandleLidSwitchExternalPower=ignore
+```
+
+Then `sudo systemctl restart systemd-logind`.
+
+<!-- prettier-ignore -->
+:::tip[Why not just disable sleep globally?]
+Process-scoped tools (Amphetamine triggers, `caffeinate`-wrapped service, `systemd-inhibit`) only keep the system awake while TermBeam is actually running. If you uninstall the service or stop it, the machine sleeps normally — no leftover battery drain.
 :::
 
 ## Tips
@@ -271,11 +348,12 @@ TermBeam requires Node.js 20 or higher. Verify with `node --version` before sett
 
 <!-- prettier-ignore -->
 :::tip[Which method should I use?]
+
 - **Quick test?** → `nohup`
 - **Dev machine?** → PM2 (easiest setup, great logs)
 - **Server/always-on?** → systemd or launchd (OS-native, starts on boot)
 - **Windows?** → Task Scheduler or NSSM
-:::
+  :::
 
 ---
 
