@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.22.1] - 2026-04-26
+
+- refactor(site): iterate unified site to launch quality (#211) (@dorlugasigal)
+
 ## [1.22.0] - 2026-04-25
 
 - feat(site): unify landing + docs into Astro Starlight site (#209) (@dorlugasigal)
