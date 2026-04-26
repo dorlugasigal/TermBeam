@@ -98,23 +98,28 @@ function validateMagicBytes(buffer, contentType) {
 }
 
 function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotService }) {
-  const pageRateLimit = rateLimit({
-    windowMs: 1 * 60 * 1000,
-    max: 120,
-    standardHeaders: true,
-    legacyHeaders: false,
-    handler: (_req, res) =>
-      res.status(429).json({ error: 'Too many requests, please try again later.' }),
-  });
+  const noopLimit = (_req, _res, next) => next();
+  const pageRateLimit = config.disableRateLimit
+    ? noopLimit
+    : rateLimit({
+        windowMs: 1 * 60 * 1000,
+        max: 120,
+        standardHeaders: true,
+        legacyHeaders: false,
+        handler: (_req, res) =>
+          res.status(429).json({ error: 'Too many requests, please try again later.' }),
+      });
 
-  const apiRateLimit = rateLimit({
-    windowMs: 1 * 60 * 1000,
-    max: 120,
-    standardHeaders: true,
-    legacyHeaders: false,
-    handler: (_req, res) =>
-      res.status(429).json({ error: 'Too many requests, please try again later.' }),
-  });
+  const apiRateLimit = config.disableRateLimit
+    ? noopLimit
+    : rateLimit({
+        windowMs: 1 * 60 * 1000,
+        max: 120,
+        standardHeaders: true,
+        legacyHeaders: false,
+        handler: (_req, res) =>
+          res.status(429).json({ error: 'Too many requests, please try again later.' }),
+      });
 
   // Serve static files — sw.js must never be cached by the browser
   app.get('/sw.js', (_req, res, next) => {

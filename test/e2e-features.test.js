@@ -8,73 +8,21 @@
  * Run:  npx playwright test test/e2e-features.test.js
  */
 const { test, expect } = require('@playwright/test');
-const { createTermBeamServer } = require('../src/server');
+const { setupSharedServer, getBaseURL: getBaseURLForState, isWindows } = require('./e2e-helpers');
 
-const isWindows = process.platform === 'win32';
-
-const baseConfig = {
-  port: 0,
-  host: '127.0.0.1',
-  password: null,
-  useTunnel: false,
-  persistedTunnel: false,
-  shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/bash',
-  shellArgs: [],
-  cwd: process.cwd(),
-  defaultShell: process.platform === 'win32' ? 'cmd.exe' : '/bin/bash',
-  version: '0.1.0-test',
-  logLevel: 'error',
-};
-
-let inst;
-let consoleErrors;
-
-test.beforeEach(async ({ page }) => {
-  inst = createTermBeamServer({ config: { ...baseConfig } });
-  await inst.start();
-
-  consoleErrors = [];
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') consoleErrors.push(msg.text());
-  });
-});
-
-test.afterEach(async () => {
-  if (inst) {
-    if (isWindows) {
-      for (const [, session] of inst.sessions.sessions) {
-        try {
-          const pid = session.pty.pid;
-          require('child_process').execSync(`taskkill /pid ${pid} /T /F`, {
-            stdio: 'ignore',
-          });
-        } catch {
-          // Process may already be gone
-        }
-      }
-    }
-    await inst.shutdown();
-  }
-
-  const unexpected = consoleErrors.filter(
-    (e) => !e.includes('net::ERR_') && !e.includes('WebSocket'),
-  );
-  if (unexpected.length > 0) {
-    throw new Error(`Unexpected browser console errors:\n${unexpected.join('\n')}`);
-  }
-});
+// One TermBeam server per file, with sessions reset to "1 default session"
+// between tests. See test/e2e-helpers.js for the reset logic.
+const state = setupSharedServer(test);
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function getBaseURL() {
-  const port = inst.server.address().port;
-  return `http://127.0.0.1:${port}`;
+  return getBaseURLForState(state);
 }
 
 async function createSessionViaAPI(name) {
-  const port = inst.server.address().port;
   const body = name ? { name } : {};
-  const res = await fetch(`http://127.0.0.1:${port}/api/sessions`, {
+  const res = await fetch(`${getBaseURL()}/api/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -83,16 +31,14 @@ async function createSessionViaAPI(name) {
 }
 
 async function navigateToTerminal(page, sessionId) {
-  const port = inst.server.address().port;
-  await page.goto(`http://127.0.0.1:${port}/terminal?id=${sessionId}`);
+  await page.goto(`${getBaseURL()}/terminal?id=${sessionId}`);
   await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
     timeout: 10_000,
   });
 }
 
 async function navigateToHub(page) {
-  const port = inst.server.address().port;
-  await page.goto(`http://127.0.0.1:${port}/`);
+  await page.goto(`${getBaseURL()}/`);
   await page.waitForLoadState('domcontentloaded');
   await expect(
     page.locator('[data-testid="hub-new-session-btn"], [data-testid="empty-state"]').first(),
@@ -103,12 +49,6 @@ async function openTerminalWithNewSession(page, name) {
   const { id } = await createSessionViaAPI(name);
   await navigateToTerminal(page, id);
   return id;
-}
-
-async function getInitialSessions() {
-  const port = inst.server.address().port;
-  const res = await fetch(`http://127.0.0.1:${port}/api/sessions`);
-  return res.json();
 }
 
 async function waitForTerminalOutput(page, pattern, timeout = 15_000) {

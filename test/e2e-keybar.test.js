@@ -7,73 +7,16 @@
  * Run:  npx playwright test test/e2e-keybar.test.js
  */
 const { test, expect } = require('@playwright/test');
-const { createTermBeamServer } = require('../src/server');
+const { setupSharedServer, getBaseURL: getBaseURLForState, isWindows } = require('./e2e-helpers');
 
-const isWindows = process.platform === 'win32';
-
-const baseConfig = {
-  port: 0,
-  host: '127.0.0.1',
-  password: null,
-  useTunnel: false,
-  persistedTunnel: false,
-  shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/bash',
-  shellArgs: [],
-  cwd: process.cwd(),
-  defaultShell: process.platform === 'win32' ? 'cmd.exe' : '/bin/bash',
-  version: '0.1.0-test',
-  logLevel: 'error',
-};
-
-let inst;
-let consoleErrors;
-
-test.beforeEach(async ({ page }) => {
-  inst = createTermBeamServer({ config: { ...baseConfig } });
-  await inst.start();
-
-  // Track browser console errors so frontend JS bugs don't go unnoticed
-  consoleErrors = [];
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') consoleErrors.push(msg.text());
-  });
-});
-
-test.afterEach(async ({ page }) => {
-  // Fail-loud if the frontend emitted any console.error() during the test
-  const unexpected = consoleErrors.filter(
-    (e) => !e.includes('net::ERR_') && !e.includes('WebSocket'),
-  );
-
-  if (inst) {
-    // On Windows, node-pty's conpty kill() tries to AttachConsole to enumerate
-    // child processes — this fails in headless CI, producing stderr noise and
-    // leaving child processes behind. We kill the entire process tree ourselves
-    // using taskkill /T before shutdown to ensure clean teardown.
-    if (isWindows) {
-      for (const [, session] of inst.sessions.sessions) {
-        try {
-          const pid = session.pty.pid;
-          require('child_process').execSync(`taskkill /pid ${pid} /T /F`, {
-            stdio: 'ignore',
-          });
-        } catch {
-          // Process may already be gone
-        }
-      }
-    }
-    await inst.shutdown();
-  }
-
-  if (unexpected.length > 0) {
-    throw new Error(`Unexpected browser console errors:\n${unexpected.join('\n')}`);
-  }
-});
+// One TermBeam server per file, with sessions reset to "1 default session"
+// between tests. See test/e2e-helpers.js for the reset logic.
+const state = setupSharedServer(test);
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function getBaseURL() {
-  return `http://127.0.0.1:${inst.server.address().port}`;
+  return getBaseURLForState(state);
 }
 
 async function setupTerminal(page) {
