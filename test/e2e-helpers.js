@@ -86,11 +86,15 @@ async function resetSessions(inst) {
     }
   }
 
-  // Wait for onExit handlers to drain the map. Force-clear if they don't
-  // fire promptly so the next test isn't blocked.
-  const drained = await waitFor(() => inst.sessions.sessions.size === 0, 2000);
+  // Wait for onExit handlers to drain the map. If some sessions are still
+  // hanging around, fall back to SessionManager.shutdown() which kills any
+  // remaining PTYs and clears internal caches consistently — don't mutate
+  // the internal map directly, as that would leak live PTYs and _gitCache
+  // entries.
+  let drained = await waitFor(() => inst.sessions.sessions.size === 0, 2000);
   if (!drained) {
-    inst.sessions.sessions.clear();
+    inst.sessions.shutdown();
+    drained = await waitFor(() => inst.sessions.sessions.size === 0, 2000);
   }
 
   createDefaultSession(inst);
@@ -116,11 +120,16 @@ function setupSharedServer(test) {
     consoleErrors: [],
     isWindows,
     baseConfig,
+    prevConfigDir: undefined,
   };
 
   test.beforeAll(async () => {
     // Per-worker temp configDir so parallel workers don't race on
-    // ~/.termbeam/connection.json or vapid.json.
+    // ~/.termbeam/connection.json or vapid.json. Capture the previous value
+    // so we can restore it in afterAll — Playwright workers can run multiple
+    // files in the same process, so leaking this env var into the next file
+    // (potentially pointing at a deleted temp dir) would corrupt its state.
+    state.prevConfigDir = process.env.TERMBEAM_CONFIG_DIR;
     state.configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'termbeam-e2e-'));
     process.env.TERMBEAM_CONFIG_DIR = state.configDir;
     state.inst = createTermBeamServer({ config: { ...baseConfig } });
@@ -140,6 +149,11 @@ function setupSharedServer(test) {
         // ignore
       }
       state.configDir = null;
+    }
+    if (state.prevConfigDir === undefined) {
+      delete process.env.TERMBEAM_CONFIG_DIR;
+    } else {
+      process.env.TERMBEAM_CONFIG_DIR = state.prevConfigDir;
     }
   });
 

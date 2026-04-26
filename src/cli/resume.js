@@ -6,15 +6,22 @@ const log = require('../utils/logger');
 const { createTerminalClient } = require('./client');
 const { bold, dim, red, yellow, choose, createRL, ask } = require('./prompts');
 
-const CONFIG_DIR = process.env.TERMBEAM_CONFIG_DIR || path.join(os.homedir(), '.termbeam');
-const CONNECTION_FILE = path.join(CONFIG_DIR, 'connection.json');
+// Resolve config paths at call time so that tests (and other code paths) which
+// set TERMBEAM_CONFIG_DIR after this module is first required still take effect.
+function getConfigDir() {
+  return process.env.TERMBEAM_CONFIG_DIR || path.join(os.homedir(), '.termbeam');
+}
+
+function getConnectionFile() {
+  return path.join(getConfigDir(), 'connection.json');
+}
 
 // ── Connection config ────────────────────────────────────────────────────────
 
 function readConnectionConfig() {
   log.debug('Reading connection config');
   try {
-    return JSON.parse(fs.readFileSync(CONNECTION_FILE, 'utf8'));
+    return JSON.parse(fs.readFileSync(getConnectionFile(), 'utf8'));
   } catch {
     return null;
   }
@@ -22,14 +29,15 @@ function readConnectionConfig() {
 
 function writeConnectionConfig({ port, host, password }) {
   log.debug('Writing connection config');
-  fs.mkdirSync(CONFIG_DIR, { recursive: true });
-  fs.writeFileSync(CONNECTION_FILE, JSON.stringify({ port, host, password }, null, 2) + '\n', {
+  const connectionFile = getConnectionFile();
+  fs.mkdirSync(getConfigDir(), { recursive: true });
+  fs.writeFileSync(connectionFile, JSON.stringify({ port, host, password }, null, 2) + '\n', {
     mode: 0o600,
   });
   // Ensure restrictive permissions even if the file already existed
   if (process.platform !== 'win32') {
     try {
-      fs.chmodSync(CONNECTION_FILE, 0o600);
+      fs.chmodSync(connectionFile, 0o600);
     } catch {
       /* best-effort */
     }
@@ -39,7 +47,7 @@ function writeConnectionConfig({ port, host, password }) {
 function removeConnectionConfig() {
   log.debug('Removing connection config');
   try {
-    fs.unlinkSync(CONNECTION_FILE);
+    fs.unlinkSync(getConnectionFile());
   } catch {
     /* ignore */
   }
@@ -402,6 +410,12 @@ module.exports = {
   readConnectionConfig,
   printResumeHelp,
   parseDetachKey,
-  CONFIG_DIR,
-  CONNECTION_FILE,
+  // Lazy getters so tests reading these after setting TERMBEAM_CONFIG_DIR see
+  // the current value, not the value at module load time.
+  get CONFIG_DIR() {
+    return getConfigDir();
+  },
+  get CONNECTION_FILE() {
+    return getConnectionFile();
+  },
 };
