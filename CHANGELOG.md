@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.22.5] - 2026-04-27
+
+- fix(websocket): prevent duplicate lines on reconnect via replay snapshot (@dorlugasigal)
+
 ## [1.22.4] - 2026-04-26
 
 - perf(test): parallelize e2e suite via shared server + workers (#214) (@dorlugasigal)
