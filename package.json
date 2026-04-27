@@ -71,7 +71,7 @@
     ]
   },
   "dependencies": {
-    "@github/copilot-sdk": "^0.2.1",
+    "@github/copilot-sdk": "^0.3.0",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
