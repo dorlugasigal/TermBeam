@@ -28,6 +28,23 @@ function sanitizeForReplay(buf) {
   return buf;
 }
 
+// Build an atomic replay payload for an attaching client: sanitized scrollback
+// followed by an alt-screen-enter sequence when the session is currently in
+// alt-screen. Sent as a single `replay` message so the client can reset its
+// terminal state once and write this snapshot, instead of appending it on top
+// of preserved xterm.js content (which caused duplicated lines on reconnect).
+function buildReplayPayload(session) {
+  let payload = '';
+  if (session.scrollbackBuf && session.scrollbackBuf.length > 0) {
+    payload += sanitizeForReplay(session.scrollbackBuf);
+  }
+  if (session.inAltScreen) {
+    const mode = session.altScreenMode || '1049';
+    payload += `\x1b[?${mode}h`;
+  }
+  return payload;
+}
+
 function recalcPtySize(session) {
   const now = Date.now();
   let activeCols = Infinity;
@@ -163,17 +180,15 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
             ws._pendingResize = true;
           } else {
             session.clients.add(ws);
-            if (session.scrollbackBuf.length > 0) {
-              ws.send(
-                JSON.stringify({ type: 'output', data: sanitizeForReplay(session.scrollbackBuf) }),
-              );
+            // Send sanitized scrollback (and any alt-screen re-entry) as a single
+            // `replay` snapshot. Client treats `replay` as an authoritative full
+            // state and resets its terminal before writing — preventing duplicate
+            // lines on reconnect when the xterm.js instance is preserved.
+            const payload = buildReplayPayload(session);
+            if (payload.length > 0) {
+              ws.send(JSON.stringify({ type: 'replay', data: payload }));
             }
-            // After replaying scrollback (which has alt-screen sequences
-            // stripped by sanitizeForReplay), re-enter alt-screen so xterm.js
-            // uses the correct buffer before SIGWINCH triggers the app to repaint.
             if (session.inAltScreen) {
-              const mode = session.altScreenMode || '1049';
-              ws.send(JSON.stringify({ type: 'output', data: `\x1b[?${mode}h` }));
               ws._needsRedraw = true;
             }
           }
@@ -381,20 +396,13 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
                 recalcPtySize(attached);
               } else {
                 attached.clients.add(ws);
-                if (attached.scrollbackBuf.length > 0) {
-                  ws.send(
-                    JSON.stringify({
-                      type: 'output',
-                      data: sanitizeForReplay(attached.scrollbackBuf),
-                    }),
-                  );
+                // Single atomic `replay` snapshot (scrollback + optional alt-screen
+                // re-entry). Client resets its terminal before applying it.
+                const payload = buildReplayPayload(attached);
+                if (payload.length > 0) {
+                  ws.send(JSON.stringify({ type: 'replay', data: payload }));
                 }
-                // After replaying scrollback (which has alt-screen sequences
-                // stripped), re-enter alt-screen so xterm.js uses the correct
-                // buffer before SIGWINCH triggers the TUI to repaint.
                 if (attached.inAltScreen) {
-                  const mode = attached.altScreenMode || '1049';
-                  ws.send(JSON.stringify({ type: 'output', data: `\x1b[?${mode}h` }));
                   // Force SIGWINCH so the TUI repaints into the alt buffer
                   recalcPtySize(attached);
                   const targetCols = attached._lastCols || cols;

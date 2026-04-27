@@ -23,10 +23,18 @@ export interface WSOutputMessage {
   data: string;
 }
 
+// Server-authored snapshot of the session's display state (sanitized scrollback
+// plus any alt-screen re-entry). Sent on attach. Clients should treat this as
+// authoritative: drop any pending writes, reset their terminal, then write the
+// payload. Prevents duplicate content on reconnect when xterm.js is preserved.
+export interface WSReplayMessage {
+  type: 'replay';
+  data: string;
+}
+
 export interface WSAttachedMessage {
   type: 'attached';
   sessionId: string;
-  scrollback?: string;
 }
 
 export interface WSExitMessage {
@@ -67,6 +75,7 @@ export interface WSTunnelStatusMessage {
 
 export type WSServerMessage =
   | WSOutputMessage
+  | WSReplayMessage
   | WSAttachedMessage
   | WSExitMessage
   | WSErrorMessage

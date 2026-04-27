@@ -187,6 +187,10 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
       };
 
       ws.onmessage = (event) => {
+        // Stale-socket guard: a force-reconnect path may null `onclose` but
+        // leave `onmessage` live. Without this guard, late messages from the
+        // old socket can interleave with replay/output from the new one.
+        if (wsRef.current !== ws) return;
         if (!mountedRef.current || !terminal) return;
 
         let msg: WSServerMessage;
@@ -212,9 +216,6 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
             setConnected(true);
             setReconnecting(false);
             onConnected?.();
-            if (msg.scrollback) {
-              terminal.write(stripOscSequences(msg.scrollback));
-            }
             // Send current dimensions so the PTY adjusts to this client's viewport
             if (terminal.cols && terminal.rows) {
               ws.send(JSON.stringify({ type: 'resize', cols: terminal.cols, rows: terminal.rows }));
@@ -226,6 +227,19 @@ export function useTerminalSocket(options: UseTerminalSocketOptions): UseTermina
               sessionId,
               setTimeout(() => attachGrace.delete(sessionId), ATTACH_GRACE_MS),
             );
+            break;
+          }
+          case 'replay': {
+            // Authoritative state snapshot from the server. The xterm.js instance
+            // is preserved across React re-renders / socket reconnects, so
+            // appending the replay would duplicate visible content for plain
+            // shells. Drop any pending writes and reset the terminal first.
+            writeBuffer = '';
+            rafPending = false;
+            terminal.reset();
+            if (msg.data) {
+              terminal.write(stripOscSequences(msg.data));
+            }
             break;
           }
           case 'output': {

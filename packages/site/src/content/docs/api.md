@@ -1033,11 +1033,12 @@ The preview proxies **one port at a time** via HTTP only. It does not proxy WebS
 
 <!-- prettier-ignore -->
 :::tip[Limitations when accessed through a tunnel]
+
 - **Server-rendered apps** (Next.js SSR, Rails, Django) work best — the browser receives complete HTML with no extra fetches.
 - **Client-side SPAs** may break if they make API calls to a different port or use hardcoded `localhost` URLs. Apps that use a single point with an internal reverse proxy (e.g., nginx proxying `/api` to a backend) work fine.
 - **Multi-port architectures** (e.g., frontend on port 3000 making API calls to port 4000) won't work unless the app routes all requests through TermBeam's preview proxy (e.g., `/preview/4000/api` instead of `localhost:4000/api`).
 - The upstream service must be listening on `127.0.0.1` (localhost) on the machine running TermBeam.
-:::
+  :::
 
 **Response:** The upstream response is streamed back with its original status code and headers.
 
@@ -1187,7 +1188,7 @@ The connection is closed after sending this message. Sending any non-auth messag
 { "type": "attach", "sessionId": "a1b2c3d4" }
 ```
 
-After a successful `attached` response, the server immediately sends an `output` message containing the session's scrollback buffer (up to ~1,000,000 characters). When the buffer grows beyond this size, it is trimmed back to ~500,000 characters to keep memory usage bounded, allowing the client to display recent terminal output.
+After a successful attach, the server sends a single `replay` message containing the session's sanitized scrollback buffer (up to ~1,000,000 characters; trimmed back to ~500,000 when it grows beyond that), followed by the `attached` confirmation. Clients should treat `replay` as an authoritative state snapshot and reset their terminal before applying it — this prevents duplicated content on reconnect when the terminal UI is preserved across socket lifecycles.
 
 #### Send Input
 
@@ -1209,6 +1210,14 @@ The server validates resize dimensions: `cols` must be between 1–500 and `rows
 
 ```json
 { "type": "output", "data": "..." }
+```
+
+#### Replay Snapshot
+
+Sent on attach. Contains sanitized scrollback (and an alt-screen re-entry sequence when the session is currently in alt-screen). Clients should drop pending writes, reset their terminal, and write this payload — do not append it on top of preserved terminal content.
+
+```json
+{ "type": "replay", "data": "..." }
 ```
 
 #### Attached Confirmation

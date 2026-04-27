@@ -232,6 +232,9 @@ export function useAgentSocket(options: UseAgentSocketOptions): UseAgentSocketRe
       };
 
       ws.onmessage = (event) => {
+        // Stale-socket guard: force-reconnect paths null `onclose` but may
+        // leave `onmessage` live; ignore messages from a superseded socket.
+        if (wsRef.current !== ws) return;
         if (!mountedRef.current) return;
 
         let msg: WSServerMessage;
@@ -249,12 +252,16 @@ export function useAgentSocket(options: UseAgentSocketOptions): UseAgentSocketRe
             }
             setConnected(true);
             setReconnecting(false);
-
-            // Replay scrollback through parser to reconstruct message history
-            if (msg.scrollback) {
-              const events = parser.feed(msg.scrollback);
-              processEvents(events, rawBufferRef, onRawOutputRef.current);
-            }
+            break;
+          }
+          case 'replay': {
+            // Server-authored snapshot of agent terminal output. Preserve the
+            // prior `attached.scrollback` behavior: feed through the parser so
+            // message history can be reconstructed on first attach. (Note: on
+            // reconnects within the same mount this can re-add events to the
+            // store; agent reconnect dedup is tracked separately.)
+            const events = parser.feed(msg.data);
+            processEvents(events, rawBufferRef, onRawOutputRef.current);
             break;
           }
           case 'output': {

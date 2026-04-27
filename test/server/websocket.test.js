@@ -301,7 +301,7 @@ describe('WebSocket', () => {
       assert.strictEqual(err.message, 'Session not found');
     });
 
-    it('should send scrollback on attach for returning clients', () => {
+    it('should send replay snapshot on attach for returning clients', () => {
       const session = createMockSession('s1', {
         scrollback: ['hello ', 'world'],
         hasHadClient: true,
@@ -312,9 +312,12 @@ describe('WebSocket', () => {
       wss._simulateConnection(ws);
       ws._simulateMessage({ type: 'attach', sessionId: 's1' });
 
-      const output = ws._sent.find((m) => m.type === 'output');
-      assert.ok(output);
-      assert.strictEqual(output.data, 'hello world');
+      const replay = ws._sent.find((m) => m.type === 'replay');
+      assert.ok(replay, 'should send a replay message');
+      assert.strictEqual(replay.data, 'hello world');
+      // No `output` for scrollback — preserved xterm.js content would duplicate
+      const stray = ws._sent.find((m) => m.type === 'output');
+      assert.strictEqual(stray, undefined, 'scrollback must not be sent as output');
     });
 
     it('should defer first-ever client until first resize (size mismatch)', () => {
@@ -328,7 +331,9 @@ describe('WebSocket', () => {
 
       // Client deferred — not yet in session.clients, scrollback NOT pre-cleared
       const output = ws._sent.find((m) => m.type === 'output');
+      const replay = ws._sent.find((m) => m.type === 'replay');
       assert.strictEqual(output, undefined);
+      assert.strictEqual(replay, undefined);
       assert.strictEqual(session.hasHadClient, true);
       assert.ok(!session.clients.has(ws));
       assert.strictEqual(ws._pendingResize, true);
@@ -367,9 +372,9 @@ describe('WebSocket', () => {
       assert.strictEqual(session.scrollbackBuf, 'correct-prompt'); // NOT cleared
       assert.strictEqual(session._resizes.length, 0); // no SIGWINCH
 
-      const output = ws._sent.find((m) => m.type === 'output');
-      assert.ok(output);
-      assert.strictEqual(output.data, 'correct-prompt');
+      const replay = ws._sent.find((m) => m.type === 'replay');
+      assert.ok(replay);
+      assert.strictEqual(replay.data, 'correct-prompt');
     });
 
     it('should add returning client to session on attach', () => {
@@ -396,7 +401,7 @@ describe('WebSocket', () => {
       assert.ok(!session.clients.has(ws));
     });
 
-    it('should send alt screen enter after replay when session is in alt screen', () => {
+    it('should fold alt-screen enter into the replay payload when in alt screen', () => {
       const session = createMockSession('s1', { hasHadClient: true, scrollbackBuf: 'some output' });
       session.inAltScreen = true;
       session.altScreenMode = '1049';
@@ -406,10 +411,17 @@ describe('WebSocket', () => {
       wss._simulateConnection(ws);
       ws._simulateMessage({ type: 'attach', sessionId: 's1' });
 
-      // Alt-screen enter should come AFTER scrollback replay
-      const replayIdx = ws._sent.findIndex((m) => m.type === 'output' && m.data !== '\x1b[?1049h');
-      const altIdx = ws._sent.findIndex((m) => m.type === 'output' && m.data === '\x1b[?1049h');
-      assert.ok(altIdx > replayIdx, 'alt-screen enter should come after replay');
+      const replay = ws._sent.find((m) => m.type === 'replay');
+      assert.ok(replay, 'should send a replay message');
+      // Scrollback first, alt-screen enter appended at the end
+      assert.ok(
+        replay.data.endsWith('\x1b[?1049h'),
+        'replay payload should end with alt-screen enter',
+      );
+      assert.ok(
+        replay.data.startsWith('some output'),
+        'replay payload should start with sanitized scrollback',
+      );
       assert.strictEqual(ws._needsRedraw, true, 'should flag client for redraw');
     });
 
@@ -423,11 +435,12 @@ describe('WebSocket', () => {
       wss._simulateConnection(ws);
       ws._simulateMessage({ type: 'attach', sessionId: 's1' });
 
-      const altMsg = ws._sent.find((m) => m.type === 'output' && m.data === '\x1b[?1047h');
-      assert.ok(altMsg, 'should use mode 1047 for alt-screen enter');
+      const replay = ws._sent.find((m) => m.type === 'replay');
+      assert.ok(replay, 'should send a replay message');
+      assert.ok(replay.data.endsWith('\x1b[?1047h'), 'should use mode 1047 for alt-screen enter');
     });
 
-    it('should not send alt screen enter when session is not in alt screen', () => {
+    it('should not include alt screen enter when session is not in alt screen', () => {
       const session = createMockSession('s1', { hasHadClient: true, scrollbackBuf: 'hello' });
       session.inAltScreen = false;
       sessions._add(session);
@@ -436,9 +449,30 @@ describe('WebSocket', () => {
       wss._simulateConnection(ws);
       ws._simulateMessage({ type: 'attach', sessionId: 's1' });
 
-      const altScreenMsg = ws._sent.find((m) => m.type === 'output' && m.data === '\x1b[?1049h');
-      assert.strictEqual(altScreenMsg, undefined, 'should not send alt screen enter');
+      const replay = ws._sent.find((m) => m.type === 'replay');
+      assert.ok(replay);
+      assert.strictEqual(replay.data, 'hello', 'replay payload should be just scrollback');
+      assert.ok(
+        !replay.data.includes('\x1b[?1049h'),
+        'replay payload must not include alt-screen enter',
+      );
       assert.strictEqual(ws._needsRedraw, undefined, 'should not flag for redraw');
+    });
+
+    it('should send replay with only alt-screen enter when scrollback is empty', () => {
+      const session = createMockSession('s1', { hasHadClient: true });
+      session.scrollbackBuf = '';
+      session.inAltScreen = true;
+      session.altScreenMode = '1049';
+      sessions._add(session);
+
+      const ws = createMockWs();
+      wss._simulateConnection(ws);
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+
+      const replay = ws._sent.find((m) => m.type === 'replay');
+      assert.ok(replay, 'should still send replay so client can re-enter alt-screen');
+      assert.strictEqual(replay.data, '\x1b[?1049h');
     });
 
     it('should force SIGWINCH via temporary resize on first resize after alt-screen reattach', () => {
@@ -1164,9 +1198,9 @@ describe('WebSocket', () => {
       // Should enter the inAltScreen branch and create bounce timer
       assert.ok(session._resizeBounceTimer, 'bounce timer should be set for alt-screen same-size');
 
-      // Should have sent alt-screen enter sequence
-      const altEnter = ws._sent.find((m) => m.type === 'output' && m.data.includes('\x1b[?1049h'));
-      assert.ok(altEnter, 'should send alt-screen enter');
+      // Should have sent alt-screen enter sequence (folded into replay payload)
+      const replay = ws._sent.find((m) => m.type === 'replay' && m.data.includes('\x1b[?1049h'));
+      assert.ok(replay, 'should send replay containing alt-screen enter');
 
       // Wait for bounce timer to complete
       await new Promise((r) => setTimeout(r, 80));
