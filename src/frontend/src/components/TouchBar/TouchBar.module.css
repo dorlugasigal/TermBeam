@@ -16,29 +16,24 @@
  * interactive keys stay inset above the safe area. */
 .touchBar {
   /* Total visible height: 36px (handle + gap) + 32px row + 4px gap + 32px row + 4px = 108px
-   * + clamped safe-area inside padding so the bg fills to the screen bottom. */
-  height: calc(108px + max(8px, env(safe-area-inset-bottom, 0px) - 14px));
-  /* PWA on iPhone reports a much larger safe-area-inset-bottom than the
-   * keys actually need above the home indicator — clamp it down so the
-   * bar doesn't get a giant dead zone below the keys. */
-  padding: 36px 4px max(8px, env(safe-area-inset-bottom, 0px) - 14px);
-  /* Subtle "shelf" — barely lifted from the terminal background, with a
-   * clear accent-tinted top border doing the heavy lifting for visual
-   * separation. The interior fades down to match the terminal --bg so
-   * the bar feels grounded instead of being a bright slab. */
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--surface, #252526) 70%, var(--bg, #1e1e1e)) 0%,
-    var(--bg, #1e1e1e) 100%
-  );
+   * + clamped safe-area padding so the bg fills to the screen bottom. */
+  height: calc(108px + min(8px, env(safe-area-inset-bottom, 0px)));
+  /* Cap the safe-area padding to a small value — iOS PWA reports a much
+   * larger inset than the bar actually needs above the home indicator,
+   * which produced a giant dead zone below the chevron. */
+  padding: 36px 4px min(8px, env(safe-area-inset-bottom, 0px));
+  /* Mirror the top nav bar gradient (TerminalApp.module.css uses
+   *   linear-gradient(to bottom, --surface 0%, --surface 35%, --bg 100%))
+   * so the touchbar reads as the same surface family. */
+  background: linear-gradient(to bottom, var(--surface) 0%, var(--surface) 35%, var(--bg) 100%);
   display: flex;
   flex-direction: column;
   gap: 4px;
   justify-content: center;
   overflow: hidden;
   position: relative;
-  border-top: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
   transition:
     height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
     padding-top 0.28s ease,
@@ -47,14 +42,12 @@
     box-shadow 0.25s ease;
 }
 
-/* Collapsed: shrink to just enough room for the toggle handle. The
- * height/padding transition is delayed so the rows can fade out FIRST.
- * Background stays visible so the collapsed bar reads as "there". */
+/* Collapsed: shrink to a thin strip with just the toggle handle. */
 .touchBarWrapper[data-collapsed='true'] .touchBar {
-  height: calc(30px + max(8px, env(safe-area-inset-bottom, 0px) - 14px));
-  padding: 0 4px max(8px, env(safe-area-inset-bottom, 0px) - 14px);
-  background: color-mix(in srgb, var(--surface, #252526) 70%, var(--bg, #1e1e1e));
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.35);
+  height: calc(26px + min(8px, env(safe-area-inset-bottom, 0px)));
+  padding: 0 4px min(8px, env(safe-area-inset-bottom, 0px));
+  background: var(--surface);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.32);
   transition:
     height 0.32s cubic-bezier(0.4, 0, 0.2, 1) 0.15s,
     padding-top 0.28s ease 0.15s,
