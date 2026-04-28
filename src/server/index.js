@@ -24,6 +24,7 @@ const { createPreviewProxy } = require('./preview');
 const { writeConnectionConfig, removeConnectionConfig } = require('../cli/resume');
 const { checkForUpdate, detectInstallMethod } = require('../utils/update-check');
 const { PushManager } = require('./push');
+const { readPreferences } = require('./preferences');
 
 // --- Helpers ---
 function getLocalIP() {
@@ -224,12 +225,47 @@ function createTermBeamServer(overrides = {}) {
           /* non-critical — resume will fall back to defaults */
         }
 
-        const defaultId = sessions.create({
-          name: path.basename(config.cwd),
-          shell: config.shell,
-          args: config.shellArgs,
-          cwd: config.cwd,
-        });
+        // Skip the default session when the user has a saved workspace
+        // that will auto-start client-side (workspaces[].default OR the
+        // legacy startupWorkspace.enabled with sessions). The autoboot
+        // in App.tsx checks `existing.length === 0` before spawning, so
+        // creating a default session here would block the workspace from
+        // ever opening.
+        let skipDefaultSession = false;
+        try {
+          const { prefs } = readPreferences(configDir);
+          const hasDefaultWorkspace = (prefs.workspaces || []).some(
+            (w) => w.default && Array.isArray(w.sessions) && w.sessions.length > 0,
+          );
+          const hasLegacyEnabled =
+            prefs.startupWorkspace &&
+            prefs.startupWorkspace.enabled &&
+            Array.isArray(prefs.startupWorkspace.sessions) &&
+            prefs.startupWorkspace.sessions.length > 0;
+          // If there's exactly one named workspace (treated as default by
+          // the client even without an explicit flag), skip too.
+          const hasSingleNamedWorkspace =
+            (prefs.workspaces || []).length === 1 &&
+            Array.isArray(prefs.workspaces[0].sessions) &&
+            prefs.workspaces[0].sessions.length > 0;
+          skipDefaultSession = hasDefaultWorkspace || hasLegacyEnabled || hasSingleNamedWorkspace;
+        } catch {
+          // best-effort: if prefs read fails, fall back to creating the default
+        }
+
+        let defaultId;
+        if (!skipDefaultSession) {
+          defaultId = sessions.create({
+            name: path.basename(config.cwd),
+            shell: config.shell,
+            args: config.shellArgs,
+            cwd: config.cwd,
+          });
+        } else {
+          log.info(
+            'Skipping default startup session (saved workspace will be auto-launched by client)',
+          );
+        }
 
         const lp = '\x1b[38;5;141m'; // light purple
         const rs = '\x1b[0m'; // reset
@@ -314,7 +350,11 @@ function createTermBeamServer(overrides = {}) {
         }
 
         console.log(`  Shell:    ${config.shell}`);
-        console.log(`  Session:  ${defaultId}`);
+        if (defaultId) {
+          console.log(`  Session:  ${defaultId}`);
+        } else {
+          console.log(`  Session:  (workspace auto-launches on connect)`);
+        }
         console.log(`  Auth:     ${config.password ? `${gn}🔒 password${rs}` : '🔓 none'}`);
         if (isLanReachable) {
           console.log(`  Bind:     ${config.host} (LAN accessible)`);
