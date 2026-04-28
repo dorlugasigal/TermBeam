@@ -56,17 +56,17 @@ async function startServer(configOverrides = {}) {
   // Isolate prefs/connection.json per server instance so tests don't read
   // the developer's real ~/.termbeam/prefs.json (which would trigger
   // workspace autoboot and override the test's expected default session).
+  // We deliberately don't clean up the temp dir on shutdown — Windows
+  // node-pty ConPTY can hold locks for several seconds after kill, and
+  // synchronously waiting for cleanup across hundreds of tests was
+  // pushing the whole suite past the 180s test timeout. The OS's
+  // temp-dir cleanup will reclaim these eventually.
   const tmpConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tb-cfg-'));
   const instance = createTermBeamServer({
     config: makeConfig({ configDir: tmpConfigDir, ...configOverrides }),
   });
   const { defaultId } = await instance.start();
   const port = instance.server.address().port;
-  const origShutdown = instance.shutdown.bind(instance);
-  instance.shutdown = async () => {
-    await origShutdown();
-    await safeCleanup(tmpConfigDir);
-  };
   return { ...instance, port, defaultId };
 }
 
