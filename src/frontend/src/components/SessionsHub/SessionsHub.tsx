@@ -1,12 +1,11 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { fetchSessions, deleteSession, fetchVersion, getShareUrl } from '@/services/api';
 import { useUIStore } from '@/stores/uiStore';
-import { useThemeStore } from '@/stores/themeStore';
-import { THEMES, type ThemeId } from '@/themes/terminalThemes';
 import type { Session } from '@/types';
 import UpdateBanner from '@/components/common/UpdateBanner';
 import TunnelBanner from '@/components/common/TunnelBanner';
+import ThemePicker from '@/components/common/ThemePicker';
 import SessionCard from './SessionCard';
 import NewSessionModal from './NewSessionModal';
 import ResumeBrowser from '@/components/ResumeBrowser/ResumeBrowser';
@@ -75,37 +74,14 @@ const RefreshIcon = () => (
   </svg>
 );
 
-const ThemeIcon = () => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
-    <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
-    <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
-    <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
-    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
-  </svg>
-);
-
 export default function SessionsHub() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [version, setVersion] = useState('');
-  const [showThemePicker, setShowThemePicker] = useState(false);
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<SessionFilterState>(() => loadFilterFromStorage());
-  const themeBtnRef = useRef<HTMLButtonElement>(null);
-  const themePanelRef = useRef<HTMLDivElement>(null);
   const { openNewSessionModal, openResumeBrowser } = useUIStore();
-  const { themeId, setTheme } = useThemeStore();
 
   const loadSessions = useCallback(async () => {
     try {
@@ -187,27 +163,6 @@ export default function SessionsHub() {
     });
   }
 
-  function handleToggleThemePicker() {
-    setShowThemePicker((v) => !v);
-  }
-
-  useEffect(() => {
-    if (!showThemePicker) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        themePanelRef.current &&
-        !themePanelRef.current.contains(target) &&
-        themeBtnRef.current &&
-        !themeBtnRef.current.contains(target)
-      ) {
-        setShowThemePicker(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showThemePicker]);
-
   return (
     <div className={styles.page}>
       <UpdateBanner />
@@ -241,60 +196,10 @@ export default function SessionsHub() {
             <RefreshIcon />
           </span>
         </button>
-        <button
-          className={`${styles.headerBtn} ${styles.themeBtn}`}
-          onClick={handleToggleThemePicker}
-          aria-label="Change theme"
-          title="Change theme"
-          ref={themeBtnRef}
-        >
-          <ThemeIcon />
-        </button>
-      </header>
-
-      {showThemePicker && (
-        <div className={styles.themePanel} ref={themePanelRef}>
-          <div className={styles.themePanelHeader}>
-            <span className={styles.themePanelTitle}>Theme</span>
-            <button
-              className={styles.themePanelClose}
-              onClick={() => setShowThemePicker(false)}
-              aria-label="Close theme picker"
-            >
-              ✕
-            </button>
-          </div>
-          <div className={styles.themePanelList}>
-            {THEMES.map((theme) => {
-              const rc = parseInt(theme.bg.slice(1, 3), 16);
-              const gc = parseInt(theme.bg.slice(3, 5), 16);
-              const bc = parseInt(theme.bg.slice(5, 7), 16);
-              const isLight = (rc + gc + bc) / 3 > 140;
-              const isActive = theme.id === themeId;
-              return (
-                <button
-                  key={theme.id}
-                  className={`${styles.themeRow} ${isActive ? styles.themeRowActive : ''}`}
-                  onClick={() => setTheme(theme.id as ThemeId)}
-                >
-                  <span className={styles.themeBar}>
-                    <span style={{ flex: 40, background: theme.bg }} />
-                    <span style={{ flex: 30, background: theme.surface }} />
-                    <span style={{ flex: 20, background: theme.accent }} />
-                    <span style={{ flex: 10, background: theme.text }} />
-                  </span>
-                  <span
-                    className={styles.themeLabel}
-                    style={isLight ? { color: '#1a1a1a', textShadow: 'none' } : undefined}
-                  >
-                    {theme.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+        <div className={styles.themePickerWrapper}>
+          <ThemePicker />
         </div>
-      )}
+      </header>
 
       <main className={styles.content}>
         {loading ? (

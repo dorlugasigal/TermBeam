@@ -20,6 +20,7 @@ import NewSessionModal from '@/components/SessionsHub/NewSessionModal';
 import { UploadModal } from '@/components/Modals/UploadModal';
 import { PreviewModal } from '@/components/Modals/PreviewModal';
 import SettingsPanel from '@/components/SettingsPanel/SettingsPanel';
+import ThemePicker from '@/components/common/ThemePicker';
 import CopyOverlay from '@/components/Overlays/CopyOverlay';
 import type { Session } from '@/types';
 import styles from './TerminalApp.module.css';
@@ -55,6 +56,9 @@ export function TerminalApp() {
   const codeViewerSessionId = useUIStore((s) => s.codeViewerSessionId);
   const codeViewerInitialView = useUIStore((s) => s.codeViewerInitialView);
   const closeCodeViewer = useUIStore((s) => s.closeCodeViewer);
+  // FIX #2: ThemePicker controlled mode
+  const themePickerOpen = useUIStore((s) => s.themePickerOpen);
+  const closeThemePicker = useUIStore((s) => s.closeThemePicker);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const initializedRef = useRef(false);
@@ -620,6 +624,8 @@ export function TerminalApp() {
       <UploadModal />
       <PreviewModal />
       <SettingsPanel />
+      {/* FIX #2: Standalone ThemePicker with controlled mode */}
+      <ThemePicker open={themePickerOpen} onClose={closeThemePicker} hideTrigger />
       <CopyOverlay />
       <ResumeBrowser />
 

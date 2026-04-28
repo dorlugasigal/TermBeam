@@ -1,11 +1,14 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useUIStore } from '@/stores/uiStore';
+import { useSessionStore } from '@/stores/sessionStore';
 import {
   usePreferencesStore,
   PREF_DEFAULTS,
   type TouchBarKey,
+  type StartupSession,
 } from '@/stores/preferencesStore';
-import { THEMES, type ThemeId } from '@/themes/terminalThemes';
+import { THEMES } from '@/themes/terminalThemes';
+import { FolderBrowser } from '@/components/FolderBrowser/FolderBrowser';
 import styles from './SettingsPanel.module.css';
 
 const FONT_MIN = 8;
@@ -21,6 +24,8 @@ const DEFAULT_KEYS_PREVIEW: TouchBarKey[] = [
   { id: 'ctrl-c', label: '^C', send: '\x03' },
   { id: 'home', label: 'Home', send: '\x1b[H' },
   { id: 'end', label: 'End', send: '\x1b[F' },
+  { id: 'up', label: '↑', send: '\x1b[A' },
+  { id: 'enter', label: '↵', send: '\r' },
 ];
 
 function Toggle({
@@ -44,156 +49,41 @@ function Toggle({
   );
 }
 
-/**
- * Theme picker mirroring the original ThemePicker concept:
- * a small trigger button shows the current theme; clicking it opens a
- * fixed-position popover list of themes.
- */
-function ThemePickerInline({
-  themeId,
-  setTheme,
-}: {
-  themeId: ThemeId;
-  setTheme: (id: ThemeId) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const popoverRef = useRef<HTMLDivElement | null>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-
-  const currentTheme = THEMES.find((t) => t.id === themeId) ?? THEMES[0]!;
-
-  const place = useCallback(() => {
-    const trig = triggerRef.current;
-    if (!trig) return;
-    const r = trig.getBoundingClientRect();
-    const POP_W = 240;
-    const POP_H = Math.min(window.innerHeight * 0.6, 420);
-    let left = r.right - POP_W;
-    if (left < 8) left = 8;
-    if (left + POP_W > window.innerWidth - 8) left = window.innerWidth - POP_W - 8;
-    let top = r.bottom + 4;
-    if (top + POP_H > window.innerHeight - 8) top = r.top - POP_H - 4;
-    if (top < 8) top = 8;
-    setPos({ top, left });
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    place();
-    const onResize = () => place();
-    window.addEventListener('resize', onResize);
-    window.addEventListener('scroll', onResize, true);
-    return () => {
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('scroll', onResize, true);
-    };
-  }, [open, place]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDocDown = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(target) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(target)
-      ) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onDocDown);
-    return () => document.removeEventListener('mousedown', onDocDown);
-  }, [open]);
-
-  return (
-    <>
-      <button
-        ref={triggerRef}
-        type="button"
-        className={styles.themeTrigger}
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label="Pick theme"
-      >
-        <span className={styles.themeSwatch} style={{ background: currentTheme.bg }} />
-        {currentTheme.name}
-      </button>
-      {open && pos && (
-        <div
-          ref={popoverRef}
-          className={styles.themePopover}
-          style={{ top: pos.top, left: pos.left }}
-          role="listbox"
-        >
-          <div className={styles.themePopoverHeader}>
-            <span className={styles.themePopoverTitle}>Theme</span>
-            <button
-              type="button"
-              className={styles.closeBtn}
-              onClick={() => setOpen(false)}
-              aria-label="Close theme picker"
-            >
-              ✕
-            </button>
-          </div>
-          <div className={styles.themeList}>
-            {THEMES.map((t) => {
-              const active = t.id === themeId;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="option"
-                  aria-selected={active}
-                  className={`${styles.themeOption} ${active ? styles.themeOptionActive : ''}`}
-                  onClick={() => {
-                    setTheme(t.id as ThemeId);
-                    setOpen(false);
-                  }}
-                >
-                  <span className={styles.themeSwatch} style={{ background: t.bg }} />
-                  {t.name}
-                  {active && <span className={styles.themeCheck}>✓</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
 export default function SettingsPanel() {
   const open = useUIStore((s) => s.settingsPanelOpen);
   const close = useUIStore((s) => s.closeSettingsPanel);
+  const openThemePicker = useUIStore((s) => s.openThemePicker);
   const prefs = usePreferencesStore((s) => s.prefs);
   const setPreference = usePreferencesStore((s) => s.setPreference);
+  const sessions = useSessionStore((s) => s.sessions);
 
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  // FIX #1: dragOffset tracks JS-controlled position after first drag.
+  // When null, panel is CSS-centered. When set, panel uses inline transform.
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
-  const dragOffset = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  const dragStartRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
 
-  // Center panel on first open; reset if closed.
+  // FIX #3: browsing folder state
+  const [browsingFolder, setBrowsingFolder] = useState(false);
+
+  // FIX #4: workspace save toast
+  const [saveToast, setSaveToast] = useState('');
+
+  // FIX #5: custom key editor state
+  const [selectedKeyIndex, setSelectedKeyIndex] = useState<number | null>(null);
+  const [draggedKeyIndex, setDraggedKeyIndex] = useState<number | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+
+  // Reset drag offset when closed
   useEffect(() => {
     if (!open) {
-      setPos(null);
-      return;
+      setDragOffset(null);
+      setBrowsingFolder(false);
+      setSelectedKeyIndex(null);
+      setDraggedKeyIndex(null);
+      setDropTargetIndex(null);
     }
-    // Defer to next frame so the panel has measured dimensions.
-    const id = requestAnimationFrame(() => {
-      const el = panelRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const x = Math.max(8, (window.innerWidth - r.width) / 2);
-      const y = Math.max(8, (window.innerHeight - r.height) / 3);
-      setPos({ x, y });
-    });
-    return () => cancelAnimationFrame(id);
   }, [open]);
 
   const clamp = useCallback((x: number, y: number) => {
@@ -201,7 +91,7 @@ export default function SettingsPanel() {
     if (!el) return { x, y };
     const r = el.getBoundingClientRect();
     const maxX = window.innerWidth - r.width - 8;
-    const maxY = window.innerHeight - 40;
+    const maxY = window.innerHeight - 40; // keep 40px header visible at bottom
     return {
       x: Math.min(Math.max(8, x), Math.max(8, maxX)),
       y: Math.min(Math.max(8, y), Math.max(8, maxY)),
@@ -213,24 +103,30 @@ export default function SettingsPanel() {
       if (e.button !== undefined && e.button !== 0) return;
       const el = panelRef.current;
       if (!el) return;
-      const r = el.getBoundingClientRect();
-      dragOffset.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+
+      if (dragOffset == null) {
+        // First drag: capture current rect and switch from CSS-center to JS-controlled
+        const r = el.getBoundingClientRect();
+        const newOffset = { x: r.left, y: r.top };
+        setDragOffset(newOffset);
+        dragStartRef.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      } else {
+        dragStartRef.current = { dx: e.clientX - dragOffset.x, dy: e.clientY - dragOffset.y };
+      }
+
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       setDragging(true);
     },
-    [],
+    [dragOffset],
   );
 
   const onHeaderPointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!dragging) return;
-      const next = clamp(
-        e.clientX - dragOffset.current.dx,
-        e.clientY - dragOffset.current.dy,
-      );
-      setPos(next);
+      if (!dragging || dragOffset == null) return;
+      const next = clamp(e.clientX - dragStartRef.current.dx, e.clientY - dragStartRef.current.dy);
+      setDragOffset(next);
     },
-    [dragging, clamp],
+    [dragging, dragOffset, clamp],
   );
 
   const onHeaderPointerUp = useCallback(
@@ -239,14 +135,14 @@ export default function SettingsPanel() {
       try {
         (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
       } catch {
-        // ignore — capture may have been released already
+        // ignore
       }
       setDragging(false);
     },
     [dragging],
   );
 
-  // Esc to close.
+  // Esc to close
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -267,32 +163,36 @@ export default function SettingsPanel() {
     [setPreference],
   );
 
-  const customKeys = prefs.touchBarKeys;
-  const usingCustomKeys = customKeys !== null;
+  // FIX #2: open standalone theme picker
+  const currentTheme = THEMES.find((t) => t.id === prefs.themeId) ?? THEMES[0]!;
 
-  const updateKey = useCallback(
-    (idx: number, patch: Partial<TouchBarKey>) => {
-      const list = customKeys ?? [];
-      const next = list.map((k, i) => (i === idx ? { ...k, ...patch } : k));
-      setPreference('touchBarKeys', next);
-    },
-    [customKeys, setPreference],
-  );
+  // FIX #4: save current workspace
+  const saveWorkspace = useCallback(() => {
+    const allSessions = Array.from(sessions.values()).filter((s) => !s.hidden);
+    const snapshotSessions: StartupSession[] = allSessions.map((s) => ({
+      id: s.id,
+      name: s.name,
+      kind: (s.type === 'copilot' || s.type === 'agent' ? 'agent' : 'shell') as 'shell' | 'agent',
+      cwd: s.cwd || '',
+      initialCommand: '',
+      agentId: s.type === 'copilot' || s.type === 'agent' ? s.model : undefined,
+    }));
+    setPreference('startupWorkspace', { enabled: true, sessions: snapshotSessions });
+    setSaveToast(`Saved (${snapshotSessions.length} sessions)`);
+    setTimeout(() => setSaveToast(''), 2000);
+  }, [sessions, setPreference]);
 
-  const removeKey = useCallback(
+  const removeStartupSession = useCallback(
     (idx: number) => {
-      const list = customKeys ?? [];
-      const next = list.filter((_, i) => i !== idx);
-      setPreference('touchBarKeys', next);
+      const sessions = prefs.startupWorkspace.sessions.filter((_, i) => i !== idx);
+      setPreference('startupWorkspace', { ...prefs.startupWorkspace, sessions });
     },
-    [customKeys, setPreference],
+    [prefs.startupWorkspace, setPreference],
   );
 
-  const addKey = useCallback(() => {
-    const list = customKeys ?? [...DEFAULT_KEYS_PREVIEW];
-    const next: TouchBarKey[] = [...list, { id: genKeyId(), label: 'Key', send: '' }];
-    setPreference('touchBarKeys', next);
-  }, [customKeys, setPreference]);
+  // FIX #5: custom keys helpers
+  const customKeys = prefs.touchBarKeys ?? [];
+  const usingCustomKeys = prefs.touchBarKeys !== null;
 
   const enableCustomKeys = useCallback(() => {
     setPreference('touchBarKeys', [...DEFAULT_KEYS_PREVIEW]);
@@ -300,35 +200,92 @@ export default function SettingsPanel() {
 
   const resetCustomKeys = useCallback(() => {
     setPreference('touchBarKeys', null);
+    setSelectedKeyIndex(null);
   }, [setPreference]);
 
-  const startup = prefs.startupWorkspace;
+  const addKey = useCallback(() => {
+    const list = prefs.touchBarKeys ?? [...DEFAULT_KEYS_PREVIEW];
+    const next: TouchBarKey[] = [...list, { id: genKeyId(), label: 'Key', send: '', size: 1 }];
+    setPreference('touchBarKeys', next);
+    setSelectedKeyIndex(next.length - 1);
+  }, [prefs.touchBarKeys, setPreference]);
 
-  const setStartupEnabled = useCallback(
-    (enabled: boolean) => {
-      setPreference('startupWorkspace', { ...startup, enabled });
+  const updateKey = useCallback(
+    (idx: number, patch: Partial<TouchBarKey>) => {
+      const list = prefs.touchBarKeys ?? [];
+      const next = list.map((k, i) => (i === idx ? { ...k, ...patch } : k));
+      setPreference('touchBarKeys', next);
     },
-    [setPreference, startup],
+    [prefs.touchBarKeys, setPreference],
   );
 
-  const removeStartupSession = useCallback(
+  const removeKey = useCallback(
     (idx: number) => {
-      const sessions = startup.sessions.filter((_, i) => i !== idx);
-      setPreference('startupWorkspace', { ...startup, sessions });
+      const list = prefs.touchBarKeys ?? [];
+      const next = list.filter((_, i) => i !== idx);
+      setPreference('touchBarKeys', next);
+      if (selectedKeyIndex === idx) setSelectedKeyIndex(null);
+      if (selectedKeyIndex != null && selectedKeyIndex > idx) setSelectedKeyIndex(selectedKeyIndex - 1);
     },
-    [setPreference, startup],
+    [prefs.touchBarKeys, setPreference, selectedKeyIndex],
+  );
+
+  const onKeyPreviewPointerDown = useCallback((e: React.PointerEvent, idx: number) => {
+    e.preventDefault();
+    setDraggedKeyIndex(idx);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }, []);
+
+  const onKeyPreviewPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (draggedKeyIndex === null) return;
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      if (!target) return;
+      const previewKey = target.closest('[data-key-index]') as HTMLElement | null;
+      if (previewKey) {
+        const idx = parseInt(previewKey.dataset.keyIndex ?? '-1', 10);
+        if (idx >= 0 && idx !== draggedKeyIndex) setDropTargetIndex(idx);
+      }
+    },
+    [draggedKeyIndex],
+  );
+
+  const onKeyPreviewPointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (draggedKeyIndex === null) return;
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+      if (dropTargetIndex !== null && dropTargetIndex !== draggedKeyIndex) {
+        const list = [...customKeys];
+        const [dragged] = list.splice(draggedKeyIndex, 1);
+        if (dragged) {
+          list.splice(dropTargetIndex, 0, dragged);
+          setPreference('touchBarKeys', list);
+          setSelectedKeyIndex(dropTargetIndex);
+        }
+      }
+      setDraggedKeyIndex(null);
+      setDropTargetIndex(null);
+    },
+    [draggedKeyIndex, dropTargetIndex, customKeys, setPreference],
   );
 
   if (!open) return null;
 
-  const panelStyle: React.CSSProperties = pos
-    ? { transform: `translate(${pos.x}px, ${pos.y}px)`, opacity: 1 }
-    : { opacity: 0, pointerEvents: 'none' };
+  // FIX #1: panel style conditional on dragOffset
+  const panelStyle: React.CSSProperties = dragOffset
+    ? { transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`, top: 0, left: 0 }
+    : {}; // CSS class handles centering
+
+  const selectedKey = selectedKeyIndex !== null ? customKeys[selectedKeyIndex] : null;
 
   return (
     <div
       ref={panelRef}
-      className={`${styles.panel} ${dragging ? styles.dragging : ''}`}
+      className={`${styles.panel} ${dragging ? styles.dragging : ''} ${!dragOffset ? styles.panelCentered : ''}`}
       style={panelStyle}
       role="dialog"
       aria-label="Settings"
@@ -358,7 +315,20 @@ export default function SettingsPanel() {
         </button>
       </div>
 
-      <div className={styles.body}>
+      {browsingFolder ? (
+        /* FIX #3: folder browser mode */
+        <div className={styles.body}>
+          <FolderBrowser
+            currentDir={prefs.defaultFolder || '/'}
+            onSelect={(dir) => {
+              setPreference('defaultFolder', dir);
+              setBrowsingFolder(false);
+            }}
+            onCancel={() => setBrowsingFolder(false)}
+          />
+        </div>
+      ) : (
+        <div className={styles.body}>
           {/* ── Appearance ───────────────────────────────────────── */}
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Appearance</h3>
@@ -366,7 +336,9 @@ export default function SettingsPanel() {
             <div className={styles.row}>
               <span className={styles.rowLabel}>
                 Font size
-                <span className={styles.rowHint}>{FONT_MIN}–{FONT_MAX}px</span>
+                <span className={styles.rowHint}>
+                  {FONT_MIN}–{FONT_MAX}px
+                </span>
               </span>
               <div className={styles.numericRow}>
                 <button
@@ -391,12 +363,21 @@ export default function SettingsPanel() {
               </div>
             </div>
 
+            {/* FIX #2: theme button opens standalone picker */}
             <div className={styles.row}>
               <span className={styles.rowLabel}>Theme</span>
-              <ThemePickerInline
-                themeId={prefs.themeId as ThemeId}
-                setTheme={(id) => setPreference('themeId', id)}
-              />
+              <button
+                type="button"
+                className={styles.themeButton}
+                onClick={() => {
+                  close();
+                  openThemePicker();
+                }}
+              >
+                <span className={styles.themeSwatch} style={{ background: currentTheme.bg }} />
+                <span>{currentTheme.name}</span>
+                <span className={styles.themeChevron}>›</span>
+              </button>
             </div>
           </section>
 
@@ -407,9 +388,7 @@ export default function SettingsPanel() {
             <div className={styles.row}>
               <span className={styles.rowLabel}>
                 Notifications
-                <span className={styles.rowHint}>
-                  Sound & push when sessions need attention
-                </span>
+                <span className={styles.rowHint}>Sound & push when sessions need attention</span>
               </span>
               <Toggle
                 on={prefs.notifications}
@@ -421,9 +400,7 @@ export default function SettingsPanel() {
             <div className={styles.row}>
               <span className={styles.rowLabel}>
                 Haptics
-                <span className={styles.rowHint}>
-                  Vibrate on TouchBar key press (mobile)
-                </span>
+                <span className={styles.rowHint}>Vibrate on TouchBar key press (mobile)</span>
               </span>
               <Toggle
                 on={prefs.haptics}
@@ -440,9 +417,7 @@ export default function SettingsPanel() {
             <div className={styles.row}>
               <span className={styles.rowLabel}>
                 Start collapsed
-                <span className={styles.rowHint}>
-                  Hide TouchBar by default; tap the handle to expand
-                </span>
+                <span className={styles.rowHint}>Hide TouchBar by default; tap the handle to expand</span>
               </span>
               <Toggle
                 on={prefs.touchBarCollapsed}
@@ -455,64 +430,150 @@ export default function SettingsPanel() {
               <span className={styles.rowLabel}>
                 Custom keys
                 <span className={styles.rowHint}>
-                  {usingCustomKeys
-                    ? `${customKeys.length} custom keys`
-                    : 'Using built-in defaults'}
+                  {usingCustomKeys ? `${customKeys.length} custom keys` : 'Using built-in defaults'}
                 </span>
               </span>
               {usingCustomKeys ? (
-                <button
-                  type="button"
-                  className={styles.linkBtn}
-                  onClick={resetCustomKeys}
-                >
+                <button type="button" className={styles.linkBtn} onClick={resetCustomKeys}>
                   Reset to defaults
                 </button>
               ) : (
-                <button
-                  type="button"
-                  className={styles.linkBtn}
-                  onClick={enableCustomKeys}
-                >
+                <button type="button" className={styles.linkBtn} onClick={enableCustomKeys}>
                   Customize
                 </button>
               )}
             </div>
 
+            {/* FIX #5: visual key editor */}
             {usingCustomKeys && (
-              <div className={styles.keyEditor}>
-                {(customKeys ?? []).map((k, i) => (
-                  <div key={k.id} className={styles.keyEditorRow}>
-                    <input
-                      className={styles.keyInput}
-                      type="text"
-                      value={k.label}
-                      maxLength={6}
-                      placeholder="Label"
-                      aria-label={`Key ${i + 1} label`}
-                      onChange={(e) => updateKey(i, { label: e.target.value })}
-                    />
-                    <input
-                      className={styles.keyInput}
-                      type="text"
-                      value={k.send}
-                      placeholder="Send (e.g. \\x1b)"
-                      aria-label={`Key ${i + 1} send sequence`}
-                      onChange={(e) => updateKey(i, { send: e.target.value })}
-                    />
+              <div className={styles.keyboardEditor}>
+                {/* Preview grid */}
+                <div className={styles.keyboardPreview}>
+                  {customKeys.map((k, i) => (
                     <button
+                      key={k.id}
                       type="button"
-                      className={styles.iconBtn}
-                      onClick={() => removeKey(i)}
-                      aria-label={`Remove key ${k.label}`}
+                      data-key-index={i}
+                      className={`${styles.previewKey} ${selectedKeyIndex === i ? styles.previewKeySelected : ''} ${draggedKeyIndex === i ? styles.previewKeyDragging : ''}`}
+                      style={{
+                        gridColumn: `span ${k.size ?? 1}`,
+                        background: k.bg,
+                        color: k.color,
+                      }}
+                      onClick={() => setSelectedKeyIndex(i)}
+                      onPointerDown={(e) => onKeyPreviewPointerDown(e, i)}
+                      onPointerMove={onKeyPreviewPointerMove}
+                      onPointerUp={onKeyPreviewPointerUp}
+                      onPointerCancel={onKeyPreviewPointerUp}
                     >
-                      ✕
+                      {k.label}
                     </button>
-                  </div>
-                ))}
+                  ))}
+                </div>
+
                 <button type="button" className={styles.linkBtn} onClick={addKey}>
                   + Add key
                 </button>
+
+                {/* Editor for selected key */}
+                {selectedKey && (
+                  <div className={styles.keyEditorPanel}>
+                    <div className={styles.editorRow}>
+                      <label className={styles.editorLabel}>Label</label>
+                      <input
+                        type="text"
+                        className={styles.keyInput}
+                        value={selectedKey.label}
+                        maxLength={8}
+                        onChange={(e) => updateKey(selectedKeyIndex!, { label: e.target.value })}
+                      />
+                    </div>
+                    <div className={styles.editorRow}>
+                      <label className={styles.editorLabel}>Send</label>
+                      <input
+                        type="text"
+                        className={styles.keyInput}
+                        value={selectedKey.send}
+                        placeholder="e.g. \\x1b"
+                        onChange={(e) => updateKey(selectedKeyIndex!, { send: e.target.value })}
+                      />
+                    </div>
+                    <div className={styles.editorRow}>
+                      <label className={styles.editorLabel}>Size</label>
+                      <div className={styles.segmentedControl}>
+                        <button
+                          type="button"
+                          className={`${styles.segmentedBtn} ${(selectedKey.size ?? 1) === 1 ? styles.segmentedBtnActive : ''}`}
+                          onClick={() => updateKey(selectedKeyIndex!, { size: 1 })}
+                        >
+                          Single
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.segmentedBtn} ${selectedKey.size === 2 ? styles.segmentedBtnActive : ''}`}
+                          onClick={() => updateKey(selectedKeyIndex!, { size: 2 })}
+                        >
+                          Double
+                        </button>
+                      </div>
+                    </div>
+                    <div className={styles.editorRow}>
+                      <label className={styles.editorLabel}>Background</label>
+                      <div className={styles.colorRow}>
+                        <input
+                          type="color"
+                          className={styles.colorInput}
+                          value={selectedKey.bg || '#000000'}
+                          onChange={(e) => updateKey(selectedKeyIndex!, { bg: e.target.value })}
+                        />
+                        <span
+                          className={styles.colorSwatch}
+                          style={{ background: selectedKey.bg || 'var(--bg)' }}
+                        />
+                        <button
+                          type="button"
+                          className={styles.resetBtn}
+                          onClick={() => updateKey(selectedKeyIndex!, { bg: undefined })}
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    </div>
+                    <div className={styles.editorRow}>
+                      <label className={styles.editorLabel}>Text color</label>
+                      <div className={styles.colorRow}>
+                        <input
+                          type="color"
+                          className={styles.colorInput}
+                          value={selectedKey.color || '#ffffff'}
+                          onChange={(e) => updateKey(selectedKeyIndex!, { color: e.target.value })}
+                        />
+                        <span
+                          className={styles.colorSwatch}
+                          style={{ background: selectedKey.color || 'var(--text)' }}
+                        />
+                        <button
+                          type="button"
+                          className={styles.resetBtn}
+                          onClick={() => updateKey(selectedKeyIndex!, { color: undefined })}
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.dangerBtn}
+                      onClick={() => removeKey(selectedKeyIndex!)}
+                    >
+                      Delete key
+                    </button>
+                  </div>
+                )}
+
+                {customKeys.length === 0 && (
+                  <p className={styles.empty}>No custom keys. Click Add key to start customizing.</p>
+                )}
               </div>
             )}
           </section>
@@ -521,16 +582,41 @@ export default function SettingsPanel() {
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>New Session Defaults</h3>
 
+            {/* FIX #3: default folder with browse button */}
             <div>
               <span className={styles.rowLabel}>Default folder</span>
-              <input
-                className={styles.keyInput}
-                type="text"
-                style={{ width: '100%', marginTop: 6 }}
-                value={prefs.defaultFolder}
-                placeholder="Leave empty for current working directory"
-                onChange={(e) => setPreference('defaultFolder', e.target.value)}
-              />
+              <div className={styles.folderRow}>
+                <span className={styles.folderPath}>
+                  {prefs.defaultFolder ? (
+                    prefs.defaultFolder.length > 40 ? (
+                      <>
+                        {prefs.defaultFolder.slice(0, 18)}…{prefs.defaultFolder.slice(-18)}
+                      </>
+                    ) : (
+                      prefs.defaultFolder
+                    )
+                  ) : (
+                    <em className={styles.folderPlaceholder}>Current working directory</em>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  className={styles.browseBtn}
+                  onClick={() => setBrowsingFolder(true)}
+                >
+                  Browse…
+                </button>
+                {prefs.defaultFolder && (
+                  <button
+                    type="button"
+                    className={styles.clearBtn}
+                    onClick={() => setPreference('defaultFolder', '')}
+                    aria-label="Clear default folder"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
 
             <div style={{ marginTop: 10 }}>
@@ -541,51 +627,58 @@ export default function SettingsPanel() {
                 style={{ width: '100%', marginTop: 6 }}
                 value={prefs.defaultInitialCommand}
                 placeholder="e.g. npm run dev"
-                onChange={(e) =>
-                  setPreference('defaultInitialCommand', e.target.value)
-                }
+                onChange={(e) => setPreference('defaultInitialCommand', e.target.value)}
               />
             </div>
           </section>
 
-          {/* ── Startup Workspace ────────────────────────────────── */}
+          {/* ── Workspaces ────────────────────────────────────────── */}
           <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Startup Workspace</h3>
+            <h3 className={styles.sectionTitle}>Workspaces</h3>
 
-            <div className={styles.row}>
+            <button type="button" className={styles.primaryBtn} onClick={saveWorkspace}>
+              Save current as workspace
+            </button>
+
+            {saveToast && <div className={styles.saveToast}>{saveToast}</div>}
+
+            <div className={styles.row} style={{ marginTop: 12 }}>
               <span className={styles.rowLabel}>
-                Auto-restore on launch
-                <span className={styles.rowHint}>
-                  Re-open these sessions when TermBeam starts
-                </span>
+                Restore on startup
+                <span className={styles.rowHint}>Re-open these sessions when TermBeam starts</span>
               </span>
               <Toggle
-                on={startup.enabled}
+                on={prefs.startupWorkspace.enabled}
                 ariaLabel="Toggle startup workspace"
-                onChange={setStartupEnabled}
+                onChange={(enabled) =>
+                  setPreference('startupWorkspace', { ...prefs.startupWorkspace, enabled })
+                }
               />
             </div>
 
-            {startup.sessions.length === 0 ? (
+            {prefs.startupWorkspace.sessions.length === 0 ? (
               <p className={styles.empty}>
-                No saved sessions yet. Open the Tools menu in any session and
-                use “Save to startup workspace” to add it.
+                No sessions saved yet. Open some sessions and click Save current as workspace.
               </p>
             ) : (
-              <div className={styles.workspaceList}>
-                {startup.sessions.map((s, i) => (
-                  <div key={s.id} className={styles.workspaceItem}>
-                    <div>
-                      <div>{s.name}</div>
-                      <div className={styles.workspaceMeta}>
-                        {s.kind === 'agent' ? 'Agent' : 'Shell'} · {s.cwd || '~'}
+              <div className={styles.workspaceTileGrid}>
+                {prefs.startupWorkspace.sessions.map((s, i) => (
+                  <div key={s.id} className={styles.workspaceTile}>
+                    <div className={styles.workspaceTileIcon}>
+                      {s.kind === 'agent' ? '🤖' : '🖥'}
+                    </div>
+                    <div className={styles.workspaceTileContent}>
+                      <div className={styles.workspaceTileName}>{s.name}</div>
+                      <div className={styles.workspaceTileCwd}>
+                        {s.cwd.length > 24 ? `…${s.cwd.slice(-24)}` : s.cwd || '~'}
                       </div>
+                      {s.agentId && <div className={styles.workspaceTileAgent}>{s.agentId}</div>}
                     </div>
                     <button
                       type="button"
-                      className={styles.iconBtn}
+                      className={styles.workspaceTileRemove}
                       onClick={() => removeStartupSession(i)}
-                      aria-label={`Remove ${s.name} from startup workspace`}
+                      aria-label={`Remove ${s.name} from workspace`}
                     >
                       ✕
                     </button>
@@ -602,9 +695,7 @@ export default function SettingsPanel() {
               className={styles.linkBtn}
               onClick={() => {
                 if (
-                  confirm(
-                    'Reset all preferences to defaults? This will sync to the server.',
-                  )
+                  confirm('Reset all preferences to defaults? This will sync to the server.')
                 ) {
                   Object.entries(PREF_DEFAULTS).forEach(([k, v]) => {
                     setPreference(k as keyof typeof PREF_DEFAULTS, v as never);
@@ -616,6 +707,7 @@ export default function SettingsPanel() {
             </button>
           </section>
         </div>
+      )}
     </div>
   );
 }

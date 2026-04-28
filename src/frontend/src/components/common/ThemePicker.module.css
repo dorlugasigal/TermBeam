@@ -35,8 +35,8 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 240px;
-  max-height: min(480px, 70vh);
+  width: min(92vw, 360px);
+  max-height: min(70dvh, 600px);
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -47,6 +47,10 @@
   animation: fade-in 0.15s ease;
 }
 
+.dragging {
+  cursor: grabbing;
+}
+
 .header {
   display: flex;
   align-items: center;
@@ -54,6 +58,13 @@
   padding: 0.6rem 0.75rem;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.dragging .header {
+  cursor: grabbing;
 }
 
 .title {

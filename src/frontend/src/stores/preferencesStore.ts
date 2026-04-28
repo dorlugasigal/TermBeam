@@ -11,6 +11,9 @@ export interface TouchBarKey {
   label: string;
   send: string;
   modifier?: 'ctrl' | 'alt' | 'shift';
+  size?: 1 | 2;       // grid column span (default 1)
+  bg?: string;        // CSS color (default unset, falls back to .keyBtn default)
+  color?: string;     // text color (default unset)
 }
 
 export interface StartupSession {

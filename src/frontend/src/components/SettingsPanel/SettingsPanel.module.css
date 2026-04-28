@@ -11,8 +11,7 @@
 
 .panel {
   position: fixed;
-  top: 0;
-  left: 0;
+  /* FIX #1: default to CSS centering (when not dragged) */
   width: min(92vw, 480px);
   max-height: min(80dvh, 720px);
   background: var(--surface);
@@ -23,7 +22,13 @@
   display: flex;
   flex-direction: column;
   animation: fadeIn 150ms ease-out;
-  /* Initial position is set inline via transform; dragging updates it. */
+}
+
+/* FIX #1: when dragOffset is null, use CSS centering */
+.panelCentered {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .panel.dragging {
@@ -208,12 +213,12 @@
   background: #fff;
 }
 
-/* ── Theme picker (popover pattern, mirrors common/ThemePicker) ────── */
-.themeTrigger {
+/* ── FIX #2: Theme button (replaces inline picker) ────── */
+.themeButton {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.65rem;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -225,74 +230,8 @@
     background 0.15s;
 }
 
-.themeTrigger:hover {
+.themeButton:hover {
   border-color: var(--accent);
-}
-
-.themePopover {
-  position: fixed;
-  width: 240px;
-  max-height: min(60vh, 420px);
-  display: flex;
-  flex-direction: column;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  z-index: 1001;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-  animation: fadeIn 0.12s ease;
-}
-
-.themePopoverHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.6rem 0.75rem;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.themePopoverTitle {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.themeList {
-  overflow-y: auto;
-  padding: 0.35rem;
-  flex: 1;
-}
-
-.themeOption {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.6rem;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--text);
-  font-size: 0.82rem;
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-  transition: background 0.1s;
-}
-
-.themeOption:hover {
-  background: var(--bg);
-}
-
-.themeOptionActive {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.themeCheck {
-  margin-left: auto;
-  font-size: 0.75rem;
-  color: var(--accent);
 }
 
 .themeSwatch {
@@ -303,33 +242,351 @@
   flex-shrink: 0;
 }
 
-.keyEditor {
+.themeChevron {
+  font-size: 1.1rem;
+  margin-left: 0.25rem;
+  color: var(--text-secondary);
+}
+
+/* ── FIX #3: Folder browser row ────── */
+.folderRow {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.keyEditorRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr 32px;
-  gap: 6px;
   align-items: center;
+  gap: 6px;
+  margin-top: 6px;
 }
 
-.keyInput {
+.folderPath {
+  flex: 1;
   padding: 6px 8px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text);
   font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folderPlaceholder {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.browseBtn {
+  padding: 6px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.browseBtn:hover {
+  border-color: var(--accent);
+}
+
+.clearBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.clearBtn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* ── FIX #4: Workspaces ────── */
+.primaryBtn {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.primaryBtn:hover {
+  opacity: 0.9;
+}
+
+.saveToast {
+  padding: 6px 10px;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.8rem;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.workspaceTileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.workspaceTile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  position: relative;
+}
+
+.workspaceTileIcon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.workspaceTileContent {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.workspaceTileName {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workspaceTileCwd {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.workspaceTileAgent {
+  font-size: 0.65rem;
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+.workspaceTileRemove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.workspaceTileRemove:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* ── FIX #5: Custom keys editor ────── */
+.keyboardEditor {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.keyboardPreview {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.previewKey {
+  padding: 8px 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.75rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.1s;
+  touch-action: none;
+  user-select: none;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.previewKey:hover {
+  border-color: var(--accent);
+}
+
+.previewKeySelected {
+  border-color: var(--accent);
+  border-width: 2px;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.previewKeyDragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.keyEditorPanel {
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.editorRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editorLabel {
+  font-size: 0.8rem;
+  color: var(--text);
+  min-width: 80px;
+  font-weight: 500;
+}
+
+.keyInput {
+  padding: 6px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.85rem;
   font-family: inherit;
   outline: none;
+  flex: 1;
   min-width: 0;
 }
 
 .keyInput:focus {
   border-color: var(--accent);
+}
+
+.segmentedControl {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.segmentedBtn {
+  padding: 6px 12px;
+  background: var(--surface);
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.segmentedBtn:last-child {
+  border-right: none;
+}
+
+.segmentedBtn:hover {
+  background: var(--bg);
+}
+
+.segmentedBtnActive {
+  background: var(--accent);
+  color: #fff;
+}
+
+.colorRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.colorInput {
+  width: 40px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.colorSwatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.resetBtn {
+  padding: 4px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.resetBtn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.dangerBtn {
+  padding: 6px 12px;
+  background: #d32f2f;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.dangerBtn:hover {
+  background: #c62828;
 }
 
 .linkBtn {
@@ -346,44 +603,20 @@
   text-decoration: underline;
 }
 
-.workspaceList {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.workspaceItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 0.85rem;
-  color: var(--text);
-}
-
-.workspaceMeta {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
 .empty {
   font-size: 0.8rem;
   color: var(--text-secondary);
   font-style: italic;
+  margin: 8px 0;
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(0.96);
+    transform: translate(var(--tx, -50%), var(--ty, -50%)) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(1);
+    transform: translate(var(--tx, -50%), var(--ty, -50%)) scale(1);
   }
 }

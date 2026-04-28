@@ -138,12 +138,16 @@ export default function TouchBar() {
   // bottom modifier row stays predictable and the mic button keeps a stable
   // position). Limit to 7 to match the 8-column grid. Custom keys never
   // carry actions or modifiers — they're plain "send a string" buttons.
-  const effectiveRow1: KeyDef[] = useMemo(() => {
+  // FIX #5: include size, bg, color in the KeyDef mapping.
+  const effectiveRow1: (KeyDef & { size?: number; bg?: string; color?: string })[] = useMemo(() => {
     if (!customKeys || customKeys.length === 0) return ROW1;
     return customKeys.slice(0, 7).map((k: TouchBarKey) => ({
       label: k.label || '·',
       data: k.send,
       type: 'special' as const,
+      size: k.size,
+      bg: k.bg,
+      color: k.color,
     }));
   }, [customKeys]);
   const activeSessionType = useSessionStore(
@@ -471,22 +475,34 @@ export default function TouchBar() {
     return undefined;
   };
 
-  const renderKey = (def: KeyDef) => (
-    <button
-      key={def.label}
-      className={getKeyClassName(def)}
-      data-testid={getTestId(def)}
-      onClick={() => handlePress(def)}
-      onMouseDown={() => handleMouseDown(def)}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onTouchStart={(e) => handleTouchStart(def, e)}
-      onTouchEnd={(e) => handleTouchEnd(def, e)}
-      onTouchCancel={handleMouseUp}
-    >
-      {def.label}
-    </button>
-  );
+  // FIX #5: renderKey now honors size, bg, color for custom keys
+  const renderKey = (def: KeyDef & { size?: number; bg?: string; color?: string }) => {
+    const inlineStyle: React.CSSProperties =
+      customKeys && customKeys.length > 0
+        ? {
+            gridColumn: def.size ? `span ${def.size}` : undefined,
+            background: def.bg,
+            color: def.color,
+          }
+        : {};
+    return (
+      <button
+        key={def.label}
+        className={getKeyClassName(def)}
+        style={inlineStyle}
+        data-testid={getTestId(def)}
+        onClick={() => handlePress(def)}
+        onMouseDown={() => handleMouseDown(def)}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={(e) => handleTouchStart(def, e)}
+        onTouchEnd={(e) => handleTouchEnd(def, e)}
+        onTouchCancel={handleMouseUp}
+      >
+        {def.label}
+      </button>
+    );
+  };
 
   // No inline height adjustment when the keyboard opens: the viewport meta
   // `interactive-widget=resizes-content` already shrinks the layout viewport,
@@ -575,42 +591,28 @@ export default function TouchBar() {
   // Hide touchbar only for copilot CHAT mode (not when showing terminal)
   if (isAgentMode && !showingAgentTerminal) return null;
 
-  if (collapsed) {
-    return (
-      <div className={`${styles.touchBar} ${styles.collapsed}`} data-collapsed="true">
-        <button
-          type="button"
-          className={`${styles.keyBtn} ${styles.special}`}
-          aria-label="Expand TouchBar"
-          aria-expanded="false"
-          onClick={() => setCollapsed(false)}
-          style={{ width: '100%', height: '100%' }}
-        >
-          ▴ Show keys
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div className={styles.touchBar}>
-      <div className={styles.row}>
-        <button
-          type="button"
-          className={`${styles.keyBtn} ${styles.special}`}
-          aria-label="Collapse TouchBar"
-          aria-expanded="true"
-          onClick={() => setCollapsed(true)}
-          style={{ gridColumn: 'span 1' }}
-        >
-          ▾
-        </button>
-        {effectiveRow1.slice(0, 7).map(renderKey)}
-      </div>
-      <div className={styles.row}>
-        {ROW2.map(renderKey)}
-        {micButton}
-      </div>
+    <div className={styles.touchBarWrapper}>
+      <button
+        type="button"
+        className={styles.collapseHandle}
+        aria-label={collapsed ? 'Expand TouchBar' : 'Collapse TouchBar'}
+        aria-expanded={!collapsed}
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        {collapsed ? '▴' : '▾'}
+      </button>
+      {!collapsed && (
+        <div className={styles.touchBar}>
+          <div className={styles.row}>
+            {effectiveRow1.slice(0, 7).map(renderKey)}
+          </div>
+          <div className={`${styles.row} ${styles.row2}`}>
+            {ROW2.map(renderKey)}
+            {micButton}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -59,6 +59,13 @@ function sanitizeTouchBarKeys(input) {
       const mod = entry.modifier.toLowerCase();
       if (mod === 'ctrl' || mod === 'alt' || mod === 'shift') key.modifier = mod;
     }
+    if (entry.size === 1 || entry.size === 2) key.size = entry.size;
+    if (typeof entry.bg === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(entry.bg)) {
+      key.bg = entry.bg;
+    }
+    if (typeof entry.color === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(entry.color)) {
+      key.color = entry.color;
+    }
     out.push(key);
   }
   return out;

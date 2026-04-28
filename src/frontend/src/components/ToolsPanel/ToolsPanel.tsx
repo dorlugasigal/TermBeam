@@ -2,13 +2,12 @@ import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
-import { useThemeStore } from '@/stores/themeStore';
 import { usePreference } from '@/stores/preferencesStore';
-import { THEMES, type ThemeId } from '@/themes/terminalThemes';
 import { deleteSession, renameSession, fetchVersion, getShareUrl } from '@/services/api';
 import { playNotificationSound, setNotificationsEnabled } from '@/services/audio';
 import { isPushSubscribedSync } from '@/services/pushSubscription';
 import { AboutModal } from '@/components/Modals/AboutModal';
+import ThemePicker from '@/components/common/ThemePicker';
 import styles from './ToolsPanel.module.css';
 
 /* ---------- inline SVG icons (16×16, stroke-based) ---------- */
@@ -199,20 +198,6 @@ const iconFontDown = (
     <path d="M3 13L8 3l5 10" />
     <line x1="5" y1="9" x2="11" y2="9" />
     <line x1="11" y1="3" x2="15" y2="3" />
-  </svg>
-);
-
-const iconTheme = (
-  <svg
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="8" cy="8" r="6" />
-    <path d="M8 2a6 6 0 000 12z" fill="currentColor" opacity=".3" />
   </svg>
 );
 
@@ -416,15 +401,10 @@ function fallbackCopy(text: string): void {
 export default function ToolsPanel() {
   const open = useUIStore((s) => s.toolsPanelOpen);
   const close = useUIStore((s) => s.closeToolsPanel);
-  const [showThemes, setShowThemes] = useState(false);
   const notificationsOn = usePreference('notifications');
   const [aboutOpen, setAboutOpen] = useState(false);
   const [aboutVersion, setAboutVersion] = useState('');
   const [pushActive, setPushActive] = useState(() => isPushSubscribedSync());
-
-  const themeId = useThemeStore((s) => s.themeId);
-  const setTheme = useThemeStore((s) => s.setTheme);
-  const themeName = themeId.charAt(0).toUpperCase() + themeId.slice(1);
 
   // Animate open: render always, toggle class
   const [mounted, setMounted] = useState(false);
@@ -447,7 +427,6 @@ export default function ToolsPanel() {
     (fn: () => void) => {
       fn();
       close();
-      setShowThemes(false);
     },
     [close],
   );
@@ -459,69 +438,6 @@ export default function ToolsPanel() {
   }
 
   const panelCls = `${styles.panel} ${mounted ? styles.panelOpen : ''}`;
-
-  if (showThemes) {
-    return (
-      <>
-        <div
-          className={styles.themeBackdrop}
-          onClick={() => {
-            close();
-            setShowThemes(false);
-          }}
-        />
-        <div className={styles.themeFloating} data-testid="theme-subpanel" data-open="true">
-          <div className={styles.header}>
-            <button className={styles.closeBtn} onClick={() => setShowThemes(false)}>
-              ←
-            </button>
-            <span className={styles.title}>Theme</span>
-            <button
-              className={styles.closeBtn}
-              onClick={() => {
-                close();
-                setShowThemes(false);
-              }}
-            >
-              ✕
-            </button>
-          </div>
-          <div className={styles.list}>
-            {THEMES.map((theme) => {
-              const rc = parseInt(theme.bg.slice(1, 3), 16);
-              const gc = parseInt(theme.bg.slice(3, 5), 16);
-              const bc = parseInt(theme.bg.slice(5, 7), 16);
-              const isLight = (rc + gc + bc) / 3 > 140;
-              const isActive = theme.id === themeId;
-              return (
-                <button
-                  key={theme.id}
-                  className={`${styles.themeRow} ${isActive ? styles.themeRowActive : ''}`}
-                  data-testid="theme-item"
-                  data-tid={theme.id}
-                  onClick={() => setTheme(theme.id as ThemeId)}
-                >
-                  <span className={styles.themeBar}>
-                    <span style={{ flex: 40, background: theme.bg }} />
-                    <span style={{ flex: 30, background: theme.surface }} />
-                    <span style={{ flex: 20, background: theme.accent }} />
-                    <span style={{ flex: 10, background: theme.text }} />
-                  </span>
-                  <span
-                    className={styles.themeLabel}
-                    style={isLight ? { color: '#1a1a1a', textShadow: 'none' } : undefined}
-                  >
-                    {theme.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} version={aboutVersion} />
-      </>
-    );
-  }
 
   /* ---- action handlers for new items ---- */
 
@@ -738,12 +654,6 @@ export default function ToolsPanel() {
             }),
         },
         {
-          id: 'theme',
-          label: `Theme (${themeName})`,
-          icon: iconTheme,
-          action: () => setShowThemes(true),
-        },
-        {
           id: 'preview',
           label: 'Preview port',
           icon: iconPreview,
@@ -917,6 +827,11 @@ export default function ToolsPanel() {
                   {a.label}
                 </button>
               ))}
+              {sec.title === 'VIEW' && (
+                <div className={styles.themePickerRow}>
+                  <ThemePicker />
+                </div>
+              )}
             </div>
           ))}
         </div>

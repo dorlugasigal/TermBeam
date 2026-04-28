@@ -25,6 +25,7 @@ interface UIState {
   codeViewerSessionId: string | null;
   codeViewerInitialView: 'files' | 'changes';
   showingAgentTerminal: boolean;
+  themePickerOpen: boolean;
 
   setShowingAgentTerminal: (v: boolean) => void;
   openResumeBrowser: () => void;
@@ -57,6 +58,9 @@ interface UIState {
   setTouchShift: (active: boolean) => void;
   openCodeViewer: (sessionId: string, initialView?: 'files' | 'changes') => void;
   closeCodeViewer: () => void;
+  openThemePicker: () => void;
+  closeThemePicker: () => void;
+  toggleThemePicker: () => void;
 
   /** Handler for TouchBar to interact with the active chat input (Copilot sessions) */
   chatInputHandler: ((text: string) => void) | null;
@@ -90,6 +94,7 @@ export const useUIStore = create<UIState>((set) => ({
   codeViewerSessionId: null,
   codeViewerInitialView: 'files',
   showingAgentTerminal: false,
+  themePickerOpen: false,
 
   setShowingAgentTerminal: (v) => set({ showingAgentTerminal: v }),
   openResumeBrowser: () => set({ resumeBrowserOpen: true }),
@@ -134,6 +139,9 @@ export const useUIStore = create<UIState>((set) => ({
     }),
   closeCodeViewer: () =>
     set({ codeViewerOpen: false, codeViewerSessionId: null, codeViewerInitialView: 'files' }),
+  openThemePicker: () => set({ themePickerOpen: true }),
+  closeThemePicker: () => set({ themePickerOpen: false }),
+  toggleThemePicker: () => set((s) => ({ themePickerOpen: !s.themePickerOpen })),
 
   chatInputHandler: null,
   chatSendHandler: null,
