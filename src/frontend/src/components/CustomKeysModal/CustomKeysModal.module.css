@@ -284,15 +284,30 @@
   grid-template-columns: repeat(8, 1fr);
   gap: 4px;
   padding: 0 2px;
+  /* Make all rows render at consistent height even when partially empty
+   * — placeholder slots inherit the row's min-content height. */
+  grid-auto-rows: 32px;
 }
 
+/* Both rows now use repeat(8, 1fr) so keys are exactly the same width
+ * across rows. The mic occupies one of the 8 slots (typically slot 8
+ * of row 2) — no special trailing 'auto' column. */
 .previewRowWithMic {
-  grid-template-columns: repeat(8, 1fr) auto;
+  /* Same as .previewRow — kept as a separate class only as a hook
+   * for future row-specific styling. */
+  grid-template-columns: repeat(8, 1fr);
+}
+
+/* Empty placeholder slot — dashed outline showing where a key can go. */
+.previewSlot {
+  height: 32px;
+  border: 1.5px dashed color-mix(in srgb, var(--text-dim) 55%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text-dim) 6%, transparent);
+  pointer-events: none;
 }
 
 .previewMic {
-  min-width: 32px;
-  width: 32px;
   display: flex;
   align-items: center;
   justify-content: center;

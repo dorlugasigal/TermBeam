@@ -74,7 +74,9 @@ function sanitizeTouchBarKeys(input) {
     const id = asString(entry.id, '', 64);
     const label = asString(entry.label, '', 16);
     const send = asString(entry.send, '', MAX_SEND_LEN);
-    if (!id || !label) continue;
+    // Only `id` is required — empty label is allowed so the user can
+    // clear the field while editing without losing the key.
+    if (!id) continue;
     const key = { id, label, send };
     if (typeof entry.modifier === 'string') {
       const mod = entry.modifier.toLowerCase();

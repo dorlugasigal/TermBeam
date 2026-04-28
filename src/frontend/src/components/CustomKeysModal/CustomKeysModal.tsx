@@ -759,6 +759,12 @@ function PreviewRow({
   onPointerMove,
   onPointerUp,
 }: PreviewRowProps) {
+  // Compute how many grid slots the keys consume so we can render
+  // placeholder skeleton slots for the rest of the row.
+  const COLS = 8;
+  const usedByKeys = keys.reduce((sum, { k }) => sum + (k.size ?? 1), 0);
+  const usedByMic = hasMicSlot ? 1 : 0;
+  const emptySlots = Math.max(0, COLS - usedByKeys - usedByMic);
   return (
     <div className={`${styles.previewRow} ${hasMicSlot ? styles.previewRowWithMic : ''}`}>
       {keys.map(({ k, i }) => {
@@ -790,10 +796,13 @@ function PreviewRow({
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
           >
-            {k.label}
+            {k.label || '\u00A0'}
           </button>
         );
       })}
+      {Array.from({ length: emptySlots }).map((_, idx) => (
+        <div key={`slot-${idx}`} className={styles.previewSlot} aria-hidden="true" />
+      ))}
       {hasMicSlot && micKey && typeof micIndex === 'number' && (
         <button
           type="button"
@@ -808,6 +817,7 @@ function PreviewRow({
             .filter(Boolean)
             .join(' ')}
           style={{
+            gridColumn: `span 1`,
             background: micKey.bg,
             color: micKey.color,
           }}
