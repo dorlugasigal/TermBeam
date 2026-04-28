@@ -16,10 +16,6 @@
   top: 16px;
 }
 
-.page:has([data-update-banner]) .themePickerWrapper {
-  top: 16px;
-}
-
 .header {
   position: relative;
   padding: calc(20px + env(safe-area-inset-top, 0px)) 16px 12px;
@@ -74,12 +70,6 @@
 
 .refreshBtn {
   right: 56px;
-}
-
-.themePickerWrapper {
-  position: absolute;
-  top: calc(16px + env(safe-area-inset-top, 0px));
-  right: 16px;
 }
 
 .content {

@@ -161,17 +161,35 @@ export default function ThemePicker({ open: controlledOpen, onClose, hideTrigger
             </button>
           </div>
           <div className={styles.list}>
-            {THEMES.map((theme) => (
-              <button
-                key={theme.id}
-                className={`${styles.option} ${theme.id === themeId ? styles.active : ''}`}
-                onClick={() => handleThemeSelect(theme.id as ThemeId)}
-              >
-                <span className={styles.swatch} style={{ background: theme.bg }} />
-                {theme.name}
-                {theme.id === themeId && <span className={styles.checkmark}>✓</span>}
-              </button>
-            ))}
+            {THEMES.map((theme) => {
+              const rc = parseInt(theme.bg.slice(1, 3), 16);
+              const gc = parseInt(theme.bg.slice(3, 5), 16);
+              const bc = parseInt(theme.bg.slice(5, 7), 16);
+              const isLight = (rc + gc + bc) / 3 > 140;
+              const isActive = theme.id === themeId;
+              return (
+                <button
+                  key={theme.id}
+                  className={`${styles.themeRow} ${isActive ? styles.themeRowActive : ''}`}
+                  onClick={() => handleThemeSelect(theme.id as ThemeId)}
+                  aria-label={`Select ${theme.name} theme`}
+                >
+                  <span className={styles.themeBar}>
+                    <span style={{ flex: 40, background: theme.bg }} />
+                    <span style={{ flex: 30, background: theme.surface }} />
+                    <span style={{ flex: 20, background: theme.accent }} />
+                    <span style={{ flex: 10, background: theme.text }} />
+                  </span>
+                  <span
+                    className={styles.themeLabel}
+                    style={isLight ? { color: '#1a1a1a', textShadow: 'none' } : undefined}
+                  >
+                    {theme.name}
+                  </span>
+                  {isActive && <span className={styles.themeCheck}>✓</span>}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

@@ -5,7 +5,6 @@ import { useUIStore } from '@/stores/uiStore';
 import type { Session } from '@/types';
 import UpdateBanner from '@/components/common/UpdateBanner';
 import TunnelBanner from '@/components/common/TunnelBanner';
-import ThemePicker from '@/components/common/ThemePicker';
 import SessionCard from './SessionCard';
 import NewSessionModal from './NewSessionModal';
 import ResumeBrowser from '@/components/ResumeBrowser/ResumeBrowser';
@@ -196,9 +195,6 @@ export default function SessionsHub() {
             <RefreshIcon />
           </span>
         </button>
-        <div className={styles.themePickerWrapper}>
-          <ThemePicker />
-        </div>
       </header>
 
       <main className={styles.content}>
