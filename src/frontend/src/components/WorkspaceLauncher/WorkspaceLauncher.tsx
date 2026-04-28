@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { createSession } from '@/services/api';
-import { usePreferencesStore, type Workspace } from '@/stores/preferencesStore';
+import { usePreferencesStore, type Workspace, type StartupSession } from '@/stores/preferencesStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import styles from './WorkspaceLauncher.module.css';
 
@@ -9,6 +9,20 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onLaunched: (firstSessionId: string | undefined) => void;
+}
+
+function basename(p: string): string {
+  if (!p) return '';
+  const m = p.replace(/\/+$/, '').match(/[^/\\]+$/);
+  return m ? m[0] : p;
+}
+
+function shortenPath(p: string, maxChars = 36): string {
+  if (!p) return '~';
+  if (p.length <= maxChars) return p;
+  const head = p.slice(0, 14);
+  const tail = p.slice(-(maxChars - 16));
+  return `${head}…${tail}`;
 }
 
 /**
@@ -19,12 +33,11 @@ interface Props {
 export default function WorkspaceLauncher({ open, onClose, onLaunched }: Props) {
   const prefs = usePreferencesStore((s) => s.prefs);
   const [launching, setLaunching] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const workspaces = useMemo<Workspace[]>(() => {
     const namedWorkspaces = prefs.workspaces ?? [];
     if (namedWorkspaces.length > 0) return namedWorkspaces;
-    // Legacy fallback — surface the single startup workspace as one entry
-    // so users with old data can still launch it.
     if (prefs.startupWorkspace?.sessions?.length) {
       return [
         {
@@ -36,6 +49,11 @@ export default function WorkspaceLauncher({ open, onClose, onLaunched }: Props) 
     }
     return [];
   }, [prefs]);
+
+  // Auto-expand the first workspace when only one exists
+  useEffect(() => {
+    if (workspaces.length === 1 && workspaces[0]) setExpandedId(workspaces[0].id);
+  }, [workspaces]);
 
   useEffect(() => {
     if (!open) return;
@@ -71,9 +89,6 @@ export default function WorkspaceLauncher({ open, onClose, onLaunched }: Props) 
           });
           if (!firstId) firstId = created.id;
           if (cmd) {
-            // Track on the client so saving this workspace later preserves
-            // the command — without this round-trip, a user who launches
-            // and then re-saves would lose the command.
             useSessionStore.getState().setPendingInitialCommand(created.id, cmd);
             if (!firstWithCommand) firstWithCommand = created.id;
             cmdCount += 1;
@@ -84,14 +99,11 @@ export default function WorkspaceLauncher({ open, onClose, onLaunched }: Props) 
           );
         }
       }
-      const cmdSummary = cmdCount > 0 ? ` · ${cmdCount} initial command${cmdCount === 1 ? '' : 's'} running` : '';
+      const cmdSummary =
+        cmdCount > 0 ? ` · ${cmdCount} initial command${cmdCount === 1 ? '' : 's'} running` : '';
       toast.success(
         `Launched ${ws.sessions.length} session${ws.sessions.length === 1 ? '' : 's'}${cmdSummary}`,
       );
-      // Prefer to land the user on the first session that has an initial
-      // command so they can see it execute (the most common gripe is
-      // "I clicked launch and nothing happened" — which usually means
-      // they landed on a session WITHOUT a command).
       onLaunched(firstWithCommand ?? firstId);
       onClose();
     } finally {
@@ -103,7 +115,14 @@ export default function WorkspaceLauncher({ open, onClose, onLaunched }: Props) 
     <div className={styles.backdrop} onClick={onClose} role="dialog" aria-modal="true">
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <span className={styles.title}>Open Workspace</span>
+          <div className={styles.titleBlock}>
+            <span className={styles.title}>Open Workspace</span>
+            {workspaces.length > 0 && (
+              <span className={styles.subtitle}>
+                {workspaces.length} saved workspace{workspaces.length === 1 ? '' : 's'}
+              </span>
+            )}
+          </div>
           <button className={styles.closeBtn} onClick={onClose} aria-label="Close">
             ✕
           </button>
@@ -111,65 +130,163 @@ export default function WorkspaceLauncher({ open, onClose, onLaunched }: Props) 
         <div className={styles.body}>
           {workspaces.length === 0 ? (
             <div className={styles.empty}>
-              <p>No workspaces saved yet.</p>
+              <div className={styles.emptyIcon} aria-hidden="true">
+                ⊞
+              </div>
+              <p className={styles.emptyTitle}>No workspaces yet</p>
               <p className={styles.emptyHint}>
-                Open <strong>Settings → Workspaces</strong> and click <em>Save current as new
-                workspace</em> after spinning up the sessions you want grouped.
+                Open <strong>Settings → Workspaces</strong> after spinning up the sessions you want
+                grouped, then click <em>Save current as new workspace</em>.
               </p>
             </div>
           ) : (
             <ul className={styles.list}>
-              {workspaces.map((ws) => (
-                <li key={ws.id} className={styles.workspaceItem}>
-                  <div className={styles.workspaceHeader}>
-                    <span className={styles.workspaceName}>{ws.name}</span>
-                    {ws.default && <span className={styles.defaultBadge}>auto-start</span>}
-                    <span className={styles.workspaceCount}>
-                      {ws.sessions.length} session{ws.sessions.length === 1 ? '' : 's'}
-                    </span>
-                  </div>
-                  <ul className={styles.sessionList}>
-                    {ws.sessions.slice(0, 5).map((s) => (
-                      <li key={s.id} className={styles.sessionItem}>
-                        <span
-                          className={styles.sessionColor}
-                          style={{ background: s.color || 'var(--accent)' }}
-                          aria-hidden="true"
-                        />
-                        <div className={styles.sessionBody}>
-                          <span className={styles.sessionName}>{s.name}</span>
-                          {s.initialCommand && (
-                            <code className={styles.sessionCmd} title={s.initialCommand}>
-                              {s.initialCommand}
-                            </code>
+              {workspaces.map((ws) => {
+                const isExpanded = expandedId === ws.id;
+                const cmdCount = ws.sessions.filter((s) => (s.initialCommand ?? '').trim()).length;
+                const agentCount = ws.sessions.filter((s) => s.kind === 'agent').length;
+                return (
+                  <li key={ws.id} className={styles.workspaceItem}>
+                    <button
+                      type="button"
+                      className={styles.workspaceHeader}
+                      onClick={() => setExpandedId(isExpanded ? null : ws.id)}
+                      aria-expanded={isExpanded}
+                    >
+                      <div className={styles.workspaceTitleRow}>
+                        <span className={styles.workspaceName}>{ws.name}</span>
+                        {ws.default && (
+                          <span className={styles.defaultBadge}>auto-start</span>
+                        )}
+                      </div>
+                      <div className={styles.workspaceMetaRow}>
+                        <span className={styles.metaPill}>
+                          {ws.sessions.length} session{ws.sessions.length === 1 ? '' : 's'}
+                        </span>
+                        {agentCount > 0 && (
+                          <span className={styles.metaPillAgent}>
+                            {agentCount} agent{agentCount === 1 ? '' : 's'}
+                          </span>
+                        )}
+                        {cmdCount > 0 && (
+                          <span className={styles.metaPillCmd}>
+                            {cmdCount} command{cmdCount === 1 ? '' : 's'}
+                          </span>
+                        )}
+                        <span className={styles.chevron} aria-hidden="true">
+                          {isExpanded ? '▾' : '▸'}
+                        </span>
+                      </div>
+                      <ColorStrip sessions={ws.sessions} />
+                    </button>
+
+                    {isExpanded && (
+                      <div className={styles.workspaceBody}>
+                        <ul className={styles.sessionList}>
+                          {ws.sessions.map((s) => (
+                            <SessionPreview key={s.id} session={s} />
+                          ))}
+                        </ul>
+                        <button
+                          className={styles.launchBtn}
+                          onClick={() => handleLaunch(ws)}
+                          disabled={launching !== null || ws.sessions.length === 0}
+                        >
+                          {launching === ws.id ? (
+                            <>
+                              <span className={styles.spinner} aria-hidden="true" />
+                              Launching…
+                            </>
+                          ) : (
+                            <>
+                              Launch{' '}
+                              {ws.sessions.length > 1 && (
+                                <span className={styles.launchCount}>
+                                  {ws.sessions.length}
+                                </span>
+                              )}
+                            </>
                           )}
-                        </div>
-                      </li>
-                    ))}
-                    {ws.sessions.length > 5 && (
-                      <li className={styles.sessionMore}>
-                        + {ws.sessions.length - 5} more
-                      </li>
+                        </button>
+                      </div>
                     )}
-                  </ul>
-                  <button
-                    className={styles.launchBtn}
-                    onClick={() => handleLaunch(ws)}
-                    disabled={launching !== null}
-                  >
-                    {launching === ws.id ? 'Launching…' : 'Launch'}
-                  </button>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
-        <div className={styles.footer}>
-          <button className={styles.cancelBtn} onClick={onClose}>
-            Close
-          </button>
-        </div>
       </div>
     </div>
+  );
+}
+
+function ColorStrip({ sessions }: { sessions: StartupSession[] }) {
+  if (sessions.length === 0) return null;
+  return (
+    <div className={styles.colorStrip} aria-hidden="true">
+      {sessions.slice(0, 12).map((s, i) => (
+        <span
+          key={s.id + i}
+          className={styles.colorStripSegment}
+          style={{ background: s.color || 'var(--accent)' }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function SessionPreview({ session }: { session: StartupSession }) {
+  const cwdShort = shortenPath(session.cwd || '~');
+  const cwdLeaf = basename(session.cwd || '');
+  return (
+    <li className={styles.sessionItem}>
+      <span
+        className={styles.sessionColorBar}
+        style={{ background: session.color || 'var(--accent)' }}
+        aria-hidden="true"
+      />
+      <div className={styles.sessionMain}>
+        <div className={styles.sessionTopRow}>
+          <span className={styles.sessionName}>{session.name}</span>
+          <span
+            className={`${styles.kindBadge} ${
+              session.kind === 'agent' ? styles.kindBadgeAgent : styles.kindBadgeTerminal
+            }`}
+          >
+            {session.kind === 'agent' ? 'Agent' : 'Terminal'}
+          </span>
+        </div>
+        <div className={styles.sessionPath} title={session.cwd || '~'}>
+          <span className={styles.pathIcon} aria-hidden="true">
+            ⌘
+          </span>
+          <span className={styles.pathDir}>{cwdLeaf || '~'}</span>
+          <span className={styles.pathFull}>{cwdShort}</span>
+        </div>
+        {session.initialCommand && (
+          <div className={styles.sessionCmdRow} title={session.initialCommand}>
+            <span className={styles.cmdLabel}>$</span>
+            <code className={styles.cmdText}>{session.initialCommand}</code>
+          </div>
+        )}
+        {(session.shell || (session.kind === 'agent' && session.agentId)) && (
+          <div className={styles.sessionMeta}>
+            {session.shell && (
+              <span className={styles.metaItem}>
+                <span className={styles.metaKey}>shell</span>
+                <code>{basename(session.shell)}</code>
+              </span>
+            )}
+            {session.kind === 'agent' && session.agentId && (
+              <span className={styles.metaItem}>
+                <span className={styles.metaKey}>agent</span>
+                <code>{session.agentId}</code>
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </li>
   );
 }

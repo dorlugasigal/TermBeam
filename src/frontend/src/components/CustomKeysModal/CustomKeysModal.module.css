@@ -274,7 +274,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 8px;
-  background: var(--surface);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
 }
@@ -295,6 +295,46 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* The preview key only adds *interaction* affordances (selection ring,
+ * drag/drop highlights). Visual styling — background, border, shadow,
+ * font-size, etc. — comes from `touchBarStyles.keyBtn` + the .special /
+ * .modifier / .icon / .keyEnter / .keyDanger preset class so the preview
+ * matches the live touchbar pixel-for-pixel. */
+.previewKey {
+  position: relative;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  transition:
+    transform 0.05s,
+    outline-color 0.1s;
+}
+
+.previewKey:hover {
+  outline: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 1px;
+}
+
+.previewKey:active {
+  transform: scale(0.97);
+}
+
+.previewKeySelected {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.previewKeyDragging {
+  opacity: 0.3;
+  cursor: grabbing;
+}
+
+.previewKeyDropTarget {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
 }
 
 .sendPicker {
@@ -361,52 +401,6 @@
   border-radius: 999px;
   color: var(--text-secondary);
   font-weight: 500;
-}
-
-.previewKey {
-  padding: 10px 4px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
-  font-size: 0.78rem;
-  font-weight: 500;
-  text-align: center;
-  cursor: pointer;
-  transition:
-    border-color 0.1s,
-    transform 0.05s;
-  touch-action: none;
-  user-select: none;
-  min-height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.previewKey:hover {
-  border-color: var(--accent);
-}
-
-.previewKey:active {
-  transform: scale(0.97);
-}
-
-.previewKeySelected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent);
-}
-
-.previewKeyDragging {
-  opacity: 0.3;
-  cursor: grabbing;
-}
-
-.previewKeyDropTarget {
-  position: relative;
-  outline: 2px dashed var(--accent);
-  outline-offset: 2px;
-  background: color-mix(in srgb, var(--accent) 18%, transparent) !important;
 }
 
 .dragGhost {
