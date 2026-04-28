@@ -681,6 +681,8 @@ export default function TouchBar() {
           className={styles.collapseHandle}
           aria-label={collapsed ? 'Expand TouchBar' : 'Collapse TouchBar'}
           aria-expanded={!collapsed}
+          onMouseDown={(e) => e.preventDefault()}
+          onTouchStart={(e) => e.preventDefault()}
           onClick={() => setCollapsed(!collapsed)}
         />
         <div className={styles.rows} aria-hidden={collapsed}>

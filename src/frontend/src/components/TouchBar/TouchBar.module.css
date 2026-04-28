@@ -216,9 +216,11 @@
   padding: 0 2px;
 }
 
-/* ROW2 has an extra auto-sized slot at the end for the mic button */
+/* Both rows use the same 8-column grid so keys are the same width across
+ * rows. The mic button (last child of row 2) lives inside the 8th
+ * column, not in an auto-sized trailing slot. */
 .row2 {
-  grid-template-columns: repeat(8, 1fr) auto;
+  grid-template-columns: repeat(8, 1fr);
   position: relative;
 }
 
