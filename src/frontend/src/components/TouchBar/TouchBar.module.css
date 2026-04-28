@@ -212,8 +212,12 @@
   }
 }
 
+/* When the mobile keyboard is open the bar should be visually
+ * transparent (no gradient) so the OS keyboard underneath shows
+ * through cleanly. !important ensures it wins against the gradient
+ * declarations on .touchBar and .touchBarWrapper[data-collapsed]. */
 :global([data-keyboard-open]) .touchBar {
-  background: transparent;
+  background: transparent !important;
 }
 
 .row {
