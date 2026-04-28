@@ -22,14 +22,14 @@
    * keys actually need above the home indicator — clamp it down so the
    * bar doesn't get a giant dead zone below the keys. */
   padding: 36px 4px max(8px, env(safe-area-inset-bottom, 0px) - 14px);
-  /* Use a noticeably lifted surface (key-special-bg ≈ #333 in dark mode
-   * is clearly distinct from the terminal --bg #1e1e1e). The bar reads
-   * as a real "shelf" against the terminal underneath. Subtle darken
-   * toward the bottom adds a little depth without blending into black. */
+  /* Subtle "shelf" — barely lifted from the terminal background, with a
+   * clear accent-tinted top border doing the heavy lifting for visual
+   * separation. The interior fades down to match the terminal --bg so
+   * the bar feels grounded instead of being a bright slab. */
   background: linear-gradient(
     to bottom,
-    var(--key-special-bg, #2a2a2c) 0%,
-    color-mix(in srgb, var(--key-special-bg, #2a2a2c) 65%, var(--bg, #1e1e1e)) 100%
+    color-mix(in srgb, var(--surface, #252526) 70%, var(--bg, #1e1e1e)) 0%,
+    var(--bg, #1e1e1e) 100%
   );
   display: flex;
   flex-direction: column;
@@ -37,7 +37,7 @@
   justify-content: center;
   overflow: hidden;
   position: relative;
-  border-top: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-top: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
   transition:
     height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
@@ -53,7 +53,7 @@
 .touchBarWrapper[data-collapsed='true'] .touchBar {
   height: calc(30px + max(8px, env(safe-area-inset-bottom, 0px) - 14px));
   padding: 0 4px max(8px, env(safe-area-inset-bottom, 0px) - 14px);
-  background: var(--key-special-bg, #2a2a2c);
+  background: color-mix(in srgb, var(--surface, #252526) 70%, var(--bg, #1e1e1e));
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.35);
   transition:
     height 0.32s cubic-bezier(0.4, 0, 0.2, 1) 0.15s,
