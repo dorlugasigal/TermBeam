@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.0] - 2026-04-28
+
+- chore(ci): bump the all-actions group with 6 updates (#223) (@dependabot[bot])
+- chore(deps): bump node from 22-slim to 25-slim in the all-docker group (#221) (@dependabot[bot])
+- chore(deps): bump the all-npm group with 2 updates (#222) (@dependabot[bot])
+- feat(frontend): redesign Tools menu and unify user preferences (#225) (@dorlugasigal)
+
 ## [1.22.5] - 2026-04-27
 
 - fix(websocket): prevent duplicate lines on reconnect via replay snapshot (@dorlugasigal)
