@@ -19,6 +19,7 @@ import ResumeBrowser from '@/components/ResumeBrowser/ResumeBrowser';
 import NewSessionModal from '@/components/SessionsHub/NewSessionModal';
 import { UploadModal } from '@/components/Modals/UploadModal';
 import { PreviewModal } from '@/components/Modals/PreviewModal';
+import SettingsPanel from '@/components/SettingsPanel/SettingsPanel';
 import CopyOverlay from '@/components/Overlays/CopyOverlay';
 import type { Session } from '@/types';
 import styles from './TerminalApp.module.css';
@@ -40,6 +41,7 @@ export function TerminalApp() {
 
   const openSearchBar = useUIStore((s) => s.openSearchBar);
   const toggleToolsPanel = useUIStore((s) => s.toggleToolsPanel);
+  const toggleSettingsPanel = useUIStore((s) => s.toggleSettingsPanel);
   const closeToolsPanel = useUIStore((s) => s.closeToolsPanel);
   const closeSearchBar = useUIStore((s) => s.closeSearchBar);
   const openSidePanel = useUIStore((s) => s.openSidePanel);
@@ -363,6 +365,10 @@ export function TerminalApp() {
         e.preventDefault();
         openSearchBar();
       }
+      if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+        e.preventDefault();
+        toggleSettingsPanel();
+      }
       if (e.key === 'Escape') {
         if (codeViewerOpen) {
           e.preventDefault();
@@ -394,6 +400,7 @@ export function TerminalApp() {
   }, [
     toggleToolsPanel,
     openSearchBar,
+    toggleSettingsPanel,
     closeToolsPanel,
     closeSearchBar,
     showDownload,
@@ -612,6 +619,7 @@ export function TerminalApp() {
       <NewSessionModal onCreated={handleNewSessionCreated} />
       <UploadModal />
       <PreviewModal />
+      <SettingsPanel />
       <CopyOverlay />
       <ResumeBrowser />
 
