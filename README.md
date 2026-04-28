@@ -72,7 +72,8 @@ termbeam -i                     # interactive setup wizard
 ### Productivity
 
 - **Terminal search** with regex, match count, and prev/next navigation
-- **Command palette** (Ctrl+K / Cmd+K) for quick access to all actions
+- **Tools menu** (Ctrl+K / Cmd+K) for quick access to all actions, organized into **Session · Files · View · Share · Agents · Settings · System**
+- **Settings drawer** (Cmd/Ctrl+,) — non-blocking sheet for theme, font size, default folder + initial command, custom TouchBar keys, haptics, and a startup workspace that auto-creates sessions on launch. Preferences are server-synced (`~/.termbeam/prefs.json`) so phone, tablet and laptop share the same settings.
 - **File upload** — send files from your phone to the session's working directory
 - **File browser & download** — browse files in a session's working directory from the side panel and download them to your device
 - **Markdown viewer** — preview `.md` files rendered with GitHub Flavored Markdown directly in the browser

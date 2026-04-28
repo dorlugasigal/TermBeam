@@ -50,18 +50,34 @@ TermBeam auto-detects your current shell by inspecting the parent process tree. 
 The environment variables `PTY_PASSWORD` and `PTY_CWD` are also supported as fallbacks for `TERMBEAM_PASSWORD` and `TERMBEAM_CWD` respectively.
 :::
 
-## Client-Side Settings (localStorage)
+## Settings (UI)
 
-The browser UI stores the following preferences in `localStorage`:
+TermBeam ships a dedicated **Settings** drawer for visual and behavioral preferences. Open it from the **Tools** menu (▦ button or `Ctrl/Cmd+K`) → **Settings…**, or with the `Cmd/Ctrl+,` keyboard shortcut.
 
-| Key                      | Description                                               | Default |
-| ------------------------ | --------------------------------------------------------- | ------- |
-| `termbeam-notifications` | Command completion notifications enabled (`true`/`false`) | `true`  |
-| `termbeam-font-size`     | Terminal font size                                        | `14`    |
-| `termbeam-theme`         | Light/dark theme preference                               | `dark`  |
-| `termbeam-tab-order`     | Saved tab order (JSON array of session IDs)               | None    |
+The drawer is intentionally non-blocking: on mobile it slides down from the top and leaves the bottom of the screen (terminal cursor area + TouchBar) visible so theme, font size, "Start collapsed" and haptic-feedback changes can be observed live. On desktop it appears as a 420 px right-side drawer.
 
-These settings are per-browser and persist across sessions. They can be cleared by the user via the browser's developer tools or the Refresh button in the toolbar.
+Sections:
+
+- **Appearance** — theme picker (live preview cards) and font-size slider.
+- **Notifications & Feedback** — command-completion notifications, haptic feedback on TouchBar key presses.
+- **Touch Bar** — start collapsed by default; customize the top row of keys (label + literal `send` payload, capped at 7 keys to fit the grid); reset to defaults.
+- **New Session Defaults** — default folder and default initial command pre-fills used by new sessions.
+- **Startup Workspace** — opt-in list of sessions to auto-create on launch (snapshot from current sessions, drag to reorder, remove individual entries).
+
+### Where preferences are stored
+
+Preferences are now persisted **server-side** in `~/.termbeam/prefs.json` (mode `0o600`) via the authenticated `GET /api/preferences` and `PUT /api/preferences` endpoints. The browser keeps a `localStorage` cache (`termbeam-prefs`) for instant first paint and offline UX, but the server file is the source of truth — opening TermBeam from a phone, tablet and laptop against the same instance gets the same settings.
+
+The legacy device-local keys below are still read once on first load after upgrade and migrated into the unified store; they remain device-only:
+
+| Key                          | Description                                              |
+| ---------------------------- | -------------------------------------------------------- |
+| `termbeam-tab-order`         | Saved tab order (JSON array of session IDs).             |
+| `termbeam-hub-filter`        | Last-used filter on the SessionsHub page.                |
+| `termbeam-push-subscribed`   | Whether the browser is subscribed to push notifications. |
+| `termbeam-review-comments:*` | Per-PR review-comment state (Copilot integration).       |
+
+These can be cleared at any time via the browser's developer tools.
 
 ## Subcommands
 
@@ -164,9 +180,10 @@ termbeam --persisted-tunnel --password mysecret
 
 <!-- prettier-ignore -->
 :::tip[Persisted vs Ephemeral Tunnels]
+
 - `--tunnel` — Creates a fresh tunnel each time, deleted on shutdown. Good for one-off use.
 - `--persisted-tunnel` — Saves the tunnel ID to `~/.termbeam/tunnel.json` and reuses it across restarts (30-day expiry). The URL stays the same so you can bookmark it on your phone. To get a fresh URL, just switch back to `--tunnel`.
-:::
+  :::
 
 <!-- prettier-ignore -->
 :::caution
