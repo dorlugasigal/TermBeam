@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { useUIStore } from '@/stores/uiStore';
 import {
   usePreferencesStore,
@@ -44,11 +44,207 @@ function Toggle({
   );
 }
 
+/**
+ * Theme picker mirroring the original ThemePicker concept:
+ * a small trigger button shows the current theme; clicking it opens a
+ * fixed-position popover list of themes.
+ */
+function ThemePickerInline({
+  themeId,
+  setTheme,
+}: {
+  themeId: ThemeId;
+  setTheme: (id: ThemeId) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  const currentTheme = THEMES.find((t) => t.id === themeId) ?? THEMES[0]!;
+
+  const place = useCallback(() => {
+    const trig = triggerRef.current;
+    if (!trig) return;
+    const r = trig.getBoundingClientRect();
+    const POP_W = 240;
+    const POP_H = Math.min(window.innerHeight * 0.6, 420);
+    let left = r.right - POP_W;
+    if (left < 8) left = 8;
+    if (left + POP_W > window.innerWidth - 8) left = window.innerWidth - POP_W - 8;
+    let top = r.bottom + 4;
+    if (top + POP_H > window.innerHeight - 8) top = r.top - POP_H - 4;
+    if (top < 8) top = 8;
+    setPos({ top, left });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    place();
+    const onResize = () => place();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('scroll', onResize, true);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', onResize, true);
+    };
+  }, [open, place]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(target) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(target)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocDown);
+    return () => document.removeEventListener('mousedown', onDocDown);
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={styles.themeTrigger}
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Pick theme"
+      >
+        <span className={styles.themeSwatch} style={{ background: currentTheme.bg }} />
+        {currentTheme.name}
+      </button>
+      {open && pos && (
+        <div
+          ref={popoverRef}
+          className={styles.themePopover}
+          style={{ top: pos.top, left: pos.left }}
+          role="listbox"
+        >
+          <div className={styles.themePopoverHeader}>
+            <span className={styles.themePopoverTitle}>Theme</span>
+            <button
+              type="button"
+              className={styles.closeBtn}
+              onClick={() => setOpen(false)}
+              aria-label="Close theme picker"
+            >
+              ✕
+            </button>
+          </div>
+          <div className={styles.themeList}>
+            {THEMES.map((t) => {
+              const active = t.id === themeId;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  className={`${styles.themeOption} ${active ? styles.themeOptionActive : ''}`}
+                  onClick={() => {
+                    setTheme(t.id as ThemeId);
+                    setOpen(false);
+                  }}
+                >
+                  <span className={styles.themeSwatch} style={{ background: t.bg }} />
+                  {t.name}
+                  {active && <span className={styles.themeCheck}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function SettingsPanel() {
   const open = useUIStore((s) => s.settingsPanelOpen);
   const close = useUIStore((s) => s.closeSettingsPanel);
   const prefs = usePreferencesStore((s) => s.prefs);
   const setPreference = usePreferencesStore((s) => s.setPreference);
+
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const dragOffset = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+
+  // Center panel on first open; reset if closed.
+  useEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    // Defer to next frame so the panel has measured dimensions.
+    const id = requestAnimationFrame(() => {
+      const el = panelRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const x = Math.max(8, (window.innerWidth - r.width) / 2);
+      const y = Math.max(8, (window.innerHeight - r.height) / 3);
+      setPos({ x, y });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [open]);
+
+  const clamp = useCallback((x: number, y: number) => {
+    const el = panelRef.current;
+    if (!el) return { x, y };
+    const r = el.getBoundingClientRect();
+    const maxX = window.innerWidth - r.width - 8;
+    const maxY = window.innerHeight - 40;
+    return {
+      x: Math.min(Math.max(8, x), Math.max(8, maxX)),
+      y: Math.min(Math.max(8, y), Math.max(8, maxY)),
+    };
+  }, []);
+
+  const onHeaderPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      const el = panelRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      dragOffset.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      setDragging(true);
+    },
+    [],
+  );
+
+  const onHeaderPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!dragging) return;
+      const next = clamp(
+        e.clientX - dragOffset.current.dx,
+        e.clientY - dragOffset.current.dy,
+      );
+      setPos(next);
+    },
+    [dragging, clamp],
+  );
+
+  const onHeaderPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!dragging) return;
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {
+        // ignore — capture may have been released already
+      }
+      setDragging(false);
+    },
+    [dragging],
+  );
 
   // Esc to close.
   useEffect(() => {
@@ -125,28 +321,44 @@ export default function SettingsPanel() {
 
   if (!open) return null;
 
-  return (
-    <>
-      <div className={styles.scrim} onClick={close} aria-hidden />
-      <div
-        className={styles.panel}
-        role="dialog"
-        aria-label="Settings"
-        aria-modal="false"
-      >
-        <div className={styles.header}>
-          <h2 className={styles.title}>Settings</h2>
-          <button
-            type="button"
-            className={styles.closeBtn}
-            onClick={close}
-            aria-label="Close settings"
-          >
-            ✕
-          </button>
-        </div>
+  const panelStyle: React.CSSProperties = pos
+    ? { transform: `translate(${pos.x}px, ${pos.y}px)`, opacity: 1 }
+    : { opacity: 0, pointerEvents: 'none' };
 
-        <div className={styles.body}>
+  return (
+    <div
+      ref={panelRef}
+      className={`${styles.panel} ${dragging ? styles.dragging : ''}`}
+      style={panelStyle}
+      role="dialog"
+      aria-label="Settings"
+      aria-modal="false"
+    >
+      <div
+        className={styles.header}
+        onPointerDown={onHeaderPointerDown}
+        onPointerMove={onHeaderPointerMove}
+        onPointerUp={onHeaderPointerUp}
+        onPointerCancel={onHeaderPointerUp}
+      >
+        <span className={styles.handle}>
+          <span className={styles.handleDots} aria-hidden>
+            ⋮⋮
+          </span>
+          <span className={styles.title}>Settings</span>
+        </span>
+        <button
+          type="button"
+          className={styles.closeBtn}
+          onClick={close}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label="Close settings"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div className={styles.body}>
           {/* ── Appearance ───────────────────────────────────────── */}
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Appearance</h3>
@@ -179,26 +391,12 @@ export default function SettingsPanel() {
               </div>
             </div>
 
-            <div>
+            <div className={styles.row}>
               <span className={styles.rowLabel}>Theme</span>
-              <div className={styles.themeGrid}>
-                {THEMES.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    className={`${styles.themeOption} ${
-                      t.id === prefs.themeId ? styles.themeOptionActive : ''
-                    }`}
-                    onClick={() => setPreference('themeId', t.id as ThemeId)}
-                  >
-                    <span
-                      className={styles.themeSwatch}
-                      style={{ background: t.bg }}
-                    />
-                    {t.name}
-                  </button>
-                ))}
-              </div>
+              <ThemePickerInline
+                themeId={prefs.themeId as ThemeId}
+                setTheme={(id) => setPreference('themeId', id)}
+              />
             </div>
           </section>
 
@@ -418,7 +616,6 @@ export default function SettingsPanel() {
             </button>
           </section>
         </div>
-      </div>
-    </>
+    </div>
   );
 }
