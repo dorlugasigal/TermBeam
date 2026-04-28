@@ -35,6 +35,23 @@ function genKeyId(): string {
   return `k_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+/** Collapse any empty rows and renumber the remaining ones to 1..N so the
+ *  touchbar never has gaps (e.g. row 2 existing without row 1). Called after
+ *  every mutation to keep the layout normalised — prevents phantom rows
+ *  appearing in the live preview after drag/drop or delete. */
+function pruneAndRenumberRows(keys: TouchBarKey[]): TouchBarKey[] {
+  const usedRows = Array.from(new Set(keys.map((k) => k.row ?? 1))).sort(
+    (a, b) => a - b,
+  );
+  const rowMap = new Map<number, number>();
+  usedRows.forEach((r, i) => rowMap.set(r, i + 1));
+  return keys.map((k) => {
+    const oldRow = k.row ?? 1;
+    const newRow = rowMap.get(oldRow) ?? 1;
+    return newRow === oldRow ? k : { ...k, row: newRow };
+  });
+}
+
 function lookClass(style: TouchBarKey['style']): string {
   switch (style) {
     case 'accent':
@@ -134,7 +151,7 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
     if (open && prefs.touchBarKeys === null) {
       setPreference(
         'touchBarKeys',
-        DEFAULT_TOUCHBAR_KEYS.map((k) => ({ ...k })),
+        pruneAndRenumberRows(DEFAULT_TOUCHBAR_KEYS.map((k) => ({ ...k }))),
       );
     }
   }, [open, prefs.touchBarKeys, setPreference]);
@@ -187,7 +204,7 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
     (idx: number, patch: Partial<TouchBarKey>) => {
       const list = prefs.touchBarKeys ?? [];
       const next = list.map((k, i) => (i === idx ? { ...k, ...patch } : k));
-      setPreference('touchBarKeys', next);
+      setPreference('touchBarKeys', pruneAndRenumberRows(next));
     },
     [prefs.touchBarKeys, setPreference],
   );
@@ -253,11 +270,11 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
     const next = [...list];
     if (micIdx >= 0) {
       next.splice(micIdx, 0, newKey);
-      setPreference('touchBarKeys', next);
+      setPreference('touchBarKeys', pruneAndRenumberRows(next));
       setSelectedKeyIndex(micIdx);
     } else {
       next.push(newKey);
-      setPreference('touchBarKeys', next);
+      setPreference('touchBarKeys', pruneAndRenumberRows(next));
       setSelectedKeyIndex(next.length - 1);
     }
   }, [prefs.touchBarKeys, setPreference]);
@@ -266,7 +283,7 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
     (idx: number) => {
       const list = prefs.touchBarKeys ?? [];
       const next = list.filter((_, i) => i !== idx);
-      setPreference('touchBarKeys', next);
+      setPreference('touchBarKeys', pruneAndRenumberRows(next));
       if (selectedKeyIndex === idx) setSelectedKeyIndex(null);
       else if (selectedKeyIndex != null && selectedKeyIndex > idx)
         setSelectedKeyIndex(selectedKeyIndex - 1);
@@ -343,19 +360,32 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
           const targetCol = target.col ?? 1;
           list[draggedKeyIndex] = { ...dragged, row: targetRow, col: targetCol };
           list[dropTargetIndex] = { ...target, row: draggedRow, col: draggedCol };
-          setPreference('touchBarKeys', list);
+          setPreference('touchBarKeys', pruneAndRenumberRows(list));
           setSelectedKeyIndex(draggedKeyIndex);
         }
       }
       // Drop on an empty slot — set the dragged key's row + col to that
-      // exact slot. Other keys stay where they are.
+      // exact slot, but clamp the target row so we never create a row that
+      // sits beyond (currentMaxRow + 1) or pushes total rows past 3.
+      // pruneAndRenumberRows then collapses any newly-empty source row.
       else if (dragged && dropTargetRow !== null && dropTargetSlotInRow !== null) {
+        const otherRows = list
+          .filter((_, i) => i !== draggedKeyIndex)
+          .map((k) => k.row ?? 1);
+        const currentMaxRow = otherRows.length > 0 ? Math.max(...otherRows) : 0;
+        const maxAllowedRow = Math.min(currentMaxRow + 1, 3);
+        let targetRow = dropTargetRow;
+        if (targetRow > maxAllowedRow) targetRow = maxAllowedRow;
+        if (targetRow < 1) targetRow = 1;
+        let targetCol = dropTargetSlotInRow;
+        if (targetCol < 1) targetCol = 1;
+        if (targetCol > 8) targetCol = 8;
         list[draggedKeyIndex] = {
           ...dragged,
-          row: dropTargetRow,
-          col: dropTargetSlotInRow,
+          row: targetRow,
+          col: targetCol,
         };
-        setPreference('touchBarKeys', list);
+        setPreference('touchBarKeys', pruneAndRenumberRows(list));
         setSelectedKeyIndex(draggedKeyIndex);
       }
       setDraggedKeyIndex(null);
@@ -419,8 +449,10 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
   const draggedKey = draggedKeyIndex !== null ? customKeys[draggedKeyIndex] : null;
 
   // Split for preview — group keys by their explicit `row` field so the
-  // Group preview keys by row (1, 2, or 3). Mic key (if present) is rendered
-  // separately inside its own row.
+  // preview only ever shows rows that contain at least one key. Empty
+  // rows are intentionally not rendered (even during drag) — that used to
+  // create phantom rows where the dragged key would visually appear in
+  // the wrong row. Use "+ Add key" to create a new row instead.
   const micPreviewIndex = customKeys.findIndex((k) => k.action === 'mic');
   const rowsForPreview: Array<{ row: number; entries: { k: TouchBarKey; i: number }[] }> = [];
   for (const r of [1, 2, 3] as const) {
@@ -430,18 +462,6 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
       entries.push({ k, i });
     });
     if (entries.length > 0) rowsForPreview.push({ row: r, entries });
-  }
-  // Also expose a row 1+2+3 array even if a row is empty so the user can
-  // still drop into rows 2 / 3 when those rows are currently invisible.
-  const visibleRowNums = new Set(rowsForPreview.map((r) => r.row));
-  for (const r of [1, 2, 3] as const) {
-    if (!visibleRowNums.has(r) && r <= 3 && rowsForPreview.length < 3) {
-      // Add an empty row as a drop target, but only if dragging is in
-      // progress so we don't always show 3 rows.
-      if (draggedKeyIndex !== null) {
-        rowsForPreview.push({ row: r, entries: [] });
-      }
-    }
   }
   // Sort by row number.
   rowsForPreview.sort((a, b) => a.row - b.row);

@@ -193,10 +193,10 @@ describe('SessionManager', () => {
     ({ SessionManager } = require('../../src/server/sessions'));
     const mgr2 = new SessionManager();
     mgr2.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp', initialCommand: 'htop' });
-    // The mock PTY in this test setup may emit data immediately (triggers
-    // the on-first-output path with a 200ms delay) or never (triggers the
-    // 2s hard fallback). Wait long enough to cover both.
-    await new Promise((r) => setTimeout(r, 2200));
+    // The mock PTY emits no data, so only the hard fallback (3500ms) can
+    // fire — the idle-after-last-chunk path is never triggered. Wait long
+    // enough to cover the fallback.
+    await new Promise((r) => setTimeout(r, 3700));
     assert.ok(
       writeCalls.includes('htop\r'),
       'pty.write should be called with initialCommand + \\r',

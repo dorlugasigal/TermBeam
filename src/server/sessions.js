@@ -207,30 +207,40 @@ class SessionManager {
       _initialCommandSent: false,
     };
 
-    // Send the initial command after the shell has had a moment to print
-    // its first prompt. We do TWO things to be robust against slow shells
-    // (zsh + oh-my-zsh + powerlevel10k can take 1-2s to render the
-    // prompt):
-    //   1. Wait for the FIRST burst of PTY output (the prompt being
-    //      painted) and then schedule the write 200ms later.
-    //   2. Hard fallback after 2s in case the shell never emits anything
-    //      we can detect — better to fire the command than never to.
+    // Send the initial command only AFTER the shell has fully painted
+    // its first prompt. Slow shells (zsh + oh-my-zsh + powerlevel10k)
+    // emit the prompt incrementally over 1-2s; writing into a partial
+    // prompt can drop keystrokes (especially with p10k instant prompt,
+    // which paints a fake prompt and then swaps in the real one).
+    //
+    // Strategy: fire IDLE_MS after the LAST observed PTY chunk. When
+    // output goes quiet the shell has finished painting and is ready for
+    // input. The idle timer is reset on every onData, so the write is
+    // pushed out as long as the shell keeps producing bytes.
+    //
+    // Hard fallback at HARD_FALLBACK_MS catches shells that never emit
+    // anything we can detect — better to fire the command than never to.
     if (initialCommand) {
       log.info(
         `Queuing initialCommand for session ${id} (${initialCommand.length} chars): ${JSON.stringify(initialCommand.slice(0, 80))}`,
       );
+      const IDLE_MS = 600;
+      const HARD_FALLBACK_MS = 3500;
+      let idleTimer = null;
+      let hardFallback = null;
       const send = () => {
         if (session._initialCommandSent) return;
         session._initialCommandSent = true;
+        if (idleTimer) clearTimeout(idleTimer);
+        if (hardFallback) clearTimeout(hardFallback);
         log.info(`Writing initialCommand to session ${id}`);
         ptyProcess.write(initialCommand + '\r');
       };
-      // Hard fallback so we always fire eventually
-      setTimeout(send, 2000);
-      // Also listen for the first chunk of output and fire 200ms later
-      // (gives the shell time to finish painting its prompt).
-      session._initialCommandSendOnFirstOutput = () => {
-        setTimeout(send, 200);
+      hardFallback = setTimeout(send, HARD_FALLBACK_MS);
+      session._initialCommandResetIdle = () => {
+        if (session._initialCommandSent) return;
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(send, IDLE_MS);
       };
     }
 
@@ -238,15 +248,12 @@ class SessionManager {
       session.lastActivity = Date.now();
       session.scrollbackBuf += data;
 
-      // Fire the initialCommand as soon as we see the FIRST chunk of PTY
-      // output (the shell painting its prompt). The send() inside the
-      // callback is itself debounced behind a 200ms timeout so the prompt
-      // finishes rendering before we type. Hard fallback at 2s catches
-      // shells that emit nothing observable.
-      if (session._initialCommandSendOnFirstOutput) {
-        const trigger = session._initialCommandSendOnFirstOutput;
-        session._initialCommandSendOnFirstOutput = null;
-        trigger();
+      // Reset the initialCommand idle timer on every PTY chunk. The
+      // command is fired IDLE_MS after the LAST chunk (the shell is
+      // quiet → prompt fully painted → safe to type). Hard fallback in
+      // create() catches shells that emit nothing observable.
+      if (session._initialCommandResetIdle) {
+        session._initialCommandResetIdle();
       }
 
       // Silence-based notification: only active when the shell has a direct
