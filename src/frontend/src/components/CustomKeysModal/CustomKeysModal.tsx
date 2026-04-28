@@ -119,10 +119,11 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
 
   const [selectedKeyIndex, setSelectedKeyIndex] = useState<number | null>(null);
   const [draggedKeyIndex, setDraggedKeyIndex] = useState<number | null>(null);
-  // Drop target can be either an existing key (number = its index) OR
-  // an empty slot in a row (object = the target row to land in).
+  // Drop target can be either an existing key (its array index) OR a
+  // specific empty slot identified by row + position within the row.
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const [dropTargetRow, setDropTargetRow] = useState<number | null>(null);
+  const [dropTargetSlotInRow, setDropTargetSlotInRow] = useState<number | null>(null);
   const [ghostPos, setGhostPos] = useState<{ x: number; y: number } | null>(null);
   const [sendTab, setSendTab] = useState<SendTab>('text');
 
@@ -144,6 +145,7 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
       setDraggedKeyIndex(null);
       setDropTargetIndex(null);
       setDropTargetRow(null);
+      setDropTargetSlotInRow(null);
       setGhostPos(null);
     } else {
       closeBtnRef.current?.focus();
@@ -255,19 +257,22 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
           return;
         }
       }
-      // 2) Hovering on an empty placeholder slot — set the target row
+      // 2) Hovering on an empty placeholder slot — set the target row + position
       const slot = target.closest('[data-empty-slot-row]') as HTMLElement | null;
       if (slot) {
         const row = parseInt(slot.dataset.emptySlotRow ?? '-1', 10);
-        if (row >= 1) {
+        const pos = parseInt(slot.dataset.emptySlotIndex ?? '-1', 10);
+        if (row >= 1 && pos >= 0) {
           setDropTargetIndex(null);
           setDropTargetRow(row);
+          setDropTargetSlotInRow(pos);
           return;
         }
       }
       // 3) Otherwise clear so a release here is a no-op
       setDropTargetIndex(null);
       setDropTargetRow(null);
+      setDropTargetSlotInRow(null);
     },
     [draggedKeyIndex],
   );
@@ -313,6 +318,7 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
       setDraggedKeyIndex(null);
       setDropTargetIndex(null);
       setDropTargetRow(null);
+      setDropTargetSlotInRow(null);
       setGhostPos(null);
     },
     [draggedKeyIndex, dropTargetIndex, dropTargetRow, customKeys, setPreference],
@@ -730,6 +736,7 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
               draggedKeyIndex={draggedKeyIndex}
               dropTargetIndex={dropTargetIndex}
               dropTargetRow={dropTargetRow}
+              dropTargetSlotInRow={dropTargetSlotInRow}
               onSelect={setSelectedKeyIndex}
               onPointerDown={onKeyPreviewPointerDown}
               onPointerMove={onKeyPreviewPointerMove}
@@ -745,6 +752,7 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
               draggedKeyIndex={draggedKeyIndex}
               dropTargetIndex={dropTargetIndex}
               dropTargetRow={dropTargetRow}
+              dropTargetSlotInRow={dropTargetSlotInRow}
               onSelect={setSelectedKeyIndex}
               onPointerDown={onKeyPreviewPointerDown}
               onPointerMove={onKeyPreviewPointerMove}
@@ -791,6 +799,7 @@ interface PreviewRowProps {
   draggedKeyIndex: number | null;
   dropTargetIndex: number | null;
   dropTargetRow: number | null;
+  dropTargetSlotInRow: number | null;
   onSelect: (idx: number) => void;
   onPointerDown: (e: React.PointerEvent, idx: number) => void;
   onPointerMove: (e: React.PointerEvent) => void;
@@ -807,6 +816,7 @@ function PreviewRow({
   draggedKeyIndex,
   dropTargetIndex,
   dropTargetRow,
+  dropTargetSlotInRow,
   onSelect,
   onPointerDown,
   onPointerMove,
@@ -854,12 +864,13 @@ function PreviewRow({
         );
       })}
       {Array.from({ length: emptySlots }).map((_, idx) => {
-        const isActiveDrop = dropTargetRow === row;
+        const isActiveDrop = dropTargetRow === row && dropTargetSlotInRow === idx;
         return (
           <div
             key={`slot-${idx}`}
             className={`${styles.previewSlot} ${isActiveDrop ? styles.previewSlotActive : ''}`}
             data-empty-slot-row={row}
+            data-empty-slot-index={idx}
             aria-hidden="true"
           />
         );

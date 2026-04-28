@@ -93,9 +93,25 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
               list.find((s) => s.path === shellData.defaultShell);
             setShell(def?.cmd ?? list[0]?.cmd ?? '');
           }
-          if (!cwd && shellData.cwd) {
-            setCwd(shellData.cwd);
-            deriveNameFromCwd(shellData.cwd);
+          // The shells fetch is async — by the time it resolves, the
+          // defaultFolder seed effect may have already populated cwd.
+          // Prefer the saved defaultFolder over the server's reported cwd
+          // so the user's preference always wins. Read both directly from
+          // the live stores to dodge stale React closures.
+          const livePrefs = usePreferencesStore.getState().prefs;
+          const liveDefaultFolder = livePrefs.defaultFolder;
+          if (liveDefaultFolder) {
+            // defaultFolder is being seeded by the other effect; nothing
+            // to do here. Just derive a session name from it if needed.
+            if (!nameManuallyEdited) deriveNameFromCwd(liveDefaultFolder);
+            return;
+          }
+          // No defaultFolder pref — fall back to the server's cwd.
+          // Use a setter callback so we read the latest cwd state, not
+          // the stale closure from when the effect started.
+          if (shellData.cwd) {
+            setCwd((current) => current || shellData.cwd);
+            if (!nameManuallyEdited) deriveNameFromCwd(shellData.cwd);
           }
         });
       fetchAgents()
