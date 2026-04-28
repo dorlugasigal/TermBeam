@@ -3,32 +3,33 @@ import type { TouchBarKey } from '@/stores/preferencesStore';
 /**
  * Default touch bar layout — two rows of 8 slots each.
  *
- * ROW1: Esc, Copy, Paste, Home, End, ↑, Enter(2 slots) = 8 slots
- * ROW2: Ctrl, Shift, Tab, ^C, ←, ↓, →, Mic (auto slot)  = 8 slots
+ * ROW1: Esc(1), Copy(2), Paste(3), Home(4), End(5), ↑(6), Enter(7-8) = 8 slots
+ * ROW2: Ctrl(1), Shift(2), Tab(3), ^C(4), ←(5), ↓(6), →(7), Mic(8) = 8 slots
  *
- * Each key carries its row explicitly so that deleting/reordering a key
- * never shifts unrelated keys into different slots. Within a row, keys
- * fill from left in array order.
+ * Each key declares both row + col so deleting/dragging never moves
+ * unrelated keys. The rendered grid uses gridColumnStart=col and
+ * gridColumn ends at col+size, so empty positions render as drop slots
+ * the user can drop other keys onto.
  */
 export const DEFAULT_TOUCHBAR_KEYS: TouchBarKey[] = [
   // Row 1
-  { id: 'esc', label: 'Esc', send: '\x1b', style: 'plain', row: 1 },
-  { id: 'copy', label: 'Copy', send: '', style: 'plain', action: 'copy', row: 1 },
-  { id: 'paste', label: 'Paste', send: '', style: 'plain', action: 'paste', row: 1 },
-  { id: 'home', label: 'Home', send: '\x1b[H', style: 'plain', row: 1 },
-  { id: 'end', label: 'End', send: '\x1b[F', style: 'plain', row: 1 },
-  { id: 'up', label: '↑', send: '\x1b[A', style: 'plain', row: 1 },
-  { id: 'enter', label: '↵', send: '\r', style: 'accent', size: 2, row: 1 },
+  { id: 'esc', label: 'Esc', send: '\x1b', style: 'plain', row: 1, col: 1 },
+  { id: 'copy', label: 'Copy', send: '', style: 'plain', action: 'copy', row: 1, col: 2 },
+  { id: 'paste', label: 'Paste', send: '', style: 'plain', action: 'paste', row: 1, col: 3 },
+  { id: 'home', label: 'Home', send: '\x1b[H', style: 'plain', row: 1, col: 4 },
+  { id: 'end', label: 'End', send: '\x1b[F', style: 'plain', row: 1, col: 5 },
+  { id: 'up', label: '↑', send: '\x1b[A', style: 'plain', row: 1, col: 6 },
+  { id: 'enter', label: '↵', send: '\r', style: 'accent', size: 2, row: 1, col: 7 },
   // Row 2
-  { id: 'ctrl', label: 'Ctrl', send: '', style: 'plain', modifier: 'ctrl', row: 2 },
-  { id: 'shift', label: 'Shift', send: '', style: 'plain', modifier: 'shift', row: 2 },
-  { id: 'tab', label: 'Tab', send: '\x09', style: 'plain', row: 2 },
-  { id: 'ctrl-c', label: '^C', send: '\x03', style: 'danger', row: 2 },
-  { id: 'left', label: '←', send: '\x1b[D', style: 'plain', row: 2 },
-  { id: 'down', label: '↓', send: '\x1b[B', style: 'plain', row: 2 },
-  { id: 'right', label: '→', send: '\x1b[C', style: 'plain', row: 2 },
-  // Mic action — renders in row 2's auto slot
-  { id: 'mic', label: 'Mic', send: '', style: 'plain', action: 'mic', row: 2 },
+  { id: 'ctrl', label: 'Ctrl', send: '', style: 'plain', modifier: 'ctrl', row: 2, col: 1 },
+  { id: 'shift', label: 'Shift', send: '', style: 'plain', modifier: 'shift', row: 2, col: 2 },
+  { id: 'tab', label: 'Tab', send: '\x09', style: 'plain', row: 2, col: 3 },
+  { id: 'ctrl-c', label: '^C', send: '\x03', style: 'danger', row: 2, col: 4 },
+  { id: 'left', label: '←', send: '\x1b[D', style: 'plain', row: 2, col: 5 },
+  { id: 'down', label: '↓', send: '\x1b[B', style: 'plain', row: 2, col: 6 },
+  { id: 'right', label: '→', send: '\x1b[C', style: 'plain', row: 2, col: 7 },
+  // Mic action — renders in row 2's last slot
+  { id: 'mic', label: 'Mic', send: '', style: 'plain', action: 'mic', row: 2, col: 8 },
 ];
 
 /** Map from a TouchBarKey "look" preset to the display name shown in the

@@ -15,19 +15,15 @@
  * (over the iPhone home-indicator zone for a tighter look) but the
  * interactive keys stay inset above the safe area. */
 .touchBar {
-  /* Total visible height: 36px (handle + gap) + 32px row + 4px gap + 32px row + 4px = 108px.
-   * Bottom padding goes to 0 — iOS will still respect its OS-level home
-   * indicator overlay; we don't need to add our own dead zone. */
+  /* Dynamic height + 36px padding-top reserved for the toggle handle.
+   * Bottom padding is small — iOS overlays its home indicator over our
+   * content so we don't need our own dead zone. */
   height: 108px;
   padding: 36px 4px 4px;
-  /* Subtle gradient from the terminal --bg (top) fading to a slightly
-   * darker tone at the bottom so the bar feels grounded against the
-   * terminal without introducing a bright shelf. */
-  background: linear-gradient(
-    to bottom,
-    var(--bg) 0%,
-    color-mix(in srgb, var(--bg) 88%, #000) 100%
-  );
+  /* Mirror the top nav bar gradient (TerminalApp.module.css) so the
+   * touchbar reads as the same surface family — surface at the top,
+   * fading to terminal --bg at the bottom. */
+  background: linear-gradient(to bottom, var(--surface) 0%, var(--surface) 35%, var(--bg) 100%);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -45,11 +41,7 @@
 .touchBarWrapper[data-collapsed='true'] .touchBar {
   height: 26px;
   padding: 0 4px 4px;
-  background: linear-gradient(
-    to bottom,
-    var(--bg) 0%,
-    color-mix(in srgb, var(--bg) 88%, #000) 100%
-  );
+  background: var(--surface);
   border: none;
   box-shadow: none;
   transition:

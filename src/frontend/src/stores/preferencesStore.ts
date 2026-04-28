@@ -19,10 +19,12 @@ export interface TouchBarKey {
   action?: KeyAction;
   /** Grid column span (1-8, default 1). */
   size?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
-  /** Which row this key belongs to (1-based; default 1). Slots within a
-   *  row are filled in array order — deleting a key leaves empty space at
-   *  the end of its row instead of pulling other keys forward. */
+  /** Which row this key belongs to (1-3; default 1). Capped at 3 — the
+   *  touchbar UI doesn't render row 4+ keys to keep the bar compact. */
   row?: number;
+  /** Starting column within the row (1-based, 1-8; default = leftmost
+   *  free position). Lets users drop keys onto specific empty slots. */
+  col?: number;
   bg?: string;
   color?: string;
   style?: KeyLook;
@@ -54,34 +56,59 @@ function migrateTouchBarKey(k: TouchBarKey): TouchBarKey {
   return next;
 }
 
-/** Auto-assign `row` to legacy keys (those without an explicit row) by
- *  packing them into 8-column rows in array order. Keys that already have
- *  a `row` are left alone. Mic action keys always belong to the same row
- *  as the last grid key (they render in the auto slot). */
+/** Auto-assign `row` and `col` to legacy keys that don't have them.
+ *  Packs left-to-right into 8-col rows in array order, capped at 3 rows.
+ *  Mic action keys always belong to the same row as the last grid key. */
 function assignDefaultRows(keys: TouchBarKey[]): TouchBarKey[] {
   const COLS = 8;
+  const MAX_ROWS = 3;
   if (keys.length === 0) return keys;
-  if (keys.every((k) => typeof k.row === 'number' && k.row >= 1)) return keys;
+  const allHaveRowCol = keys.every(
+    (k) =>
+      typeof k.row === 'number' &&
+      k.row >= 1 &&
+      k.row <= MAX_ROWS &&
+      typeof k.col === 'number' &&
+      k.col >= 1,
+  );
+  if (allHaveRowCol) return keys;
+
   const out: TouchBarKey[] = [];
   let currentRow = 1;
-  let currentSpan = 0;
+  let currentCol = 1;
   for (const k of keys) {
     if (k.action === 'mic') {
-      out.push({ ...k, row: currentRow });
+      out.push({ ...k, row: Math.min(currentRow, MAX_ROWS), col: 8 });
       continue;
     }
-    if (typeof k.row === 'number' && k.row >= 1) {
+    if (
+      typeof k.row === 'number' &&
+      k.row >= 1 &&
+      k.row <= MAX_ROWS &&
+      typeof k.col === 'number'
+    ) {
       out.push(k);
-      if (k.row > currentRow) currentRow = k.row;
+      if (k.row > currentRow) {
+        currentRow = k.row;
+        currentCol = (k.col ?? 1) + (k.size ?? 1);
+      }
       continue;
     }
     const span = k.size ?? 1;
-    if (currentSpan + span > COLS) {
+    if (currentCol + span - 1 > COLS) {
       currentRow += 1;
-      currentSpan = 0;
+      currentCol = 1;
+      if (currentRow > MAX_ROWS) {
+        // Drop overflow keys silently rather than render off-screen.
+        continue;
+      }
     }
-    out.push({ ...k, row: currentRow });
-    currentSpan += span;
+    out.push({
+      ...k,
+      row: currentRow,
+      col: currentCol,
+    });
+    currentCol += span;
   }
   return out;
 }

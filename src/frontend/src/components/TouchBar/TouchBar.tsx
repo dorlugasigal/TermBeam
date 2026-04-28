@@ -35,6 +35,9 @@ interface KeyDef {
   modifier?: 'ctrl' | 'shift' | 'meta';
   action?: 'copy' | 'paste' | 'cancel' | 'newline' | 'send' | 'mic';
   size?: number;
+  /** 1-based starting column in the 8-column grid. Optional — when
+   *  unset, CSS grid auto-flows the key to the next empty slot. */
+  col?: number;
   bg?: string;
   color?: string;
   /** Stable identity for React keys + mic special-case rendering */
@@ -65,6 +68,7 @@ function touchBarKeyToDef(k: TouchBarKey): KeyDef {
     data: k.send,
     type: mapStyle(styleType),
     size: k.size,
+    col: k.col,
     bg: k.bg,
     color: k.color,
     // 'alt' is not wired to a UI toggle yet → drop it. 'meta' passes through
@@ -177,48 +181,44 @@ export default function TouchBar() {
     setTouchBarCollapsedLive(collapsed);
   }, [collapsed, setTouchBarCollapsedLive]);
 
-  // Also publish the bar's actual height as a CSS variable on :root so
-  // .terminalArea (in TerminalApp.module.css) can size itself dynamically
-  // — the terminal needs to grow when the bar collapses.
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const root = document.documentElement;
-    root.style.setProperty('--touchbar-height', collapsed ? '26px' : '108px');
-    return () => {
-      root.style.removeProperty('--touchbar-height');
-    };
-  }, [collapsed]);
-  // When the user has defined custom keys, that array becomes the SINGLE
-  // source for the entire touch bar (both rows + mic). Default behavior
-  // (customKeys === null) is identical to using DEFAULT_TOUCHBAR_KEYS.
-  //
-  // Layout: filter mic action keys aside, take up to 14 grid keys, split
-  // into row1 (first 7) + row2 (next 7); the mic action key, if present,
-  // renders in the auto slot at the end of row2. This keeps the mic in a
-  // stable place while still letting the user remove it via Customize.
   const effectiveKeys = useMemo<TouchBarKey[]>(
     () => (customKeys && customKeys.length > 0 ? customKeys : DEFAULT_TOUCHBAR_KEYS),
     [customKeys],
   );
   const micKey = useMemo(() => effectiveKeys.find((k) => k.action === 'mic'), [effectiveKeys]);
-  // Group non-mic grid keys by their `row` field (default 1). Within a row,
-  // keys appear in array order with each spanning `size` columns. Empty
-  // slots at the end of a row stay empty — deleting a key never shifts
-  // unrelated keys into different positions.
-  const effectiveRow1 = useMemo(
-    () =>
-      effectiveKeys
-        .filter((k) => k.action !== 'mic' && (k.row ?? 1) === 1)
-        .map(touchBarKeyToDef),
-    [effectiveKeys],
-  );
-  const effectiveRow2 = useMemo(
-    () =>
-      effectiveKeys
-        .filter((k) => k.action !== 'mic' && (k.row ?? 1) === 2)
-        .map(touchBarKeyToDef),
-    [effectiveKeys],
-  );
+
+  // Group keys by row (1, 2, or 3). Keys with no row default to row 1.
+  // The number of distinct rows in use drives the bar height.
+  const rowGroups = useMemo(() => {
+    const groups: Record<1 | 2 | 3, TouchBarKey[]> = { 1: [], 2: [], 3: [] };
+    for (const k of effectiveKeys) {
+      const r = Math.min(3, Math.max(1, k.row ?? 1)) as 1 | 2 | 3;
+      groups[r].push(k);
+    }
+    return groups;
+  }, [effectiveKeys]);
+
+  const rowCount = useMemo(() => {
+    let last = 1;
+    for (const r of [1, 2, 3] as const) {
+      if (rowGroups[r].length > 0) last = r;
+    }
+    return last;
+  }, [rowGroups]);
+
+  // Publish bar height as a CSS var so .terminalArea sizes itself
+  // dynamically. Height = handle padding (36) + N rows of 32 + (N-1) gaps
+  // of 4 + 4 bottom padding = 36 + 32N + 4(N-1) + 4 = 36N + 36 = 36*(N+1)
+  // For N=2: 108, for N=3: 144.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    const expandedH = 36 + rowCount * 32 + (rowCount - 1) * 4 + 4;
+    root.style.setProperty('--touchbar-height', collapsed ? '26px' : `${expandedH}px`);
+    return () => {
+      root.style.removeProperty('--touchbar-height');
+    };
+  }, [collapsed, rowCount]);
   const activeSessionType = useSessionStore(
     (s) => (s.activeId ? s.sessions.get(s.activeId)?.type : undefined),
   );
@@ -571,12 +571,20 @@ export default function TouchBar() {
   // when the user has set custom keys (so the built-in defaults can't be
   // accidentally repainted by inline-style spread).
   const renderKey = (
-    def: KeyDef & { size?: number; bg?: string; color?: string },
+    def: KeyDef & { size?: number; col?: number; bg?: string; color?: string },
     index?: number,
   ) => {
     const hasCustom = !!(customKeys && customKeys.length > 0);
+    // Use explicit grid placement when the key declares a col, so it lands
+    // exactly at slot N regardless of array order. Falls back to span-only
+    // (CSS grid auto-flow) when col is missing — keeps legacy behaviour.
+    const gridColumn = def.col
+      ? `${def.col} / span ${def.size ?? 1}`
+      : def.size
+        ? `span ${def.size}`
+        : undefined;
     const inlineStyle: React.CSSProperties = {
-      ...(def.size ? { gridColumn: `span ${def.size}` } : {}),
+      ...(gridColumn ? { gridColumn } : {}),
       ...(hasCustom && def.bg ? { background: def.bg } : {}),
       ...(hasCustom && def.color ? { color: def.color } : {}),
     };
@@ -617,11 +625,12 @@ export default function TouchBar() {
 
   if (keyboardOpen && isLandscapeTight) return null;
 
+  const micCol = micKey?.col ?? 8;
   const micButton = SpeechRecognitionAPI ? (
     <button
       className={`${styles.keyBtn} ${styles.special} ${styles.micBtn} ${styles.keyAnimIn} ${isRecording ? styles.recording : ''} ${micLocked ? styles.micLocked : ''}`}
       data-testid="mic-btn"
-      style={{ '--key-i': 14 } as React.CSSProperties}
+      style={{ '--key-i': 14, gridColumn: `${micCol} / span 1` } as React.CSSProperties}
       onMouseDown={(e) => {
         e.preventDefault();
         if (micLocked) {
@@ -704,13 +713,23 @@ export default function TouchBar() {
           onClick={() => setCollapsed(!collapsed)}
         />
         <div className={styles.rows} aria-hidden={collapsed}>
-          <div className={styles.row}>
-            {effectiveRow1.map((k, i) => renderKey(k, i))}
-          </div>
-          <div className={`${styles.row} ${styles.row2}`}>
-            {effectiveRow2.map((k, i) => renderKey(k, i + 7))}
-            {micKey && micButton}
-          </div>
+          {([1, 2, 3] as const).map((rowNum) => {
+            if (rowGroups[rowNum].length === 0) return null;
+            const rowKeys = rowGroups[rowNum];
+            // Mic is rendered separately for its hold-to-record behaviour;
+            // exclude it from the regular renderKey loop.
+            const nonMicKeys = rowKeys.filter((k) => k.action !== 'mic');
+            const rowMic = rowKeys.find((k) => k.action === 'mic');
+            const startIndex = (rowNum - 1) * 8;
+            return (
+              <div key={`row-${rowNum}`} className={styles.row}>
+                {nonMicKeys.map((k, i) =>
+                  renderKey(touchBarKeyToDef(k), startIndex + i),
+                )}
+                {rowMic === micKey && micKey && micButton}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

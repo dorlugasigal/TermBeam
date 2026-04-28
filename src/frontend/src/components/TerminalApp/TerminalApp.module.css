@@ -17,7 +17,7 @@
   padding-top: env(safe-area-inset-top, 0px);
   display: flex;
   align-items: center;
-  background: linear-gradient(to bottom, transparent 0%, transparent 35%, var(--bg) 100%);
+  background: linear-gradient(to bottom, var(--surface) 0%, var(--surface) 35%, var(--bg) 100%);
   gap: 2px;
   position: fixed;
   top: 0;
