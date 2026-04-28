@@ -139,7 +139,7 @@ Create a new session.
 }
 ```
 
-All fields are optional. If `initialCommand` is provided, it will be sent to the shell after startup. If `color` is omitted, a color is assigned automatically from a built-in palette. The optional `cols` and `rows` fields set the initial terminal size (defaults to 120×30 if omitted).
+All fields are optional. If `initialCommand` is provided, it will be sent to the shell after startup (capped at 8192 characters — longer values are rejected with `400 initialCommand too long`). If `color` is omitted, a color is assigned automatically from a built-in palette. The optional `cols` and `rows` fields set the initial terminal size (defaults to 120×30 if omitted).
 
 The `shell` field is validated against the list of detected shells (see `GET /api/shells`). The `cwd` field must be an absolute path to an existing directory.
 
