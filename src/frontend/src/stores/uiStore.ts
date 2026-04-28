@@ -9,6 +9,8 @@ interface UIState {
   searchBarOpen: boolean;
   sidePanelOpen: boolean;
   newSessionModalOpen: boolean;
+  newSessionModalInitialMode: 'terminal' | 'copilot' | null;
+  settingsPanelOpen: boolean;
   uploadModalOpen: boolean;
   previewModalOpen: boolean;
   downloadModalOpen: boolean;
@@ -34,8 +36,11 @@ interface UIState {
   closeSearchBar: () => void;
   openSidePanel: () => void;
   closeSidePanel: () => void;
-  openNewSessionModal: () => void;
+  openNewSessionModal: (initialMode?: 'terminal' | 'copilot') => void;
   closeNewSessionModal: () => void;
+  openSettingsPanel: () => void;
+  closeSettingsPanel: () => void;
+  toggleSettingsPanel: () => void;
   openUploadModal: () => void;
   closeUploadModal: () => void;
   openPreviewModal: () => void;
@@ -69,6 +74,8 @@ export const useUIStore = create<UIState>((set) => ({
   searchBarOpen: false,
   sidePanelOpen: false,
   newSessionModalOpen: false,
+  newSessionModalInitialMode: null,
+  settingsPanelOpen: false,
   uploadModalOpen: false,
   previewModalOpen: false,
   downloadModalOpen: false,
@@ -94,8 +101,13 @@ export const useUIStore = create<UIState>((set) => ({
   closeSearchBar: () => set({ searchBarOpen: false }),
   openSidePanel: () => set({ sidePanelOpen: true }),
   closeSidePanel: () => set({ sidePanelOpen: false }),
-  openNewSessionModal: () => set({ newSessionModalOpen: true }),
-  closeNewSessionModal: () => set({ newSessionModalOpen: false }),
+  openNewSessionModal: (initialMode) =>
+    set({ newSessionModalOpen: true, newSessionModalInitialMode: initialMode ?? null }),
+  closeNewSessionModal: () =>
+    set({ newSessionModalOpen: false, newSessionModalInitialMode: null }),
+  openSettingsPanel: () => set({ settingsPanelOpen: true }),
+  closeSettingsPanel: () => set({ settingsPanelOpen: false }),
+  toggleSettingsPanel: () => set((s) => ({ settingsPanelOpen: !s.settingsPanelOpen })),
   openUploadModal: () => set({ uploadModalOpen: true }),
   closeUploadModal: () => set({ uploadModalOpen: false }),
   openPreviewModal: () => set({ previewModalOpen: true }),

@@ -44,7 +44,7 @@ function uniqueName(base: string, existing: Set<string>): string {
 }
 
 export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
-  const { newSessionModalOpen, closeNewSessionModal } = useUIStore();
+  const { newSessionModalOpen, closeNewSessionModal, newSessionModalInitialMode } = useUIStore();
   // Shared state
   const [sessionMode, setSessionMode] = useState<'terminal' | 'copilot'>('terminal');
   const [name, setName] = useState('');
@@ -76,6 +76,9 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
 
   useEffect(() => {
     if (newSessionModalOpen) {
+      if (newSessionModalInitialMode) {
+        setSessionMode(newSessionModalInitialMode);
+      }
       fetchShells()
         .catch(() => ({ shells: [], defaultShell: '', cwd: '' }))
         .then((shellData) => {

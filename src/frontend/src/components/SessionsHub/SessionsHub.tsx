@@ -350,7 +350,7 @@ export default function SessionsHub() {
       <div className={styles.hubFooter}>
         <button
           className={styles.newSessionBtn}
-          onClick={openNewSessionModal}
+          onClick={() => openNewSessionModal()}
           aria-label="New session"
           data-testid="hub-new-session-btn"
         >

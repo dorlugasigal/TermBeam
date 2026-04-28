@@ -351,6 +351,48 @@ const iconResume = (
   </svg>
 );
 
+const iconBrowse = (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M2 4a1 1 0 011-1h3l1.5 1.5H13a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" />
+  </svg>
+);
+
+const iconLaunch = (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M11 2l3 3-7 7H4v-3l7-7z" />
+    <path d="M2 14l3-1" />
+  </svg>
+);
+
+const iconSettings = (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="8" cy="8" r="2" />
+    <path d="M13 8a5 5 0 00-.1-1l1.4-1-1.5-2.6-1.7.5a5 5 0 00-1.7-1L9 1H7l-.4 1.8a5 5 0 00-1.7 1l-1.7-.5L1.7 6l1.4 1A5 5 0 003 8a5 5 0 00.1 1l-1.4 1 1.5 2.6 1.7-.5a5 5 0 001.7 1L7 15h2l.4-1.8a5 5 0 001.7-1l1.7.5L14.3 10l-1.4-1A5 5 0 0013 8z" />
+  </svg>
+);
+
+
 /* ---------- clipboard fallback for non-secure (HTTP) contexts ---------- */
 
 function fallbackCopy(text: string): void {
@@ -592,22 +634,22 @@ export default function ToolsPanel() {
           action: () => run(() => useUIStore.getState().openNewSessionModal()),
         },
         {
-          id: 'upload',
-          label: 'Upload files',
-          icon: iconUpload,
-          action: () => run(() => useUIStore.getState().openUploadModal()),
+          id: 'find',
+          label: 'Find in terminal',
+          icon: iconSearch,
+          action: () => run(() => useUIStore.getState().openSearchBar()),
         },
         {
-          id: 'download',
-          label: 'Download file',
-          icon: iconDownload,
-          action: () => run(() => useUIStore.getState().openDownloadModal()),
+          id: 'rename',
+          label: 'Rename session',
+          icon: iconRename,
+          action: handleRename,
         },
         {
-          id: 'markdown',
-          label: 'View markdown',
-          icon: iconMarkdown,
-          action: () => run(() => useUIStore.getState().openMarkdownModal()),
+          id: 'split',
+          label: splitLabel,
+          icon: splitIcon,
+          action: () => run(() => useSessionStore.getState().toggleSplit()),
         },
         {
           id: 'close-tab',
@@ -629,39 +671,46 @@ export default function ToolsPanel() {
             }),
         },
         {
-          id: 'rename',
-          label: 'Rename session',
-          icon: iconRename,
-          action: handleRename,
-        },
-        {
-          id: 'split',
-          label: splitLabel,
-          icon: splitIcon,
-          action: () => run(() => useSessionStore.getState().toggleSplit()),
-        },
-        {
           id: 'stop',
           label: 'Stop session',
           icon: iconStop,
           action: handleStop,
         },
-        {
-          id: 'resume-agent',
-          label: 'Resume agent session',
-          icon: iconResume,
-          action: () => run(() => useUIStore.getState().openResumeBrowser()),
-        },
       ],
     },
     {
-      title: 'SEARCH',
+      title: 'FILES',
       actions: [
         {
-          id: 'find',
-          label: 'Find in terminal',
-          icon: iconSearch,
-          action: () => run(() => useUIStore.getState().openSearchBar()),
+          id: 'browse',
+          label: 'Browse files',
+          icon: iconBrowse,
+          action: () =>
+            run(() => {
+              const { activeId, sessions: sess } = useSessionStore.getState();
+              if (!activeId) return;
+              const ms = sess.get(activeId);
+              const ptyId = ms?.type === 'copilot' ? (ms.companionTermId ?? activeId) : activeId;
+              useUIStore.getState().openCodeViewer(ptyId, 'files');
+            }),
+        },
+        {
+          id: 'upload',
+          label: 'Upload files',
+          icon: iconUpload,
+          action: () => run(() => useUIStore.getState().openUploadModal()),
+        },
+        {
+          id: 'download',
+          label: 'Download file',
+          icon: iconDownload,
+          action: () => run(() => useUIStore.getState().openDownloadModal()),
+        },
+        {
+          id: 'markdown',
+          label: 'View markdown',
+          icon: iconMarkdown,
+          action: () => run(() => useUIStore.getState().openMarkdownModal()),
         },
       ],
     },
@@ -764,6 +813,23 @@ export default function ToolsPanel() {
       ],
     },
     {
+      title: 'AGENTS',
+      actions: [
+        {
+          id: 'launch-agent',
+          label: 'Launch agent',
+          icon: iconLaunch,
+          action: () => run(() => useUIStore.getState().openNewSessionModal('copilot')),
+        },
+        {
+          id: 'resume-agent',
+          label: 'Resume agent session',
+          icon: iconResume,
+          action: () => run(() => useUIStore.getState().openResumeBrowser()),
+        },
+      ],
+    },
+    {
       title: 'NOTIFICATIONS',
       actions: [
         {
@@ -775,6 +841,17 @@ export default function ToolsPanel() {
             : 'Notifications (off)',
           icon: iconBell,
           action: handleNotifications,
+        },
+      ],
+    },
+    {
+      title: 'SETTINGS',
+      actions: [
+        {
+          id: 'settings',
+          label: 'Settings…',
+          icon: iconSettings,
+          action: () => run(() => useUIStore.getState().openSettingsPanel()),
         },
       ],
     },
