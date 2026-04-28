@@ -95,6 +95,18 @@ async function openPaletteAndClick(page, actionLabel) {
   await page.click(`[data-testid="palette-action"]:has-text("${actionLabel}")`);
 }
 
+// Open the inline ThemePicker rendered in the VIEW section of the tools panel.
+async function openThemePicker(page) {
+  await page.click('[data-testid="palette-trigger"]');
+  await expect(page.locator('[data-testid="palette-panel"][data-open="true"]')).toBeVisible({
+    timeout: 3_000,
+  });
+  await page.click('[data-testid="theme-trigger"]');
+  await expect(page.locator('[data-testid="theme-subpanel"][data-open="true"]')).toBeVisible({
+    timeout: 3_000,
+  });
+}
+
 // ─── 1. New Session Modal — Hub Page ────────────────────────────────────────
 
 test.describe('New Session Modal — Hub Page', () => {
@@ -293,11 +305,7 @@ test.describe('Theme System', () => {
   test('theme persists across page reload', async ({ page }) => {
     await openTerminalWithNewSession(page);
 
-    // Open palette and click Theme to open subpanel
-    await openPaletteAndClick(page, 'Theme');
-    await expect(page.locator('[data-testid="theme-subpanel"][data-open="true"]')).toBeVisible({
-      timeout: 3_000,
-    });
+    await openThemePicker(page);
 
     // Apply 'nord' theme
     await page.click('[data-testid="theme-item"][data-tid="nord"]');
@@ -325,10 +333,7 @@ test.describe('Theme System', () => {
     await openTerminalWithNewSession(page);
 
     // Set theme on terminal page
-    await openPaletteAndClick(page, 'Theme');
-    await expect(page.locator('[data-testid="theme-subpanel"][data-open="true"]')).toBeVisible({
-      timeout: 3_000,
-    });
+    await openThemePicker(page);
     await page.click('[data-testid="theme-item"][data-tid="dracula"]');
     await page.waitForTimeout(300);
 
@@ -383,10 +388,7 @@ test.describe('Theme System', () => {
     ];
 
     await openTerminalWithNewSession(page);
-    await openPaletteAndClick(page, 'Theme');
-    await expect(page.locator('[data-testid="theme-subpanel"][data-open="true"]')).toBeVisible({
-      timeout: 3_000,
-    });
+    await openThemePicker(page);
 
     for (const theme of themes) {
       await page.click(`[data-testid="theme-item"][data-tid="${theme}"]`);
@@ -396,15 +398,17 @@ test.describe('Theme System', () => {
         document.documentElement.getAttribute('data-theme'),
       );
       expect(applied).toBe(theme);
+
+      // ThemePicker auto-closes on select; reopen for the next iteration.
+      if (theme !== themes[themes.length - 1]) {
+        await openThemePicker(page);
+      }
     }
   });
 
   test('theme picker in palette shows theme options', async ({ page }) => {
     await openTerminalWithNewSession(page);
-    await openPaletteAndClick(page, 'Theme');
-    await expect(page.locator('[data-testid="theme-subpanel"][data-open="true"]')).toBeVisible({
-      timeout: 3_000,
-    });
+    await openThemePicker(page);
 
     // Should show at least 30 theme options
     const count = await page.locator('[data-testid="theme-item"]').count();

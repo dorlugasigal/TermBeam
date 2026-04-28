@@ -133,6 +133,7 @@ export default function ThemePicker({ open: controlledOpen, onClose, hideTrigger
           className={styles.trigger}
           onClick={() => setInternalOpen((v) => !v)}
           aria-label="Pick theme"
+          data-testid="theme-trigger"
         >
           <span className={styles.swatch} style={{ background: currentTheme.bg }} />
           {`Theme: ${currentTheme.name}`}
@@ -146,6 +147,8 @@ export default function ThemePicker({ open: controlledOpen, onClose, hideTrigger
           style={panelStyle}
           role="dialog"
           aria-label="Choose theme"
+          data-testid="theme-subpanel"
+          data-open="true"
         >
           <div 
             className={styles.header}
@@ -184,6 +187,8 @@ export default function ThemePicker({ open: controlledOpen, onClose, hideTrigger
                   className={`${styles.themeRow} ${isActive ? styles.themeRowActive : ''}`}
                   onClick={() => handleThemeSelect(theme.id as ThemeId)}
                   aria-label={`Select ${theme.name} theme`}
+                  data-testid="theme-item"
+                  data-tid={theme.id}
                 >
                   <span className={styles.themeBar}>
                     <span style={{ flex: 40, background: theme.bg }} />
