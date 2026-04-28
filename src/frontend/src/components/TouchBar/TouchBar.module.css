@@ -17,8 +17,12 @@
 .touchBar {
   /* Dynamic height + 36px padding-top reserved for the toggle handle.
    * Bottom padding is small — iOS overlays its home indicator over our
-   * content so we don't need our own dead zone. */
-  height: 108px;
+   * content so we don't need our own dead zone. The touchbar is a 1-3
+   * row dynamic grid: TouchBar.tsx publishes the actual height as
+   * --touchbar-height (which TerminalApp uses to size the terminal
+   * viewport). 108px is the 2-row baseline used as a safe fallback
+   * for the very first paint, before the JS computes the real value. */
+  height: var(--touchbar-height, 108px);
   padding: 36px 4px 4px;
   /* Inverted mirror of the top nav bar gradient: terminal --bg at the
    * top blends into --surface at the bottom, so the touchbar feels like

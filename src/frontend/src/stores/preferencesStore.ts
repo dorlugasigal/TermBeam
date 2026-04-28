@@ -154,7 +154,10 @@ export interface Preferences {
 export const PREF_DEFAULTS: Preferences = Object.freeze({
   themeId: 'dark' as ThemeId,
   fontSize: 14,
-  notifications: true,
+  // Match server default in src/server/preferences.js — keeps first-paint
+  // (cached/legacy) state aligned with the authoritative server value so
+  // the Notifications toggle doesn't flip on first hydrate.
+  notifications: false,
   haptics: true,
   defaultFolder: '',
   defaultInitialCommand: '',
@@ -309,12 +312,16 @@ async function flushPut(prefs: Preferences): Promise<void> {
       // reflects any clamps we missed client-side.
       const next = normalize(body.prefs);
       writeCache(next);
-      usePreferencesStore.setState({ prefs: next, version: body.version, syncing: false });
+      usePreferencesStore.setState({ prefs: next, version: body.version });
     }
   } catch {
     // Offline or transient — keep local state; we'll retry on next change or
     // on the next visibility/focus refetch.
   } finally {
+    // Always clear `syncing` even when the PUT failed (network drop, 401,
+    // 5xx). Otherwise the store can stay stuck in `syncing: true` and
+    // refetch() permanently early-returns, leaving the UI desynced.
+    usePreferencesStore.setState({ syncing: false });
     putInFlight = false;
     if (pendingPut) {
       const next = pendingPut;

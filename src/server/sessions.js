@@ -221,9 +221,10 @@ class SessionManager {
     // Hard fallback at HARD_FALLBACK_MS catches shells that never emit
     // anything we can detect — better to fire the command than never to.
     if (initialCommand) {
-      log.info(
-        `Queuing initialCommand for session ${id} (${initialCommand.length} chars): ${JSON.stringify(initialCommand.slice(0, 80))}`,
-      );
+      // Don't log the command content — initialCommand can contain
+      // secrets (tokens in `npm publish --otp=…`, env exports, etc).
+      // Length is enough to confirm "we got something" in audit trails.
+      log.info(`Queuing initialCommand for session ${id} (${initialCommand.length} chars)`);
       const IDLE_MS = 600;
       const HARD_FALLBACK_MS = 3500;
       let idleTimer = null;
@@ -233,6 +234,8 @@ class SessionManager {
         session._initialCommandSent = true;
         if (idleTimer) clearTimeout(idleTimer);
         if (hardFallback) clearTimeout(hardFallback);
+        idleTimer = null;
+        hardFallback = null;
         log.info(`Writing initialCommand to session ${id}`);
         ptyProcess.write(initialCommand + '\r');
       };
@@ -242,6 +245,10 @@ class SessionManager {
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(send, IDLE_MS);
       };
+      // Expose timers so onExit can clear them — otherwise an early
+      // shell exit leaves the hard-fallback setTimeout pinned for
+      // ~3.5s and may try to write to a torn-down PTY.
+      session._initialCommandTimers = () => ({ idleTimer, hardFallback });
     }
 
     ptyProcess.onData((data) => {
@@ -407,6 +414,13 @@ class SessionManager {
     ptyProcess.onExit(({ exitCode }) => {
       clearInterval(session._childMonitor);
       clearTimeout(session._silenceTimer);
+      // If the shell exited before initialCommand fired, drop the
+      // pending timers so we don't try to write to a dead PTY.
+      if (session._initialCommandTimers) {
+        const { idleTimer, hardFallback } = session._initialCommandTimers();
+        if (idleTimer) clearTimeout(idleTimer);
+        if (hardFallback) clearTimeout(hardFallback);
+      }
       log.info(`Session "${name}" (${id}) exited (code ${exitCode})`);
       for (const ws of session.clients) {
         if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'exit', code: exitCode }));
