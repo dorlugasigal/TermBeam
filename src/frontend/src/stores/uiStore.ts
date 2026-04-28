@@ -26,6 +26,7 @@ interface UIState {
   codeViewerInitialView: 'files' | 'changes';
   showingAgentTerminal: boolean;
   themePickerOpen: boolean;
+  customKeysModalOpen: boolean;
 
   setShowingAgentTerminal: (v: boolean) => void;
   openResumeBrowser: () => void;
@@ -61,6 +62,8 @@ interface UIState {
   openThemePicker: () => void;
   closeThemePicker: () => void;
   toggleThemePicker: () => void;
+  openCustomKeysModal: () => void;
+  closeCustomKeysModal: () => void;
 
   /** Handler for TouchBar to interact with the active chat input (Copilot sessions) */
   chatInputHandler: ((text: string) => void) | null;
@@ -95,6 +98,7 @@ export const useUIStore = create<UIState>((set) => ({
   codeViewerInitialView: 'files',
   showingAgentTerminal: false,
   themePickerOpen: false,
+  customKeysModalOpen: false,
 
   setShowingAgentTerminal: (v) => set({ showingAgentTerminal: v }),
   openResumeBrowser: () => set({ resumeBrowserOpen: true }),
@@ -142,6 +146,8 @@ export const useUIStore = create<UIState>((set) => ({
   openThemePicker: () => set({ themePickerOpen: true }),
   closeThemePicker: () => set({ themePickerOpen: false }),
   toggleThemePicker: () => set((s) => ({ themePickerOpen: !s.themePickerOpen })),
+  openCustomKeysModal: () => set({ customKeysModalOpen: true }),
+  closeCustomKeysModal: () => set({ customKeysModalOpen: false }),
 
   chatInputHandler: null,
   chatSendHandler: null,

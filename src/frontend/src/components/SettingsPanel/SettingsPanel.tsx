@@ -4,8 +4,8 @@ import { useSessionStore } from '@/stores/sessionStore';
 import {
   usePreferencesStore,
   PREF_DEFAULTS,
-  type TouchBarKey,
   type StartupSession,
+  type Workspace,
 } from '@/stores/preferencesStore';
 import { THEMES } from '@/themes/terminalThemes';
 import { FolderBrowser } from '@/components/FolderBrowser/FolderBrowser';
@@ -13,20 +13,6 @@ import styles from './SettingsPanel.module.css';
 
 const FONT_MIN = 8;
 const FONT_MAX = 28;
-
-function genKeyId(): string {
-  return `k_${Math.random().toString(36).slice(2, 9)}`;
-}
-
-const DEFAULT_KEYS_PREVIEW: TouchBarKey[] = [
-  { id: 'esc', label: 'Esc', send: '\x1b' },
-  { id: 'tab', label: 'Tab', send: '\x09' },
-  { id: 'ctrl-c', label: '^C', send: '\x03' },
-  { id: 'home', label: 'Home', send: '\x1b[H' },
-  { id: 'end', label: 'End', send: '\x1b[F' },
-  { id: 'up', label: '↑', send: '\x1b[A' },
-  { id: 'enter', label: '↵', send: '\r' },
-];
 
 function Toggle({
   on,
@@ -53,6 +39,7 @@ export default function SettingsPanel() {
   const open = useUIStore((s) => s.settingsPanelOpen);
   const close = useUIStore((s) => s.closeSettingsPanel);
   const openThemePicker = useUIStore((s) => s.openThemePicker);
+  const openCustomKeysModal = useUIStore((s) => s.openCustomKeysModal);
   const prefs = usePreferencesStore((s) => s.prefs);
   const setPreference = usePreferencesStore((s) => s.setPreference);
   const sessions = useSessionStore((s) => s.sessions);
@@ -70,19 +57,11 @@ export default function SettingsPanel() {
   // FIX #4: workspace save toast
   const [saveToast, setSaveToast] = useState('');
 
-  // FIX #5: custom key editor state
-  const [selectedKeyIndex, setSelectedKeyIndex] = useState<number | null>(null);
-  const [draggedKeyIndex, setDraggedKeyIndex] = useState<number | null>(null);
-  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
-
   // Reset drag offset when closed
   useEffect(() => {
     if (!open) {
       setDragOffset(null);
       setBrowsingFolder(false);
-      setSelectedKeyIndex(null);
-      setDraggedKeyIndex(null);
-      setDropTargetIndex(null);
     }
   }, [open]);
 
@@ -166,112 +145,133 @@ export default function SettingsPanel() {
   // FIX #2: open standalone theme picker
   const currentTheme = THEMES.find((t) => t.id === prefs.themeId) ?? THEMES[0]!;
 
-  // FIX #4: save current workspace
-  const saveWorkspace = useCallback(() => {
-    const allSessions = Array.from(sessions.values()).filter((s) => !s.hidden);
-    const snapshotSessions: StartupSession[] = allSessions.map((s) => ({
-      id: s.id,
-      name: s.name,
-      kind: (s.type === 'copilot' || s.type === 'agent' ? 'agent' : 'shell') as 'shell' | 'agent',
-      cwd: s.cwd || '',
-      initialCommand: '',
-      agentId: s.type === 'copilot' || s.type === 'agent' ? s.model : undefined,
-    }));
-    setPreference('startupWorkspace', { enabled: true, sessions: snapshotSessions });
-    setSaveToast(`Saved (${snapshotSessions.length} sessions)`);
-    setTimeout(() => setSaveToast(''), 2000);
-  }, [sessions, setPreference]);
+  // Snapshot the current live sessions into a `StartupSession[]` for saving.
+  const snapshotCurrentSessions = useCallback((): StartupSession[] => {
+    return Array.from(sessions.values())
+      .filter((s) => !s.hidden)
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        kind: (s.type === 'copilot' || s.type === 'agent' ? 'agent' : 'shell') as
+          | 'shell'
+          | 'agent',
+        cwd: s.cwd || '',
+        initialCommand: s.initialCommand || '',
+        agentId: s.type === 'copilot' || s.type === 'agent' ? s.model : undefined,
+        shell: s.shell || undefined,
+        color: s.color || undefined,
+      }));
+  }, [sessions]);
 
-  const removeStartupSession = useCallback(
-    (idx: number) => {
-      const sessions = prefs.startupWorkspace.sessions.filter((_, i) => i !== idx);
-      setPreference('startupWorkspace', { ...prefs.startupWorkspace, sessions });
+  // FIX #4: save current as a NEW named workspace (multi-workspace support).
+  const saveAsNewWorkspace = useCallback(() => {
+    const snap = snapshotCurrentSessions();
+    if (snap.length === 0) {
+      setSaveToast('No open sessions to save');
+      setTimeout(() => setSaveToast(''), 2000);
+      return;
+    }
+    const defaultName = `Workspace ${prefs.workspaces.length + 1}`;
+    const name = (prompt('Name this workspace:', defaultName) ?? '').trim();
+    if (!name) return;
+    const newWorkspace: Workspace = {
+      id: `ws_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+      name,
+      sessions: snap,
+    };
+    setPreference('workspaces', [...prefs.workspaces, newWorkspace]);
+    setSaveToast(`Saved "${name}" (${snap.length} session${snap.length === 1 ? '' : 's'})`);
+    setTimeout(() => setSaveToast(''), 2200);
+  }, [snapshotCurrentSessions, prefs.workspaces, setPreference]);
+
+  const renameWorkspace = useCallback(
+    (id: string) => {
+      const ws = prefs.workspaces.find((w) => w.id === id);
+      if (!ws) return;
+      const next = (prompt('Rename workspace:', ws.name) ?? '').trim();
+      if (!next || next === ws.name) return;
+      setPreference(
+        'workspaces',
+        prefs.workspaces.map((w) => (w.id === id ? { ...w, name: next } : w)),
+      );
     },
-    [prefs.startupWorkspace, setPreference],
+    [prefs.workspaces, setPreference],
   );
+
+  const deleteWorkspace = useCallback(
+    (id: string) => {
+      const ws = prefs.workspaces.find((w) => w.id === id);
+      if (!ws) return;
+      if (!confirm(`Delete workspace "${ws.name}"?`)) return;
+      setPreference(
+        'workspaces',
+        prefs.workspaces.filter((w) => w.id !== id),
+      );
+    },
+    [prefs.workspaces, setPreference],
+  );
+
+  const setDefaultWorkspace = useCallback(
+    (id: string | null) => {
+      setPreference(
+        'workspaces',
+        prefs.workspaces.map((w) => ({ ...w, default: w.id === id })),
+      );
+    },
+    [prefs.workspaces, setPreference],
+  );
+
+  const updateWorkspaceFromCurrent = useCallback(
+    (id: string) => {
+      const snap = snapshotCurrentSessions();
+      if (snap.length === 0) {
+        setSaveToast('No open sessions to update with');
+        setTimeout(() => setSaveToast(''), 2000);
+        return;
+      }
+      setPreference(
+        'workspaces',
+        prefs.workspaces.map((w) => (w.id === id ? { ...w, sessions: snap } : w)),
+      );
+      setSaveToast(`Updated (${snap.length} session${snap.length === 1 ? '' : 's'})`);
+      setTimeout(() => setSaveToast(''), 2000);
+    },
+    [snapshotCurrentSessions, prefs.workspaces, setPreference],
+  );
+
+  const removeSessionFromWorkspace = useCallback(
+    (workspaceId: string, sessionId: string) => {
+      setPreference(
+        'workspaces',
+        prefs.workspaces.map((w) =>
+          w.id === workspaceId
+            ? { ...w, sessions: w.sessions.filter((s) => s.id !== sessionId) }
+            : w,
+        ),
+      );
+    },
+    [prefs.workspaces, setPreference],
+  );
+
+  // ── Legacy single-startup-workspace bridge (kept for backwards compat) ──
+  const saveWorkspace = useCallback(() => {
+    const snap = snapshotCurrentSessions();
+    setPreference('startupWorkspace', { enabled: true, sessions: snap });
+    setSaveToast(`Saved (${snap.length} sessions)`);
+    setTimeout(() => setSaveToast(''), 2000);
+  }, [snapshotCurrentSessions, setPreference]);
 
   // FIX #5: custom keys helpers
   const customKeys = prefs.touchBarKeys ?? [];
   const usingCustomKeys = prefs.touchBarKeys !== null;
 
   const enableCustomKeys = useCallback(() => {
-    setPreference('touchBarKeys', [...DEFAULT_KEYS_PREVIEW]);
-  }, [setPreference]);
+    openCustomKeysModal();
+  }, [openCustomKeysModal]);
 
   const resetCustomKeys = useCallback(() => {
     setPreference('touchBarKeys', null);
-    setSelectedKeyIndex(null);
   }, [setPreference]);
-
-  const addKey = useCallback(() => {
-    const list = prefs.touchBarKeys ?? [...DEFAULT_KEYS_PREVIEW];
-    const next: TouchBarKey[] = [...list, { id: genKeyId(), label: 'Key', send: '', size: 1 }];
-    setPreference('touchBarKeys', next);
-    setSelectedKeyIndex(next.length - 1);
-  }, [prefs.touchBarKeys, setPreference]);
-
-  const updateKey = useCallback(
-    (idx: number, patch: Partial<TouchBarKey>) => {
-      const list = prefs.touchBarKeys ?? [];
-      const next = list.map((k, i) => (i === idx ? { ...k, ...patch } : k));
-      setPreference('touchBarKeys', next);
-    },
-    [prefs.touchBarKeys, setPreference],
-  );
-
-  const removeKey = useCallback(
-    (idx: number) => {
-      const list = prefs.touchBarKeys ?? [];
-      const next = list.filter((_, i) => i !== idx);
-      setPreference('touchBarKeys', next);
-      if (selectedKeyIndex === idx) setSelectedKeyIndex(null);
-      if (selectedKeyIndex != null && selectedKeyIndex > idx) setSelectedKeyIndex(selectedKeyIndex - 1);
-    },
-    [prefs.touchBarKeys, setPreference, selectedKeyIndex],
-  );
-
-  const onKeyPreviewPointerDown = useCallback((e: React.PointerEvent, idx: number) => {
-    e.preventDefault();
-    setDraggedKeyIndex(idx);
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }, []);
-
-  const onKeyPreviewPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (draggedKeyIndex === null) return;
-      const target = document.elementFromPoint(e.clientX, e.clientY);
-      if (!target) return;
-      const previewKey = target.closest('[data-key-index]') as HTMLElement | null;
-      if (previewKey) {
-        const idx = parseInt(previewKey.dataset.keyIndex ?? '-1', 10);
-        if (idx >= 0 && idx !== draggedKeyIndex) setDropTargetIndex(idx);
-      }
-    },
-    [draggedKeyIndex],
-  );
-
-  const onKeyPreviewPointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      if (draggedKeyIndex === null) return;
-      try {
-        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch {
-        // ignore
-      }
-      if (dropTargetIndex !== null && dropTargetIndex !== draggedKeyIndex) {
-        const list = [...customKeys];
-        const [dragged] = list.splice(draggedKeyIndex, 1);
-        if (dragged) {
-          list.splice(dropTargetIndex, 0, dragged);
-          setPreference('touchBarKeys', list);
-          setSelectedKeyIndex(dropTargetIndex);
-        }
-      }
-      setDraggedKeyIndex(null);
-      setDropTargetIndex(null);
-    },
-    [draggedKeyIndex, dropTargetIndex, customKeys, setPreference],
-  );
 
   if (!open) return null;
 
@@ -279,8 +279,6 @@ export default function SettingsPanel() {
   const panelStyle: React.CSSProperties = dragOffset
     ? { transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`, top: 0, left: 0 }
     : {}; // CSS class handles centering
-
-  const selectedKey = selectedKeyIndex !== null ? customKeys[selectedKeyIndex] : null;
 
   return (
     <div
@@ -433,148 +431,46 @@ export default function SettingsPanel() {
                   {usingCustomKeys ? `${customKeys.length} custom keys` : 'Using built-in defaults'}
                 </span>
               </span>
-              {usingCustomKeys ? (
-                <button type="button" className={styles.linkBtn} onClick={resetCustomKeys}>
-                  Reset to defaults
-                </button>
-              ) : (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {usingCustomKeys && (
+                  <button type="button" className={styles.linkBtn} onClick={resetCustomKeys}>
+                    Reset
+                  </button>
+                )}
                 <button type="button" className={styles.linkBtn} onClick={enableCustomKeys}>
-                  Customize
+                  Customize keys…
                 </button>
-              )}
+              </div>
             </div>
 
-            {/* FIX #5: visual key editor */}
-            {usingCustomKeys && (
-              <div className={styles.keyboardEditor}>
-                {/* Preview grid */}
-                <div className={styles.keyboardPreview}>
-                  {customKeys.map((k, i) => (
-                    <button
-                      key={k.id}
-                      type="button"
-                      data-key-index={i}
-                      className={`${styles.previewKey} ${selectedKeyIndex === i ? styles.previewKeySelected : ''} ${draggedKeyIndex === i ? styles.previewKeyDragging : ''}`}
-                      style={{
-                        gridColumn: `span ${k.size ?? 1}`,
-                        background: k.bg,
-                        color: k.color,
-                      }}
-                      onClick={() => setSelectedKeyIndex(i)}
-                      onPointerDown={(e) => onKeyPreviewPointerDown(e, i)}
-                      onPointerMove={onKeyPreviewPointerMove}
-                      onPointerUp={onKeyPreviewPointerUp}
-                      onPointerCancel={onKeyPreviewPointerUp}
-                    >
-                      {k.label}
-                    </button>
-                  ))}
-                </div>
-
-                <button type="button" className={styles.linkBtn} onClick={addKey}>
-                  + Add key
-                </button>
-
-                {/* Editor for selected key */}
-                {selectedKey && (
-                  <div className={styles.keyEditorPanel}>
-                    <div className={styles.editorRow}>
-                      <label className={styles.editorLabel}>Label</label>
-                      <input
-                        type="text"
-                        className={styles.keyInput}
-                        value={selectedKey.label}
-                        maxLength={8}
-                        onChange={(e) => updateKey(selectedKeyIndex!, { label: e.target.value })}
-                      />
-                    </div>
-                    <div className={styles.editorRow}>
-                      <label className={styles.editorLabel}>Send</label>
-                      <input
-                        type="text"
-                        className={styles.keyInput}
-                        value={selectedKey.send}
-                        placeholder="e.g. \\x1b"
-                        onChange={(e) => updateKey(selectedKeyIndex!, { send: e.target.value })}
-                      />
-                    </div>
-                    <div className={styles.editorRow}>
-                      <label className={styles.editorLabel}>Size</label>
-                      <div className={styles.segmentedControl}>
-                        <button
-                          type="button"
-                          className={`${styles.segmentedBtn} ${(selectedKey.size ?? 1) === 1 ? styles.segmentedBtnActive : ''}`}
-                          onClick={() => updateKey(selectedKeyIndex!, { size: 1 })}
-                        >
-                          Single
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.segmentedBtn} ${selectedKey.size === 2 ? styles.segmentedBtnActive : ''}`}
-                          onClick={() => updateKey(selectedKeyIndex!, { size: 2 })}
-                        >
-                          Double
-                        </button>
-                      </div>
-                    </div>
-                    <div className={styles.editorRow}>
-                      <label className={styles.editorLabel}>Background</label>
-                      <div className={styles.colorRow}>
-                        <input
-                          type="color"
-                          className={styles.colorInput}
-                          value={selectedKey.bg || '#000000'}
-                          onChange={(e) => updateKey(selectedKeyIndex!, { bg: e.target.value })}
-                        />
-                        <span
-                          className={styles.colorSwatch}
-                          style={{ background: selectedKey.bg || 'var(--bg)' }}
-                        />
-                        <button
-                          type="button"
-                          className={styles.resetBtn}
-                          onClick={() => updateKey(selectedKeyIndex!, { bg: undefined })}
-                        >
-                          Reset
-                        </button>
-                      </div>
-                    </div>
-                    <div className={styles.editorRow}>
-                      <label className={styles.editorLabel}>Text color</label>
-                      <div className={styles.colorRow}>
-                        <input
-                          type="color"
-                          className={styles.colorInput}
-                          value={selectedKey.color || '#ffffff'}
-                          onChange={(e) => updateKey(selectedKeyIndex!, { color: e.target.value })}
-                        />
-                        <span
-                          className={styles.colorSwatch}
-                          style={{ background: selectedKey.color || 'var(--text)' }}
-                        />
-                        <button
-                          type="button"
-                          className={styles.resetBtn}
-                          onClick={() => updateKey(selectedKeyIndex!, { color: undefined })}
-                        >
-                          Reset
-                        </button>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className={styles.dangerBtn}
-                      onClick={() => removeKey(selectedKeyIndex!)}
-                    >
-                      Delete key
-                    </button>
-                  </div>
-                )}
-
-                {customKeys.length === 0 && (
-                  <p className={styles.empty}>No custom keys. Click Add key to start customizing.</p>
-                )}
-              </div>
+            {usingCustomKeys && customKeys.length > 0 && (
+              <button
+                type="button"
+                className={styles.keyboardPreview}
+                onClick={openCustomKeysModal}
+                aria-label="Open custom keys editor"
+                style={{
+                  border: '1px solid var(--border)',
+                  cursor: 'pointer',
+                  width: '100%',
+                  marginTop: 8,
+                }}
+              >
+                {customKeys.map((k) => (
+                  <span
+                    key={k.id}
+                    className={styles.previewKey}
+                    style={{
+                      gridColumn: `span ${k.size ?? 1}`,
+                      background: k.bg,
+                      color: k.color,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {k.label}
+                  </span>
+                ))}
+              </button>
             )}
           </section>
 
@@ -636,54 +532,150 @@ export default function SettingsPanel() {
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Workspaces</h3>
 
-            <button type="button" className={styles.primaryBtn} onClick={saveWorkspace}>
-              Save current as workspace
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" className={styles.primaryBtn} onClick={saveAsNewWorkspace}>
+                Save current as new workspace
+              </button>
+              <button type="button" className={styles.linkBtn} onClick={saveWorkspace}>
+                Update default startup
+              </button>
+            </div>
 
             {saveToast && <div className={styles.saveToast}>{saveToast}</div>}
 
-            <div className={styles.row} style={{ marginTop: 12 }}>
-              <span className={styles.rowLabel}>
-                Restore on startup
-                <span className={styles.rowHint}>Re-open these sessions when TermBeam starts</span>
-              </span>
-              <Toggle
-                on={prefs.startupWorkspace.enabled}
-                ariaLabel="Toggle startup workspace"
-                onChange={(enabled) =>
-                  setPreference('startupWorkspace', { ...prefs.startupWorkspace, enabled })
-                }
-              />
-            </div>
-
-            {prefs.startupWorkspace.sessions.length === 0 ? (
-              <p className={styles.empty}>
-                No sessions saved yet. Open some sessions and click Save current as workspace.
+            {prefs.workspaces.length === 0 ? (
+              <p className={styles.empty} style={{ marginTop: 10 }}>
+                No saved workspaces yet. Open some sessions then click <strong>Save current as new workspace</strong>.
               </p>
             ) : (
-              <div className={styles.workspaceTileGrid}>
-                {prefs.startupWorkspace.sessions.map((s, i) => (
-                  <div key={s.id} className={styles.workspaceTile}>
-                    <div className={styles.workspaceTileIcon}>
-                      {s.kind === 'agent' ? '🤖' : '🖥'}
-                    </div>
-                    <div className={styles.workspaceTileContent}>
-                      <div className={styles.workspaceTileName}>{s.name}</div>
-                      <div className={styles.workspaceTileCwd}>
-                        {s.cwd.length > 24 ? `…${s.cwd.slice(-24)}` : s.cwd || '~'}
+              <div className={styles.workspaceList} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+                {prefs.workspaces.map((ws) => (
+                  <div key={ws.id} className={styles.workspaceCard}>
+                    <div className={styles.workspaceCardHeader}>
+                      <div className={styles.workspaceCardTitle}>
+                        <span className={styles.workspaceCardName}>{ws.name}</span>
+                        <span className={styles.workspaceCardCount}>
+                          {ws.sessions.length} session{ws.sessions.length === 1 ? '' : 's'}
+                        </span>
                       </div>
-                      {s.agentId && <div className={styles.workspaceTileAgent}>{s.agentId}</div>}
+                      <div className={styles.workspaceCardActions}>
+                        <label className={styles.workspaceDefaultToggle}>
+                          <input
+                            type="checkbox"
+                            checked={!!ws.default}
+                            onChange={(e) =>
+                              setDefaultWorkspace(e.target.checked ? ws.id : null)
+                            }
+                          />
+                          <span>Auto-start</span>
+                        </label>
+                        <button
+                          type="button"
+                          className={styles.linkBtn}
+                          onClick={() => updateWorkspaceFromCurrent(ws.id)}
+                          title="Replace this workspace with the currently open sessions"
+                        >
+                          Update
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.linkBtn}
+                          onClick={() => renameWorkspace(ws.id)}
+                        >
+                          Rename
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.linkBtnDanger}
+                          onClick={() => deleteWorkspace(ws.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      className={styles.workspaceTileRemove}
-                      onClick={() => removeStartupSession(i)}
-                      aria-label={`Remove ${s.name} from workspace`}
-                    >
-                      ✕
-                    </button>
+                    <div className={styles.workspaceTileGrid}>
+                      {ws.sessions.length === 0 ? (
+                        <p className={styles.empty}>Empty workspace.</p>
+                      ) : (
+                        ws.sessions.map((s, i) => (
+                          <div key={s.id} className={styles.workspaceTile}>
+                            <div className={styles.workspaceTileIndex}>{`#${i + 1}`}</div>
+                            <div className={styles.workspaceTileHeader}>
+                              <span
+                                className={styles.workspaceTileColor}
+                                style={{ background: s.color || 'var(--accent)' }}
+                                aria-hidden="true"
+                              />
+                              <div className={styles.workspaceTileContent}>
+                                <div className={styles.workspaceTileName}>{s.name}</div>
+                                <span
+                                  className={`${styles.workspaceTileBadge} ${
+                                    s.kind === 'agent'
+                                      ? styles.workspaceTileBadgeAgent
+                                      : styles.workspaceTileBadgeTerminal
+                                  }`}
+                                >
+                                  {s.kind === 'agent' ? 'Agent' : 'Terminal'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className={styles.workspaceTileCwd} title={s.cwd || '~'}>
+                              {s.cwd || '~'}
+                            </div>
+                            {s.initialCommand && (
+                              <div
+                                className={styles.workspaceTileCommand}
+                                title={s.initialCommand}
+                              >
+                                <span className={styles.workspaceTileMetaLabel}>cmd</span>
+                                <code>{s.initialCommand}</code>
+                              </div>
+                            )}
+                            {s.shell && (
+                              <div className={styles.workspaceTileMeta}>
+                                <span className={styles.workspaceTileMetaLabel}>shell</span>
+                                <code>{s.shell}</code>
+                              </div>
+                            )}
+                            {s.kind === 'agent' && s.agentId && (
+                              <div className={styles.workspaceTileAgent}>{s.agentId}</div>
+                            )}
+                            <button
+                              type="button"
+                              className={styles.workspaceTileRemove}
+                              onClick={() => removeSessionFromWorkspace(ws.id, s.id)}
+                              aria-label={`Remove ${s.name} from ${ws.name}`}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Legacy single-workspace startup toggle, kept for users who already
+                set it up. The new "Auto-start" toggle on each named workspace is
+                the preferred path. */}
+            {prefs.startupWorkspace.sessions.length > 0 && (
+              <div className={styles.row} style={{ marginTop: 16 }}>
+                <span className={styles.rowLabel}>
+                  Restore default startup
+                  <span className={styles.rowHint}>
+                    {prefs.startupWorkspace.sessions.length} session
+                    {prefs.startupWorkspace.sessions.length === 1 ? '' : 's'} (legacy)
+                  </span>
+                </span>
+                <Toggle
+                  on={prefs.startupWorkspace.enabled}
+                  ariaLabel="Toggle startup workspace"
+                  onChange={(enabled) =>
+                    setPreference('startupWorkspace', { ...prefs.startupWorkspace, enabled })
+                  }
+                />
               </div>
             )}
           </section>

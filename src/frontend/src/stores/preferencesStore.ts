@@ -6,14 +6,21 @@ import { THEMES, type ThemeId } from '@/themes/terminalThemes';
 // Unknown fields from the server are silently dropped on read.
 // ---------------------------------------------------------------------------
 
+export type KeyAction = 'mic' | 'copy' | 'paste' | 'cancel' | 'newline';
+export type KeyLook = 'default' | 'special' | 'modifier' | 'icon' | 'enter' | 'danger';
+
 export interface TouchBarKey {
   id: string;
   label: string;
   send: string;
   modifier?: 'ctrl' | 'alt' | 'shift';
-  size?: 1 | 2;       // grid column span (default 1)
-  bg?: string;        // CSS color (default unset, falls back to .keyBtn default)
-  color?: string;     // text color (default unset)
+  /** Built-in action this key dispatches. Takes precedence over `send`. */
+  action?: KeyAction;
+  /** Grid column span (1-3, default 1). */
+  size?: 1 | 2 | 3;
+  bg?: string;
+  color?: string;
+  style?: KeyLook;
 }
 
 export interface StartupSession {
@@ -23,6 +30,17 @@ export interface StartupSession {
   cwd: string;
   initialCommand: string;
   agentId?: string;
+  shell?: string;
+  color?: string;
+}
+
+export interface Workspace {
+  id: string;
+  name: string;
+  sessions: StartupSession[];
+  /** When true, this workspace auto-launches at startup. Only one default
+   *  expected; the first one wins on load. */
+  default?: boolean;
 }
 
 export interface Preferences {
@@ -35,7 +53,12 @@ export interface Preferences {
   touchBarCollapsed: boolean;
   /** null means "use built-in defaults" */
   touchBarKeys: TouchBarKey[] | null;
+  /** Legacy single-workspace pointer kept for backwards compat. New UI
+   *  manages `workspaces` instead but this still drives auto-startup
+   *  when no `workspaces[*].default` is set. */
   startupWorkspace: { enabled: boolean; sessions: StartupSession[] };
+  /** User-saved named workspaces. Multiple allowed. */
+  workspaces: Workspace[];
 }
 
 export const PREF_DEFAULTS: Preferences = Object.freeze({
@@ -48,6 +71,7 @@ export const PREF_DEFAULTS: Preferences = Object.freeze({
   touchBarCollapsed: false,
   touchBarKeys: null,
   startupWorkspace: { enabled: false, sessions: [] },
+  workspaces: [],
 }) as Preferences;
 
 // ---------------------------------------------------------------------------
@@ -97,6 +121,7 @@ function normalize(input: unknown): Preferences {
               : [],
           }
         : { enabled: false, sessions: [] },
+    workspaces: Array.isArray(p.workspaces) ? (p.workspaces as Workspace[]) : [],
   };
 }
 

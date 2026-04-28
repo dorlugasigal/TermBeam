@@ -21,6 +21,7 @@ import { UploadModal } from '@/components/Modals/UploadModal';
 import { PreviewModal } from '@/components/Modals/PreviewModal';
 import SettingsPanel from '@/components/SettingsPanel/SettingsPanel';
 import ThemePicker from '@/components/common/ThemePicker';
+import CustomKeysModal from '@/components/CustomKeysModal/CustomKeysModal';
 import CopyOverlay from '@/components/Overlays/CopyOverlay';
 import type { Session } from '@/types';
 import styles from './TerminalApp.module.css';
@@ -59,6 +60,8 @@ export function TerminalApp() {
   // FIX #2: ThemePicker controlled mode
   const themePickerOpen = useUIStore((s) => s.themePickerOpen);
   const closeThemePicker = useUIStore((s) => s.closeThemePicker);
+  const customKeysModalOpen = useUIStore((s) => s.customKeysModalOpen);
+  const closeCustomKeysModal = useUIStore((s) => s.closeCustomKeysModal);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const initializedRef = useRef(false);
@@ -626,6 +629,7 @@ export function TerminalApp() {
       <SettingsPanel />
       {/* FIX #2: Standalone ThemePicker with controlled mode */}
       <ThemePicker open={themePickerOpen} onClose={closeThemePicker} hideTrigger />
+      <CustomKeysModal open={customKeysModalOpen} onClose={closeCustomKeysModal} />
       <CopyOverlay />
       <ResumeBrowser />
 

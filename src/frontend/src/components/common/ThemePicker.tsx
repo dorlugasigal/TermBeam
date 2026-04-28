@@ -7,9 +7,10 @@ interface ThemePickerProps {
   open?: boolean;
   onClose?: () => void;
   hideTrigger?: boolean;
+  onSelect?: (themeId: ThemeId) => void;
 }
 
-export default function ThemePicker({ open: controlledOpen, onClose, hideTrigger }: ThemePickerProps = {}) {
+export default function ThemePicker({ open: controlledOpen, onClose, hideTrigger, onSelect }: ThemePickerProps = {}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -116,8 +117,9 @@ export default function ThemePicker({ open: controlledOpen, onClose, hideTrigger
 
   const handleThemeSelect = useCallback((selectedThemeId: ThemeId) => {
     setTheme(selectedThemeId);
+    onSelect?.(selectedThemeId);
     handleClose();
-  }, [setTheme, handleClose]);
+  }, [setTheme, handleClose, onSelect]);
 
   const panelStyle = dragOffset
     ? { transform: `translate(calc(-50% + ${dragOffset.x}px), calc(-50% + ${dragOffset.y}px))` }
@@ -133,7 +135,7 @@ export default function ThemePicker({ open: controlledOpen, onClose, hideTrigger
           aria-label="Pick theme"
         >
           <span className={styles.swatch} style={{ background: currentTheme.bg }} />
-          {currentTheme.name}
+          {`Theme: ${currentTheme.name}`}
         </button>
       )}
 
@@ -149,7 +151,16 @@ export default function ThemePicker({ open: controlledOpen, onClose, hideTrigger
             className={styles.header}
             ref={headerRef}
             onPointerDown={handlePointerDown}
+            title="Drag to move"
           >
+            <span className={styles.dragHandle} aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+            </span>
             <span className={styles.title}>Choose theme</span>
             <button
               ref={closeBtnRef}

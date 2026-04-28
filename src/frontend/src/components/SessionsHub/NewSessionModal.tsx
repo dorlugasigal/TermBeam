@@ -7,6 +7,7 @@ import type { ShellInfo, AgentInfo } from '@/services/api';
 import { SESSION_COLORS, type SessionColor } from '@/types';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
+import { usePreferencesStore } from '@/stores/preferencesStore';
 import { FolderBrowser } from '@/components/FolderBrowser/FolderBrowser';
 import { AgentIcon } from '@/components/common/AgentIcon';
 import { CopilotLogo } from '@/components/common/CopilotLogo';
@@ -45,6 +46,8 @@ function uniqueName(base: string, existing: Set<string>): string {
 
 export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   const { newSessionModalOpen, closeNewSessionModal, newSessionModalInitialMode } = useUIStore();
+  const defaultFolder = usePreferencesStore((s) => s.prefs.defaultFolder);
+  const defaultInitialCommand = usePreferencesStore((s) => s.prefs.defaultInitialCommand);
   // Shared state
   const [sessionMode, setSessionMode] = useState<'terminal' | 'copilot'>('terminal');
   const [name, setName] = useState('');
@@ -102,6 +105,13 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps — intentionally runs only on modal open/close
   }, [newSessionModalOpen]);
 
+  useEffect(() => {
+    if (!newSessionModalOpen) return;
+    if (defaultFolder && !cwd) setCwd(defaultFolder);
+    if (defaultInitialCommand && !initialCommand) setInitialCommand(defaultInitialCommand);
+    // eslint-disable-next-line react-hooks/exhaustive-deps — seed only when modal opens
+  }, [newSessionModalOpen]);
+
   function resetForm() {
     setSessionMode('terminal');
     setName('');
@@ -147,6 +157,10 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
               ...(cols && rows ? { cols, rows } : {}),
             },
       );
+      const finalCmd = initialCommand.trim();
+      if (finalCmd) {
+        useSessionStore.getState().setPendingInitialCommand(session.id, finalCmd);
+      }
       closeNewSessionModal();
       resetForm();
       onCreated(session.id, sessionMode, session.ptySessionId ?? null, sessionMode === 'copilot' ? model : undefined);
@@ -173,6 +187,8 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
         initialCommand: agent.args?.length ? `${agent.cmd} ${agent.args.join(' ')}` : agent.cmd,
         ...(cols && rows ? { cols, rows } : {}),
       });
+      const agentCmd = agent.args?.length ? `${agent.cmd} ${agent.args.join(' ')}` : agent.cmd;
+      useSessionStore.getState().setPendingInitialCommand(session.id, agentCmd);
       closeNewSessionModal();
       resetForm();
       onCreated(session.id, 'terminal');
@@ -204,7 +220,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
 
           {browsing ? (
             <FolderBrowser
-              currentDir={cwd || '/'}
+              currentDir={cwd || defaultFolder || '/'}
               onSelect={(dir: string) => {
                 setCwd(dir);
                 deriveNameFromCwd(dir);

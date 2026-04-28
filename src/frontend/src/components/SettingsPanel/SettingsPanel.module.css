@@ -339,73 +339,258 @@
 
 .workspaceTileGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
+  grid-template-columns: 1fr;
+  gap: 10px;
   margin-top: 8px;
+}
+
+@media (min-width: 600px) {
+  .workspaceTileGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .workspaceTile {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 8px;
+  gap: 6px;
+  padding: 12px 12px 12px 14px;
+  padding-right: 36px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  position: relative;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.workspaceTile:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.workspaceTileIndex {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  position: relative;
+  color: var(--text-dim);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.workspaceTileHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 32px;
+  min-width: 0;
+}
+
+.workspaceCard {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.workspaceCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.workspaceCardTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.workspaceCardName {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.workspaceCardCount {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.workspaceCardActions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.workspaceDefaultToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.workspaceDefaultToggle input {
+  accent-color: var(--accent);
+}
+
+.linkBtnDanger {
+  background: none;
+  border: none;
+  color: #ef5350;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 6px 8px;
+}
+
+.linkBtnDanger:hover {
+  text-decoration: underline;
 }
 
 .workspaceTileIcon {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   line-height: 1;
+  flex-shrink: 0;
+}
+
+.workspaceTileColor {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  margin-top: 3px;
+}
+
+.workspaceTileCommand,
+.workspaceTileMeta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  min-width: 0;
+}
+
+.workspaceTileCommand code,
+.workspaceTileMeta code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.workspaceTileMetaLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  flex-shrink: 0;
 }
 
 .workspaceTileContent {
   flex: 1;
   min-width: 0;
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .workspaceTileName {
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.workspaceTileBadge {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  line-height: 1.4;
+}
+
+.workspaceTileBadgeTerminal {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  color: var(--accent);
+}
+
+.workspaceTileBadgeAgent {
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg));
+  border-color: var(--border);
+  color: var(--text-secondary);
 }
 
 .workspaceTileCwd {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 0.7rem;
   color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-all;
+  line-height: 1.4;
   margin-top: 2px;
 }
 
 .workspaceTileAgent {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   color: var(--accent);
-  margin-top: 2px;
+  word-break: break-word;
 }
 
 .workspaceTileRemove {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 20px;
-  height: 20px;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface);
+  background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--text-secondary);
+  border-radius: 6px;
+  color: var(--text-dim);
   font-size: 0.75rem;
   cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .workspaceTileRemove:hover {

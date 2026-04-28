@@ -5,7 +5,10 @@ import { useUIStore } from '@/stores/uiStore';
 import { usePreferencesStore, type TouchBarKey } from '@/stores/preferencesStore';
 import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
 import { uploadImage } from '@/services/api';
+import { DEFAULT_TOUCHBAR_KEYS } from './defaultKeys';
 import styles from './TouchBar.module.css';
+
+let hapticsUnsupportedWarned = false;
 
 const SpeechRecognitionAPI =
   typeof window !== 'undefined'
@@ -20,32 +23,42 @@ interface KeyDef {
   data: string;
   type?: KeyType;
   modifier?: 'ctrl' | 'shift';
-  action?: 'copy' | 'paste' | 'cancel' | 'newline' | 'send';
+  action?: 'copy' | 'paste' | 'cancel' | 'newline' | 'send' | 'mic';
+  size?: number;
+  bg?: string;
+  color?: string;
+  /** Stable identity for React keys + mic special-case rendering */
+  id?: string;
 }
 
-// ── Terminal mode keys ──
+// ── Terminal mode keys —
+// Live render uses customKeys (or DEFAULT_TOUCHBAR_KEYS as the default).
+// See effectiveRow1 / effectiveRow2 in the component below.
 
-// Row 1: Esc, Copy, Paste, Home, End, ↑, ↵
-const ROW1: KeyDef[] = [
-  { label: 'Esc', data: '\x1b', type: 'special' },
-  { label: 'Copy', data: '', type: 'special', action: 'copy' },
-  { label: 'Paste', data: '', type: 'special', action: 'paste' },
-  { label: 'Home', data: '\x1b[H', type: 'special' },
-  { label: 'End', data: '\x1b[F', type: 'special' },
-  { label: '↑', data: '\x1b[A', type: 'icon' },
-  { label: '↵', data: '\r', type: 'enter' },
-];
-
-// Row 2: Ctrl, Shift, Tab, ^C, ←, ↓, →
-const ROW2: KeyDef[] = [
-  { label: 'Ctrl', data: '', type: 'modifier', modifier: 'ctrl' },
-  { label: 'Shift', data: '', type: 'modifier', modifier: 'shift' },
-  { label: 'Tab', data: '\x09', type: 'special' },
-  { label: '^C', data: '\x03', type: 'danger' },
-  { label: '←', data: '\x1b[D', type: 'icon' },
-  { label: '↓', data: '\x1b[B', type: 'icon' },
-  { label: '→', data: '\x1b[C', type: 'icon' },
-];
+function touchBarKeyToDef(k: TouchBarKey): KeyDef {
+  const styleType = k.style ?? 'special';
+  const mappedType: KeyType =
+    styleType === 'default' ? 'special' : (styleType as KeyType);
+  return {
+    id: k.id,
+    label: k.label || '·',
+    data: k.send,
+    type: mappedType,
+    size: k.size,
+    bg: k.bg,
+    color: k.color,
+    modifier: k.modifier === 'alt' ? undefined : k.modifier,
+    // 'newline' / 'send' actions weren't in the legacy KeyAction union; map mic/copy/paste/cancel
+    action:
+      k.action === 'mic' ||
+      k.action === 'copy' ||
+      k.action === 'paste' ||
+      k.action === 'cancel' ||
+      k.action === 'newline'
+        ? k.action
+        : undefined,
+  };
+}
 
 const ARROW_MAP: Record<string, string> = {
   '\x1b[A': 'A',
@@ -134,22 +147,31 @@ export default function TouchBar() {
   useEffect(() => {
     setCollapsed(startCollapsed);
   }, [startCollapsed]);
-  // When the user has defined custom keys, use them to override ROW1 (so the
-  // bottom modifier row stays predictable and the mic button keeps a stable
-  // position). Limit to 7 to match the 8-column grid. Custom keys never
-  // carry actions or modifiers — they're plain "send a string" buttons.
-  // FIX #5: include size, bg, color in the KeyDef mapping.
-  const effectiveRow1: (KeyDef & { size?: number; bg?: string; color?: string })[] = useMemo(() => {
-    if (!customKeys || customKeys.length === 0) return ROW1;
-    return customKeys.slice(0, 7).map((k: TouchBarKey) => ({
-      label: k.label || '·',
-      data: k.send,
-      type: 'special' as const,
-      size: k.size,
-      bg: k.bg,
-      color: k.color,
-    }));
-  }, [customKeys]);
+  // When the user has defined custom keys, that array becomes the SINGLE
+  // source for the entire touch bar (both rows + mic). Default behavior
+  // (customKeys === null) is identical to using DEFAULT_TOUCHBAR_KEYS.
+  //
+  // Layout: filter mic action keys aside, take up to 14 grid keys, split
+  // into row1 (first 7) + row2 (next 7); the mic action key, if present,
+  // renders in the auto slot at the end of row2. This keeps the mic in a
+  // stable place while still letting the user remove it via Customize.
+  const effectiveKeys = useMemo<TouchBarKey[]>(
+    () => (customKeys && customKeys.length > 0 ? customKeys : DEFAULT_TOUCHBAR_KEYS),
+    [customKeys],
+  );
+  const micKey = useMemo(() => effectiveKeys.find((k) => k.action === 'mic'), [effectiveKeys]);
+  const gridKeys = useMemo(
+    () => effectiveKeys.filter((k) => k.action !== 'mic').slice(0, 14),
+    [effectiveKeys],
+  );
+  const effectiveRow1 = useMemo(
+    () => gridKeys.slice(0, 7).map(touchBarKeyToDef),
+    [gridKeys],
+  );
+  const effectiveRow2 = useMemo(
+    () => gridKeys.slice(7, 14).map(touchBarKeyToDef),
+    [gridKeys],
+  );
   const activeSessionType = useSessionStore(
     (s) => (s.activeId ? s.sessions.get(s.activeId)?.type : undefined),
   );
@@ -369,11 +391,18 @@ export default function TouchBar() {
 
       flash(def.label);
       sendInput(data);
-      if (haptics && typeof navigator !== 'undefined' && navigator.vibrate) {
-        try {
-          navigator.vibrate(8);
-        } catch {
-          // some browsers throw on rapid calls — non-fatal
+      if (haptics) {
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          try {
+            navigator.vibrate(15);
+          } catch {
+            // some browsers throw on rapid calls — non-fatal
+          }
+        } else if (!hapticsUnsupportedWarned && typeof console !== 'undefined') {
+          hapticsUnsupportedWarned = true;
+          console.debug(
+            '[TouchBar] Haptics requested but navigator.vibrate is unavailable (e.g., iOS Safari).',
+          );
         }
       }
 
@@ -475,21 +504,31 @@ export default function TouchBar() {
     return undefined;
   };
 
-  // FIX #5: renderKey now honors size, bg, color for custom keys
-  const renderKey = (def: KeyDef & { size?: number; bg?: string; color?: string }) => {
-    const inlineStyle: React.CSSProperties =
-      customKeys && customKeys.length > 0
-        ? {
-            gridColumn: def.size ? `span ${def.size}` : undefined,
-            background: def.bg,
-            color: def.color,
-          }
-        : {};
+  // FIX #5: renderKey now honors size, bg, color for custom keys.
+  // Build inline style conditionally so undefined bg/color don't blank out
+  // the CSS-class defaults (regression where empty inline style values
+  // overrode .special/.keyEnter backgrounds).
+  const renderKey = (
+    def: KeyDef & { size?: number; bg?: string; color?: string },
+    index?: number,
+  ) => {
+    const hasCustom = !!(customKeys && customKeys.length > 0);
+    const inlineStyle: React.CSSProperties = hasCustom
+      ? {
+          ...(def.size ? { gridColumn: `span ${def.size}` } : {}),
+          ...(def.bg ? { background: def.bg } : {}),
+          ...(def.color ? { color: def.color } : {}),
+        }
+      : {};
+    if (typeof index === 'number') {
+      (inlineStyle as Record<string, string | number>)['--key-i'] = index;
+    }
+    const styleProp = Object.keys(inlineStyle).length > 0 ? inlineStyle : undefined;
     return (
       <button
-        key={def.label}
-        className={getKeyClassName(def)}
-        style={inlineStyle}
+        key={def.id ?? def.label}
+        className={`${getKeyClassName(def)} ${styles.keyAnimIn}`}
+        style={styleProp}
         data-testid={getTestId(def)}
         onClick={() => handlePress(def)}
         onMouseDown={() => handleMouseDown(def)}
@@ -592,7 +631,7 @@ export default function TouchBar() {
   if (isAgentMode && !showingAgentTerminal) return null;
 
   return (
-    <div className={styles.touchBarWrapper}>
+    <div className={styles.touchBarWrapper} data-collapsed={collapsed ? 'true' : 'false'}>
       <button
         type="button"
         className={styles.collapseHandle}
@@ -600,16 +639,16 @@ export default function TouchBar() {
         aria-expanded={!collapsed}
         onClick={() => setCollapsed(!collapsed)}
       >
-        {collapsed ? '▴' : '▾'}
+        <span aria-hidden="true">{collapsed ? '▴' : '▾'}</span>
       </button>
       {!collapsed && (
         <div className={styles.touchBar}>
           <div className={styles.row}>
-            {effectiveRow1.slice(0, 7).map(renderKey)}
+            {effectiveRow1.map((k, i) => renderKey(k, i))}
           </div>
           <div className={`${styles.row} ${styles.row2}`}>
-            {ROW2.map(renderKey)}
-            {micButton}
+            {effectiveRow2.map((k, i) => renderKey(k, i + 7))}
+            {micKey && micButton}
           </div>
         </div>
       )}

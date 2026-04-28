@@ -2,10 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
-import { usePreference } from '@/stores/preferencesStore';
 import { deleteSession, renameSession, fetchVersion, getShareUrl } from '@/services/api';
-import { playNotificationSound, setNotificationsEnabled } from '@/services/audio';
-import { isPushSubscribedSync } from '@/services/pushSubscription';
 import { AboutModal } from '@/components/Modals/AboutModal';
 import ThemePicker from '@/components/common/ThemePicker';
 import styles from './ToolsPanel.module.css';
@@ -70,21 +67,6 @@ const iconMarkdown = (
     <polyline points="4 9 5.5 7 7 9" />
     <line x1="9" y1="9" x2="9" y2="7" />
     <polyline points="9 7 10.5 8.5 12 7" />
-  </svg>
-);
-
-const iconCloseTab = (
-  <svg
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="2" y="2" width="12" height="12" rx="2" />
-    <line x1="5.5" y1="5.5" x2="10.5" y2="10.5" />
-    <line x1="10.5" y1="5.5" x2="5.5" y2="10.5" />
   </svg>
 );
 
@@ -227,20 +209,6 @@ const iconCopyLink = (
   >
     <path d="M6.5 9.5a3 3 0 004 .5l2-2a3 3 0 00-4.24-4.24L7 5" />
     <path d="M9.5 6.5a3 3 0 00-4-.5l-2 2a3 3 0 004.24 4.24L9 11" />
-  </svg>
-);
-
-const iconBell = (
-  <svg
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M4 6a4 4 0 018 0c0 4 2 5 2 5H2s2-1 2-5" />
-    <path d="M6.5 13a1.5 1.5 0 003 0" />
   </svg>
 );
 
@@ -400,28 +368,29 @@ function fallbackCopy(text: string): void {
 
 export default function ToolsPanel() {
   const open = useUIStore((s) => s.toolsPanelOpen);
-  const close = useUIStore((s) => s.closeToolsPanel);
-  const notificationsOn = usePreference('notifications');
+  const closeAction = useUIStore((s) => s.closeToolsPanel);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [aboutVersion, setAboutVersion] = useState('');
-  const [pushActive, setPushActive] = useState(() => isPushSubscribedSync());
 
-  // Animate open: render always, toggle class
+  // Render-while-closing pattern so the slide-out transition can play.
+  // - `open` (store state) flips false immediately on close.
+  // - `visible` keeps the panel mounted; `mounted` drives the transform.
+  const [visible, setVisible] = useState(open);
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     if (open) {
-      // Force a reflow before adding the open class so the transition fires
+      setVisible(true);
       requestAnimationFrame(() => setMounted(true));
-      // Refresh push status when palette opens
-      import('@/services/pushSubscription').then(({ isPushSubscribed }) => {
-        isPushSubscribed()
-          .then(setPushActive)
-          .catch(() => {});
-      });
-    } else {
+    } else if (visible) {
       setMounted(false);
+      const t = setTimeout(() => setVisible(false), 220);
+      return () => clearTimeout(t);
     }
-  }, [open]);
+  }, [open, visible]);
+
+  const close = useCallback(() => {
+    closeAction();
+  }, [closeAction]);
 
   const run = useCallback(
     (fn: () => void) => {
@@ -431,7 +400,7 @@ export default function ToolsPanel() {
     [close],
   );
 
-  if (!open) {
+  if (!visible) {
     return (
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} version={aboutVersion} />
     );
@@ -467,51 +436,6 @@ export default function ToolsPanel() {
         if (ms?.companionTermId) remove(ms.companionTermId);
         remove(activeId);
       });
-    close();
-  };
-
-  const handleNotifications = async () => {
-    const next = !notificationsOn;
-    setNotificationsEnabled(next);
-
-    if (next) {
-      playNotificationSound();
-
-      // Request notification permission
-      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-        const perm = await Notification.requestPermission();
-        if (perm !== 'granted') {
-          setPushActive(false);
-          toast('Notifications enabled (browser permission denied, using in-app only)');
-          close();
-          return;
-        }
-      }
-
-      // Try to set up push subscription
-      try {
-        const { initPushSubscription } = await import('@/services/pushSubscription');
-        const success = await initPushSubscription();
-        setPushActive(success);
-        if (success) {
-          toast('Notifications enabled with push support');
-        } else {
-          toast('Notifications enabled (push not available)');
-        }
-      } catch {
-        toast('Notifications enabled (push setup failed, using fallback)');
-      }
-    } else {
-      // Disable: also remove push subscription
-      try {
-        const { removePushSubscription } = await import('@/services/pushSubscription');
-        await removePushSubscription();
-      } catch {
-        // Ignore cleanup errors
-      }
-      setPushActive(false);
-      toast('Notifications disabled');
-    }
     close();
   };
 
@@ -568,27 +492,8 @@ export default function ToolsPanel() {
           action: () => run(() => useSessionStore.getState().toggleSplit()),
         },
         {
-          id: 'close-tab',
-          label: 'Close tab',
-          icon: iconCloseTab,
-          action: () =>
-            run(() => {
-              const {
-                activeId,
-                sessions: sess,
-                removeSession: remove,
-              } = useSessionStore.getState();
-              if (!activeId) return;
-              const ms = sess.get(activeId);
-              if (!confirm(`Close session "${ms?.name ?? activeId}"?`)) return;
-              deleteSession(activeId).catch(() => {});
-              if (ms?.companionTermId) remove(ms.companionTermId);
-              remove(activeId);
-            }),
-        },
-        {
           id: 'stop',
-          label: 'Stop session',
+          label: 'Close session',
           icon: iconStop,
           action: handleStop,
         },
@@ -740,21 +645,6 @@ export default function ToolsPanel() {
       ],
     },
     {
-      title: 'NOTIFICATIONS',
-      actions: [
-        {
-          id: 'notifications',
-          label: notificationsOn
-            ? pushActive
-              ? 'Notifications (on) — Push active ✓'
-              : 'Notifications (on) — Push unavailable'
-            : 'Notifications (off)',
-          icon: iconBell,
-          action: handleNotifications,
-        },
-      ],
-    },
-    {
       title: 'SETTINGS',
       actions: [
         {
@@ -804,7 +694,10 @@ export default function ToolsPanel() {
 
   return (
     <>
-      <div className={styles.backdrop} onClick={close} />
+      <div
+        className={`${styles.backdrop} ${mounted ? styles.backdropOpen : ''}`}
+        onClick={close}
+      />
       <div className={panelCls} data-testid="palette-panel" data-open="true">
         <div className={styles.header}>
           <span className={styles.title}>Tools</span>
@@ -829,7 +722,7 @@ export default function ToolsPanel() {
               ))}
               {sec.title === 'VIEW' && (
                 <div className={styles.themePickerRow}>
-                  <ThemePicker />
+                  <ThemePicker onSelect={() => close()} />
                 </div>
               )}
             </div>

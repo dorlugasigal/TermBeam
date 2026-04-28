@@ -104,6 +104,72 @@ describe('preferences sanitize()', () => {
     const s = sanitize({ startupWorkspace: { enabled: true, sessions } });
     assert.ok(s.startupWorkspace.sessions.length <= 16);
   });
+
+  it('accepts touchBarKeys with action and size 1-3', () => {
+    const s = sanitize({
+      touchBarKeys: [
+        { id: 'mic', label: 'Mic', send: '', action: 'mic', size: 2 },
+        { id: 'wide', label: 'Wide', send: 'x', size: 3 },
+        { id: 'bad', label: 'Bad', send: 'x', size: 4 }, // size 4 dropped
+        { id: 'bad2', label: 'Bad', send: 'x', action: 'nope' }, // bad action dropped
+      ],
+    });
+    const mic = s.touchBarKeys.find((k) => k.id === 'mic');
+    const wide = s.touchBarKeys.find((k) => k.id === 'wide');
+    const bad = s.touchBarKeys.find((k) => k.id === 'bad');
+    const bad2 = s.touchBarKeys.find((k) => k.id === 'bad2');
+    assert.strictEqual(mic.action, 'mic');
+    assert.strictEqual(mic.size, 2);
+    assert.strictEqual(wide.size, 3);
+    assert.strictEqual(bad.size, undefined); // size 4 silently dropped
+    assert.strictEqual(bad2.action, undefined); // bad action silently dropped
+  });
+
+  it('returns empty workspaces[] by default', () => {
+    const d = getDefaults();
+    assert.deepStrictEqual(d.workspaces, []);
+  });
+
+  it('sanitizes named workspaces', () => {
+    const s = sanitize({
+      workspaces: [
+        {
+          id: 'w1',
+          name: 'Dev',
+          default: true,
+          sessions: [
+            { id: 's1', name: 'API', kind: 'shell', cwd: '/tmp', initialCommand: 'npm run dev' },
+            {
+              id: 's2',
+              name: 'Web',
+              kind: 'shell',
+              cwd: '/tmp',
+              initialCommand: '',
+              shell: '/bin/zsh',
+              color: '#ff8800',
+            },
+          ],
+        },
+        { id: 'w2', name: 'Prod', default: true, sessions: [] }, // only one default wins
+        { id: '', name: 'no-id' }, // dropped
+        { id: 'w3' }, // missing name dropped
+      ],
+    });
+    assert.strictEqual(s.workspaces.length, 2);
+    assert.strictEqual(s.workspaces[0].name, 'Dev');
+    assert.strictEqual(s.workspaces[0].default, true);
+    assert.strictEqual(s.workspaces[0].sessions.length, 2);
+    assert.strictEqual(s.workspaces[0].sessions[1].shell, '/bin/zsh');
+    assert.strictEqual(s.workspaces[0].sessions[1].color, '#ff8800');
+    assert.strictEqual(s.workspaces[1].default, undefined); // second default dropped
+  });
+
+  it('caps workspaces[] length', () => {
+    const ws = [];
+    for (let i = 0; i < 50; i++) ws.push({ id: `w${i}`, name: `W${i}`, sessions: [] });
+    const s = sanitize({ workspaces: ws });
+    assert.ok(s.workspaces.length <= 16);
+  });
 });
 
 describe('preferences read/write', () => {

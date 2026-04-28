@@ -21,14 +21,19 @@ const DEFAULTS = Object.freeze({
   touchBarCollapsed: false,
   touchBarKeys: null, // null = use built-in defaults
   startupWorkspace: { enabled: false, sessions: [] },
+  workspaces: [],
 });
 
 const FONT_MIN = 2;
 const FONT_MAX = 32;
 const MAX_STARTUP_SESSIONS = 16;
 const MAX_TOUCHBAR_KEYS = 32;
+const MAX_WORKSPACES = 16;
 const MAX_STRING_LEN = 4096;
 const MAX_SEND_LEN = 64;
+
+const VALID_KEY_ACTIONS = new Set(['mic', 'copy', 'paste', 'cancel', 'newline']);
+const VALID_KEY_LOOKS = new Set(['default', 'special', 'modifier', 'icon', 'enter', 'danger']);
 
 function clampNumber(n, min, max, fallback) {
   if (typeof n !== 'number' || !Number.isFinite(n)) return fallback;
@@ -59,16 +64,46 @@ function sanitizeTouchBarKeys(input) {
       const mod = entry.modifier.toLowerCase();
       if (mod === 'ctrl' || mod === 'alt' || mod === 'shift') key.modifier = mod;
     }
-    if (entry.size === 1 || entry.size === 2) key.size = entry.size;
+    if (typeof entry.action === 'string' && VALID_KEY_ACTIONS.has(entry.action)) {
+      key.action = entry.action;
+    }
+    if (entry.size === 1 || entry.size === 2 || entry.size === 3) {
+      key.size = entry.size;
+    }
     if (typeof entry.bg === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(entry.bg)) {
       key.bg = entry.bg;
     }
     if (typeof entry.color === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(entry.color)) {
       key.color = entry.color;
     }
+    if (typeof entry.style === 'string' && VALID_KEY_LOOKS.has(entry.style)) {
+      key.style = entry.style;
+    }
     out.push(key);
   }
   return out;
+}
+
+function sanitizeStartupSession(s) {
+  if (!s || typeof s !== 'object') return null;
+  const id = asString(s.id, '', 64);
+  const name = asString(s.name, '', 128);
+  const kindRaw = asString(s.kind, 'shell', 16);
+  const kind = kindRaw === 'agent' ? 'agent' : 'shell';
+  const cwd = asString(s.cwd, '', 1024);
+  const initialCommand = asString(s.initialCommand, '', 1024);
+  if (!id || !name) return null;
+  const entry = { id, name, kind, cwd, initialCommand };
+  if (kind === 'agent' && typeof s.agentId === 'string') {
+    entry.agentId = asString(s.agentId, '', 128);
+  }
+  if (typeof s.shell === 'string' && s.shell) {
+    entry.shell = asString(s.shell, '', 256);
+  }
+  if (typeof s.color === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(s.color)) {
+    entry.color = s.color;
+  }
+  return entry;
 }
 
 function sanitizeStartupWorkspace(input) {
@@ -77,21 +112,35 @@ function sanitizeStartupWorkspace(input) {
   const rawSessions = Array.isArray(input.sessions) ? input.sessions : [];
   const sessions = [];
   for (const s of rawSessions.slice(0, MAX_STARTUP_SESSIONS)) {
-    if (!s || typeof s !== 'object') continue;
-    const id = asString(s.id, '', 64);
-    const name = asString(s.name, '', 128);
-    const kindRaw = asString(s.kind, 'shell', 16);
-    const kind = kindRaw === 'agent' ? 'agent' : 'shell';
-    const cwd = asString(s.cwd, '', 1024);
-    const initialCommand = asString(s.initialCommand, '', 1024);
-    if (!id || !name) continue;
-    const entry = { id, name, kind, cwd, initialCommand };
-    if (kind === 'agent' && typeof s.agentId === 'string') {
-      entry.agentId = asString(s.agentId, '', 128);
-    }
-    sessions.push(entry);
+    const entry = sanitizeStartupSession(s);
+    if (entry) sessions.push(entry);
   }
   return { enabled, sessions };
+}
+
+function sanitizeWorkspaces(input) {
+  if (!Array.isArray(input)) return [];
+  const out = [];
+  let defaultsSeen = 0;
+  for (const w of input.slice(0, MAX_WORKSPACES)) {
+    if (!w || typeof w !== 'object') continue;
+    const id = asString(w.id, '', 64);
+    const name = asString(w.name, '', 128);
+    if (!id || !name) continue;
+    const sessions = [];
+    const rawSessions = Array.isArray(w.sessions) ? w.sessions : [];
+    for (const s of rawSessions.slice(0, MAX_STARTUP_SESSIONS)) {
+      const entry = sanitizeStartupSession(s);
+      if (entry) sessions.push(entry);
+    }
+    const entry = { id, name, sessions };
+    if (asBool(w.default, false) && defaultsSeen === 0) {
+      entry.default = true;
+      defaultsSeen += 1;
+    }
+    out.push(entry);
+  }
+  return out;
 }
 
 /**
@@ -114,6 +163,7 @@ function sanitize(prefs) {
     touchBarCollapsed: asBool(src.touchBarCollapsed, DEFAULTS.touchBarCollapsed),
     touchBarKeys: sanitizeTouchBarKeys(src.touchBarKeys),
     startupWorkspace: sanitizeStartupWorkspace(src.startupWorkspace),
+    workspaces: sanitizeWorkspaces(src.workspaces),
   };
 }
 

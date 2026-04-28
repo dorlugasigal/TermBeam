@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { fetchSessions, deleteSession, fetchVersion, getShareUrl } from '@/services/api';
 import { useUIStore } from '@/stores/uiStore';
+import ThemePicker from '@/components/common/ThemePicker';
 import type { Session } from '@/types';
 import UpdateBanner from '@/components/common/UpdateBanner';
 import TunnelBanner from '@/components/common/TunnelBanner';
 import SessionCard from './SessionCard';
 import NewSessionModal from './NewSessionModal';
 import ResumeBrowser from '@/components/ResumeBrowser/ResumeBrowser';
+import WorkspaceLauncher from '@/components/WorkspaceLauncher/WorkspaceLauncher';
 import FilterBar from './FilterBar';
 import {
   EMPTY_FILTER,
@@ -80,7 +82,8 @@ export default function SessionsHub() {
   const [version, setVersion] = useState('');
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<SessionFilterState>(() => loadFilterFromStorage());
-  const { openNewSessionModal, openResumeBrowser } = useUIStore();
+  const [workspaceLauncherOpen, setWorkspaceLauncherOpen] = useState(false);
+  const { openNewSessionModal, openResumeBrowser, themePickerOpen, openThemePicker, closeThemePicker } = useUIStore();
 
   const loadSessions = useCallback(async () => {
     try {
@@ -168,34 +171,60 @@ export default function SessionsHub() {
       <TunnelBanner />
 
       <header className={styles.header}>
-        <h1 className={styles.title}>
-          📡 Term<span className={styles.accent}>Beam</span>
-        </h1>
-        <p className={styles.tagline}>
-          Beam your terminal to any device
-          {version ? <span data-testid="hub-version"> · v{version}</span> : ''}
-        </p>
+        <div className={styles.brand}>
+          <h1 className={styles.title}>
+            <span className={styles.brandIcon} aria-hidden="true">
+              {'>_'}
+            </span>
+            <span className={styles.brandName}>
+              Term<span className={styles.accent}>Beam</span>
+            </span>
+          </h1>
+          {version ? (
+            <span className={styles.version} data-testid="hub-version">
+              v{version}
+            </span>
+          ) : null}
+        </div>
 
-        <button
-          className={`${styles.headerBtn} ${styles.shareBtn}`}
-          onClick={handleShare}
-          aria-label="Share URL"
-          title="Share"
-        >
-          <ShareIcon />
-        </button>
-        <button
-          className={`${styles.headerBtn} ${styles.refreshBtn}`}
-          onClick={handleRefresh}
-          aria-label="Refresh sessions"
-          title="Refresh"
-          data-testid="hub-refresh-btn"
-        >
-          <span className={refreshing ? styles.refreshSpin : ''} style={{ display: 'flex' }}>
-            <RefreshIcon />
-          </span>
-        </button>
+        <div className={styles.headerActions}>
+          <button
+            className={styles.headerBtn}
+            onClick={openThemePicker}
+            aria-label="Choose theme"
+            title="Theme"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="13.5" cy="6.5" r="1.5" fill="currentColor" />
+              <circle cx="17.5" cy="10.5" r="1.5" fill="currentColor" />
+              <circle cx="8.5" cy="7.5" r="1.5" fill="currentColor" />
+              <circle cx="6.5" cy="12.5" r="1.5" fill="currentColor" />
+              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-5.52-4.48-10-10-10z" />
+            </svg>
+          </button>
+          <button
+            className={styles.headerBtn}
+            onClick={handleShare}
+            aria-label="Share URL"
+            title="Share"
+          >
+            <ShareIcon />
+          </button>
+          <button
+            className={styles.headerBtn}
+            onClick={handleRefresh}
+            aria-label="Refresh sessions"
+            title="Refresh"
+            data-testid="hub-refresh-btn"
+          >
+            <span className={refreshing ? styles.refreshSpin : ''} style={{ display: 'flex' }}>
+              <RefreshIcon />
+            </span>
+          </button>
+        </div>
       </header>
+
+      <ThemePicker open={themePickerOpen} onClose={closeThemePicker} hideTrigger />
 
       <main className={styles.content}>
         {loading ? (
@@ -260,14 +289,29 @@ export default function SessionsHub() {
         <button
           className={styles.resumeBtn}
           onClick={openResumeBrowser}
-          aria-label="Resume session"
+          aria-label="Resume agent"
         >
-          ↺ Resume
+          ↺ Resume Agent
+        </button>
+        <button
+          className={styles.workspaceBtn}
+          onClick={() => setWorkspaceLauncherOpen(true)}
+          aria-label="Open workspace"
+          data-testid="hub-open-workspace-btn"
+        >
+          Open Workspace
         </button>
       </div>
 
       <NewSessionModal onCreated={navigateToSession} />
       <ResumeBrowser />
+      <WorkspaceLauncher
+        open={workspaceLauncherOpen}
+        onClose={() => setWorkspaceLauncherOpen(false)}
+        onLaunched={(id) => {
+          if (id) navigateToSession(id);
+        }}
+      />
     </div>
   );
 }

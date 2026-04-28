@@ -6,8 +6,9 @@ import { TerminalApp } from '@/components/TerminalApp/TerminalApp';
 import CodeViewer from '@/components/CodeViewer/CodeViewer';
 import { useThemeStore } from '@/stores/themeStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useSessionStore } from '@/stores/sessionStore';
 import { THEMES } from '@/themes/terminalThemes';
-import { createSession } from '@/services/api';
+import { createSession, fetchSessions } from '@/services/api';
 
 function getPath() {
   return window.location.pathname;
@@ -73,18 +74,47 @@ export default function App() {
     const tryBoot = (state: ReturnType<typeof usePreferencesStore.getState>) => {
       if (startupBootedRef.current) return;
       if (!state.hydrated) return;
-      const ws = state.prefs.startupWorkspace;
       startupBootedRef.current = true;
-      if (!ws || !ws.enabled || !ws.sessions || ws.sessions.length === 0) return;
+
+      // Pick which session list to boot from. Preference order:
+      //   1. A named workspace flagged `default: true`
+      //   2. Legacy single startupWorkspace (when enabled)
+      const defaultWs = (state.prefs.workspaces ?? []).find((w) => w.default);
+      const legacy = state.prefs.startupWorkspace;
+      const sessionsToBoot = defaultWs
+        ? defaultWs.sessions
+        : legacy && legacy.enabled && legacy.sessions
+          ? legacy.sessions
+          : [];
+
+      if (sessionsToBoot.length === 0) return;
+
       (async () => {
-        for (const s of ws.sessions) {
+        // Idempotent boot: only spawn startup sessions when the server has
+        // none. Otherwise refreshing the page (or any client reconnecting
+        // to an already-running TermBeam) would keep stacking duplicates.
+        try {
+          const existing = await fetchSessions();
+          if (existing.length > 0) return;
+        } catch {
+          // If we can't read the session list, bail out — we'd rather skip
+          // the boot than risk creating duplicates.
+          return;
+        }
+        for (const s of sessionsToBoot) {
           try {
-            await createSession({
+            const cmd = (s.initialCommand ?? '').trim();
+            const created = await createSession({
               name: s.name,
               cwd: s.cwd || undefined,
-              initialCommand: s.initialCommand || undefined,
+              color: s.color || undefined,
+              shell: s.shell || undefined,
+              initialCommand: cmd || undefined,
               type: s.kind === 'agent' ? 'agent' : 'terminal',
             });
+            if (cmd) {
+              useSessionStore.getState().setPendingInitialCommand(created.id, cmd);
+            }
           } catch {
             // Best-effort: a missing cwd or transient server error on one
             // entry shouldn't block the remaining entries.

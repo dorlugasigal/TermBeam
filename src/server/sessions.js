@@ -186,7 +186,9 @@ class SessionManager {
 
     // Send initial command once the shell is ready
     if (initialCommand) {
-      log.debug(`Scheduling initialCommand for session ${id} (${initialCommand.length} chars)`);
+      log.info(
+        `Scheduling initialCommand for session ${id} (${initialCommand.length} chars): ${JSON.stringify(initialCommand.slice(0, 80))}`,
+      );
       setTimeout(() => ptyProcess.write(initialCommand + '\r'), 300);
     }
 

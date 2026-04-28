@@ -7,47 +7,92 @@
 }
 
 /* When UpdateBanner is visible, it already handles safe-area-inset-top,
-   so remove the duplicate inset from the header and its buttons */
+   so remove the duplicate inset from the header */
 .page:has([data-update-banner]) .header {
-  padding-top: 20px;
-}
-
-.page:has([data-update-banner]) .headerBtn {
-  top: 16px;
+  padding-top: 16px;
 }
 
 .header {
   position: relative;
-  padding: calc(20px + env(safe-area-inset-top, 0px)) 16px 12px;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 14px 12px;
   border-bottom: 1px solid var(--border);
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  flex: 1;
 }
 
 .title {
-  font-size: 22px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text);
   margin: 0;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.brandIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 6px;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 6px;
+  line-height: 1;
 }
 
 .accent {
   color: var(--accent);
 }
 
-.tagline {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin: 4px 0 0;
+.brandName {
+  white-space: nowrap;
+}
+
+.version {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .headerBtn {
-  position: absolute;
-  top: calc(16px + env(safe-area-inset-top, 0px));
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   background: none;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -55,21 +100,17 @@
   cursor: pointer;
   transition:
     border-color 0.15s,
-    color 0.15s;
+    color 0.15s,
+    background 0.15s;
   padding: 0;
 }
 
-.headerBtn:hover {
+.headerBtn:hover,
+.headerBtn:focus-visible {
   border-color: var(--accent);
   color: var(--text);
-}
-
-.shareBtn {
-  right: 96px;
-}
-
-.refreshBtn {
-  right: 56px;
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.04));
+  outline: none;
 }
 
 .content {
@@ -163,12 +204,12 @@
 }
 
 .resumeBtn {
-  padding: 14px 20px;
+  padding: 14px 16px;
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 12px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition:
@@ -184,6 +225,45 @@
 
 .resumeBtn:active {
   transform: scale(0.98);
+}
+
+.workspaceBtn {
+  padding: 14px 16px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.15s,
+    border-color 0.15s;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.workspaceBtn:hover {
+  border-color: var(--accent);
+}
+
+.workspaceBtn:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 480px) {
+  .hubFooter {
+    flex-wrap: wrap;
+  }
+  .newSessionBtn {
+    flex: 1 0 100%;
+  }
+  .resumeBtn,
+  .workspaceBtn {
+    flex: 1 1 0;
+    font-size: 13px;
+    padding: 12px 8px;
+  }
 }
 
 .refreshSpin {
