@@ -1,0 +1,646 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 999;
+  animation: fade 0.15s ease;
+}
+
+.panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(94vw, 720px);
+  max-height: min(90dvh, 800px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  z-index: 1000;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+  animation: pop 0.18s ease;
+  overflow: hidden;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  line-height: 1;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+
+.closeBtn:hover {
+  color: var(--text);
+  background: var(--border);
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hintPanel {
+  padding: 14px;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.editorPanel {
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.editorHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.editorTitle {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.editorRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.editorLabel {
+  font-size: 0.8rem;
+  color: var(--text);
+  min-width: 90px;
+  font-weight: 500;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+.segmentedControl {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.segmentedBtn {
+  padding: 6px 14px;
+  background: var(--surface);
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.segmentedBtn:last-child {
+  border-right: none;
+}
+
+.segmentedBtn:hover {
+  background: var(--bg);
+}
+
+.segmentedBtnActive,
+.segmentedBtnActive:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.colorRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.colorInput {
+  width: 40px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.colorSwatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.resetBtn {
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.resetBtn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.dangerBtn {
+  align-self: flex-start;
+  padding: 7px 14px;
+  background: #d32f2f;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.dangerBtn:hover {
+  background: #c62828;
+}
+
+.empty {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin: 0;
+  text-align: center;
+}
+
+.previewSection {
+  border-top: 1px solid var(--border);
+  padding: 12px 1rem;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.previewHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.previewLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.previewCount {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.keyboardPreview {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.previewStack {
+  display: flex;
+  flex-direction: column;
+  padding: 3px 4px 4px;
+  gap: 4px;
+  background: linear-gradient(to bottom, var(--bg) 0%, var(--surface) 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.previewRow {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  /* Force a single row — without this, CSS grid can spawn implicit rows
+   * if the auto-flow algorithm bumps a cell down (e.g. when DOM order
+   * isn't strictly left-to-right). The TS render function sorts cells by
+   * col to prevent that, but this is the belt-and-suspenders backup. */
+  grid-template-rows: 32px;
+  gap: 4px;
+  padding: 0 2px;
+}
+
+/* Both rows now use repeat(8, 1fr) so keys are exactly the same width
+ * across rows. The mic occupies one of the 8 slots (typically slot 8
+ * of row 2) — no special trailing 'auto' column. */
+.previewRowWithMic {
+  /* Same as .previewRow — kept as a separate class only as a hook
+   * for future row-specific styling. */
+  grid-template-columns: repeat(8, 1fr);
+}
+
+/* Empty placeholder slot — dashed outline showing where a key can go. */
+.previewSlot {
+  height: 32px;
+  border: 1.5px dashed color-mix(in srgb, var(--text-dim) 55%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text-dim) 6%, transparent);
+  /* Must accept pointer events to be a drop target via elementFromPoint */
+}
+
+.previewSlotActive {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.previewMic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The preview key only adds *interaction* affordances (selection ring,
+ * drag/drop highlights). Visual styling — background, border, shadow,
+ * font-size, etc. — comes from `touchBarStyles.keyBtn` + the .special /
+ * .modifier / .icon / .keyEnter / .keyDanger preset class so the preview
+ * matches the live touchbar pixel-for-pixel. */
+.previewKey {
+  position: relative;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  transition:
+    transform 0.05s,
+    outline-color 0.1s;
+}
+
+.previewKey:hover {
+  outline: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 1px;
+}
+
+.previewKey:active {
+  transform: scale(0.97);
+}
+
+.previewKeySelected {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.previewKeyDragging {
+  opacity: 0.3;
+  cursor: grabbing;
+}
+
+.previewKeyDropTarget {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+
+.sendPicker {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.tabBar {
+  display: flex;
+  gap: 4px;
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 3px;
+}
+
+.tab {
+  flex: 1;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.1s,
+    color 0.1s;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tabActive,
+.tabActive:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.tabPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.modPill {
+  padding: 6px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+  user-select: none;
+}
+
+.modPill:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  color: var(--text);
+}
+
+.modPillActive,
+.modPillActive:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.comboPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+.comboHuman {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.comboSeq {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.comboSeqLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.comboSeq code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.72rem;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.micEditBadge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.dragGhost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1100;
+  transform: translate(-50%, -50%) scale(1.1) rotate(2deg);
+  opacity: 0.85;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  padding: 10px 14px;
+  min-width: 48px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+.styleGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  flex: 1;
+}
+
+@media (min-width: 540px) {
+  .styleGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.stylePill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition:
+    border-color 0.12s,
+    background 0.12s;
+}
+
+.stylePill:hover {
+  border-color: var(--accent);
+}
+
+.stylePillActive,
+.stylePillActive:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.styleSwatch {
+  width: 28px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+  pointer-events: none;
+  padding: 0;
+  min-height: 0;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--surface);
+}
+
+.secondaryBtn {
+  padding: 7px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.secondaryBtn:hover {
+  border-color: var(--accent);
+}
+
+.linkBtn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 6px 8px;
+}
+
+.linkBtn:hover {
+  text-decoration: underline;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .panel {
+    animation: none;
+  }
+  .dragGhost {
+    transform: translate(-50%, -50%);
+  }
+}

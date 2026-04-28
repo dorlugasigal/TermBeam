@@ -461,12 +461,13 @@ test.describe('Top Bar — Theme Toggle', () => {
     // Capture dark theme background color
     const darkBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
-    // Open the theme subpanel via the command palette
-    await openPaletteAndClick(page, 'Theme');
-    await page.waitForTimeout(100);
-
-    // Subpanel should be open
-    await expect(page.locator('[data-testid="theme-subpanel"]')).toBeVisible();
+    // Open the tools panel and then the inline ThemePicker (lives in the VIEW section)
+    await page.locator('[data-testid="palette-trigger"]').click();
+    await expect(page.locator('[data-testid="palette-panel"]')).toBeVisible();
+    await page.locator('[data-testid="theme-trigger"]').click();
+    await expect(page.locator('[data-testid="theme-subpanel"][data-open="true"]')).toBeVisible({
+      timeout: 3_000,
+    });
 
     // Select the light theme
     await page.locator('[data-testid="theme-item"][data-tid="light"]').click();
@@ -480,7 +481,10 @@ test.describe('Top Bar — Theme Toggle', () => {
     const lightBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     expect(lightBg).not.toBe(darkBg);
 
-    // Click dark theme directly
+    // Re-open and click dark theme
+    await page.locator('[data-testid="palette-trigger"]').click();
+    await expect(page.locator('[data-testid="palette-panel"]')).toBeVisible();
+    await page.locator('[data-testid="theme-trigger"]').click();
     await page.locator('[data-testid="theme-item"][data-tid="dark"]').click();
     await page.waitForTimeout(300);
     const darkTheme = await page.evaluate(() =>
@@ -749,7 +753,7 @@ test.describe('Top Bar — Navigation & Session Control', () => {
 
     // Accept the confirm dialog and stop via tools panel
     page.on('dialog', (dialog) => dialog.accept());
-    await openPaletteAndClick(page, 'Stop session');
+    await openPaletteAndClick(page, 'Close session');
 
     // Poll until session is removed from the server
     await expect(async () => {
@@ -839,14 +843,16 @@ test.describe('Activity Indicators', () => {
     }).toPass({ timeout: 5_000 });
   });
 
-  test('Notification toggle exists in command palette', async ({ page }) => {
+  test('Settings entry exists in tools panel', async ({ page }) => {
     await setupTerminal(page);
 
-    // Verify the notification toggle action is available in the palette
+    // Verify the Settings… entry is available in the tools panel (replaces
+    // the legacy "Notification toggle" — notifications are now configured
+    // inside the Settings panel itself).
     await page.locator('[data-testid="palette-trigger"]').click();
     await expect(page.locator('[data-testid="palette-panel"]')).toBeVisible();
     await expect(
-      page.locator('[data-testid="palette-action"]').filter({ hasText: /Notification/i }),
+      page.locator('[data-testid="palette-action"]').filter({ hasText: /Settings/i }),
     ).toBeVisible();
   });
 });

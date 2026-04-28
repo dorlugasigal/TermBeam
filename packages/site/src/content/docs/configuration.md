@@ -50,18 +50,57 @@ TermBeam auto-detects your current shell by inspecting the parent process tree. 
 The environment variables `PTY_PASSWORD` and `PTY_CWD` are also supported as fallbacks for `TERMBEAM_PASSWORD` and `TERMBEAM_CWD` respectively.
 :::
 
-## Client-Side Settings (localStorage)
+## Settings (UI)
 
-The browser UI stores the following preferences in `localStorage`:
+TermBeam exposes settings through the **Tools panel**, opened from the floating ▦ button or `Ctrl/Cmd+K`. From there pick **Settings…** (or use the `Cmd/Ctrl+,` shortcut). On mobile the panel slides up from the bottom; on desktop it docks to the right (~420 px wide). It is non-blocking so theme, font size, collapsed-touchbar and haptics changes can be observed live against the terminal underneath.
 
-| Key                      | Description                                               | Default |
-| ------------------------ | --------------------------------------------------------- | ------- |
-| `termbeam-notifications` | Command completion notifications enabled (`true`/`false`) | `true`  |
-| `termbeam-font-size`     | Terminal font size                                        | `14`    |
-| `termbeam-theme`         | Light/dark theme preference                               | `dark`  |
-| `termbeam-tab-order`     | Saved tab order (JSON array of session IDs)               | None    |
+For the full UI walkthrough — Tools panel sections, Settings panels, Touch Bar key editor, Workspaces — see **[Customization](../customization/)**.
 
-These settings are per-browser and persist across sessions. They can be cleared by the user via the browser's developer tools or the Refresh button in the toolbar.
+### Where preferences are stored
+
+Preferences are persisted **server-side** in `~/.termbeam/prefs.json` (mode `0o600`) via the authenticated `GET /api/preferences` and `PUT /api/preferences` endpoints. The browser keeps a `localStorage` cache (`termbeam-prefs`) for instant first paint and offline UX, but the server file is the source of truth — opening TermBeam from a phone, tablet and laptop against the same instance gets the same settings.
+
+The schema is roughly:
+
+```jsonc
+{
+  "themeId": "one-dark",
+  "fontSize": 13,
+  "notifications": false,
+  "haptics": true,
+  "defaultFolder": "",
+  "defaultInitialCommand": "",
+  "touchBarCollapsed": true,
+  "touchBarKeys": [{ "id": "esc", "label": "Esc", "send": "\u001b", "row": 1, "col": 1 }],
+  "workspaces": [
+    {
+      "name": "DevWorkspace",
+      "default": true,
+      "sessions": [
+        {
+          "name": "server",
+          "cwd": "/path",
+          "shell": "/bin/zsh",
+          "color": "#4a9eff",
+          "initialCommand": "npm run dev",
+        },
+      ],
+    },
+  ],
+  "startupWorkspace": { "enabled": false, "sessions": [] }, // legacy
+}
+```
+
+The legacy device-local keys below are still read once on first load after upgrade and migrated into the unified store; they remain device-only:
+
+| Key                          | Description                                              |
+| ---------------------------- | -------------------------------------------------------- |
+| `termbeam-tab-order`         | Saved tab order (JSON array of session IDs).             |
+| `termbeam-hub-filter`        | Last-used filter on the SessionsHub page.                |
+| `termbeam-push-subscribed`   | Whether the browser is subscribed to push notifications. |
+| `termbeam-review-comments:*` | Per-PR review-comment state (Copilot integration).       |
+
+These can be cleared at any time via the browser's developer tools.
 
 ## Subcommands
 
@@ -164,9 +203,10 @@ termbeam --persisted-tunnel --password mysecret
 
 <!-- prettier-ignore -->
 :::tip[Persisted vs Ephemeral Tunnels]
+
 - `--tunnel` — Creates a fresh tunnel each time, deleted on shutdown. Good for one-off use.
 - `--persisted-tunnel` — Saves the tunnel ID to `~/.termbeam/tunnel.json` and reuses it across restarts (30-day expiry). The URL stays the same so you can bookmark it on your phone. To get a fresh URL, just switch back to `--tunnel`.
-:::
+  :::
 
 <!-- prettier-ignore -->
 :::caution

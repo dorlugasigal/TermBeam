@@ -180,20 +180,22 @@
 .terminalArea {
   position: absolute;
   top: calc(40px + env(safe-area-inset-top, 0px));
-  bottom: calc(75px + var(--keyboard-height, 0px));
+  /* --touchbar-height is set live by TouchBar.tsx (108px expanded,
+   * 26px collapsed). Falls back to 108px if the var is missing. */
+  bottom: calc(var(--touchbar-height, 108px) + var(--keyboard-height, 0px));
   left: 0;
   right: 0;
   display: flex;
   min-height: 0;
   background: var(--bg);
+  transition: bottom 0.32s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* When the keyboard is open, the touchbar's home-indicator padding is
    covered by the keyboard, so the terminal can sit directly on top of the
-   71px touchbar core (above the keyboard). */
-/* Keyboard open: bar drops to sit on keyboard (no safe-area lift). */
+   touchbar core (above the keyboard). */
 .layout[data-keyboard-open] .terminalArea {
-  bottom: calc(75px + var(--keyboard-height, 0px));
+  bottom: calc(var(--touchbar-height, 108px) + var(--keyboard-height, 0px));
 }
 
 .layout[data-hide-touchbar] .terminalArea {
@@ -264,10 +266,10 @@
   }
   .terminalArea {
     top: calc(32px + env(safe-area-inset-top, 0px));
-    bottom: calc(48px + var(--keyboard-height, 0px));
+    bottom: calc(var(--touchbar-height, 108px) + var(--keyboard-height, 0px));
   }
   .layout[data-keyboard-open] .terminalArea {
-    bottom: var(--keyboard-height, 0px);
+    bottom: calc(var(--touchbar-height, 108px) + var(--keyboard-height, 0px));
   }
   .layout[data-hide-touchbar] .terminalArea {
     bottom: var(--keyboard-height, 0px);

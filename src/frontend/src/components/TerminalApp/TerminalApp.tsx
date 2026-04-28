@@ -10,7 +10,7 @@ import { CopilotPane } from '@/components/CopilotPane/CopilotPane';
 import { TabBar } from '@/components/TabBar/TabBar';
 import TouchBar from '@/components/TouchBar/TouchBar';
 import SearchBar from '@/components/SearchBar/SearchBar';
-import CommandPalette from '@/components/CommandPalette/CommandPalette';
+import ToolsPanel from '@/components/ToolsPanel/ToolsPanel';
 import { SidePanel } from '@/components/SidePanel/SidePanel';
 import { FileBrowser } from '@/components/FileBrowser/FileBrowser';
 import { MarkdownBrowser } from '@/components/MarkdownBrowser/MarkdownBrowser';
@@ -19,6 +19,9 @@ import ResumeBrowser from '@/components/ResumeBrowser/ResumeBrowser';
 import NewSessionModal from '@/components/SessionsHub/NewSessionModal';
 import { UploadModal } from '@/components/Modals/UploadModal';
 import { PreviewModal } from '@/components/Modals/PreviewModal';
+import SettingsPanel from '@/components/SettingsPanel/SettingsPanel';
+import ThemePicker from '@/components/common/ThemePicker';
+import CustomKeysModal from '@/components/CustomKeysModal/CustomKeysModal';
 import CopyOverlay from '@/components/Overlays/CopyOverlay';
 import type { Session } from '@/types';
 import styles from './TerminalApp.module.css';
@@ -39,8 +42,9 @@ export function TerminalApp() {
   const setActiveId = useSessionStore((s) => s.setActiveId);
 
   const openSearchBar = useUIStore((s) => s.openSearchBar);
-  const toggleCommandPalette = useUIStore((s) => s.toggleCommandPalette);
-  const closeCommandPalette = useUIStore((s) => s.closeCommandPalette);
+  const toggleToolsPanel = useUIStore((s) => s.toggleToolsPanel);
+  const toggleSettingsPanel = useUIStore((s) => s.toggleSettingsPanel);
+  const closeToolsPanel = useUIStore((s) => s.closeToolsPanel);
   const closeSearchBar = useUIStore((s) => s.closeSearchBar);
   const openSidePanel = useUIStore((s) => s.openSidePanel);
   const openNewSessionModal = useUIStore((s) => s.openNewSessionModal);
@@ -53,6 +57,11 @@ export function TerminalApp() {
   const codeViewerSessionId = useUIStore((s) => s.codeViewerSessionId);
   const codeViewerInitialView = useUIStore((s) => s.codeViewerInitialView);
   const closeCodeViewer = useUIStore((s) => s.closeCodeViewer);
+  // FIX #2: ThemePicker controlled mode
+  const themePickerOpen = useUIStore((s) => s.themePickerOpen);
+  const closeThemePicker = useUIStore((s) => s.closeThemePicker);
+  const customKeysModalOpen = useUIStore((s) => s.customKeysModalOpen);
+  const closeCustomKeysModal = useUIStore((s) => s.closeCustomKeysModal);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const initializedRef = useRef(false);
@@ -357,11 +366,15 @@ export function TerminalApp() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
-        toggleCommandPalette();
+        toggleToolsPanel();
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault();
         openSearchBar();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+        e.preventDefault();
+        toggleSettingsPanel();
       }
       if (e.key === 'Escape') {
         if (codeViewerOpen) {
@@ -380,9 +393,9 @@ export function TerminalApp() {
           return;
         }
         const state = useUIStore.getState();
-        if (state.commandPaletteOpen) {
+        if (state.toolsPanelOpen) {
           e.preventDefault();
-          closeCommandPalette();
+          closeToolsPanel();
         } else if (state.searchBarOpen) {
           e.preventDefault();
           closeSearchBar();
@@ -392,9 +405,10 @@ export function TerminalApp() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [
-    toggleCommandPalette,
+    toggleToolsPanel,
     openSearchBar,
-    closeCommandPalette,
+    toggleSettingsPanel,
+    closeToolsPanel,
     closeSearchBar,
     showDownload,
     showMarkdown,
@@ -533,7 +547,7 @@ export function TerminalApp() {
           </button>
           <button
             className={styles.barBtn}
-            onClick={toggleCommandPalette}
+            onClick={toggleToolsPanel}
             onTouchStart={(e) => e.stopPropagation()}
             aria-label="Tools"
             title="Tools (Ctrl+K)"
@@ -607,11 +621,15 @@ export function TerminalApp() {
       <TouchBar />
 
       {/* ── Overlays ── */}
-      <CommandPalette />
+      <ToolsPanel />
       <SidePanel />
       <NewSessionModal onCreated={handleNewSessionCreated} />
       <UploadModal />
       <PreviewModal />
+      <SettingsPanel />
+      {/* FIX #2: Standalone ThemePicker with controlled mode */}
+      <ThemePicker open={themePickerOpen} onClose={closeThemePicker} hideTrigger />
+      <CustomKeysModal open={customKeysModalOpen} onClose={closeCustomKeysModal} />
       <CopyOverlay />
       <ResumeBrowser />
 

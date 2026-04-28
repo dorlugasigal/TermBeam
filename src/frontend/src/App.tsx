@@ -5,6 +5,7 @@ import SessionsHub from '@/components/SessionsHub/SessionsHub';
 import { TerminalApp } from '@/components/TerminalApp/TerminalApp';
 import CodeViewer from '@/components/CodeViewer/CodeViewer';
 import { useThemeStore } from '@/stores/themeStore';
+import { usePreferencesStore } from '@/stores/preferencesStore';
 import { THEMES } from '@/themes/terminalThemes';
 
 function getPath() {
@@ -49,6 +50,22 @@ function useChromeColor(screen: 'terminal' | 'main') {
 export default function App() {
   const { authenticated, passwordRequired, login, loading } = useAuth();
   const [path, setPath] = useState(getPath);
+
+  // Hydrate user preferences from the server once we're authenticated. The
+  // store seeds itself synchronously from localStorage on import so the first
+  // paint already uses cached prefs; this fetch reconciles with the server.
+  useEffect(() => {
+    if (authenticated) {
+      void usePreferencesStore.getState().hydrate();
+    }
+  }, [authenticated]);
+
+  // Workspace auto-start moved to the server (src/server/index.js): the
+  // server reads prefs and spawns workspace sessions ONCE on its own
+  // startup. This means deleting sessions client-side is sticky — the
+  // pages won't re-spawn them on refresh. The previous client-side
+  // implementation here would re-fire whenever the page reloaded, which
+  // was confusing UX (user deletes a session, refreshes, it returns).
 
   useEffect(() => {
     normalizeSessionParam();

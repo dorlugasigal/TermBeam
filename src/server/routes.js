@@ -9,6 +9,7 @@ const { getAgentSessions, getResumeCommand } = require('../utils/agent-sessions'
 const log = require('../utils/logger');
 const { getGitInfo } = require('../utils/git');
 const rateLimit = require('express-rate-limit');
+const { setupPreferenceRoutes } = require('./preferences');
 
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 
@@ -97,7 +98,10 @@ function validateMagicBytes(buffer, contentType) {
   return true;
 }
 
-function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotService }) {
+function setupRoutes(
+  app,
+  { auth, sessions, config, state, pushManager, copilotService, configDir },
+) {
   const noopLimit = (_req, _res, next) => next();
   const pageRateLimit = config.disableRateLimit
     ? noopLimit
@@ -128,6 +132,11 @@ function setupRoutes(app, { auth, sessions, config, state, pushManager, copilotS
     next();
   });
   app.use(express.static(PUBLIC_DIR, { index: false }));
+
+  // Preferences API (mounted after rate limiters so it picks up apiRateLimit).
+  if (configDir) {
+    setupPreferenceRoutes(app, { auth, configDir, apiRateLimit });
+  }
 
   // Login page
   app.get('/login', (_req, res) => {

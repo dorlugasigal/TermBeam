@@ -1,15 +1,15 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { fetchSessions, deleteSession, fetchVersion, getShareUrl } from '@/services/api';
 import { useUIStore } from '@/stores/uiStore';
-import { useThemeStore } from '@/stores/themeStore';
-import { THEMES, type ThemeId } from '@/themes/terminalThemes';
+import ThemePicker from '@/components/common/ThemePicker';
 import type { Session } from '@/types';
 import UpdateBanner from '@/components/common/UpdateBanner';
 import TunnelBanner from '@/components/common/TunnelBanner';
 import SessionCard from './SessionCard';
 import NewSessionModal from './NewSessionModal';
 import ResumeBrowser from '@/components/ResumeBrowser/ResumeBrowser';
+import WorkspaceLauncher from '@/components/WorkspaceLauncher/WorkspaceLauncher';
 import FilterBar from './FilterBar';
 import {
   EMPTY_FILTER,
@@ -75,37 +75,15 @@ const RefreshIcon = () => (
   </svg>
 );
 
-const ThemeIcon = () => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
-    <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
-    <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
-    <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
-    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
-  </svg>
-);
-
 export default function SessionsHub() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [version, setVersion] = useState('');
-  const [showThemePicker, setShowThemePicker] = useState(false);
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<SessionFilterState>(() => loadFilterFromStorage());
-  const themeBtnRef = useRef<HTMLButtonElement>(null);
-  const themePanelRef = useRef<HTMLDivElement>(null);
-  const { openNewSessionModal, openResumeBrowser } = useUIStore();
-  const { themeId, setTheme } = useThemeStore();
+  const [workspaceLauncherOpen, setWorkspaceLauncherOpen] = useState(false);
+  const { openNewSessionModal, openResumeBrowser, themePickerOpen, openThemePicker, closeThemePicker } = useUIStore();
 
   const loadSessions = useCallback(async () => {
     try {
@@ -187,114 +165,66 @@ export default function SessionsHub() {
     });
   }
 
-  function handleToggleThemePicker() {
-    setShowThemePicker((v) => !v);
-  }
-
-  useEffect(() => {
-    if (!showThemePicker) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        themePanelRef.current &&
-        !themePanelRef.current.contains(target) &&
-        themeBtnRef.current &&
-        !themeBtnRef.current.contains(target)
-      ) {
-        setShowThemePicker(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showThemePicker]);
-
   return (
     <div className={styles.page}>
       <UpdateBanner />
       <TunnelBanner />
 
       <header className={styles.header}>
-        <h1 className={styles.title}>
-          📡 Term<span className={styles.accent}>Beam</span>
-        </h1>
-        <p className={styles.tagline}>
-          Beam your terminal to any device
-          {version ? <span data-testid="hub-version"> · v{version}</span> : ''}
-        </p>
+        <div className={styles.brand}>
+          <h1 className={styles.title}>
+            <span className={styles.brandIcon} aria-hidden="true">
+              {'>_'}
+            </span>
+            <span className={styles.brandName}>
+              Term<span className={styles.accent}>Beam</span>
+            </span>
+          </h1>
+          {version ? (
+            <span className={styles.version} data-testid="hub-version">
+              v{version}
+            </span>
+          ) : null}
+        </div>
 
-        <button
-          className={`${styles.headerBtn} ${styles.shareBtn}`}
-          onClick={handleShare}
-          aria-label="Share URL"
-          title="Share"
-        >
-          <ShareIcon />
-        </button>
-        <button
-          className={`${styles.headerBtn} ${styles.refreshBtn}`}
-          onClick={handleRefresh}
-          aria-label="Refresh sessions"
-          title="Refresh"
-          data-testid="hub-refresh-btn"
-        >
-          <span className={refreshing ? styles.refreshSpin : ''} style={{ display: 'flex' }}>
-            <RefreshIcon />
-          </span>
-        </button>
-        <button
-          className={`${styles.headerBtn} ${styles.themeBtn}`}
-          onClick={handleToggleThemePicker}
-          aria-label="Change theme"
-          title="Change theme"
-          ref={themeBtnRef}
-        >
-          <ThemeIcon />
-        </button>
+        <div className={styles.headerActions}>
+          <button
+            className={styles.headerBtn}
+            onClick={openThemePicker}
+            aria-label="Choose theme"
+            title="Theme"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="13.5" cy="6.5" r="1.5" fill="currentColor" />
+              <circle cx="17.5" cy="10.5" r="1.5" fill="currentColor" />
+              <circle cx="8.5" cy="7.5" r="1.5" fill="currentColor" />
+              <circle cx="6.5" cy="12.5" r="1.5" fill="currentColor" />
+              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-5.52-4.48-10-10-10z" />
+            </svg>
+          </button>
+          <button
+            className={styles.headerBtn}
+            onClick={handleShare}
+            aria-label="Share URL"
+            title="Share"
+          >
+            <ShareIcon />
+          </button>
+          <button
+            className={styles.headerBtn}
+            onClick={handleRefresh}
+            aria-label="Refresh sessions"
+            title="Refresh"
+            data-testid="hub-refresh-btn"
+          >
+            <span className={refreshing ? styles.refreshSpin : ''} style={{ display: 'flex' }}>
+              <RefreshIcon />
+            </span>
+          </button>
+        </div>
       </header>
 
-      {showThemePicker && (
-        <div className={styles.themePanel} ref={themePanelRef}>
-          <div className={styles.themePanelHeader}>
-            <span className={styles.themePanelTitle}>Theme</span>
-            <button
-              className={styles.themePanelClose}
-              onClick={() => setShowThemePicker(false)}
-              aria-label="Close theme picker"
-            >
-              ✕
-            </button>
-          </div>
-          <div className={styles.themePanelList}>
-            {THEMES.map((theme) => {
-              const rc = parseInt(theme.bg.slice(1, 3), 16);
-              const gc = parseInt(theme.bg.slice(3, 5), 16);
-              const bc = parseInt(theme.bg.slice(5, 7), 16);
-              const isLight = (rc + gc + bc) / 3 > 140;
-              const isActive = theme.id === themeId;
-              return (
-                <button
-                  key={theme.id}
-                  className={`${styles.themeRow} ${isActive ? styles.themeRowActive : ''}`}
-                  onClick={() => setTheme(theme.id as ThemeId)}
-                >
-                  <span className={styles.themeBar}>
-                    <span style={{ flex: 40, background: theme.bg }} />
-                    <span style={{ flex: 30, background: theme.surface }} />
-                    <span style={{ flex: 20, background: theme.accent }} />
-                    <span style={{ flex: 10, background: theme.text }} />
-                  </span>
-                  <span
-                    className={styles.themeLabel}
-                    style={isLight ? { color: '#1a1a1a', textShadow: 'none' } : undefined}
-                  >
-                    {theme.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <ThemePicker open={themePickerOpen} onClose={closeThemePicker} hideTrigger />
 
       <main className={styles.content}>
         {loading ? (
@@ -350,7 +280,7 @@ export default function SessionsHub() {
       <div className={styles.hubFooter}>
         <button
           className={styles.newSessionBtn}
-          onClick={openNewSessionModal}
+          onClick={() => openNewSessionModal()}
           aria-label="New session"
           data-testid="hub-new-session-btn"
         >
@@ -359,14 +289,29 @@ export default function SessionsHub() {
         <button
           className={styles.resumeBtn}
           onClick={openResumeBrowser}
-          aria-label="Resume session"
+          aria-label="Resume agent"
         >
-          ↺ Resume
+          ↺ Resume Agent
+        </button>
+        <button
+          className={styles.workspaceBtn}
+          onClick={() => setWorkspaceLauncherOpen(true)}
+          aria-label="Open workspace"
+          data-testid="hub-open-workspace-btn"
+        >
+          Open Workspace
         </button>
       </div>
 
       <NewSessionModal onCreated={navigateToSession} />
       <ResumeBrowser />
+      <WorkspaceLauncher
+        open={workspaceLauncherOpen}
+        onClose={() => setWorkspaceLauncherOpen(false)}
+        onLaunched={(id) => {
+          if (id) navigateToSession(id);
+        }}
+      />
     </div>
   );
 }

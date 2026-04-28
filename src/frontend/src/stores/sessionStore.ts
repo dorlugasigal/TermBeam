@@ -18,6 +18,7 @@ export interface ManagedSession {
   hidden?: boolean;
   companionTermId?: string;
   model?: string;
+  initialCommand?: string;
   term: Terminal | null;
   fitAddon: FitAddon | null;
   searchAddon: SearchAddon | null;
@@ -49,6 +50,9 @@ interface SessionState {
   tabOrder: string[];
   splitMode: SplitMode;
   deletedIds: Set<string>;
+  /** Pending initialCommand strings keyed by session id, set by NewSessionModal
+   * before the session is added to the store. Consumed (and removed) by addSession. */
+  pendingInitialCommands: Map<string, string>;
 
   addSession: (session: ManagedSession) => void;
   removeSession: (id: string) => void;
@@ -60,6 +64,7 @@ interface SessionState {
   markUnread: (id: string) => void;
   clearUnread: (id: string) => void;
   isDeleted: (id: string) => boolean;
+  setPendingInitialCommand: (id: string, command: string) => void;
 }
 
 function loadTabOrder(): string[] {
@@ -85,12 +90,20 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   tabOrder: loadTabOrder(),
   splitMode: 'off' as SplitMode,
   deletedIds: new Set(),
+  pendingInitialCommands: new Map(),
 
   addSession: (session) =>
     set((state) => {
       if (state.sessions.has(session.id) || state.deletedIds.has(session.id)) return state;
       const sessions = new Map(state.sessions);
-      sessions.set(session.id, session);
+      const pending = state.pendingInitialCommands.get(session.id);
+      const enriched: ManagedSession =
+        pending && !session.initialCommand ? { ...session, initialCommand: pending } : session;
+      sessions.set(session.id, enriched);
+      const pendingInitialCommands = pending
+        ? new Map(state.pendingInitialCommands)
+        : state.pendingInitialCommands;
+      if (pending) pendingInitialCommands.delete(session.id);
       // Hidden sessions (e.g. companion PTY for agent tabs) stay out of
       // tabOrder so they never appear in the tab bar or side panel.
       const tabOrder =
@@ -101,6 +114,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       return {
         sessions,
         tabOrder,
+        pendingInitialCommands,
         activeId: state.activeId ?? (session.hidden ? state.activeId : session.id),
       };
     }),
@@ -188,4 +202,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     }),
 
   isDeleted: (id) => get().deletedIds.has(id),
+
+  setPendingInitialCommand: (id, command) =>
+    set((state) => {
+      if (state.sessions.has(id)) {
+        const sessions = new Map(state.sessions);
+        const existing = sessions.get(id)!;
+        sessions.set(id, { ...existing, initialCommand: command });
+        return { sessions };
+      }
+      const pendingInitialCommands = new Map(state.pendingInitialCommands);
+      pendingInitialCommands.set(id, command);
+      return { pendingInitialCommands };
+    }),
 }));

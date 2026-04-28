@@ -2,13 +2,10 @@ import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
-import { useThemeStore } from '@/stores/themeStore';
-import { THEMES, type ThemeId } from '@/themes/terminalThemes';
 import { deleteSession, renameSession, fetchVersion, getShareUrl } from '@/services/api';
-import { playNotificationSound, setNotificationsEnabled } from '@/services/audio';
-import { isPushSubscribedSync } from '@/services/pushSubscription';
 import { AboutModal } from '@/components/Modals/AboutModal';
-import styles from './CommandPalette.module.css';
+import ThemePicker from '@/components/common/ThemePicker';
+import styles from './ToolsPanel.module.css';
 
 /* ---------- inline SVG icons (16×16, stroke-based) ---------- */
 
@@ -70,21 +67,6 @@ const iconMarkdown = (
     <polyline points="4 9 5.5 7 7 9" />
     <line x1="9" y1="9" x2="9" y2="7" />
     <polyline points="9 7 10.5 8.5 12 7" />
-  </svg>
-);
-
-const iconCloseTab = (
-  <svg
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="2" y="2" width="12" height="12" rx="2" />
-    <line x1="5.5" y1="5.5" x2="10.5" y2="10.5" />
-    <line x1="10.5" y1="5.5" x2="5.5" y2="10.5" />
   </svg>
 );
 
@@ -201,20 +183,6 @@ const iconFontDown = (
   </svg>
 );
 
-const iconTheme = (
-  <svg
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="8" cy="8" r="6" />
-    <path d="M8 2a6 6 0 000 12z" fill="currentColor" opacity=".3" />
-  </svg>
-);
-
 const iconPreview = (
   <svg
     viewBox="0 0 16 16"
@@ -241,20 +209,6 @@ const iconCopyLink = (
   >
     <path d="M6.5 9.5a3 3 0 004 .5l2-2a3 3 0 00-4.24-4.24L7 5" />
     <path d="M9.5 6.5a3 3 0 00-4-.5l-2 2a3 3 0 004.24 4.24L9 11" />
-  </svg>
-);
-
-const iconBell = (
-  <svg
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M4 6a4 4 0 018 0c0 4 2 5 2 5H2s2-1 2-5" />
-    <path d="M6.5 13a1.5 1.5 0 003 0" />
   </svg>
 );
 
@@ -350,6 +304,48 @@ const iconResume = (
   </svg>
 );
 
+const iconBrowse = (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M2 4a1 1 0 011-1h3l1.5 1.5H13a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" />
+  </svg>
+);
+
+const iconLaunch = (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M11 2l3 3-7 7H4v-3l7-7z" />
+    <path d="M2 14l3-1" />
+  </svg>
+);
+
+const iconSettings = (
+  <svg
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="8" cy="8" r="2" />
+    <path d="M13 8a5 5 0 00-.1-1l1.4-1-1.5-2.6-1.7.5a5 5 0 00-1.7-1L9 1H7l-.4 1.8a5 5 0 00-1.7 1l-1.7-.5L1.7 6l1.4 1A5 5 0 003 8a5 5 0 00.1 1l-1.4 1 1.5 2.6 1.7-.5a5 5 0 001.7 1L7 15h2l.4-1.8a5 5 0 001.7-1l1.7.5L14.3 10l-1.4-1A5 5 0 0013 8z" />
+  </svg>
+);
+
+
 /* ---------- clipboard fallback for non-secure (HTTP) contexts ---------- */
 
 function fallbackCopy(text: string): void {
@@ -370,117 +366,47 @@ function fallbackCopy(text: string): void {
 
 /* ---------- component ---------- */
 
-export default function CommandPalette() {
-  const open = useUIStore((s) => s.commandPaletteOpen);
-  const close = useUIStore((s) => s.closeCommandPalette);
-  const [showThemes, setShowThemes] = useState(false);
-  const [notificationsOn, setNotificationsOn] = useState(
-    () => localStorage.getItem('termbeam-notifications') !== 'false',
-  );
+export default function ToolsPanel() {
+  const open = useUIStore((s) => s.toolsPanelOpen);
+  const closeAction = useUIStore((s) => s.closeToolsPanel);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [aboutVersion, setAboutVersion] = useState('');
-  const [pushActive, setPushActive] = useState(() => isPushSubscribedSync());
 
-  const themeId = useThemeStore((s) => s.themeId);
-  const setTheme = useThemeStore((s) => s.setTheme);
-  const themeName = themeId.charAt(0).toUpperCase() + themeId.slice(1);
-
-  // Animate open: render always, toggle class
+  // Render-while-closing pattern so the slide-out transition can play.
+  // - `open` (store state) flips false immediately on close.
+  // - `visible` keeps the panel mounted; `mounted` drives the transform.
+  const [visible, setVisible] = useState(open);
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     if (open) {
-      // Force a reflow before adding the open class so the transition fires
+      setVisible(true);
       requestAnimationFrame(() => setMounted(true));
-      // Refresh push status when palette opens
-      import('@/services/pushSubscription').then(({ isPushSubscribed }) => {
-        isPushSubscribed()
-          .then(setPushActive)
-          .catch(() => {});
-      });
-    } else {
+    } else if (visible) {
       setMounted(false);
+      const t = setTimeout(() => setVisible(false), 220);
+      return () => clearTimeout(t);
     }
-  }, [open]);
+  }, [open, visible]);
+
+  const close = useCallback(() => {
+    closeAction();
+  }, [closeAction]);
 
   const run = useCallback(
     (fn: () => void) => {
       fn();
       close();
-      setShowThemes(false);
     },
     [close],
   );
 
-  if (!open) {
+  if (!visible) {
     return (
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} version={aboutVersion} />
     );
   }
 
   const panelCls = `${styles.panel} ${mounted ? styles.panelOpen : ''}`;
-
-  if (showThemes) {
-    return (
-      <>
-        <div
-          className={styles.themeBackdrop}
-          onClick={() => {
-            close();
-            setShowThemes(false);
-          }}
-        />
-        <div className={styles.themeFloating} data-testid="theme-subpanel" data-open="true">
-          <div className={styles.header}>
-            <button className={styles.closeBtn} onClick={() => setShowThemes(false)}>
-              ←
-            </button>
-            <span className={styles.title}>Theme</span>
-            <button
-              className={styles.closeBtn}
-              onClick={() => {
-                close();
-                setShowThemes(false);
-              }}
-            >
-              ✕
-            </button>
-          </div>
-          <div className={styles.list}>
-            {THEMES.map((theme) => {
-              const rc = parseInt(theme.bg.slice(1, 3), 16);
-              const gc = parseInt(theme.bg.slice(3, 5), 16);
-              const bc = parseInt(theme.bg.slice(5, 7), 16);
-              const isLight = (rc + gc + bc) / 3 > 140;
-              const isActive = theme.id === themeId;
-              return (
-                <button
-                  key={theme.id}
-                  className={`${styles.themeRow} ${isActive ? styles.themeRowActive : ''}`}
-                  data-testid="theme-item"
-                  data-tid={theme.id}
-                  onClick={() => setTheme(theme.id as ThemeId)}
-                >
-                  <span className={styles.themeBar}>
-                    <span style={{ flex: 40, background: theme.bg }} />
-                    <span style={{ flex: 30, background: theme.surface }} />
-                    <span style={{ flex: 20, background: theme.accent }} />
-                    <span style={{ flex: 10, background: theme.text }} />
-                  </span>
-                  <span
-                    className={styles.themeLabel}
-                    style={isLight ? { color: '#1a1a1a', textShadow: 'none' } : undefined}
-                  >
-                    {theme.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} version={aboutVersion} />
-      </>
-    );
-  }
 
   /* ---- action handlers for new items ---- */
 
@@ -510,52 +436,6 @@ export default function CommandPalette() {
         if (ms?.companionTermId) remove(ms.companionTermId);
         remove(activeId);
       });
-    close();
-  };
-
-  const handleNotifications = async () => {
-    const next = !notificationsOn;
-    setNotificationsOn(next);
-    setNotificationsEnabled(next);
-
-    if (next) {
-      playNotificationSound();
-
-      // Request notification permission
-      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-        const perm = await Notification.requestPermission();
-        if (perm !== 'granted') {
-          setPushActive(false);
-          toast('Notifications enabled (browser permission denied, using in-app only)');
-          close();
-          return;
-        }
-      }
-
-      // Try to set up push subscription
-      try {
-        const { initPushSubscription } = await import('@/services/pushSubscription');
-        const success = await initPushSubscription();
-        setPushActive(success);
-        if (success) {
-          toast('Notifications enabled with push support');
-        } else {
-          toast('Notifications enabled (push not available)');
-        }
-      } catch {
-        toast('Notifications enabled (push setup failed, using fallback)');
-      }
-    } else {
-      // Disable: also remove push subscription
-      try {
-        const { removePushSubscription } = await import('@/services/pushSubscription');
-        await removePushSubscription();
-      } catch {
-        // Ignore cleanup errors
-      }
-      setPushActive(false);
-      toast('Notifications disabled');
-    }
     close();
   };
 
@@ -594,6 +474,48 @@ export default function CommandPalette() {
           action: () => run(() => useUIStore.getState().openNewSessionModal()),
         },
         {
+          id: 'find',
+          label: 'Find in terminal',
+          icon: iconSearch,
+          action: () => run(() => useUIStore.getState().openSearchBar()),
+        },
+        {
+          id: 'rename',
+          label: 'Rename session',
+          icon: iconRename,
+          action: handleRename,
+        },
+        {
+          id: 'split',
+          label: splitLabel,
+          icon: splitIcon,
+          action: () => run(() => useSessionStore.getState().toggleSplit()),
+        },
+        {
+          id: 'stop',
+          label: 'Close session',
+          icon: iconStop,
+          action: handleStop,
+        },
+      ],
+    },
+    {
+      title: 'FILES',
+      actions: [
+        {
+          id: 'browse',
+          label: 'Browse files',
+          icon: iconBrowse,
+          action: () =>
+            run(() => {
+              const { activeId, sessions: sess } = useSessionStore.getState();
+              if (!activeId) return;
+              const ms = sess.get(activeId);
+              const ptyId = ms?.type === 'copilot' ? (ms.companionTermId ?? activeId) : activeId;
+              useUIStore.getState().openCodeViewer(ptyId, 'files');
+            }),
+        },
+        {
           id: 'upload',
           label: 'Upload files',
           icon: iconUpload,
@@ -610,60 +532,6 @@ export default function CommandPalette() {
           label: 'View markdown',
           icon: iconMarkdown,
           action: () => run(() => useUIStore.getState().openMarkdownModal()),
-        },
-        {
-          id: 'close-tab',
-          label: 'Close tab',
-          icon: iconCloseTab,
-          action: () =>
-            run(() => {
-              const {
-                activeId,
-                sessions: sess,
-                removeSession: remove,
-              } = useSessionStore.getState();
-              if (!activeId) return;
-              const ms = sess.get(activeId);
-              if (!confirm(`Close session "${ms?.name ?? activeId}"?`)) return;
-              deleteSession(activeId).catch(() => {});
-              if (ms?.companionTermId) remove(ms.companionTermId);
-              remove(activeId);
-            }),
-        },
-        {
-          id: 'rename',
-          label: 'Rename session',
-          icon: iconRename,
-          action: handleRename,
-        },
-        {
-          id: 'split',
-          label: splitLabel,
-          icon: splitIcon,
-          action: () => run(() => useSessionStore.getState().toggleSplit()),
-        },
-        {
-          id: 'stop',
-          label: 'Stop session',
-          icon: iconStop,
-          action: handleStop,
-        },
-        {
-          id: 'resume-agent',
-          label: 'Resume agent session',
-          icon: iconResume,
-          action: () => run(() => useUIStore.getState().openResumeBrowser()),
-        },
-      ],
-    },
-    {
-      title: 'SEARCH',
-      actions: [
-        {
-          id: 'find',
-          label: 'Find in terminal',
-          icon: iconSearch,
-          action: () => run(() => useUIStore.getState().openSearchBar()),
         },
       ],
     },
@@ -689,12 +557,6 @@ export default function CommandPalette() {
               const { fontSize: current, setFontSize } = useUIStore.getState();
               setFontSize(current - 1);
             }),
-        },
-        {
-          id: 'theme',
-          label: `Theme (${themeName})`,
-          icon: iconTheme,
-          action: () => setShowThemes(true),
         },
         {
           id: 'preview',
@@ -766,17 +628,30 @@ export default function CommandPalette() {
       ],
     },
     {
-      title: 'NOTIFICATIONS',
+      title: 'AGENTS',
       actions: [
         {
-          id: 'notifications',
-          label: notificationsOn
-            ? pushActive
-              ? 'Notifications (on) — Push active ✓'
-              : 'Notifications (on) — Push unavailable'
-            : 'Notifications (off)',
-          icon: iconBell,
-          action: handleNotifications,
+          id: 'launch-agent',
+          label: 'Launch agent',
+          icon: iconLaunch,
+          action: () => run(() => useUIStore.getState().openNewSessionModal('copilot')),
+        },
+        {
+          id: 'resume-agent',
+          label: 'Resume agent session',
+          icon: iconResume,
+          action: () => run(() => useUIStore.getState().openResumeBrowser()),
+        },
+      ],
+    },
+    {
+      title: 'SETTINGS',
+      actions: [
+        {
+          id: 'settings',
+          label: 'Settings…',
+          icon: iconSettings,
+          action: () => run(() => useUIStore.getState().openSettingsPanel()),
         },
       ],
     },
@@ -819,7 +694,10 @@ export default function CommandPalette() {
 
   return (
     <>
-      <div className={styles.backdrop} onClick={close} />
+      <div
+        className={`${styles.backdrop} ${mounted ? styles.backdropOpen : ''}`}
+        onClick={close}
+      />
       <div className={panelCls} data-testid="palette-panel" data-open="true">
         <div className={styles.header}>
           <span className={styles.title}>Tools</span>
@@ -842,6 +720,11 @@ export default function CommandPalette() {
                   {a.label}
                 </button>
               ))}
+              {sec.title === 'VIEW' && (
+                <div className={styles.themePickerRow}>
+                  <ThemePicker onSelect={() => close()} />
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -390,9 +390,22 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
               // just add the client and replay scrollback — no SIGWINCH,
               // no duplicate prompt from slow themes like oh-my-posh.
               const sizeChanged = cols !== attached._lastCols || rows !== attached._lastRows;
-              if (sizeChanged) {
+              // If the session ran an initialCommand (workspace auto-boot,
+              // saved-default new session, agent launch), its output lives
+              // in scrollbackBuf — wiping it here is what makes the user
+              // see an "empty" terminal with no `ll` output. Preserve and
+              // replay it; the cosmetic price is a single re-rendered
+              // prompt under the original wrapped one.
+              if (sizeChanged && !attached._initialCommandSent) {
                 attached.scrollbackBuf = '';
                 attached.clients.add(ws);
+                recalcPtySize(attached);
+              } else if (sizeChanged) {
+                attached.clients.add(ws);
+                const payload = buildReplayPayload(attached);
+                if (payload.length > 0) {
+                  ws.send(JSON.stringify({ type: 'replay', data: payload }));
+                }
                 recalcPtySize(attached);
               } else {
                 attached.clients.add(ws);

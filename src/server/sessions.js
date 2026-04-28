@@ -170,6 +170,18 @@ class SessionManager {
       log.warn(`Invalid initialCommand rejected: ${typeof initialCommand}`);
       throw new Error('initialCommand must be a string');
     }
+    // Defense-in-depth length cap on initialCommand. The command is written
+    // verbatim to the user's own PTY's stdin (which the shell then
+    // interprets) — this is BY DESIGN, since `initialCommand` is the
+    // documented way for an authenticated session owner to script their own
+    // shell on launch (see /api/sessions and Workspaces in
+    // packages/site/.../configuration.md). The cap mitigates pathological
+    // inputs (megabyte-scale strings, infinite-loop chunks). 8 KiB easily
+    // covers legitimate scripts (longest typical: a multi-step setup line).
+    if (initialCommand !== null && initialCommand.length > 8192) {
+      log.warn(`Oversized initialCommand rejected: ${initialCommand.length} chars`);
+      throw new Error('initialCommand too long (max 8192 chars)');
+    }
 
     const id = crypto.randomBytes(16).toString('hex');
     if (!color) {
@@ -183,12 +195,6 @@ class SessionManager {
       cwd,
       env: { ...process.env, TERM: 'xterm-256color', TERMBEAM_SESSION: '1' },
     });
-
-    // Send initial command once the shell is ready
-    if (initialCommand) {
-      log.debug(`Scheduling initialCommand for session ${id} (${initialCommand.length} chars)`);
-      setTimeout(() => ptyProcess.write(initialCommand + '\r'), 300);
-    }
 
     const session = {
       pty: ptyProcess,
@@ -209,11 +215,65 @@ class SessionManager {
       _altScanTail: '',
       _lastCols: cols,
       _lastRows: rows,
+      _initialCommand: initialCommand || null,
+      _initialCommandSent: false,
     };
+
+    // Send the initial command only AFTER the shell has fully painted
+    // its first prompt. Slow shells (zsh + oh-my-zsh + powerlevel10k)
+    // emit the prompt incrementally over 1-2s; writing into a partial
+    // prompt can drop keystrokes (especially with p10k instant prompt,
+    // which paints a fake prompt and then swaps in the real one).
+    //
+    // Strategy: fire IDLE_MS after the LAST observed PTY chunk. When
+    // output goes quiet the shell has finished painting and is ready for
+    // input. The idle timer is reset on every onData, so the write is
+    // pushed out as long as the shell keeps producing bytes.
+    //
+    // Hard fallback at HARD_FALLBACK_MS catches shells that never emit
+    // anything we can detect — better to fire the command than never to.
+    if (initialCommand) {
+      // Don't log the command content — initialCommand can contain
+      // secrets (tokens in `npm publish --otp=…`, env exports, etc).
+      // Length is enough to confirm "we got something" in audit trails.
+      log.info(`Queuing initialCommand for session ${id} (${initialCommand.length} chars)`);
+      const IDLE_MS = 600;
+      const HARD_FALLBACK_MS = 3500;
+      let idleTimer = null;
+      let hardFallback = null;
+      const send = () => {
+        if (session._initialCommandSent) return;
+        session._initialCommandSent = true;
+        if (idleTimer) clearTimeout(idleTimer);
+        if (hardFallback) clearTimeout(hardFallback);
+        idleTimer = null;
+        hardFallback = null;
+        log.info(`Writing initialCommand to session ${id}`);
+        ptyProcess.write(initialCommand + '\r');
+      };
+      hardFallback = setTimeout(send, HARD_FALLBACK_MS);
+      session._initialCommandResetIdle = () => {
+        if (session._initialCommandSent) return;
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(send, IDLE_MS);
+      };
+      // Expose timers so onExit can clear them — otherwise an early
+      // shell exit leaves the hard-fallback setTimeout pinned for
+      // ~3.5s and may try to write to a torn-down PTY.
+      session._initialCommandTimers = () => ({ idleTimer, hardFallback });
+    }
 
     ptyProcess.onData((data) => {
       session.lastActivity = Date.now();
       session.scrollbackBuf += data;
+
+      // Reset the initialCommand idle timer on every PTY chunk. The
+      // command is fired IDLE_MS after the LAST chunk (the shell is
+      // quiet → prompt fully painted → safe to type). Hard fallback in
+      // create() catches shells that emit nothing observable.
+      if (session._initialCommandResetIdle) {
+        session._initialCommandResetIdle();
+      }
 
       // Silence-based notification: only active when the shell has a direct
       // child process (session._hasDirectChild). This handles interactive
@@ -366,6 +426,13 @@ class SessionManager {
     ptyProcess.onExit(({ exitCode }) => {
       clearInterval(session._childMonitor);
       clearTimeout(session._silenceTimer);
+      // If the shell exited before initialCommand fired, drop the
+      // pending timers so we don't try to write to a dead PTY.
+      if (session._initialCommandTimers) {
+        const { idleTimer, hardFallback } = session._initialCommandTimers();
+        if (idleTimer) clearTimeout(idleTimer);
+        if (hardFallback) clearTimeout(hardFallback);
+      }
       log.info(`Session "${name}" (${id}) exited (code ${exitCode})`);
       for (const ws of session.clients) {
         if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'exit', code: exitCode }));

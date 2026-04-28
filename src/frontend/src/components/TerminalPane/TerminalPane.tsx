@@ -291,12 +291,37 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     }
   }, [active, terminal, fit, inTouchFocusWindow]);
 
-  // Refocus terminal when overlays close (command palette, search bar, etc.)
-  const commandPaletteOpen = useUIStore((s) => s.commandPaletteOpen);
+  // Re-fit the terminal when the touchbar collapses/expands (its height
+  // changes via a ~320ms cubic-bezier transition with rows fading too).
+  // Schedule fits during the animation so the terminal keeps tracking
+  // the available viewport in real time.
+  const touchBarCollapsedLive = useUIStore((s) => s.touchBarCollapsedLive);
+  useEffect(() => {
+    if (!active || !terminal) return;
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    // Fire fit() repeatedly during the bar's height transition (the bar
+    // takes ~320ms + 150ms delay to fully resolve in either direction).
+    [0, 80, 180, 320, 500].forEach((ms) => {
+      timers.push(
+        setTimeout(() => {
+          if (cancelled) return;
+          fit();
+        }, ms),
+      );
+    });
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
+  }, [touchBarCollapsedLive, active, terminal, fit]);
+
+  // Refocus terminal when overlays close (tools panel, search bar, etc.)
+  const toolsPanelOpen = useUIStore((s) => s.toolsPanelOpen);
   const searchBarOpen = useUIStore((s) => s.searchBarOpen);
   const sidePanelOpen = useUIStore((s) => s.sidePanelOpen);
   const copyOverlayOpen = useUIStore((s) => s.copyOverlayOpen);
-  const anyOverlayOpen = commandPaletteOpen || searchBarOpen || sidePanelOpen || copyOverlayOpen;
+  const anyOverlayOpen = toolsPanelOpen || searchBarOpen || sidePanelOpen || copyOverlayOpen;
   const prevOverlayRef = useRef(anyOverlayOpen);
 
   useEffect(() => {
@@ -368,9 +393,9 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     let refocusTimer: ReturnType<typeof setTimeout> | null = null;
     const onBlur = (ev: FocusEvent) => {
       // Don't fight legitimate blurs (overlay open, pane inactive, etc.)
-      const { commandPaletteOpen, searchBarOpen, sidePanelOpen, copyOverlayOpen } =
+      const { toolsPanelOpen, searchBarOpen, sidePanelOpen, copyOverlayOpen } =
         useUIStore.getState();
-      if (commandPaletteOpen || searchBarOpen || sidePanelOpen || copyOverlayOpen) return;
+      if (toolsPanelOpen || searchBarOpen || sidePanelOpen || copyOverlayOpen) return;
 
       // If focus is moving to another editable element (e.g. review comment
       // composer, rename dialog), let it keep focus instead of stealing back.

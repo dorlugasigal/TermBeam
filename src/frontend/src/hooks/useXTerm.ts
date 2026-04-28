@@ -134,7 +134,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'f')) return false;
       if (e.key === 'Escape') {
         const ui = useUIStore.getState();
-        if (ui.commandPaletteOpen || ui.searchBarOpen || ui.copyOverlayOpen) return false;
+        if (ui.toolsPanelOpen || ui.searchBarOpen || ui.copyOverlayOpen) return false;
       }
       return true;
     });

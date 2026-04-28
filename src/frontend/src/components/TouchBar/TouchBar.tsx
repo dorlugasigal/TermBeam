@@ -1,10 +1,14 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
+import { usePreferencesStore, type TouchBarKey } from '@/stores/preferencesStore';
 import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
 import { uploadImage } from '@/services/api';
+import { DEFAULT_TOUCHBAR_KEYS } from './defaultKeys';
 import styles from './TouchBar.module.css';
+
+let hapticsUnsupportedWarned = false;
 
 const SpeechRecognitionAPI =
   typeof window !== 'undefined'
@@ -12,39 +16,76 @@ const SpeechRecognitionAPI =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     : null;
 
-type KeyType = 'special' | 'modifier' | 'icon' | 'enter' | 'danger';
+type KeyType =
+  // Legacy class buckets — kept so historical prefs still render via getKeyClassName
+  | 'special'
+  | 'modifier'
+  | 'icon'
+  | 'enter'
+  | 'danger'
+  // New simplified look vocabulary
+  | 'plain'
+  | 'accent'
+  | 'custom';
 
 interface KeyDef {
   label: string;
   data: string;
   type?: KeyType;
-  modifier?: 'ctrl' | 'shift';
-  action?: 'copy' | 'paste' | 'cancel' | 'newline' | 'send';
+  modifier?: 'ctrl' | 'shift' | 'meta';
+  action?: 'copy' | 'paste' | 'cancel' | 'newline' | 'send' | 'mic';
+  size?: number;
+  /** 1-based starting column in the 8-column grid. Optional — when
+   *  unset, CSS grid auto-flows the key to the next empty slot. */
+  col?: number;
+  bg?: string;
+  color?: string;
+  /** Stable identity for React keys + mic special-case rendering */
+  id?: string;
 }
 
-// ── Terminal mode keys ──
+// ── Terminal mode keys —
+// Live render uses customKeys (or DEFAULT_TOUCHBAR_KEYS as the default).
+// See effectiveRow1 / effectiveRow2 in the component below.
 
-// Row 1: Esc, Copy, Paste, Home, End, ↑, ↵
-const ROW1: KeyDef[] = [
-  { label: 'Esc', data: '\x1b', type: 'special' },
-  { label: 'Copy', data: '', type: 'special', action: 'copy' },
-  { label: 'Paste', data: '', type: 'special', action: 'paste' },
-  { label: 'Home', data: '\x1b[H', type: 'special' },
-  { label: 'End', data: '\x1b[F', type: 'special' },
-  { label: '↑', data: '\x1b[A', type: 'icon' },
-  { label: '↵', data: '\r', type: 'enter' },
-];
-
-// Row 2: Ctrl, Shift, Tab, ^C, ←, ↓, →
-const ROW2: KeyDef[] = [
-  { label: 'Ctrl', data: '', type: 'modifier', modifier: 'ctrl' },
-  { label: 'Shift', data: '', type: 'modifier', modifier: 'shift' },
-  { label: 'Tab', data: '\x09', type: 'special' },
-  { label: '^C', data: '\x03', type: 'danger' },
-  { label: '←', data: '\x1b[D', type: 'icon' },
-  { label: '↓', data: '\x1b[B', type: 'icon' },
-  { label: '→', data: '\x1b[C', type: 'icon' },
-];
+function touchBarKeyToDef(k: TouchBarKey): KeyDef {
+  // Map the simplified style enum ('plain' | 'accent' | 'danger' | 'custom')
+  // onto our internal KeyType bucket, with a legacy fall-through so prefs
+  // saved against the old vocabulary keep rendering until they migrate.
+  const styleType = k.style ?? 'plain';
+  const mapStyle = (s: typeof styleType): KeyType | undefined => {
+    if (s === 'plain' || s === 'custom') return undefined; // base .keyBtn only
+    if (s === 'accent') return 'accent';
+    if (s === 'danger') return 'danger';
+    // Legacy values ('special' | 'modifier' | 'icon' | 'enter' | 'default') —
+    // accept and forward so old prefs continue to use their original class.
+    if (s === ('default' as typeof s)) return 'special';
+    return s as KeyType;
+  };
+  return {
+    id: k.id,
+    label: k.label || '·',
+    data: k.send,
+    type: mapStyle(styleType),
+    size: k.size,
+    col: k.col,
+    bg: k.bg,
+    color: k.color,
+    // 'alt' is not wired to a UI toggle yet → drop it. 'meta' passes through
+    // as a typed no-op so callers (handlePress etc.) just treat it as a
+    // non-toggling key for now; full meta handling can land in a follow-up.
+    modifier: k.modifier === 'alt' ? undefined : k.modifier,
+    // 'newline' / 'send' actions weren't in the legacy KeyAction union; map mic/copy/paste/cancel
+    action:
+      k.action === 'mic' ||
+      k.action === 'copy' ||
+      k.action === 'paste' ||
+      k.action === 'cancel' ||
+      k.action === 'newline'
+        ? k.action
+        : undefined,
+  };
+}
 
 const ARROW_MAP: Record<string, string> = {
   '\x1b[A': 'A',
@@ -124,6 +165,60 @@ export default function TouchBar() {
   const shiftActive = useUIStore((s) => s.touchShiftActive);
   const setCtrlActive = useUIStore((s) => s.setTouchCtrl);
   const setShiftActive = useUIStore((s) => s.setTouchShift);
+  const customKeys = usePreferencesStore((s) => s.prefs.touchBarKeys);
+  const haptics = usePreferencesStore((s) => s.prefs.haptics);
+  const startCollapsed = usePreferencesStore((s) => s.prefs.touchBarCollapsed);
+  const [collapsed, setCollapsed] = useState<boolean>(startCollapsed);
+  const setTouchBarCollapsedLive = useUIStore((s) => s.setTouchBarCollapsedLive);
+  // Re-seed local state if the user changes the "Start collapsed" pref so
+  // they can preview the effect live without reloading.
+  useEffect(() => {
+    setCollapsed(startCollapsed);
+  }, [startCollapsed]);
+  // Mirror the live collapsed state to the UI store so TerminalPane can
+  // re-fit when the bar height changes.
+  useEffect(() => {
+    setTouchBarCollapsedLive(collapsed);
+  }, [collapsed, setTouchBarCollapsedLive]);
+
+  const effectiveKeys = useMemo<TouchBarKey[]>(
+    () => (customKeys && customKeys.length > 0 ? customKeys : DEFAULT_TOUCHBAR_KEYS),
+    [customKeys],
+  );
+  const micKey = useMemo(() => effectiveKeys.find((k) => k.action === 'mic'), [effectiveKeys]);
+
+  // Group keys by row (1, 2, or 3). Keys with no row default to row 1.
+  // The number of distinct rows in use drives the bar height.
+  const rowGroups = useMemo(() => {
+    const groups: Record<1 | 2 | 3, TouchBarKey[]> = { 1: [], 2: [], 3: [] };
+    for (const k of effectiveKeys) {
+      const r = Math.min(3, Math.max(1, k.row ?? 1)) as 1 | 2 | 3;
+      groups[r].push(k);
+    }
+    return groups;
+  }, [effectiveKeys]);
+
+  const rowCount = useMemo(() => {
+    let last = 1;
+    for (const r of [1, 2, 3] as const) {
+      if (rowGroups[r].length > 0) last = r;
+    }
+    return last;
+  }, [rowGroups]);
+
+  // Publish bar height as a CSS var so .terminalArea sizes itself
+  // dynamically. Height = handle padding (36) + N rows of 32 + (N-1) gaps
+  // of 4 + 4 bottom padding = 36 + 32N + 4(N-1) + 4 = 36N + 36 = 36*(N+1)
+  // For N=2: 108, for N=3: 144.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    const expandedH = 36 + rowCount * 32 + (rowCount - 1) * 4 + 4;
+    root.style.setProperty('--touchbar-height', collapsed ? '26px' : `${expandedH}px`);
+    return () => {
+      root.style.removeProperty('--touchbar-height');
+    };
+  }, [collapsed, rowCount]);
   const activeSessionType = useSessionStore(
     (s) => (s.activeId ? s.sessions.get(s.activeId)?.type : undefined),
   );
@@ -343,6 +438,20 @@ export default function TouchBar() {
 
       flash(def.label);
       sendInput(data);
+      if (haptics) {
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          try {
+            navigator.vibrate(15);
+          } catch {
+            // some browsers throw on rapid calls — non-fatal
+          }
+        } else if (!hapticsUnsupportedWarned && typeof console !== 'undefined') {
+          hapticsUnsupportedWarned = true;
+          console.debug(
+            '[TouchBar] Haptics requested but navigator.vibrate is unavailable (e.g., iOS Safari).',
+          );
+        }
+      }
 
       // Refocus terminal after sending key. On mobile, only refocus when
       // the virtual keyboard is already open (avoids popping it up when
@@ -356,7 +465,7 @@ export default function TouchBar() {
       if (ctrlActive) setCtrlActive(false);
       if (shiftActive) setShiftActive(false);
     },
-    [resolveKeyData, flash, ctrlActive, shiftActive, handleCopy, handlePaste],
+    [resolveKeyData, flash, ctrlActive, shiftActive, handleCopy, handlePaste, haptics],
   );
 
   const handleMouseDown = useCallback(
@@ -423,11 +532,23 @@ export default function TouchBar() {
     const isModActive =
       (def.modifier === 'ctrl' && ctrlActive) || (def.modifier === 'shift' && shiftActive);
 
+    // Legacy class buckets — kept so prefs saved against the old style
+    // vocabulary continue to render with their original look.
     if (def.type === 'special') classes.push(styles.special);
     if (def.type === 'modifier') classes.push(styles.modifier);
     if (def.type === 'icon') classes.push(styles.iconBtn);
     if (def.type === 'enter') classes.push(styles.keyEnter);
     if (def.type === 'danger') classes.push(styles.keyDanger);
+
+    // New simplified vocabulary. `plain` is the default visual (also used for
+    // `custom`, where user-supplied bg/color win via inline styles). For the
+    // modifier-toggle highlight the .modifier class supplies the .active rule,
+    // so attach it whenever a key carries a modifier regardless of its look.
+    if (def.type === undefined || def.type === 'plain') classes.push(styles.plain);
+    if (def.type === 'accent') classes.push(styles.accent);
+    if (def.type === 'danger') classes.push(styles.danger);
+    if (def.modifier && def.type !== 'modifier') classes.push(styles.modifier);
+
     if (isModActive) classes.push(styles.active);
     if (flashKey === def.label) classes.push(styles.flash);
 
@@ -442,22 +563,53 @@ export default function TouchBar() {
     return undefined;
   };
 
-  const renderKey = (def: KeyDef) => (
-    <button
-      key={def.label}
-      className={getKeyClassName(def)}
-      data-testid={getTestId(def)}
-      onClick={() => handlePress(def)}
-      onMouseDown={() => handleMouseDown(def)}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onTouchStart={(e) => handleTouchStart(def, e)}
-      onTouchEnd={(e) => handleTouchEnd(def, e)}
-      onTouchCancel={handleMouseUp}
-    >
-      {def.label}
-    </button>
-  );
+  // FIX #5: renderKey now honors size, bg, color for custom keys.
+  // Build inline style conditionally so undefined bg/color don't blank out
+  // the CSS-class defaults (regression where empty inline style values
+  // overrode .special/.keyEnter backgrounds).
+  // `size` always applies (defaults now use size:2 for Enter); bg/color only
+  // when the user has set custom keys (so the built-in defaults can't be
+  // accidentally repainted by inline-style spread).
+  const renderKey = (
+    def: KeyDef & { size?: number; col?: number; bg?: string; color?: string },
+    index?: number,
+  ) => {
+    const hasCustom = !!(customKeys && customKeys.length > 0);
+    // Use explicit grid placement when the key declares a col, so it lands
+    // exactly at slot N regardless of array order. Falls back to span-only
+    // (CSS grid auto-flow) when col is missing — keeps legacy behaviour.
+    const gridColumn = def.col
+      ? `${def.col} / span ${def.size ?? 1}`
+      : def.size
+        ? `span ${def.size}`
+        : undefined;
+    const inlineStyle: React.CSSProperties = {
+      ...(gridColumn ? { gridColumn } : {}),
+      ...(hasCustom && def.bg ? { background: def.bg } : {}),
+      ...(hasCustom && def.color ? { color: def.color } : {}),
+    };
+    if (typeof index === 'number') {
+      (inlineStyle as Record<string, string | number>)['--key-i'] = index;
+    }
+    const styleProp = Object.keys(inlineStyle).length > 0 ? inlineStyle : undefined;
+    return (
+      <button
+        key={def.id ?? def.label}
+        className={`${getKeyClassName(def)} ${styles.keyAnimIn}`}
+        style={styleProp}
+        data-testid={getTestId(def)}
+        onClick={() => handlePress(def)}
+        onMouseDown={() => handleMouseDown(def)}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={(e) => handleTouchStart(def, e)}
+        onTouchEnd={(e) => handleTouchEnd(def, e)}
+        onTouchCancel={handleMouseUp}
+      >
+        {def.label}
+      </button>
+    );
+  };
 
   // No inline height adjustment when the keyboard opens: the viewport meta
   // `interactive-widget=resizes-content` already shrinks the layout viewport,
@@ -473,10 +625,12 @@ export default function TouchBar() {
 
   if (keyboardOpen && isLandscapeTight) return null;
 
+  const micCol = micKey?.col ?? 8;
   const micButton = SpeechRecognitionAPI ? (
     <button
-      className={`${styles.keyBtn} ${styles.special} ${styles.micBtn} ${isRecording ? styles.recording : ''} ${micLocked ? styles.micLocked : ''}`}
+      className={`${styles.keyBtn} ${styles.special} ${styles.micBtn} ${styles.keyAnimIn} ${isRecording ? styles.recording : ''} ${micLocked ? styles.micLocked : ''}`}
       data-testid="mic-btn"
+      style={{ '--key-i': 14, gridColumn: `${micCol} / span 1` } as React.CSSProperties}
       onMouseDown={(e) => {
         e.preventDefault();
         if (micLocked) {
@@ -547,11 +701,36 @@ export default function TouchBar() {
   if (isAgentMode && !showingAgentTerminal) return null;
 
   return (
-    <div className={styles.touchBar}>
-      <div className={styles.row}>{ROW1.map(renderKey)}</div>
-      <div className={styles.row}>
-        {ROW2.map(renderKey)}
-        {micButton}
+    <div className={styles.touchBarWrapper} data-collapsed={collapsed ? 'true' : 'false'}>
+      <div className={styles.touchBar}>
+        <button
+          type="button"
+          className={styles.collapseHandle}
+          aria-label={collapsed ? 'Expand TouchBar' : 'Collapse TouchBar'}
+          aria-expanded={!collapsed}
+          onMouseDown={(e) => e.preventDefault()}
+          onTouchStart={(e) => e.preventDefault()}
+          onClick={() => setCollapsed(!collapsed)}
+        />
+        <div className={styles.rows} aria-hidden={collapsed}>
+          {([1, 2, 3] as const).map((rowNum) => {
+            if (rowGroups[rowNum].length === 0) return null;
+            const rowKeys = rowGroups[rowNum];
+            // Mic is rendered separately for its hold-to-record behaviour;
+            // exclude it from the regular renderKey loop.
+            const nonMicKeys = rowKeys.filter((k) => k.action !== 'mic');
+            const rowMic = rowKeys.find((k) => k.action === 'mic');
+            const startIndex = (rowNum - 1) * 8;
+            return (
+              <div key={`row-${rowNum}`} className={styles.row}>
+                {nonMicKeys.map((k, i) =>
+                  renderKey(touchBarKeyToDef(k), startIndex + i),
+                )}
+                {rowMic === micKey && micKey && micButton}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

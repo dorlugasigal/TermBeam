@@ -27,7 +27,7 @@ https://github.com/user-attachments/assets/9dd4f3d7-f017-4314-9b3a-f6a5688e3671
     <td align="center"><img src="packages/site/public/mobile-session-hub.jpeg" alt="Session hub on mobile" width="250" /></td>
     <td align="center"><img src="packages/site/public/mobile-terminal.jpeg" alt="Terminal with touch bar on mobile" width="250" /></td>
     <td align="center"><img src="packages/site/public/mobile-session-preview.jpeg" alt="File browser on mobile" width="250" /></td>
-    <td align="center"><img src="packages/site/public/mobile-command-palette.jpeg" alt="Command palette on mobile" width="250" /></td>
+    <td align="center"><img src="packages/site/public/mobile-command-palette.jpeg" alt="Tools panel on mobile" width="250" /></td>
   </tr>
 </table>
 
@@ -72,7 +72,9 @@ termbeam -i                     # interactive setup wizard
 ### Productivity
 
 - **Terminal search** with regex, match count, and prev/next navigation
-- **Command palette** (Ctrl+K / Cmd+K) for quick access to all actions
+- **Tools panel** (Ctrl+K / Cmd+K) — slide-out sheet for quick access to all actions, organized into **Session · Files · View · Share · Agents · Settings · System**. Settings (theme, font size, defaults, haptics) are inline panels reachable from the panel; on mobile the panel slides up from the bottom, on desktop it docks to the right.
+- **Customizable Touch Bar** — 8-column, multi-row (up to 3) key grid with drag-to-reorder, collapsible drawer, and a dedicated key editor (label, send payload, action, modifier).
+- **Workspaces** — save named bundles of sessions (each with its own name, cwd, shell, color and initial command). Mark one as `default` and the **server** auto-spawns it on startup, so connecting any client lands on a ready terminal. Preferences (theme, fonts, defaults, custom keys, workspaces) are persisted server-side in `~/.termbeam/prefs.json` and sync across devices.
 - **File upload** — send files from your phone to the session's working directory
 - **File browser & download** — browse files in a session's working directory from the side panel and download them to your device
 - **Markdown viewer** — preview `.md` files rendered with GitHub Flavored Markdown directly in the browser

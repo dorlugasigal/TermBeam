@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
@@ -7,6 +7,7 @@ import type { ShellInfo, AgentInfo } from '@/services/api';
 import { SESSION_COLORS, type SessionColor } from '@/types';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
+import { usePreferencesStore } from '@/stores/preferencesStore';
 import { FolderBrowser } from '@/components/FolderBrowser/FolderBrowser';
 import { AgentIcon } from '@/components/common/AgentIcon';
 import { CopilotLogo } from '@/components/common/CopilotLogo';
@@ -44,7 +45,9 @@ function uniqueName(base: string, existing: Set<string>): string {
 }
 
 export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
-  const { newSessionModalOpen, closeNewSessionModal } = useUIStore();
+  const { newSessionModalOpen, closeNewSessionModal, newSessionModalInitialMode } = useUIStore();
+  const defaultFolder = usePreferencesStore((s) => s.prefs.defaultFolder);
+  const defaultInitialCommand = usePreferencesStore((s) => s.prefs.defaultInitialCommand);
   // Shared state
   const [sessionMode, setSessionMode] = useState<'terminal' | 'copilot'>('terminal');
   const [name, setName] = useState('');
@@ -76,6 +79,9 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
 
   useEffect(() => {
     if (newSessionModalOpen) {
+      if (newSessionModalInitialMode) {
+        setSessionMode(newSessionModalInitialMode);
+      }
       fetchShells()
         .catch(() => ({ shells: [], defaultShell: '', cwd: '' }))
         .then((shellData) => {
@@ -87,9 +93,25 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
               list.find((s) => s.path === shellData.defaultShell);
             setShell(def?.cmd ?? list[0]?.cmd ?? '');
           }
-          if (!cwd && shellData.cwd) {
-            setCwd(shellData.cwd);
-            deriveNameFromCwd(shellData.cwd);
+          // The shells fetch is async — by the time it resolves, the
+          // defaultFolder seed effect may have already populated cwd.
+          // Prefer the saved defaultFolder over the server's reported cwd
+          // so the user's preference always wins. Read both directly from
+          // the live stores to dodge stale React closures.
+          const livePrefs = usePreferencesStore.getState().prefs;
+          const liveDefaultFolder = livePrefs.defaultFolder;
+          if (liveDefaultFolder) {
+            // defaultFolder is being seeded by the other effect; nothing
+            // to do here. Just derive a session name from it if needed.
+            if (!nameManuallyEdited) deriveNameFromCwd(liveDefaultFolder);
+            return;
+          }
+          // No defaultFolder pref — fall back to the server's cwd.
+          // Use a setter callback so we read the latest cwd state, not
+          // the stale closure from when the effect started.
+          if (shellData.cwd) {
+            setCwd((current) => current || shellData.cwd);
+            if (!nameManuallyEdited) deriveNameFromCwd(shellData.cwd);
           }
         });
       fetchAgents()
@@ -98,6 +120,25 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps — intentionally runs only on modal open/close
   }, [newSessionModalOpen]);
+
+  // Seed default folder + initial command from prefs. Track whether the
+  // user has touched each field so we don't keep overwriting their edits
+  // when prefs change later (or hydrate after the modal opened).
+  const cwdTouchedRef = useRef(false);
+  const initialCommandTouchedRef = useRef(false);
+
+  useEffect(() => {
+    if (!newSessionModalOpen) return;
+    if (defaultFolder && !cwdTouchedRef.current && !cwd) {
+      setCwd(defaultFolder);
+      // Also derive a reasonable name from the folder leaf
+      if (!nameManuallyEdited) deriveNameFromCwd(defaultFolder);
+    }
+    if (defaultInitialCommand && !initialCommandTouchedRef.current && !initialCommand) {
+      setInitialCommand(defaultInitialCommand);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps — seed when modal opens or defaults change
+  }, [newSessionModalOpen, defaultFolder, defaultInitialCommand]);
 
   function resetForm() {
     setSessionMode('terminal');
@@ -109,6 +150,8 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     setColor(SESSION_COLORS[0]);
     setBrowsing(false);
     setModel('claude-sonnet-4');
+    cwdTouchedRef.current = false;
+    initialCommandTouchedRef.current = false;
   }
 
   function handleModeSwitch(mode: 'terminal' | 'copilot') {
@@ -126,11 +169,21 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
       const cols = activeMs?.term?.cols;
       const rows = activeMs?.term?.rows;
 
+      // Belt-and-suspenders: read both defaults DIRECTLY from the prefs
+      // store so a stale React closure (or unhydrated value at mount)
+      // can't swallow them. If the user didn't type anything in either
+      // field, fall back to the saved default.
+      const livePrefs = usePreferencesStore.getState().prefs;
+      const liveDefaultCmd = (livePrefs.defaultInitialCommand || '').trim();
+      const liveDefaultFolder = (livePrefs.defaultFolder || '').trim();
+      const effectiveInitialCommand = initialCommand.trim() || liveDefaultCmd;
+      const effectiveCwd = cwd.trim() || liveDefaultFolder;
+
       const session = await createSession(
         sessionMode === 'copilot'
           ? {
               name: name.trim() || undefined,
-              cwd: cwd.trim() || undefined,
+              cwd: effectiveCwd || undefined,
               type: 'copilot',
               model,
               ...(cols && rows ? { cols, rows } : {}),
@@ -138,12 +191,15 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
           : {
               name: name.trim() || undefined,
               shell: shell || undefined,
-              cwd: cwd.trim() || undefined,
+              cwd: effectiveCwd || undefined,
               color,
-              initialCommand: initialCommand.trim() || undefined,
+              initialCommand: effectiveInitialCommand || undefined,
               ...(cols && rows ? { cols, rows } : {}),
             },
       );
+      if (effectiveInitialCommand) {
+        useSessionStore.getState().setPendingInitialCommand(session.id, effectiveInitialCommand);
+      }
       closeNewSessionModal();
       resetForm();
       onCreated(session.id, sessionMode, session.ptySessionId ?? null, sessionMode === 'copilot' ? model : undefined);
@@ -170,6 +226,8 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
         initialCommand: agent.args?.length ? `${agent.cmd} ${agent.args.join(' ')}` : agent.cmd,
         ...(cols && rows ? { cols, rows } : {}),
       });
+      const agentCmd = agent.args?.length ? `${agent.cmd} ${agent.args.join(' ')}` : agent.cmd;
+      useSessionStore.getState().setPendingInitialCommand(session.id, agentCmd);
       closeNewSessionModal();
       resetForm();
       onCreated(session.id, 'terminal');
@@ -201,8 +259,9 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
 
           {browsing ? (
             <FolderBrowser
-              currentDir={cwd || '/'}
+              currentDir={cwd || defaultFolder || '/'}
               onSelect={(dir: string) => {
+                cwdTouchedRef.current = true;
                 setCwd(dir);
                 deriveNameFromCwd(dir);
                 setBrowsing(false);
@@ -236,9 +295,12 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                   <input
                     className={styles.input}
                     type="text"
-                    placeholder="/"
+                    placeholder={defaultFolder || '/'}
                     value={cwd}
-                    onChange={(e) => setCwd(e.target.value)}
+                    onChange={(e) => {
+                      cwdTouchedRef.current = true;
+                      setCwd(e.target.value);
+                    }}
                   />
                   <button
                     type="button"
@@ -294,9 +356,12 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                     <input
                       className={styles.input}
                       type="text"
-                      placeholder="e.g. npm run dev"
+                      placeholder={defaultInitialCommand || 'e.g. npm run dev'}
                       value={initialCommand}
-                      onChange={(e) => setInitialCommand(e.target.value)}
+                      onChange={(e) => {
+                        initialCommandTouchedRef.current = true;
+                        setInitialCommand(e.target.value);
+                      }}
                     />
                   </div>
 

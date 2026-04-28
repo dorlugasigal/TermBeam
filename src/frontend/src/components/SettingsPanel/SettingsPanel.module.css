@@ -1,0 +1,1085 @@
+/* ──────────────────────────────────────────────────────────────────────
+ * SettingsPanel
+ *
+ * Floating, draggable modal. No scrim — the underlying terminal and
+ * TouchBar remain visible and interactive so users see live changes
+ * (theme, font size, custom keys) as they edit them.
+ *
+ * Mobile: spawned centered, ~92vw, capped at 80dvh, draggable by header.
+ * Desktop: spawned centered, 480px wide, draggable by header.
+ * ────────────────────────────────────────────────────────────────────── */
+
+.panel {
+  position: fixed;
+  /* FIX #1: default to CSS centering (when not dragged) */
+  width: min(92vw, 480px);
+  max-height: min(80dvh, 720px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+}
+
+/* FIX #1: when dragOffset is null, use CSS centering. Entry/exit
+ * animations only apply to the centered panel so they don't fight
+ * the drag-positioning inline transform. */
+.panelCentered {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: panelEnter 240ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.panelCentered.panelClosing {
+  animation: panelExit 200ms cubic-bezier(0.4, 0, 0.6, 1) forwards;
+  pointer-events: none;
+}
+
+.panelClosing:not(.panelCentered) {
+  animation: panelFadeOut 180ms ease forwards;
+  pointer-events: none;
+}
+
+@keyframes panelEnter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 16px)) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes panelExit {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 12px)) scale(0.97);
+  }
+}
+
+@keyframes panelFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .panelClosing,
+  .panelCentered {
+    animation: none !important;
+  }
+}
+
+.panel.dragging {
+  user-select: none;
+  cursor: grabbing;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: grab;
+  touch-action: none;
+  flex-shrink: 0;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  background: var(--bg);
+}
+
+.header:active {
+  cursor: grabbing;
+}
+
+.handle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.handleDots {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  letter-spacing: -1px;
+  user-select: none;
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.closeBtn:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.body {
+  overflow-y: auto;
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+.section {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+.sectionTitle {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim, var(--text-secondary));
+  margin: 0 0 10px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  min-height: 36px;
+}
+
+.rowLabel {
+  font-size: 0.9rem;
+  color: var(--text);
+  flex: 1;
+}
+
+.rowHint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.numericRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.numericValue {
+  min-width: 36px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.iconBtn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.iconBtn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.iconBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 150ms;
+  flex-shrink: 0;
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  transition:
+    transform 150ms,
+    background 150ms;
+}
+
+.toggleOn {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.toggleOn::after {
+  transform: translateX(18px);
+  background: #fff;
+}
+
+/* ── FIX #2: Theme button (replaces inline picker) ────── */
+.themeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.themeButton:hover {
+  border-color: var(--accent);
+}
+
+.themeSwatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.themeChevron {
+  font-size: 1.1rem;
+  margin-left: 0.25rem;
+  color: var(--text-secondary);
+}
+
+/* ── FIX #3: Folder browser row ────── */
+.folderRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.folderPath {
+  flex: 1;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folderPlaceholder {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.browseBtn {
+  padding: 6px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.browseBtn:hover {
+  border-color: var(--accent);
+}
+
+.clearBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.clearBtn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* ── FIX #4: Workspaces ────── */
+.primaryBtn {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryBtn:hover {
+  opacity: 0.9;
+}
+
+.primaryBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.workspaceSaveRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.workspaceSaveRow .primaryBtn {
+  flex: 1;
+}
+
+.saveToastChip {
+  padding: 4px 10px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--border));
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  animation: chipFadeIn 200ms ease;
+}
+
+@keyframes chipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.saveToast {
+  padding: 6px 10px;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.8rem;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.workspaceList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.workspaceTileGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+@media (min-width: 600px) {
+  .workspaceTileGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.workspaceTile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 12px 12px 14px;
+  padding-right: 36px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  position: relative;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.workspaceTile:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.workspaceTileIndex {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.workspaceTileHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 32px;
+  min-width: 0;
+}
+
+/* Workspace card with left accent stripe (driven by --ws-accent set inline). */
+.workspaceCard {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--ws-accent, var(--accent));
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.workspaceCard:hover {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+
+.workspaceCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.workspaceCardTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.workspaceCardName {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.workspaceCardCount {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.workspaceCardSummary {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.workspaceAutoStartChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--border));
+  color: var(--accent);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.workspaceCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.workspaceAutoStartToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.workspaceCardActions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Mini session tile grid inside a workspace card. */
+.workspaceMiniGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+@media (min-width: 520px) {
+  .workspaceMiniGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.workspaceMiniTile {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.workspaceMiniColor {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 4px;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.workspaceMiniBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.workspaceMiniName {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.workspaceMiniCmd {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  align-self: flex-start;
+}
+
+.workspaceMiniCwd {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Empty-state CTA for the Workspaces section. */
+.workspaceEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 22px 16px;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+
+.workspaceEmptyIcon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.workspaceEmptyTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.workspaceEmptyDesc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  max-width: 320px;
+  line-height: 1.45;
+}
+
+.workspaceEmptyCta {
+  margin-top: 8px;
+  padding: 9px 18px;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.workspaceEmptyCta:hover {
+  opacity: 0.9;
+}
+
+.workspaceEmptyCta:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.workspaceDefaultToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.workspaceDefaultToggle input {
+  accent-color: var(--accent);
+}
+
+.linkBtnDanger {
+  background: none;
+  border: none;
+  color: #ef5350;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 6px 8px;
+}
+
+.linkBtnDanger:hover {
+  text-decoration: underline;
+}
+
+.workspaceTileIcon {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.workspaceTileColor {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  margin-top: 3px;
+}
+
+.workspaceTileCommand,
+.workspaceTileMeta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  min-width: 0;
+}
+
+.workspaceTileCommand code,
+.workspaceTileMeta code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.workspaceTileMetaLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.workspaceTileContent {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.workspaceTileName {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.workspaceTileBadge {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  line-height: 1.4;
+}
+
+.workspaceTileBadgeTerminal {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  color: var(--accent);
+}
+
+.workspaceTileBadgeAgent {
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg));
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.workspaceTileCwd {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  word-break: break-all;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.workspaceTileAgent {
+  font-size: 0.7rem;
+  color: var(--accent);
+  word-break: break-word;
+}
+
+.workspaceTileRemove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.workspaceTileRemove:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* ── FIX #5: Custom keys editor ────── */
+.keyboardEditor {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Live touchbar preview (always visible inside Touch Bar section).
+ * Mirrors the live TouchBar rendering: gradient background, two grid
+ * rows, gap matching the live bar. The whole preview is a button —
+ * clicking opens the customizer modal. */
+.touchBarLivePreview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 3px 4px 4px;
+  margin-top: 8px;
+  width: 100%;
+  background: linear-gradient(to bottom, var(--bg) 0%, var(--surface) 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.touchBarLivePreview:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.touchBarLivePreview:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.touchBarLivePreviewRow {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.touchBarLivePreviewRowMic {
+  grid-template-columns: repeat(8, 1fr) auto;
+}
+
+.keyEditorPanel {
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.editorRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editorLabel {
+  font-size: 0.8rem;
+  color: var(--text);
+  min-width: 80px;
+  font-weight: 500;
+}
+
+.keyInput {
+  padding: 6px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+}
+
+.keyInput:focus {
+  border-color: var(--accent);
+}
+
+.segmentedControl {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.segmentedBtn {
+  padding: 6px 12px;
+  background: var(--surface);
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.segmentedBtn:last-child {
+  border-right: none;
+}
+
+.segmentedBtn:hover {
+  background: var(--bg);
+}
+
+.segmentedBtnActive {
+  background: var(--accent);
+  color: #fff;
+}
+
+.colorRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.colorInput {
+  width: 40px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.colorSwatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.resetBtn {
+  padding: 4px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.resetBtn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.dangerBtn {
+  padding: 6px 12px;
+  background: #d32f2f;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.dangerBtn:hover {
+  background: #c62828;
+}
+
+.linkBtn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 6px 0;
+  text-align: left;
+}
+
+.linkBtn:hover {
+  text-decoration: underline;
+}
+
+.empty {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin: 8px 0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(var(--tx, -50%), var(--ty, -50%)) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(var(--tx, -50%), var(--ty, -50%)) scale(1);
+  }
+}
