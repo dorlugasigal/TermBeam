@@ -33,7 +33,23 @@ const MAX_STRING_LEN = 4096;
 const MAX_SEND_LEN = 64;
 
 const VALID_KEY_ACTIONS = new Set(['mic', 'copy', 'paste', 'cancel', 'newline']);
-const VALID_KEY_LOOKS = new Set(['default', 'special', 'modifier', 'icon', 'enter', 'danger']);
+// Accept BOTH the new vocabulary (plain/accent/danger/custom) and the legacy
+// values from older clients. The client-side normalize() migrates legacy
+// values to the new ones on read, so persisted prefs converge over time.
+const VALID_KEY_LOOKS = new Set([
+  'plain',
+  'accent',
+  'danger',
+  'custom',
+  // Legacy — accepted but client will rewrite to the new vocab on next PUT
+  'default',
+  'special',
+  'modifier',
+  'icon',
+  'enter',
+]);
+const VALID_KEY_MODIFIERS = new Set(['ctrl', 'alt', 'shift', 'meta']);
+const VALID_KEY_SIZES = new Set([1, 2, 3, 4, 5, 6, 7, 8]);
 
 function clampNumber(n, min, max, fallback) {
   if (typeof n !== 'number' || !Number.isFinite(n)) return fallback;
@@ -62,12 +78,12 @@ function sanitizeTouchBarKeys(input) {
     const key = { id, label, send };
     if (typeof entry.modifier === 'string') {
       const mod = entry.modifier.toLowerCase();
-      if (mod === 'ctrl' || mod === 'alt' || mod === 'shift') key.modifier = mod;
+      if (VALID_KEY_MODIFIERS.has(mod)) key.modifier = mod;
     }
     if (typeof entry.action === 'string' && VALID_KEY_ACTIONS.has(entry.action)) {
       key.action = entry.action;
     }
-    if (entry.size === 1 || entry.size === 2 || entry.size === 3) {
+    if (VALID_KEY_SIZES.has(entry.size)) {
       key.size = entry.size;
     }
     if (typeof entry.bg === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(entry.bg)) {

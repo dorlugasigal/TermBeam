@@ -37,18 +37,49 @@ function genKeyId(): string {
 
 function lookClass(style: TouchBarKey['style']): string {
   switch (style) {
-    case 'special':
-      return touchBarStyles.special ?? '';
-    case 'modifier':
-      return touchBarStyles.modifier ?? '';
-    case 'icon':
-      return touchBarStyles.iconBtn ?? '';
-    case 'enter':
+    case 'accent':
       return touchBarStyles.keyEnter ?? '';
     case 'danger':
       return touchBarStyles.keyDanger ?? '';
+    case 'custom':
+    case 'plain':
     default:
       return '';
+  }
+}
+
+/** Inline preview style for swatches/active borders. For `custom`, fall
+ *  back to the live key's bg/color or the default custom palette. */
+function lookSwatchStyle(
+  style: TouchBarKey['style'],
+  key?: TouchBarKey | null,
+): React.CSSProperties {
+  if (style === 'custom') {
+    return {
+      background: key?.bg || '#3a3a3a',
+      color: key?.color || '#ffffff',
+    };
+  }
+  return {};
+}
+
+/** Border color for the *active* look pill so it visually echoes the
+ *  preset's signature color. Returns undefined to keep the CSS default
+ *  (used by `plain`). */
+function lookActiveBorder(
+  style: TouchBarKey['style'],
+  key?: TouchBarKey | null,
+): string | undefined {
+  switch (style) {
+    case 'accent':
+      return 'var(--accent, #0078d4)';
+    case 'danger':
+      return '#f87171';
+    case 'custom':
+      return key?.bg || '#3a3a3a';
+    case 'plain':
+    default:
+      return undefined;
   }
 }
 
@@ -164,7 +195,7 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
       label: 'Key',
       send: '',
       size: 1,
-      style: 'default',
+      style: 'plain',
     };
     const next = [...list];
     if (micIdx >= 0) {
@@ -250,6 +281,7 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
     ctrl: false,
     shift: false,
     alt: false,
+    meta: false,
   });
 
   useEffect(() => {
@@ -260,7 +292,7 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
       setComboMods(decoded.modifiers);
     } else {
       setComboBase('');
-      setComboMods({ ctrl: false, shift: false, alt: false });
+      setComboMods({ ctrl: false, shift: false, alt: false, meta: false });
     }
   }, [selectedKey?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -270,16 +302,14 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
       setComboBase(base);
       setComboMods(mods);
       const send = encodeCombo(base, mods);
-      const label = base ? describeCombo(base, mods) : selectedKey?.label ?? 'Key';
+      // Label is purely user-controlled — never auto-overwrite it from
+      // the combo builder.
       updateKey(selectedKeyIndex, {
         send,
         action: undefined,
-        // Auto-update the label to reflect the combo when the user is
-        // building one — they can still override it in the Label field.
-        ...(base ? { label: label.length > 8 ? label.slice(0, 8) : label } : {}),
       });
     },
-    [selectedKeyIndex, selectedKey, updateKey],
+    [selectedKeyIndex, updateKey],
   );
 
   if (!open) return null;
@@ -426,6 +456,13 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
                               applyCombo(comboBase, { ...comboMods, alt: v })
                             }
                           />
+                          <ModCheck
+                            label="Cmd"
+                            checked={comboMods.meta}
+                            onChange={(v) =>
+                              applyCombo(comboBase, { ...comboMods, meta: v })
+                            }
+                          />
                         </div>
                         <select
                           className={styles.input}
@@ -494,16 +531,36 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
                 <label className={styles.editorLabel}>Look</label>
                 <div className={styles.styleGrid}>
                   {KEY_LOOK_OPTIONS.map((opt) => {
-                    const active = (selectedKey.style ?? 'default') === opt.value;
+                    const active = (selectedKey.style ?? 'plain') === opt.value;
+                    const activeBorder = active
+                      ? lookActiveBorder(opt.value, selectedKey)
+                      : undefined;
                     return (
                       <button
                         key={opt.value}
                         type="button"
+                        title={opt.description}
+                        aria-pressed={active}
                         className={`${styles.stylePill} ${active ? styles.stylePillActive : ''}`}
-                        onClick={() => updateKey(selectedKeyIndex!, { style: opt.value })}
+                        style={activeBorder ? { borderColor: activeBorder } : undefined}
+                        onClick={() => {
+                          if (opt.value === 'custom') {
+                            const patch: Partial<TouchBarKey> = { style: 'custom' };
+                            if (!selectedKey.bg) patch.bg = '#3a3a3a';
+                            if (!selectedKey.color) patch.color = '#ffffff';
+                            updateKey(selectedKeyIndex!, patch);
+                          } else {
+                            updateKey(selectedKeyIndex!, {
+                              style: opt.value,
+                              bg: undefined,
+                              color: undefined,
+                            });
+                          }
+                        }}
                       >
                         <span
                           className={`${touchBarStyles.keyBtn} ${lookClass(opt.value)} ${styles.styleSwatch}`}
+                          style={lookSwatchStyle(opt.value, selectedKey)}
                           aria-hidden="true"
                         >
                           A
@@ -518,60 +575,70 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
               <div className={styles.editorRow}>
                 <label className={styles.editorLabel}>Width</label>
                 <div className={styles.segmentedControl}>
-                  {[1, 2, 3].map((n) => (
+                  {[1, 2, 3, 4].map((n) => (
                     <button
                       key={n}
                       type="button"
                       className={`${styles.segmentedBtn} ${
                         (selectedKey.size ?? 1) === n ? styles.segmentedBtnActive : ''
                       }`}
-                      onClick={() => updateKey(selectedKeyIndex!, { size: n as 1 | 2 | 3 })}
+                      onClick={() =>
+                        updateKey(selectedKeyIndex!, { size: n as 1 | 2 | 3 | 4 })
+                      }
                     >
-                      {n === 1 ? '1×' : n === 2 ? '2×' : '3×'}
+                      {n}×
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className={styles.editorRow}>
-                <label className={styles.editorLabel}>Background</label>
-                <div className={styles.colorRow}>
-                  <input
-                    type="color"
-                    className={styles.colorInput}
-                    value={selectedKey.bg || '#000000'}
-                    onChange={(e) => updateKey(selectedKeyIndex!, { bg: e.target.value })}
-                    aria-label="Background color"
-                  />
-                  <button
-                    type="button"
-                    className={styles.resetBtn}
-                    onClick={() => updateKey(selectedKeyIndex!, { bg: undefined })}
-                  >
-                    Reset
-                  </button>
-                </div>
-              </div>
+              {selectedKey.style === 'custom' && (
+                <>
+                  <div className={styles.editorRow}>
+                    <label className={styles.editorLabel}>Background</label>
+                    <div className={styles.colorRow}>
+                      <input
+                        type="color"
+                        className={styles.colorInput}
+                        value={selectedKey.bg || '#3a3a3a'}
+                        onChange={(e) =>
+                          updateKey(selectedKeyIndex!, { bg: e.target.value })
+                        }
+                        aria-label="Background color"
+                      />
+                      <button
+                        type="button"
+                        className={styles.resetBtn}
+                        onClick={() => updateKey(selectedKeyIndex!, { bg: '#3a3a3a' })}
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
 
-              <div className={styles.editorRow}>
-                <label className={styles.editorLabel}>Text color</label>
-                <div className={styles.colorRow}>
-                  <input
-                    type="color"
-                    className={styles.colorInput}
-                    value={selectedKey.color || '#ffffff'}
-                    onChange={(e) => updateKey(selectedKeyIndex!, { color: e.target.value })}
-                    aria-label="Text color"
-                  />
-                  <button
-                    type="button"
-                    className={styles.resetBtn}
-                    onClick={() => updateKey(selectedKeyIndex!, { color: undefined })}
-                  >
-                    Reset
-                  </button>
-                </div>
-              </div>
+                  <div className={styles.editorRow}>
+                    <label className={styles.editorLabel}>Text color</label>
+                    <div className={styles.colorRow}>
+                      <input
+                        type="color"
+                        className={styles.colorInput}
+                        value={selectedKey.color || '#ffffff'}
+                        onChange={(e) =>
+                          updateKey(selectedKeyIndex!, { color: e.target.value })
+                        }
+                        aria-label="Text color"
+                      />
+                      <button
+                        type="button"
+                        className={styles.resetBtn}
+                        onClick={() => updateKey(selectedKeyIndex!, { color: '#ffffff' })}
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <button
                 type="button"

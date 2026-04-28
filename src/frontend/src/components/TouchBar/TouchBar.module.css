@@ -164,14 +164,14 @@
 
 .row {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 4px;
   padding: 0 2px;
 }
 
-/* ROW2 has an 8th auto-sized slot for the mic button */
+/* ROW2 has an extra auto-sized slot at the end for the mic button */
 .row2 {
-  grid-template-columns: repeat(7, 1fr) auto;
+  grid-template-columns: repeat(8, 1fr) auto;
   position: relative;
 }
 
@@ -234,6 +234,29 @@
 .keyDanger {
   background: #5c2222;
   color: #f87171;
+}
+
+/* ── New simplified look vocabulary ('plain' | 'accent' | 'danger' | 'custom').
+ * The legacy classes above (.special, .modifier, .iconBtn, .keyEnter, .keyDanger)
+ * are intentionally retained so prefs cached with old `style` values still
+ * render correctly during migration. New TS code only emits the classes below. */
+
+.plain {
+  /* Inherits the .keyBtn base look — no extra rules needed. */
+}
+
+.accent {
+  background: var(--accent, #0078d4);
+  color: #fff;
+}
+
+.danger {
+  background: #5c2222;
+  color: #f87171;
+}
+
+.custom {
+  /* User-supplied bg/color come in via inline styles and win on their own. */
 }
 
 .flash {

@@ -9,7 +9,7 @@
  * `1+(shift?1:0)+(alt?2:0)+(ctrl?4:0)` modifier param).
  */
 
-export type Modifiers = { ctrl: boolean; shift: boolean; alt: boolean };
+export type Modifiers = { ctrl: boolean; shift: boolean; alt: boolean; meta: boolean };
 
 export interface BaseKeyOption {
   /** Stable identifier used in the dropdown */
@@ -99,9 +99,12 @@ const CSI_LETTER: Record<string, string> = {
   End: 'F',
 };
 
-/** Modifier parameter as defined in DEC PM 23 (xterm extension). */
+/** Modifier parameter as defined in DEC PM 23 (xterm extension).
+ *  Bit 0 = shift, bit 1 = alt, bit 2 = ctrl, bit 3 = meta/cmd. */
 function modParam(m: Modifiers): number {
-  return 1 + (m.shift ? 1 : 0) + (m.alt ? 2 : 0) + (m.ctrl ? 4 : 0);
+  return (
+    1 + (m.shift ? 1 : 0) + (m.alt ? 2 : 0) + (m.ctrl ? 4 : 0) + (m.meta ? 8 : 0)
+  );
 }
 
 /**
@@ -157,8 +160,7 @@ export function encodeCombo(baseKey: string, m: Modifiers): string {
   return baseKey;
 }
 
-/**
- * Try to recover the (baseKey, modifiers) tuple from an existing send
+/** Try to recover the (baseKey, modifiers) tuple from an existing send
  * string. Returns null if the send doesn't match any known encoding —
  * in that case the UI keeps the raw `send` and the user can rebuild.
  */
@@ -166,7 +168,7 @@ export function decodeCombo(
   send: string,
 ): { baseKey: string; modifiers: Modifiers } | null {
   if (!send) return null;
-  const empty: Modifiers = { ctrl: false, shift: false, alt: false };
+  const empty: Modifiers = { ctrl: false, shift: false, alt: false, meta: false };
 
   // Direct matches
   if (send === '\r') return { baseKey: 'Enter', modifiers: empty };
@@ -215,13 +217,18 @@ export function decodeCombo(
     if (code >= 1 && code <= 26) {
       return {
         baseKey: String.fromCharCode(code + 96),
-        modifiers: { ctrl: true, shift: false, alt: false },
+        modifiers: { ctrl: true, shift: false, alt: false, meta: false },
       };
     }
     if (/^[a-zA-Z0-9\-=[\]\\;',./`]$/.test(send)) {
       return {
         baseKey: send.toLowerCase(),
-        modifiers: { ctrl: false, shift: send !== send.toLowerCase(), alt: false },
+        modifiers: {
+          ctrl: false,
+          shift: send !== send.toLowerCase(),
+          alt: false,
+          meta: false,
+        },
       };
     }
   }
@@ -234,13 +241,13 @@ export function decodeCombo(
     if (code >= 1 && code <= 26) {
       return {
         baseKey: String.fromCharCode(code + 96),
-        modifiers: { ctrl: true, shift: false, alt: true },
+        modifiers: { ctrl: true, shift: false, alt: true, meta: false },
       };
     }
     if (/^[a-zA-Z0-9]$/.test(c)) {
       return {
         baseKey: c.toLowerCase(),
-        modifiers: { ctrl: false, shift: c !== c.toLowerCase(), alt: true },
+        modifiers: { ctrl: false, shift: c !== c.toLowerCase(), alt: true, meta: false },
       };
     }
   }
@@ -249,12 +256,13 @@ export function decodeCombo(
 }
 
 function paramToMods(p: number): Modifiers {
-  // Convention: param value − 1 packs shift|alt|ctrl as bits 0|1|2
+  // Convention: param value − 1 packs shift|alt|ctrl|meta as bits 0|1|2|3
   const bits = p - 1;
   return {
     shift: (bits & 1) !== 0,
     alt: (bits & 2) !== 0,
     ctrl: (bits & 4) !== 0,
+    meta: (bits & 8) !== 0,
   };
 }
 
@@ -277,6 +285,7 @@ export function describeCombo(baseKey: string, m: Modifiers): string {
   if (m.ctrl) parts.push('Ctrl');
   if (m.alt) parts.push('Alt');
   if (m.shift) parts.push('Shift');
+  if (m.meta) parts.push('Cmd');
   const niceBase = (() => {
     if (baseKey === 'Up') return '↑';
     if (baseKey === 'Down') return '↓';

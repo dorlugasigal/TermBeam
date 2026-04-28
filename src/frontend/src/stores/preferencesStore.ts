@@ -7,20 +7,47 @@ import { THEMES, type ThemeId } from '@/themes/terminalThemes';
 // ---------------------------------------------------------------------------
 
 export type KeyAction = 'mic' | 'copy' | 'paste' | 'cancel' | 'newline';
-export type KeyLook = 'default' | 'special' | 'modifier' | 'icon' | 'enter' | 'danger';
+/** Visual preset. `custom` means use the user-supplied bg/color. */
+export type KeyLook = 'plain' | 'accent' | 'danger' | 'custom';
 
 export interface TouchBarKey {
   id: string;
   label: string;
   send: string;
-  modifier?: 'ctrl' | 'alt' | 'shift';
+  modifier?: 'ctrl' | 'alt' | 'shift' | 'meta';
   /** Built-in action this key dispatches. Takes precedence over `send`. */
   action?: KeyAction;
-  /** Grid column span (1-3, default 1). */
-  size?: 1 | 2 | 3;
+  /** Grid column span (1-8, default 1). */
+  size?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   bg?: string;
   color?: string;
   style?: KeyLook;
+}
+
+/** Map legacy style values from older prefs to the simplified vocabulary. */
+const LEGACY_LOOK_MAP: Record<string, KeyLook> = {
+  default: 'plain',
+  special: 'plain',
+  modifier: 'plain',
+  icon: 'plain',
+  enter: 'accent',
+  danger: 'danger',
+  plain: 'plain',
+  accent: 'accent',
+  custom: 'custom',
+};
+
+function migrateTouchBarKey(k: TouchBarKey): TouchBarKey {
+  const next: TouchBarKey = { ...k };
+  if (next.style && LEGACY_LOOK_MAP[next.style]) {
+    next.style = LEGACY_LOOK_MAP[next.style];
+  }
+  // If user has bg or color set but style isn't 'custom', upgrade to custom
+  // so the color shows in the new render path.
+  if ((next.bg || next.color) && next.style !== 'custom') {
+    next.style = 'custom';
+  }
+  return next;
 }
 
 export interface StartupSession {
@@ -111,7 +138,9 @@ function normalize(input: unknown): Preferences {
       typeof p.touchBarCollapsed === 'boolean'
         ? p.touchBarCollapsed
         : PREF_DEFAULTS.touchBarCollapsed,
-    touchBarKeys: Array.isArray(p.touchBarKeys) ? (p.touchBarKeys as TouchBarKey[]) : null,
+    touchBarKeys: Array.isArray(p.touchBarKeys)
+      ? (p.touchBarKeys as TouchBarKey[]).map(migrateTouchBarKey)
+      : null,
     startupWorkspace:
       p.startupWorkspace && typeof p.startupWorkspace === 'object'
         ? {

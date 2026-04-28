@@ -370,11 +370,48 @@
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  margin-bottom: 8px;
 }
 
 .primaryBtn:hover {
   opacity: 0.9;
+}
+
+.primaryBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.workspaceSaveRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.workspaceSaveRow .primaryBtn {
+  flex: 1;
+}
+
+.saveToastChip {
+  padding: 4px 10px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--border));
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  animation: chipFadeIn 200ms ease;
+}
+
+@keyframes chipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .saveToast {
@@ -386,6 +423,12 @@
   font-size: 0.8rem;
   margin-top: 8px;
   text-align: center;
+}
+
+.workspaceList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .workspaceTileGrid {
@@ -449,14 +492,23 @@
   min-width: 0;
 }
 
+/* Workspace card with left accent stripe (driven by --ws-accent set inline). */
 .workspaceCard {
   background: var(--bg);
   border: 1px solid var(--border);
+  border-left: 4px solid var(--ws-accent, var(--accent));
   border-radius: 10px;
-  padding: 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.workspaceCard:hover {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
 }
 
 .workspaceCardHeader {
@@ -468,14 +520,16 @@
 
 .workspaceCardTitle {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
   flex: 1;
+  min-width: 0;
 }
 
 .workspaceCardName {
   font-weight: 600;
+  font-size: 0.95rem;
   color: var(--text);
 }
 
@@ -484,11 +538,188 @@
   color: var(--text-dim);
 }
 
+.workspaceCardSummary {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.workspaceAutoStartChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--border));
+  color: var(--accent);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.workspaceCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.workspaceAutoStartToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
 .workspaceCardActions {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+/* Mini session tile grid inside a workspace card. */
+.workspaceMiniGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+@media (min-width: 520px) {
+  .workspaceMiniGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.workspaceMiniTile {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.workspaceMiniColor {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 4px;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.workspaceMiniBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.workspaceMiniName {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.workspaceMiniCmd {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  align-self: flex-start;
+}
+
+.workspaceMiniCwd {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Empty-state CTA for the Workspaces section. */
+.workspaceEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 22px 16px;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+
+.workspaceEmptyIcon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.workspaceEmptyTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.workspaceEmptyDesc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  max-width: 320px;
+  line-height: 1.45;
+}
+
+.workspaceEmptyCta {
+  margin-top: 8px;
+  padding: 9px 18px;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.workspaceEmptyCta:hover {
+  opacity: 0.9;
+}
+
+.workspaceEmptyCta:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .workspaceDefaultToggle {
@@ -657,48 +888,44 @@
   gap: 8px;
 }
 
-.keyboardPreview {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  padding: 8px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-}
-
-.previewKey {
-  padding: 8px 4px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--text);
-  font-size: 0.75rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.1s;
-  touch-action: none;
-  user-select: none;
-  min-height: 36px;
+/* Live touchbar preview (always visible inside Touch Bar section).
+ * Mirrors the live TouchBar rendering: gradient background, two grid
+ * rows, gap matching the live bar. The whole preview is a button —
+ * clicking opens the customizer modal. */
+.touchBarLivePreview {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  padding: 3px 4px 4px;
+  margin-top: 8px;
+  width: 100%;
+  background: linear-gradient(to bottom, var(--bg) 0%, var(--surface) 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
-.previewKey:hover {
+.touchBarLivePreview:hover {
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
-.previewKeySelected {
-  border-color: var(--accent);
-  border-width: 2px;
+.touchBarLivePreview:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
-.previewKeyDragging {
-  opacity: 0.5;
-  cursor: grabbing;
+.touchBarLivePreviewRow {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.touchBarLivePreviewRowMic {
+  grid-template-columns: repeat(7, 1fr) auto;
 }
 
 .keyEditorPanel {

@@ -5,10 +5,13 @@ import {
   usePreferencesStore,
   PREF_DEFAULTS,
   type StartupSession,
+  type TouchBarKey,
   type Workspace,
 } from '@/stores/preferencesStore';
 import { THEMES } from '@/themes/terminalThemes';
 import { FolderBrowser } from '@/components/FolderBrowser/FolderBrowser';
+import { DEFAULT_TOUCHBAR_KEYS } from '@/components/TouchBar/defaultKeys';
+import touchBarStyles from '@/components/TouchBar/TouchBar.module.css';
 import styles from './SettingsPanel.module.css';
 
 const FONT_MIN = 8;
@@ -33,6 +36,58 @@ function Toggle({
       onClick={() => onChange(!on)}
     />
   );
+}
+
+function MicGlyph() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" y1="19" x2="12" y2="23" />
+      <line x1="8" y1="23" x2="16" y2="23" />
+    </svg>
+  );
+}
+
+function previewKeyClass(k: TouchBarKey): string {
+  const classes = [touchBarStyles.keyBtn];
+  if (k.modifier) classes.push(touchBarStyles.modifier);
+  if (k.style === 'accent') classes.push(touchBarStyles.keyEnter);
+  if (k.style === 'danger') classes.push(touchBarStyles.keyDanger);
+  return classes.filter(Boolean).join(' ');
+}
+
+function previewKeyStyle(k: TouchBarKey): React.CSSProperties {
+  const style: React.CSSProperties = {
+    gridColumn: `span ${k.size ?? 1}`,
+    pointerEvents: 'none',
+  };
+  if (k.style === 'custom') {
+    if (k.bg) style.background = k.bg;
+    if (k.color) style.color = k.color;
+  }
+  return style;
+}
+
+function cwdLeaf(cwd: string): string {
+  if (!cwd) return '';
+  const parts = cwd.split(/[/\\]/).filter(Boolean);
+  return parts[parts.length - 1] || cwd;
+}
+
+function truncateCmd(cmd: string, max = 36): string {
+  if (cmd.length <= max) return cmd;
+  return `${cmd.slice(0, max - 1).trimEnd()}…`;
 }
 
 export default function SettingsPanel() {
@@ -254,20 +309,6 @@ export default function SettingsPanel() {
     [snapshotCurrentSessions, prefs.workspaces, setPreference],
   );
 
-  const removeSessionFromWorkspace = useCallback(
-    (workspaceId: string, sessionId: string) => {
-      setPreference(
-        'workspaces',
-        prefs.workspaces.map((w) =>
-          w.id === workspaceId
-            ? { ...w, sessions: w.sessions.filter((s) => s.id !== sessionId) }
-            : w,
-        ),
-      );
-    },
-    [prefs.workspaces, setPreference],
-  );
-
   // ── Legacy single-startup-workspace bridge (kept for backwards compat) ──
   const saveWorkspace = useCallback(() => {
     const snap = snapshotCurrentSessions();
@@ -441,52 +482,66 @@ export default function SettingsPanel() {
 
             <div className={styles.row}>
               <span className={styles.rowLabel}>
-                Custom keys
+                Touchbar layout
                 <span className={styles.rowHint}>
-                  {usingCustomKeys ? `${customKeys.length} custom keys` : 'Using built-in defaults'}
+                  {usingCustomKeys
+                    ? `${customKeys.length} custom key${customKeys.length === 1 ? '' : 's'} · tap any key to customize`
+                    : 'Built-in defaults · tap any key to customize'}
                 </span>
               </span>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {usingCustomKeys && (
                   <button type="button" className={styles.linkBtn} onClick={resetCustomKeys}>
-                    Reset
+                    Reset to defaults
                   </button>
                 )}
                 <button type="button" className={styles.linkBtn} onClick={enableCustomKeys}>
-                  Customize keys…
+                  Customize…
                 </button>
               </div>
             </div>
 
-            {usingCustomKeys && customKeys.length > 0 && (
-              <button
-                type="button"
-                className={styles.keyboardPreview}
-                onClick={openCustomKeysModal}
-                aria-label="Open custom keys editor"
-                style={{
-                  border: '1px solid var(--border)',
-                  cursor: 'pointer',
-                  width: '100%',
-                  marginTop: 8,
-                }}
-              >
-                {customKeys.map((k) => (
-                  <span
-                    key={k.id}
-                    className={styles.previewKey}
-                    style={{
-                      gridColumn: `span ${k.size ?? 1}`,
-                      background: k.bg,
-                      color: k.color,
-                      pointerEvents: 'none',
-                    }}
+            {(() => {
+              const livePreviewKeys = prefs.touchBarKeys ?? DEFAULT_TOUCHBAR_KEYS;
+              const nonMicKeys = livePreviewKeys.filter((k) => k.action !== 'mic').slice(0, 14);
+              const micKey = livePreviewKeys.find((k) => k.action === 'mic');
+              const row1 = nonMicKeys.slice(0, 7);
+              const row2 = nonMicKeys.slice(7, 14);
+              return (
+                <button
+                  type="button"
+                  className={styles.touchBarLivePreview}
+                  onClick={openCustomKeysModal}
+                  aria-label="Open Touch Bar customizer"
+                >
+                  <div className={styles.touchBarLivePreviewRow}>
+                    {row1.map((k) => (
+                      <span key={k.id} className={previewKeyClass(k)} style={previewKeyStyle(k)}>
+                        {k.label}
+                      </span>
+                    ))}
+                  </div>
+                  <div
+                    className={`${styles.touchBarLivePreviewRow} ${styles.touchBarLivePreviewRowMic}`}
                   >
-                    {k.label}
-                  </span>
-                ))}
-              </button>
-            )}
+                    {row2.map((k) => (
+                      <span key={k.id} className={previewKeyClass(k)} style={previewKeyStyle(k)}>
+                        {k.label}
+                      </span>
+                    ))}
+                    {micKey && (
+                      <span
+                        key={micKey.id}
+                        className={`${touchBarStyles.keyBtn} ${touchBarStyles.special} ${touchBarStyles.micBtn}`}
+                        style={{ pointerEvents: 'none', minWidth: 32 }}
+                      >
+                        <MicGlyph />
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })()}
           </section>
 
           {/* ── Defaults ─────────────────────────────────────────── */}
@@ -547,152 +602,188 @@ export default function SettingsPanel() {
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Workspaces</h3>
 
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button type="button" className={styles.primaryBtn} onClick={saveAsNewWorkspace}>
-                Save current as new workspace
-              </button>
-              <button type="button" className={styles.linkBtn} onClick={saveWorkspace}>
-                Update default startup
-              </button>
-            </div>
+            {(() => {
+              const workspacesEmpty = prefs.workspaces.length === 0;
+              const legacyHasSessions = prefs.startupWorkspace.sessions.length > 0;
+              const fullyEmpty = workspacesEmpty && !legacyHasSessions;
 
-            {saveToast && <div className={styles.saveToast}>{saveToast}</div>}
-
-            {prefs.workspaces.length === 0 ? (
-              <p className={styles.empty} style={{ marginTop: 10 }}>
-                No saved workspaces yet. Open some sessions then click <strong>Save current as new workspace</strong>.
-              </p>
-            ) : (
-              <div className={styles.workspaceList} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
-                {prefs.workspaces.map((ws) => (
-                  <div key={ws.id} className={styles.workspaceCard}>
-                    <div className={styles.workspaceCardHeader}>
-                      <div className={styles.workspaceCardTitle}>
-                        <span className={styles.workspaceCardName}>{ws.name}</span>
-                        <span className={styles.workspaceCardCount}>
-                          {ws.sessions.length} session{ws.sessions.length === 1 ? '' : 's'}
-                        </span>
-                      </div>
-                      <div className={styles.workspaceCardActions}>
-                        <label className={styles.workspaceDefaultToggle}>
-                          <input
-                            type="checkbox"
-                            checked={!!ws.default}
-                            onChange={(e) =>
-                              setDefaultWorkspace(e.target.checked ? ws.id : null)
-                            }
-                          />
-                          <span>Auto-start</span>
-                        </label>
-                        <button
-                          type="button"
-                          className={styles.linkBtn}
-                          onClick={() => updateWorkspaceFromCurrent(ws.id)}
-                          title="Replace this workspace with the currently open sessions"
-                        >
-                          Update
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.linkBtn}
-                          onClick={() => renameWorkspace(ws.id)}
-                        >
-                          Rename
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.linkBtnDanger}
-                          onClick={() => deleteWorkspace(ws.id)}
-                        >
-                          Delete
-                        </button>
-                      </div>
+              return (
+                <>
+                  {!fullyEmpty && (
+                    <div className={styles.workspaceSaveRow}>
+                      <button
+                        type="button"
+                        className={styles.primaryBtn}
+                        onClick={saveAsNewWorkspace}
+                      >
+                        + Save current as new workspace
+                      </button>
+                      {saveToast && <span className={styles.saveToastChip}>{saveToast}</span>}
                     </div>
-                    <div className={styles.workspaceTileGrid}>
-                      {ws.sessions.length === 0 ? (
-                        <p className={styles.empty}>Empty workspace.</p>
-                      ) : (
-                        ws.sessions.map((s, i) => (
-                          <div key={s.id} className={styles.workspaceTile}>
-                            <div className={styles.workspaceTileIndex}>{`#${i + 1}`}</div>
-                            <div className={styles.workspaceTileHeader}>
-                              <span
-                                className={styles.workspaceTileColor}
-                                style={{ background: s.color || 'var(--accent)' }}
-                                aria-hidden="true"
-                              />
-                              <div className={styles.workspaceTileContent}>
-                                <div className={styles.workspaceTileName}>{s.name}</div>
-                                <span
-                                  className={`${styles.workspaceTileBadge} ${
-                                    s.kind === 'agent'
-                                      ? styles.workspaceTileBadgeAgent
-                                      : styles.workspaceTileBadgeTerminal
-                                  }`}
-                                >
-                                  {s.kind === 'agent' ? 'Agent' : 'Terminal'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className={styles.workspaceTileCwd} title={s.cwd || '~'}>
-                              {s.cwd || '~'}
-                            </div>
-                            {s.initialCommand && (
-                              <div
-                                className={styles.workspaceTileCommand}
-                                title={s.initialCommand}
-                              >
-                                <span className={styles.workspaceTileMetaLabel}>cmd</span>
-                                <code>{s.initialCommand}</code>
-                              </div>
-                            )}
-                            {s.shell && (
-                              <div className={styles.workspaceTileMeta}>
-                                <span className={styles.workspaceTileMetaLabel}>shell</span>
-                                <code>{s.shell}</code>
-                              </div>
-                            )}
-                            {s.kind === 'agent' && s.agentId && (
-                              <div className={styles.workspaceTileAgent}>{s.agentId}</div>
-                            )}
-                            <button
-                              type="button"
-                              className={styles.workspaceTileRemove}
-                              onClick={() => removeSessionFromWorkspace(ws.id, s.id)}
-                              aria-label={`Remove ${s.name} from ${ws.name}`}
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))
+                  )}
+
+                  {fullyEmpty ? (
+                    <div className={styles.workspaceEmptyState}>
+                      <div className={styles.workspaceEmptyIcon} aria-hidden="true">
+                        ⌘
+                      </div>
+                      <div className={styles.workspaceEmptyTitle}>No workspaces yet</div>
+                      <p className={styles.workspaceEmptyDesc}>
+                        Save groups of sessions to launch them together. Open some sessions, then
+                        click <strong>Save current as new workspace</strong>.
+                      </p>
+                      <button
+                        type="button"
+                        className={styles.workspaceEmptyCta}
+                        onClick={saveAsNewWorkspace}
+                      >
+                        Save current as new workspace
+                      </button>
+                      {saveToast && (
+                        <span className={styles.saveToastChip} style={{ marginTop: 10 }}>
+                          {saveToast}
+                        </span>
                       )}
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ) : prefs.workspaces.length === 0 ? null : (
+                    <div className={styles.workspaceList}>
+                      {prefs.workspaces.map((ws) => {
+                        const stripeColor = ws.sessions[0]?.color || 'var(--accent)';
+                        const agentCount = ws.sessions.filter((s) => s.kind === 'agent').length;
+                        const shellCount = ws.sessions.length - agentCount;
+                        return (
+                          <div
+                            key={ws.id}
+                            className={styles.workspaceCard}
+                            style={{ ['--ws-accent' as string]: stripeColor }}
+                          >
+                            <div className={styles.workspaceCardHeader}>
+                              <div className={styles.workspaceCardTitle}>
+                                <span className={styles.workspaceCardName}>{ws.name}</span>
+                                {ws.default && (
+                                  <span className={styles.workspaceAutoStartChip}>
+                                    Auto-start
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className={styles.workspaceCardSummary}>
+                              {ws.sessions.length} session{ws.sessions.length === 1 ? '' : 's'}
+                              {shellCount > 0 && ` · ${shellCount} terminal${shellCount === 1 ? '' : 's'}`}
+                              {agentCount > 0 && ` · ${agentCount} agent${agentCount === 1 ? '' : 's'}`}
+                            </div>
 
-            {/* Legacy single-workspace startup toggle, kept for users who already
-                set it up. The new "Auto-start" toggle on each named workspace is
-                the preferred path. */}
-            {prefs.startupWorkspace.sessions.length > 0 && (
-              <div className={styles.row} style={{ marginTop: 16 }}>
-                <span className={styles.rowLabel}>
-                  Restore default startup
-                  <span className={styles.rowHint}>
-                    {prefs.startupWorkspace.sessions.length} session
-                    {prefs.startupWorkspace.sessions.length === 1 ? '' : 's'} (legacy)
-                  </span>
-                </span>
-                <Toggle
-                  on={prefs.startupWorkspace.enabled}
-                  ariaLabel="Toggle startup workspace"
-                  onChange={(enabled) =>
-                    setPreference('startupWorkspace', { ...prefs.startupWorkspace, enabled })
-                  }
-                />
-              </div>
-            )}
+                            {ws.sessions.length === 0 ? (
+                              <p className={styles.empty}>Empty workspace.</p>
+                            ) : (
+                              <div className={styles.workspaceMiniGrid}>
+                                {ws.sessions.map((s) => (
+                                  <div key={s.id} className={styles.workspaceMiniTile}>
+                                    <span
+                                      className={styles.workspaceMiniColor}
+                                      style={{ background: s.color || 'var(--accent)' }}
+                                      aria-hidden="true"
+                                    />
+                                    <div className={styles.workspaceMiniBody}>
+                                      <div className={styles.workspaceMiniName} title={s.name}>
+                                        {s.name}
+                                      </div>
+                                      {s.initialCommand && (
+                                        <code
+                                          className={styles.workspaceMiniCmd}
+                                          title={s.initialCommand}
+                                        >
+                                          $ {truncateCmd(s.initialCommand)}
+                                        </code>
+                                      )}
+                                      {s.cwd && (
+                                        <span
+                                          className={styles.workspaceMiniCwd}
+                                          title={s.cwd}
+                                        >
+                                          {cwdLeaf(s.cwd)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className={styles.workspaceCardFooter}>
+                              <label className={styles.workspaceAutoStartToggle}>
+                                <Toggle
+                                  on={!!ws.default}
+                                  ariaLabel={`Auto-start ${ws.name} on TermBeam start`}
+                                  onChange={(v) => setDefaultWorkspace(v ? ws.id : null)}
+                                />
+                                <span>Launch on TermBeam start</span>
+                              </label>
+                              <div className={styles.workspaceCardActions}>
+                                <button
+                                  type="button"
+                                  className={styles.linkBtn}
+                                  onClick={() => updateWorkspaceFromCurrent(ws.id)}
+                                  title="Replace this workspace with the currently open sessions"
+                                >
+                                  Update
+                                </button>
+                                <button
+                                  type="button"
+                                  className={styles.linkBtn}
+                                  onClick={() => renameWorkspace(ws.id)}
+                                >
+                                  Rename
+                                </button>
+                                <button
+                                  type="button"
+                                  className={styles.linkBtnDanger}
+                                  onClick={() => deleteWorkspace(ws.id)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Legacy single-workspace startup toggle, only shown when
+                      there are no named workspaces but legacy data exists. */}
+                  {workspacesEmpty && legacyHasSessions && (
+                    <div className={styles.row} style={{ marginTop: 16 }}>
+                      <span className={styles.rowLabel}>
+                        Restore default startup
+                        <span className={styles.rowHint}>
+                          {prefs.startupWorkspace.sessions.length} session
+                          {prefs.startupWorkspace.sessions.length === 1 ? '' : 's'} (legacy) ·{' '}
+                          <button
+                            type="button"
+                            className={styles.linkBtn}
+                            onClick={saveWorkspace}
+                            style={{ padding: 0, fontSize: '0.75rem' }}
+                          >
+                            update from current
+                          </button>
+                        </span>
+                      </span>
+                      <Toggle
+                        on={prefs.startupWorkspace.enabled}
+                        ariaLabel="Toggle startup workspace"
+                        onChange={(enabled) =>
+                          setPreference('startupWorkspace', {
+                            ...prefs.startupWorkspace,
+                            enabled,
+                          })
+                        }
+                      />
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </section>
 
           {/* Reset all */}

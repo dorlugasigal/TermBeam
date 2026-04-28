@@ -16,13 +16,23 @@ const SpeechRecognitionAPI =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     : null;
 
-type KeyType = 'special' | 'modifier' | 'icon' | 'enter' | 'danger';
+type KeyType =
+  // Legacy class buckets — kept so historical prefs still render via getKeyClassName
+  | 'special'
+  | 'modifier'
+  | 'icon'
+  | 'enter'
+  | 'danger'
+  // New simplified look vocabulary
+  | 'plain'
+  | 'accent'
+  | 'custom';
 
 interface KeyDef {
   label: string;
   data: string;
   type?: KeyType;
-  modifier?: 'ctrl' | 'shift';
+  modifier?: 'ctrl' | 'shift' | 'meta';
   action?: 'copy' | 'paste' | 'cancel' | 'newline' | 'send' | 'mic';
   size?: number;
   bg?: string;
@@ -36,17 +46,30 @@ interface KeyDef {
 // See effectiveRow1 / effectiveRow2 in the component below.
 
 function touchBarKeyToDef(k: TouchBarKey): KeyDef {
-  const styleType = k.style ?? 'special';
-  const mappedType: KeyType =
-    styleType === 'default' ? 'special' : (styleType as KeyType);
+  // Map the simplified style enum ('plain' | 'accent' | 'danger' | 'custom')
+  // onto our internal KeyType bucket, with a legacy fall-through so prefs
+  // saved against the old vocabulary keep rendering until they migrate.
+  const styleType = k.style ?? 'plain';
+  const mapStyle = (s: typeof styleType): KeyType | undefined => {
+    if (s === 'plain' || s === 'custom') return undefined; // base .keyBtn only
+    if (s === 'accent') return 'accent';
+    if (s === 'danger') return 'danger';
+    // Legacy values ('special' | 'modifier' | 'icon' | 'enter' | 'default') —
+    // accept and forward so old prefs continue to use their original class.
+    if (s === ('default' as typeof s)) return 'special';
+    return s as KeyType;
+  };
   return {
     id: k.id,
     label: k.label || '·',
     data: k.send,
-    type: mappedType,
+    type: mapStyle(styleType),
     size: k.size,
     bg: k.bg,
     color: k.color,
+    // 'alt' is not wired to a UI toggle yet → drop it. 'meta' passes through
+    // as a typed no-op so callers (handlePress etc.) just treat it as a
+    // non-toggling key for now; full meta handling can land in a follow-up.
     modifier: k.modifier === 'alt' ? undefined : k.modifier,
     // 'newline' / 'send' actions weren't in the legacy KeyAction union; map mic/copy/paste/cancel
     action:
@@ -485,11 +508,23 @@ export default function TouchBar() {
     const isModActive =
       (def.modifier === 'ctrl' && ctrlActive) || (def.modifier === 'shift' && shiftActive);
 
+    // Legacy class buckets — kept so prefs saved against the old style
+    // vocabulary continue to render with their original look.
     if (def.type === 'special') classes.push(styles.special);
     if (def.type === 'modifier') classes.push(styles.modifier);
     if (def.type === 'icon') classes.push(styles.iconBtn);
     if (def.type === 'enter') classes.push(styles.keyEnter);
     if (def.type === 'danger') classes.push(styles.keyDanger);
+
+    // New simplified vocabulary. `plain` is the default visual (also used for
+    // `custom`, where user-supplied bg/color win via inline styles). For the
+    // modifier-toggle highlight the .modifier class supplies the .active rule,
+    // so attach it whenever a key carries a modifier regardless of its look.
+    if (def.type === undefined || def.type === 'plain') classes.push(styles.plain);
+    if (def.type === 'accent') classes.push(styles.accent);
+    if (def.type === 'danger') classes.push(styles.danger);
+    if (def.modifier && def.type !== 'modifier') classes.push(styles.modifier);
+
     if (isModActive) classes.push(styles.active);
     if (flashKey === def.label) classes.push(styles.flash);
 
@@ -508,18 +543,19 @@ export default function TouchBar() {
   // Build inline style conditionally so undefined bg/color don't blank out
   // the CSS-class defaults (regression where empty inline style values
   // overrode .special/.keyEnter backgrounds).
+  // `size` always applies (defaults now use size:2 for Enter); bg/color only
+  // when the user has set custom keys (so the built-in defaults can't be
+  // accidentally repainted by inline-style spread).
   const renderKey = (
     def: KeyDef & { size?: number; bg?: string; color?: string },
     index?: number,
   ) => {
     const hasCustom = !!(customKeys && customKeys.length > 0);
-    const inlineStyle: React.CSSProperties = hasCustom
-      ? {
-          ...(def.size ? { gridColumn: `span ${def.size}` } : {}),
-          ...(def.bg ? { background: def.bg } : {}),
-          ...(def.color ? { color: def.color } : {}),
-        }
-      : {};
+    const inlineStyle: React.CSSProperties = {
+      ...(def.size ? { gridColumn: `span ${def.size}` } : {}),
+      ...(hasCustom && def.bg ? { background: def.bg } : {}),
+      ...(hasCustom && def.color ? { color: def.color } : {}),
+    };
     if (typeof index === 'number') {
       (inlineStyle as Record<string, string | number>)['--key-i'] = index;
     }

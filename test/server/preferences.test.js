@@ -105,24 +105,50 @@ describe('preferences sanitize()', () => {
     assert.ok(s.startupWorkspace.sessions.length <= 16);
   });
 
-  it('accepts touchBarKeys with action and size 1-3', () => {
+  it('accepts touchBarKeys with action and size 1-8', () => {
     const s = sanitize({
       touchBarKeys: [
         { id: 'mic', label: 'Mic', send: '', action: 'mic', size: 2 },
         { id: 'wide', label: 'Wide', send: 'x', size: 3 },
-        { id: 'bad', label: 'Bad', send: 'x', size: 4 }, // size 4 dropped
+        { id: 'wider', label: 'W', send: 'x', size: 8 },
+        { id: 'bad', label: 'Bad', send: 'x', size: 9 }, // size 9 dropped
         { id: 'bad2', label: 'Bad', send: 'x', action: 'nope' }, // bad action dropped
       ],
     });
     const mic = s.touchBarKeys.find((k) => k.id === 'mic');
     const wide = s.touchBarKeys.find((k) => k.id === 'wide');
+    const wider = s.touchBarKeys.find((k) => k.id === 'wider');
     const bad = s.touchBarKeys.find((k) => k.id === 'bad');
     const bad2 = s.touchBarKeys.find((k) => k.id === 'bad2');
     assert.strictEqual(mic.action, 'mic');
     assert.strictEqual(mic.size, 2);
     assert.strictEqual(wide.size, 3);
-    assert.strictEqual(bad.size, undefined); // size 4 silently dropped
+    assert.strictEqual(wider.size, 8);
+    assert.strictEqual(bad.size, undefined); // size 9 silently dropped
     assert.strictEqual(bad2.action, undefined); // bad action silently dropped
+  });
+
+  it('accepts new look vocab + meta modifier and migrates legacy gracefully', () => {
+    const s = sanitize({
+      touchBarKeys: [
+        { id: 'a', label: 'A', send: 'a', style: 'plain' },
+        { id: 'b', label: 'B', send: 'b', style: 'accent' },
+        { id: 'c', label: 'C', send: 'c', style: 'custom', bg: '#112233', color: '#ffffff' },
+        { id: 'm', label: 'M', send: 'm', modifier: 'meta' },
+        { id: 'd', label: 'D', send: 'd', style: 'enter' }, // legacy accepted
+      ],
+    });
+    const a = s.touchBarKeys.find((k) => k.id === 'a');
+    const b = s.touchBarKeys.find((k) => k.id === 'b');
+    const c = s.touchBarKeys.find((k) => k.id === 'c');
+    const m = s.touchBarKeys.find((k) => k.id === 'm');
+    const d = s.touchBarKeys.find((k) => k.id === 'd');
+    assert.strictEqual(a.style, 'plain');
+    assert.strictEqual(b.style, 'accent');
+    assert.strictEqual(c.style, 'custom');
+    assert.strictEqual(c.bg, '#112233');
+    assert.strictEqual(m.modifier, 'meta');
+    assert.strictEqual(d.style, 'enter'); // server keeps it; client normalize() will migrate to 'accent'
   });
 
   it('returns empty workspaces[] by default', () => {
