@@ -180,7 +180,7 @@ describe('SessionManager', () => {
     assert.ok(session.lastActivity >= before);
   });
 
-  it('should send initialCommand to PTY after delay', async () => {
+  it('should send initialCommand to PTY after first output (or fallback)', async () => {
     const _mgr = new SessionManager();
     const writeCalls = [];
     const origSpawn = require.cache['node-pty'].exports.spawn;
@@ -193,7 +193,10 @@ describe('SessionManager', () => {
     ({ SessionManager } = require('../../src/server/sessions'));
     const mgr2 = new SessionManager();
     mgr2.create({ name: 'test', shell: '/bin/sh', cwd: '/tmp', initialCommand: 'htop' });
-    await new Promise((r) => setTimeout(r, 400));
+    // The mock PTY in this test setup may emit data immediately (triggers
+    // the on-first-output path with a 200ms delay) or never (triggers the
+    // 2s hard fallback). Wait long enough to cover both.
+    await new Promise((r) => setTimeout(r, 2200));
     assert.ok(
       writeCalls.includes('htop\r'),
       'pty.write should be called with initialCommand + \\r',

@@ -184,14 +184,6 @@ class SessionManager {
       env: { ...process.env, TERM: 'xterm-256color', TERMBEAM_SESSION: '1' },
     });
 
-    // Send initial command once the shell is ready
-    if (initialCommand) {
-      log.info(
-        `Scheduling initialCommand for session ${id} (${initialCommand.length} chars): ${JSON.stringify(initialCommand.slice(0, 80))}`,
-      );
-      setTimeout(() => ptyProcess.write(initialCommand + '\r'), 300);
-    }
-
     const session = {
       pty: ptyProcess,
       name,
@@ -211,11 +203,51 @@ class SessionManager {
       _altScanTail: '',
       _lastCols: cols,
       _lastRows: rows,
+      _initialCommand: initialCommand || null,
+      _initialCommandSent: false,
     };
+
+    // Send the initial command after the shell has had a moment to print
+    // its first prompt. We do TWO things to be robust against slow shells
+    // (zsh + oh-my-zsh + powerlevel10k can take 1-2s to render the
+    // prompt):
+    //   1. Wait for the FIRST burst of PTY output (the prompt being
+    //      painted) and then schedule the write 200ms later.
+    //   2. Hard fallback after 2s in case the shell never emits anything
+    //      we can detect — better to fire the command than never to.
+    if (initialCommand) {
+      log.info(
+        `Queuing initialCommand for session ${id} (${initialCommand.length} chars): ${JSON.stringify(initialCommand.slice(0, 80))}`,
+      );
+      const send = () => {
+        if (session._initialCommandSent) return;
+        session._initialCommandSent = true;
+        log.info(`Writing initialCommand to session ${id}`);
+        ptyProcess.write(initialCommand + '\r');
+      };
+      // Hard fallback so we always fire eventually
+      setTimeout(send, 2000);
+      // Also listen for the first chunk of output and fire 200ms later
+      // (gives the shell time to finish painting its prompt).
+      session._initialCommandSendOnFirstOutput = () => {
+        setTimeout(send, 200);
+      };
+    }
 
     ptyProcess.onData((data) => {
       session.lastActivity = Date.now();
       session.scrollbackBuf += data;
+
+      // Fire the initialCommand as soon as we see the FIRST chunk of PTY
+      // output (the shell painting its prompt). The send() inside the
+      // callback is itself debounced behind a 200ms timeout so the prompt
+      // finishes rendering before we type. Hard fallback at 2s catches
+      // shells that emit nothing observable.
+      if (session._initialCommandSendOnFirstOutput) {
+        const trigger = session._initialCommandSendOnFirstOutput;
+        session._initialCommandSendOnFirstOutput = null;
+        trigger();
+      }
 
       // Silence-based notification: only active when the shell has a direct
       // child process (session._hasDirectChild). This handles interactive
