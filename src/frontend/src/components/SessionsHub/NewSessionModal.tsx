@@ -105,12 +105,20 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps — intentionally runs only on modal open/close
   }, [newSessionModalOpen]);
 
+  // Seed initial command from prefs.defaultInitialCommand. We track
+  // whether the user has touched the field so we don't keep overwriting
+  // their edits when prefs change later (or hydrate after the modal
+  // opened).
+  const initialCommandTouchedRef = useRef(false);
+
   useEffect(() => {
     if (!newSessionModalOpen) return;
     if (defaultFolder && !cwd) setCwd(defaultFolder);
-    if (defaultInitialCommand && !initialCommand) setInitialCommand(defaultInitialCommand);
-    // eslint-disable-next-line react-hooks/exhaustive-deps — seed only when modal opens
-  }, [newSessionModalOpen]);
+    if (defaultInitialCommand && !initialCommandTouchedRef.current && !initialCommand) {
+      setInitialCommand(defaultInitialCommand);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps — seed when modal opens or default changes
+  }, [newSessionModalOpen, defaultInitialCommand]);
 
   function resetForm() {
     setSessionMode('terminal');
@@ -122,6 +130,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     setColor(SESSION_COLORS[0]);
     setBrowsing(false);
     setModel('claude-sonnet-4');
+    initialCommandTouchedRef.current = false;
   }
 
   function handleModeSwitch(mode: 'terminal' | 'copilot') {
@@ -139,6 +148,13 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
       const cols = activeMs?.term?.cols;
       const rows = activeMs?.term?.rows;
 
+      // Belt-and-suspenders: if the user opened the modal but the seed
+      // effect hasn't run yet (rare race) and they hit Create immediately,
+      // fall back to the default. The user expectation is that "Create"
+      // honors the saved default initial command.
+      const effectiveInitialCommand =
+        initialCommand.trim() || (defaultInitialCommand || '').trim();
+
       const session = await createSession(
         sessionMode === 'copilot'
           ? {
@@ -153,13 +169,12 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
               shell: shell || undefined,
               cwd: cwd.trim() || undefined,
               color,
-              initialCommand: initialCommand.trim() || undefined,
+              initialCommand: effectiveInitialCommand || undefined,
               ...(cols && rows ? { cols, rows } : {}),
             },
       );
-      const finalCmd = initialCommand.trim();
-      if (finalCmd) {
-        useSessionStore.getState().setPendingInitialCommand(session.id, finalCmd);
+      if (effectiveInitialCommand) {
+        useSessionStore.getState().setPendingInitialCommand(session.id, effectiveInitialCommand);
       }
       closeNewSessionModal();
       resetForm();
@@ -313,9 +328,12 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                     <input
                       className={styles.input}
                       type="text"
-                      placeholder="e.g. npm run dev"
+                      placeholder={defaultInitialCommand || 'e.g. npm run dev'}
                       value={initialCommand}
-                      onChange={(e) => setInitialCommand(e.target.value)}
+                      onChange={(e) => {
+                        initialCommandTouchedRef.current = true;
+                        setInitialCommand(e.target.value);
+                      }}
                     />
                   </div>
 
