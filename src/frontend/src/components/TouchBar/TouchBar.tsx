@@ -601,8 +601,9 @@ export default function TouchBar() {
 
   const micButton = SpeechRecognitionAPI ? (
     <button
-      className={`${styles.keyBtn} ${styles.special} ${styles.micBtn} ${isRecording ? styles.recording : ''} ${micLocked ? styles.micLocked : ''}`}
+      className={`${styles.keyBtn} ${styles.special} ${styles.micBtn} ${styles.keyAnimIn} ${isRecording ? styles.recording : ''} ${micLocked ? styles.micLocked : ''}`}
       data-testid="mic-btn"
+      style={{ '--key-i': 14 } as React.CSSProperties}
       onMouseDown={(e) => {
         e.preventDefault();
         if (micLocked) {

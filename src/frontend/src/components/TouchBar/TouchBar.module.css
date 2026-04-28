@@ -15,17 +15,19 @@
  * (over the iPhone home-indicator zone for a tighter look) but the
  * interactive keys stay inset above the safe area. */
 .touchBar {
-  /* Total visible height: 26px (handle) + 32px row + 4px gap + 32px row + 4px = 98px
-   * + safe-area inside padding so the bg fills to the screen bottom. */
-  height: calc(98px + env(safe-area-inset-bottom, 0px));
-  padding: 26px 4px calc(4px + env(safe-area-inset-bottom, 0px));
-  /* Stronger gradient using key-special-bg → surface so the bar reads as
-   * its own surface against the terminal black, and the boundary between
-   * the bar and the keys feels intentional. */
+  /* Total visible height: 36px (handle + gap) + 32px row + 4px gap + 32px row + 4px = 108px
+   * + clamped safe-area inside padding so the bg fills to the screen bottom. */
+  height: calc(108px + max(8px, env(safe-area-inset-bottom, 0px) - 14px));
+  /* PWA on iPhone reports a much larger safe-area-inset-bottom than the
+   * keys actually need above the home indicator — clamp it down so the
+   * bar doesn't get a giant dead zone below the keys. */
+  padding: 36px 4px max(8px, env(safe-area-inset-bottom, 0px) - 14px);
+  /* Gradient runs lighter (top) → darker (bottom) so the bar fades INTO
+   * the terminal at the bottom (visually grounded, not floating). */
   background: linear-gradient(
     to bottom,
-    var(--key-special-bg, #2a2a2c) 0%,
-    var(--surface, #252526) 60%,
+    var(--surface, #252526) 0%,
+    var(--key-special-bg, #2a2a2c) 45%,
     var(--bg, #1e1e1e) 100%
   );
   display: flex;
@@ -34,7 +36,7 @@
   justify-content: center;
   overflow: hidden;
   position: relative;
-  border-top: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  border-top: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
   transition:
     height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
@@ -46,16 +48,11 @@
 
 /* Collapsed: shrink to just enough room for the toggle handle. The
  * height/padding transition is delayed so the rows can fade out FIRST.
- * Background stays as the gradient so the collapsed bar is still visibly
- * "there" (not blending into the terminal). */
+ * Background stays visible so the collapsed bar reads as "there". */
 .touchBarWrapper[data-collapsed='true'] .touchBar {
-  height: calc(28px + env(safe-area-inset-bottom, 0px));
-  padding: 0 4px env(safe-area-inset-bottom, 0px);
-  background: linear-gradient(
-    to bottom,
-    var(--key-special-bg, #2a2a2c) 0%,
-    var(--surface, #252526) 100%
-  );
+  height: calc(30px + max(8px, env(safe-area-inset-bottom, 0px) - 14px));
+  padding: 0 4px max(8px, env(safe-area-inset-bottom, 0px) - 14px);
+  background: linear-gradient(to bottom, var(--surface, #252526) 0%, var(--bg, #1e1e1e) 100%);
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.35);
   transition:
     height 0.32s cubic-bezier(0.4, 0, 0.2, 1) 0.15s,
