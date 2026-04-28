@@ -20,10 +20,11 @@
    * content so we don't need our own dead zone. */
   height: 108px;
   padding: 36px 4px 4px;
-  /* Mirror the top nav bar gradient (TerminalApp.module.css) so the
-   * touchbar reads as the same surface family — surface at the top,
-   * fading to terminal --bg at the bottom. */
-  background: linear-gradient(to bottom, var(--surface) 0%, var(--surface) 35%, var(--bg) 100%);
+  /* Inverted mirror of the top nav bar gradient: terminal --bg at the
+   * top blends into --surface at the bottom, so the touchbar feels like
+   * a continuation of the terminal that thickens into a shelf as it
+   * approaches the screen edge. */
+  background: linear-gradient(to bottom, var(--bg) 0%, var(--bg) 35%, var(--surface) 100%);
   display: flex;
   flex-direction: column;
   gap: 4px;
