@@ -225,46 +225,81 @@ function createTermBeamServer(overrides = {}) {
           /* non-critical — resume will fall back to defaults */
         }
 
-        // Skip the default session when the user has a saved workspace
-        // that will auto-start client-side (workspaces[].default OR the
-        // legacy startupWorkspace.enabled with sessions). The autoboot
-        // in App.tsx checks `existing.length === 0` before spawning, so
-        // creating a default session here would block the workspace from
-        // ever opening.
-        let skipDefaultSession = false;
+        // Decide which sessions to spawn at startup. Server-side autoboot
+        // means: deleting sessions client-side stays sticky (refreshing the
+        // page won't re-spawn them — only a fresh server start does).
+        //
+        // Source-of-truth precedence:
+        //   1. A named workspace flagged default:true with sessions
+        //   2. The single named workspace (implicit default) with sessions
+        //   3. Legacy startupWorkspace.enabled with sessions
+        //   4. Otherwise: a single default session in config.cwd
+        let workspaceSessions = null;
         try {
           const { prefs } = readPreferences(configDir);
-          const hasDefaultWorkspace = (prefs.workspaces || []).some(
+          const named = prefs.workspaces || [];
+          const explicitDefault = named.find(
             (w) => w.default && Array.isArray(w.sessions) && w.sessions.length > 0,
           );
-          const hasLegacyEnabled =
-            prefs.startupWorkspace &&
-            prefs.startupWorkspace.enabled &&
-            Array.isArray(prefs.startupWorkspace.sessions) &&
-            prefs.startupWorkspace.sessions.length > 0;
-          // If there's exactly one named workspace (treated as default by
-          // the client even without an explicit flag), skip too.
-          const hasSingleNamedWorkspace =
-            (prefs.workspaces || []).length === 1 &&
-            Array.isArray(prefs.workspaces[0].sessions) &&
-            prefs.workspaces[0].sessions.length > 0;
-          skipDefaultSession = hasDefaultWorkspace || hasLegacyEnabled || hasSingleNamedWorkspace;
+          const onlyNamed =
+            named.length === 1 && Array.isArray(named[0].sessions) && named[0].sessions.length > 0
+              ? named[0]
+              : null;
+          const legacy = prefs.startupWorkspace;
+          if (explicitDefault) {
+            workspaceSessions = explicitDefault.sessions;
+          } else if (onlyNamed) {
+            workspaceSessions = onlyNamed.sessions;
+          } else if (
+            legacy &&
+            legacy.enabled &&
+            Array.isArray(legacy.sessions) &&
+            legacy.sessions.length > 0
+          ) {
+            workspaceSessions = legacy.sessions;
+          }
         } catch {
-          // best-effort: if prefs read fails, fall back to creating the default
+          // best-effort: if prefs read fails, fall back to single default
         }
 
         let defaultId;
-        if (!skipDefaultSession) {
+        const detectedShells = (() => {
+          try {
+            return require('../utils/shells').detectShells();
+          } catch {
+            return [];
+          }
+        })();
+        const validateShell = (shell) => {
+          if (!shell) return undefined;
+          if (detectedShells.some((s) => s.path === shell || s.cmd === shell)) return shell;
+          return undefined;
+        };
+        if (workspaceSessions) {
+          for (const s of workspaceSessions) {
+            try {
+              const cwd = s.cwd && path.isAbsolute(s.cwd) ? s.cwd : config.cwd;
+              const id = sessions.create({
+                name: s.name || path.basename(cwd),
+                shell: validateShell(s.shell) || config.shell,
+                args: config.shellArgs,
+                cwd,
+                initialCommand: (s.initialCommand || '').trim() || null,
+                color: s.color || null,
+              });
+              if (!defaultId) defaultId = id;
+            } catch (err) {
+              log.warn(`Workspace session "${s.name}" failed to spawn: ${err.message}`);
+            }
+          }
+          log.info(`Spawned ${workspaceSessions.length} workspace session(s) at startup`);
+        } else {
           defaultId = sessions.create({
             name: path.basename(config.cwd),
             shell: config.shell,
             args: config.shellArgs,
             cwd: config.cwd,
           });
-        } else {
-          log.info(
-            'Skipping default startup session (saved workspace will be auto-launched by client)',
-          );
         }
 
         const lp = '\x1b[38;5;141m'; // light purple
