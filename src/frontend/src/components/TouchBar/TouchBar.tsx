@@ -632,17 +632,15 @@ export default function TouchBar() {
 
   return (
     <div className={styles.touchBarWrapper} data-collapsed={collapsed ? 'true' : 'false'}>
-      <button
-        type="button"
-        className={styles.collapseHandle}
-        aria-label={collapsed ? 'Expand TouchBar' : 'Collapse TouchBar'}
-        aria-expanded={!collapsed}
-        onClick={() => setCollapsed(!collapsed)}
-      >
-        <span aria-hidden="true">{collapsed ? '▴' : '▾'}</span>
-      </button>
-      {!collapsed && (
-        <div className={styles.touchBar}>
+      <div className={styles.touchBar}>
+        <button
+          type="button"
+          className={styles.collapseHandle}
+          aria-label={collapsed ? 'Expand TouchBar' : 'Collapse TouchBar'}
+          aria-expanded={!collapsed}
+          onClick={() => setCollapsed(!collapsed)}
+        />
+        <div className={styles.rows} aria-hidden={collapsed}>
           <div className={styles.row}>
             {effectiveRow1.map((k, i) => renderKey(k, i))}
           </div>
@@ -651,7 +649,7 @@ export default function TouchBar() {
             {micKey && micButton}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

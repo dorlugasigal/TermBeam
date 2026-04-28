@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   usePreferencesStore,
   type TouchBarKey,
@@ -6,6 +6,14 @@ import {
 } from '@/stores/preferencesStore';
 import touchBarStyles from '../TouchBar/TouchBar.module.css';
 import { DEFAULT_TOUCHBAR_KEYS, KEY_LOOK_OPTIONS } from '../TouchBar/defaultKeys';
+import {
+  BASE_KEY_OPTIONS,
+  decodeCombo,
+  describeCombo,
+  describeSend,
+  encodeCombo,
+  type Modifiers,
+} from './keyCombo';
 import styles from './CustomKeysModal.module.css';
 
 interface CustomKeysModalProps {
@@ -14,52 +22,6 @@ interface CustomKeysModalProps {
 }
 
 type SendTab = 'text' | 'key' | 'action';
-
-interface KeyPreset {
-  name: string;
-  send: string;
-}
-
-const KEY_PRESETS: KeyPreset[] = [
-  { name: 'Enter (↵)', send: '\r' },
-  { name: 'Escape', send: '\x1b' },
-  { name: 'Tab', send: '\x09' },
-  { name: 'Shift+Tab', send: '\x1b[Z' },
-  { name: 'Backspace', send: '\x7f' },
-  { name: 'Delete', send: '\x1b[3~' },
-  { name: '↑ Up', send: '\x1b[A' },
-  { name: '↓ Down', send: '\x1b[B' },
-  { name: '→ Right', send: '\x1b[C' },
-  { name: '← Left', send: '\x1b[D' },
-  { name: 'Home', send: '\x1b[H' },
-  { name: 'End', send: '\x1b[F' },
-  { name: 'Page Up', send: '\x1b[5~' },
-  { name: 'Page Down', send: '\x1b[6~' },
-  { name: 'F1', send: '\x1bOP' },
-  { name: 'F2', send: '\x1bOQ' },
-  { name: 'F3', send: '\x1bOR' },
-  { name: 'F4', send: '\x1bOS' },
-  { name: 'F5', send: '\x1b[15~' },
-  { name: 'F6', send: '\x1b[17~' },
-  { name: 'F7', send: '\x1b[18~' },
-  { name: 'F8', send: '\x1b[19~' },
-  { name: 'F9', send: '\x1b[20~' },
-  { name: 'F10', send: '\x1b[21~' },
-  { name: 'F11', send: '\x1b[23~' },
-  { name: 'F12', send: '\x1b[24~' },
-  { name: 'Ctrl+A (^A)', send: '\x01' },
-  { name: 'Ctrl+B (^B)', send: '\x02' },
-  { name: 'Ctrl+C (^C)', send: '\x03' },
-  { name: 'Ctrl+D (^D)', send: '\x04' },
-  { name: 'Ctrl+E (^E)', send: '\x05' },
-  { name: 'Ctrl+F (^F)', send: '\x06' },
-  { name: 'Ctrl+K (^K)', send: '\x0b' },
-  { name: 'Ctrl+L (^L)', send: '\x0c' },
-  { name: 'Ctrl+R (^R)', send: '\x12' },
-  { name: 'Ctrl+U (^U)', send: '\x15' },
-  { name: 'Ctrl+W (^W)', send: '\x17' },
-  { name: 'Ctrl+Z (^Z)', send: '\x1a' },
-];
 
 const ACTION_OPTIONS: { value: KeyAction; label: string; description: string }[] = [
   { value: 'mic', label: 'Microphone', description: 'Voice-to-text dictation' },
@@ -92,7 +54,7 @@ function lookClass(style: TouchBarKey['style']): string {
 
 function detectSendTab(k: TouchBarKey): SendTab {
   if (k.action) return 'action';
-  if (k.send && KEY_PRESETS.some((p) => p.send === k.send)) return 'key';
+  if (k.send && decodeCombo(k.send)) return 'key';
   return 'text';
 }
 
@@ -279,12 +241,46 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
     [draggedKeyIndex, dropTargetIndex, customKeys, setPreference],
   );
 
-  // Detect which preset matches the current send (for the Key tab dropdown)
-  const matchingPresetSend = useMemo(() => {
-    if (!selectedKey) return '';
-    const match = KEY_PRESETS.find((p) => p.send === selectedKey.send);
-    return match ? match.send : '';
-  }, [selectedKey]);
+  // Combo-builder state for the "Key combo" tab. Modifiers + base key are
+  // tracked locally and re-encoded into the key's `send` field whenever
+  // either changes. We seed from the current key's send when a key is
+  // selected so editing an existing combo round-trips.
+  const [comboBase, setComboBase] = useState<string>('');
+  const [comboMods, setComboMods] = useState<Modifiers>({
+    ctrl: false,
+    shift: false,
+    alt: false,
+  });
+
+  useEffect(() => {
+    if (!selectedKey) return;
+    const decoded = decodeCombo(selectedKey.send);
+    if (decoded) {
+      setComboBase(decoded.baseKey);
+      setComboMods(decoded.modifiers);
+    } else {
+      setComboBase('');
+      setComboMods({ ctrl: false, shift: false, alt: false });
+    }
+  }, [selectedKey?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const applyCombo = useCallback(
+    (base: string, mods: Modifiers) => {
+      if (selectedKeyIndex === null) return;
+      setComboBase(base);
+      setComboMods(mods);
+      const send = encodeCombo(base, mods);
+      const label = base ? describeCombo(base, mods) : selectedKey?.label ?? 'Key';
+      updateKey(selectedKeyIndex, {
+        send,
+        action: undefined,
+        // Auto-update the label to reflect the combo when the user is
+        // building one — they can still override it in the Label field.
+        ...(base ? { label: label.length > 8 ? label.slice(0, 8) : label } : {}),
+      });
+    },
+    [selectedKeyIndex, selectedKey, updateKey],
+  );
 
   if (!open) return null;
 
@@ -408,24 +404,58 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
 
                     {sendTab === 'key' && (
                       <div className={styles.tabPanel}>
+                        <div className={styles.modRow}>
+                          <ModCheck
+                            label="Ctrl"
+                            checked={comboMods.ctrl}
+                            onChange={(v) =>
+                              applyCombo(comboBase, { ...comboMods, ctrl: v })
+                            }
+                          />
+                          <ModCheck
+                            label="Shift"
+                            checked={comboMods.shift}
+                            onChange={(v) =>
+                              applyCombo(comboBase, { ...comboMods, shift: v })
+                            }
+                          />
+                          <ModCheck
+                            label="Alt"
+                            checked={comboMods.alt}
+                            onChange={(v) =>
+                              applyCombo(comboBase, { ...comboMods, alt: v })
+                            }
+                          />
+                        </div>
                         <select
                           className={styles.input}
-                          value={matchingPresetSend}
-                          onChange={(e) =>
-                            updateKey(selectedKeyIndex!, {
-                              send: e.target.value,
-                              action: undefined,
-                            })
-                          }
+                          value={comboBase}
+                          onChange={(e) => applyCombo(e.target.value, comboMods)}
                         >
-                          <option value="">— Choose a key —</option>
-                          {KEY_PRESETS.map((p) => (
-                            <option key={p.name} value={p.send}>
-                              {p.name}
-                            </option>
-                          ))}
+                          <option value="">— Pick a key —</option>
+                          <BaseKeyGroup label="Special" group="special" />
+                          <BaseKeyGroup label="Navigation" group="navigation" />
+                          <BaseKeyGroup label="Function keys" group="function" />
+                          <BaseKeyGroup label="Letters" group="letter" />
+                          <BaseKeyGroup label="Digits" group="digit" />
+                          <BaseKeyGroup label="Symbols" group="symbol" />
                         </select>
-                        <p className={styles.hint}>Pick a real keyboard key or shortcut.</p>
+                        {comboBase ? (
+                          <div className={styles.comboPreview}>
+                            <div className={styles.comboHuman}>
+                              {describeCombo(comboBase, comboMods)}
+                            </div>
+                            <div className={styles.comboSeq}>
+                              <span className={styles.comboSeqLabel}>sends</span>
+                              <code>{describeSend(encodeCombo(comboBase, comboMods))}</code>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className={styles.hint}>
+                            Combine any base key with Ctrl / Shift / Alt — even nonsense
+                            combos like F2+Ctrl+Y produce a deterministic CSI sequence.
+                          </p>
+                        )}
                       </div>
                     )}
 
@@ -713,5 +743,46 @@ function PreviewRow({
         </button>
       )}
     </div>
+  );
+}
+
+function ModCheck({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      className={`${styles.modPill} ${checked ? styles.modPillActive : ''}`}
+      onClick={() => onChange(!checked)}
+    >
+      {label}
+    </button>
+  );
+}
+
+function BaseKeyGroup({
+  label,
+  group,
+}: {
+  label: string;
+  group: 'special' | 'function' | 'navigation' | 'letter' | 'digit' | 'symbol';
+}) {
+  const opts = BASE_KEY_OPTIONS.filter((o) => o.group === group);
+  return (
+    <optgroup label={label}>
+      {opts.map((o) => (
+        <option key={o.id} value={o.id}>
+          {o.label}
+        </option>
+      ))}
+    </optgroup>
   );
 }

@@ -272,9 +272,9 @@
 .previewStack {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  background: var(--bg);
+  padding: 3px 4px 4px;
+  gap: 4px;
+  background: linear-gradient(to bottom, var(--bg) 0%, var(--surface) 100%);
   border: 1px solid var(--border);
   border-radius: 8px;
 }
@@ -283,6 +283,7 @@
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
+  padding: 0 2px;
 }
 
 .previewRowWithMic {
@@ -290,8 +291,8 @@
 }
 
 .previewMic {
-  min-width: 44px;
-  width: 44px;
+  min-width: 32px;
+  width: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -386,6 +387,84 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.modRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.modPill {
+  padding: 6px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+  user-select: none;
+}
+
+.modPill:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  color: var(--text);
+}
+
+.modPillActive,
+.modPillActive:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.comboPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+.comboHuman {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.comboSeq {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.comboSeqLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.comboSeq code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.72rem;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
 }
 
 .micEditBadge {

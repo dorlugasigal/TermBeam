@@ -57,6 +57,21 @@ export default function SettingsPanel() {
   // FIX #4: workspace save toast
   const [saveToast, setSaveToast] = useState('');
 
+  // Animate-on-close: keep mounted briefly with a `closing` class so the
+  // exit transition can play before unmounting.
+  const [mounted, setMounted] = useState(open);
+  const [closing, setClosing] = useState(false);
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      setClosing(false);
+    } else if (mounted) {
+      setClosing(true);
+      const t = setTimeout(() => setMounted(false), 220);
+      return () => clearTimeout(t);
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Reset drag offset when closed
   useEffect(() => {
     if (!open) {
@@ -273,7 +288,7 @@ export default function SettingsPanel() {
     setPreference('touchBarKeys', null);
   }, [setPreference]);
 
-  if (!open) return null;
+  if (!mounted) return null;
 
   // FIX #1: panel style conditional on dragOffset
   const panelStyle: React.CSSProperties = dragOffset
@@ -283,7 +298,7 @@ export default function SettingsPanel() {
   return (
     <div
       ref={panelRef}
-      className={`${styles.panel} ${dragging ? styles.dragging : ''} ${!dragOffset ? styles.panelCentered : ''}`}
+      className={`${styles.panel} ${dragging ? styles.dragging : ''} ${!dragOffset ? styles.panelCentered : ''} ${closing ? styles.panelClosing : ''}`}
       style={panelStyle}
       role="dialog"
       aria-label="Settings"
