@@ -304,7 +304,12 @@
   border: 1.5px dashed color-mix(in srgb, var(--text-dim) 55%, transparent);
   border-radius: 6px;
   background: color-mix(in srgb, var(--text-dim) 6%, transparent);
-  pointer-events: none;
+  /* Must accept pointer events to be a drop target via elementFromPoint */
+}
+
+.previewSlotActive {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .previewMic {

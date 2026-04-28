@@ -150,10 +150,12 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
 
       // Belt-and-suspenders: if the user opened the modal but the seed
       // effect hasn't run yet (rare race) and they hit Create immediately,
-      // fall back to the default. The user expectation is that "Create"
-      // honors the saved default initial command.
-      const effectiveInitialCommand =
-        initialCommand.trim() || (defaultInitialCommand || '').trim();
+      // fall back to the default. Read the latest pref directly from the
+      // store so we don't get burned by a stale React closure.
+      const liveDefault = (
+        usePreferencesStore.getState().prefs.defaultInitialCommand || ''
+      ).trim();
+      const effectiveInitialCommand = initialCommand.trim() || liveDefault;
 
       const session = await createSession(
         sessionMode === 'copilot'

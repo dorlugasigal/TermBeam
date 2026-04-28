@@ -119,7 +119,10 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
 
   const [selectedKeyIndex, setSelectedKeyIndex] = useState<number | null>(null);
   const [draggedKeyIndex, setDraggedKeyIndex] = useState<number | null>(null);
+  // Drop target can be either an existing key (number = its index) OR
+  // an empty slot in a row (object = the target row to land in).
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const [dropTargetRow, setDropTargetRow] = useState<number | null>(null);
   const [ghostPos, setGhostPos] = useState<{ x: number; y: number } | null>(null);
   const [sendTab, setSendTab] = useState<SendTab>('text');
 
@@ -140,6 +143,7 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
       setSelectedKeyIndex(null);
       setDraggedKeyIndex(null);
       setDropTargetIndex(null);
+      setDropTargetRow(null);
       setGhostPos(null);
     } else {
       closeBtnRef.current?.focus();
@@ -241,11 +245,29 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
       setGhostPos({ x: e.clientX, y: e.clientY });
       const target = document.elementFromPoint(e.clientX, e.clientY);
       if (!target) return;
+      // 1) Hovering directly on another key — swap target
       const previewKey = target.closest('[data-key-index]') as HTMLElement | null;
       if (previewKey) {
         const idx = parseInt(previewKey.dataset.keyIndex ?? '-1', 10);
-        if (idx >= 0 && idx !== draggedKeyIndex) setDropTargetIndex(idx);
+        if (idx >= 0 && idx !== draggedKeyIndex) {
+          setDropTargetIndex(idx);
+          setDropTargetRow(null);
+          return;
+        }
       }
+      // 2) Hovering on an empty placeholder slot — set the target row
+      const slot = target.closest('[data-empty-slot-row]') as HTMLElement | null;
+      if (slot) {
+        const row = parseInt(slot.dataset.emptySlotRow ?? '-1', 10);
+        if (row >= 1) {
+          setDropTargetIndex(null);
+          setDropTargetRow(row);
+          return;
+        }
+      }
+      // 3) Otherwise clear so a release here is a no-op
+      setDropTargetIndex(null);
+      setDropTargetRow(null);
     },
     [draggedKeyIndex],
   );
@@ -258,20 +280,42 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
       } catch {
         // ignore
       }
-      if (dropTargetIndex !== null && dropTargetIndex !== draggedKeyIndex) {
-        const list = [...customKeys];
-        const [dragged] = list.splice(draggedKeyIndex, 1);
-        if (dragged) {
-          list.splice(dropTargetIndex, 0, dragged);
-          setPreference('touchBarKeys', list);
-          setSelectedKeyIndex(dropTargetIndex);
+      const list = [...customKeys];
+      const dragged = list[draggedKeyIndex];
+      // Drop on another key — swap positions
+      if (dragged && dropTargetIndex !== null && dropTargetIndex !== draggedKeyIndex) {
+        list.splice(draggedKeyIndex, 1);
+        list.splice(dropTargetIndex, 0, dragged);
+        setPreference('touchBarKeys', list);
+        setSelectedKeyIndex(dropTargetIndex);
+      }
+      // Drop on an empty slot — move dragged key to that row, placed
+      // after the last existing key in that row (so it appears in the
+      // first empty slot visually).
+      else if (dragged && dropTargetRow !== null) {
+        const updated: TouchBarKey = { ...dragged, row: dropTargetRow };
+        list.splice(draggedKeyIndex, 1);
+        // Find insertion index: just after the last key whose row <= dropTargetRow
+        // (so the new key lands at the END of its target row).
+        let insertAt = list.length;
+        for (let j = list.length - 1; j >= 0; j -= 1) {
+          const r = list[j]?.row ?? 1;
+          if (r <= dropTargetRow) {
+            insertAt = j + 1;
+            break;
+          }
+          if (j === 0) insertAt = 0;
         }
+        list.splice(insertAt, 0, updated);
+        setPreference('touchBarKeys', list);
+        setSelectedKeyIndex(insertAt);
       }
       setDraggedKeyIndex(null);
       setDropTargetIndex(null);
+      setDropTargetRow(null);
       setGhostPos(null);
     },
-    [draggedKeyIndex, dropTargetIndex, customKeys, setPreference],
+    [draggedKeyIndex, dropTargetIndex, dropTargetRow, customKeys, setPreference],
   );
 
   // Combo-builder state for the "Key combo" tab. Modifiers + base key are
@@ -679,17 +723,20 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
           </div>
           <div className={styles.previewStack}>
             <PreviewRow
+              row={1}
               keys={row1}
               hasMicSlot={false}
               selectedKeyIndex={selectedKeyIndex}
               draggedKeyIndex={draggedKeyIndex}
               dropTargetIndex={dropTargetIndex}
+              dropTargetRow={dropTargetRow}
               onSelect={setSelectedKeyIndex}
               onPointerDown={onKeyPreviewPointerDown}
               onPointerMove={onKeyPreviewPointerMove}
               onPointerUp={onKeyPreviewPointerUp}
             />
             <PreviewRow
+              row={2}
               keys={row2}
               hasMicSlot={micPreviewIndex >= 0}
               micKey={micPreviewIndex >= 0 ? customKeys[micPreviewIndex] : undefined}
@@ -697,6 +744,7 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
               selectedKeyIndex={selectedKeyIndex}
               draggedKeyIndex={draggedKeyIndex}
               dropTargetIndex={dropTargetIndex}
+              dropTargetRow={dropTargetRow}
               onSelect={setSelectedKeyIndex}
               onPointerDown={onKeyPreviewPointerDown}
               onPointerMove={onKeyPreviewPointerMove}
@@ -733,6 +781,8 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
 }
 
 interface PreviewRowProps {
+  /** Row number this row represents (1 or 2). Used for empty-slot drop targets. */
+  row: number;
   keys: { k: TouchBarKey; i: number }[];
   hasMicSlot: boolean;
   micKey?: TouchBarKey;
@@ -740,6 +790,7 @@ interface PreviewRowProps {
   selectedKeyIndex: number | null;
   draggedKeyIndex: number | null;
   dropTargetIndex: number | null;
+  dropTargetRow: number | null;
   onSelect: (idx: number) => void;
   onPointerDown: (e: React.PointerEvent, idx: number) => void;
   onPointerMove: (e: React.PointerEvent) => void;
@@ -747,6 +798,7 @@ interface PreviewRowProps {
 }
 
 function PreviewRow({
+  row,
   keys,
   hasMicSlot,
   micKey,
@@ -754,6 +806,7 @@ function PreviewRow({
   selectedKeyIndex,
   draggedKeyIndex,
   dropTargetIndex,
+  dropTargetRow,
   onSelect,
   onPointerDown,
   onPointerMove,
@@ -800,9 +853,17 @@ function PreviewRow({
           </button>
         );
       })}
-      {Array.from({ length: emptySlots }).map((_, idx) => (
-        <div key={`slot-${idx}`} className={styles.previewSlot} aria-hidden="true" />
-      ))}
+      {Array.from({ length: emptySlots }).map((_, idx) => {
+        const isActiveDrop = dropTargetRow === row;
+        return (
+          <div
+            key={`slot-${idx}`}
+            className={`${styles.previewSlot} ${isActiveDrop ? styles.previewSlotActive : ''}`}
+            data-empty-slot-row={row}
+            aria-hidden="true"
+          />
+        );
+      })}
       {hasMicSlot && micKey && typeof micIndex === 'number' && (
         <button
           type="button"
