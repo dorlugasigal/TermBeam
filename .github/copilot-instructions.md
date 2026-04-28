@@ -83,7 +83,13 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 - `version.js` — detects version from package.json
 - `update-check.js` — npm update checking
 
-**Frontend:** React SPA in `src/frontend/` built with Vite + TypeScript. Builds to `public/` (gitignored build artifact). Uses xterm.js, Zustand for state, and Radix UI for accessible components. Components organized into: CommandPalette, FolderBrowser, LoginPage, Modals, Overlays, SearchBar, SessionsHub, SidePanel, TabBar, TerminalApp, TerminalPane, TouchBar, and common reusable components (TopBar, ThemePicker, UpdateBanner).
+**Frontend:** React SPA in `src/frontend/` built with Vite + TypeScript. Builds to `public/` (gitignored build artifact). Uses xterm.js, Zustand for state, and Radix UI for accessible components. Components organized into: ToolsPanel (right slide-in, formerly CommandPalette), Settings (preferences drawer/sheet), FolderBrowser, LoginPage, Modals, Overlays, SearchBar, SessionsHub, SidePanel (left slide-in), TabBar, TerminalApp, TerminalPane, TouchBar, and common reusable components (TopBar, ThemePicker, UpdateBanner).
+
+**UI surfaces (terminology — use these names consistently):**
+
+- **SidePanel** (`src/frontend/src/components/SidePanel/`) — left slide-in containing the sessions picker. Triggered by the ☰ menu button.
+- **ToolsPanel** (`src/frontend/src/components/ToolsPanel/`, formerly `CommandPalette`) — right slide-in titled "Tools". Triggered by the ▦ button or `Cmd/Ctrl+K`. Sections: SESSION · FILES · VIEW · SHARE · AGENTS · SETTINGS · SYSTEM. The SETTINGS section contains a single "Settings…" row that opens the SettingsPanel.
+- **SettingsPanel** (`src/frontend/src/components/Settings/`) — non-blocking preferences surface. **Top sheet** on mobile (slides down from top so terminal + TouchBar stay visible below — toggles like "Start collapsed" and "Haptic feedback" can be observed live). **Right-side drawer (420 px)** on desktop with no backdrop dim. Reached from the ToolsPanel "Settings…" row or `Cmd/Ctrl+,`. Holds Appearance, Startup, TouchBar, Terminal, and Startup Workspace sections. Backed by `usePreferencesStore`, which syncs to the server via `GET`/`PUT /api/preferences`.
 
 **WebSocket protocol:** JSON messages over `/ws`. Client sends `attach`, `input`, `resize`; server sends `output`, `attached`, `exit`, `error`. Auth is validated at WebSocket upgrade or first message.
 
