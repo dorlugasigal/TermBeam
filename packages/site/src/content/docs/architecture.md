@@ -169,7 +169,8 @@ The terminal page includes several client-side features:
 - **Command completion notifications** — uses the browser Notification API to alert when a command finishes in a background tab. Toggled via a bell icon; preference stored in `localStorage` (`termbeam-notifications`).
 - **Push notifications** — native push notifications via the Web Push API, delivered even when the browser tab is closed. The service worker (`sw.ts`) handles push events and uses the Badge API to show unread counts. Push subscription lifecycle (subscribe, unsubscribe, VAPID key mismatch detection) is managed by `services/pushSubscription.ts`.
 - **Git changes view** — `GitChanges/`, `DiffViewer/`, and `BlameGutter/` components in the CodeViewer directory provide a full git integration UI: staged/unstaged diffs with syntax highlighting, per-line blame annotations, and commit history browsing.
-- **Command palette** — <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd> (or the floating ⚙️ button) opens a slide-out tool panel with categorized actions (Session, Search, View, Share, Notifications, System).
+- **Tools panel** — <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd> (or the floating ▦ button) opens a slide-out sheet with categorized actions (Session, Files, View, Share, Agents, Settings, System). Settings, the workspace launcher and the touch-bar key editor are inline panels reachable from this entry point.
+- **Workspace autoboot (server-side)** — at startup `src/server/index.js` reads `~/.termbeam/prefs.json` and, if a workspace is flagged `default: true` (or there is exactly one named workspace, or the legacy `startupWorkspace.enabled` is true), spawns each session itself. This replaced the previous client-side autoboot so deleting a session in the UI stays deleted until the next service restart. When no workspace is configured the server falls back to a single default session in `config.cwd`.
 
 ## Data Flow
 

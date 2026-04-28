@@ -61,7 +61,8 @@ function createTermBeamServer(overrides = {}) {
   const sessions = new SessionManager();
 
   // Push notification manager
-  const configDir = process.env.TERMBEAM_CONFIG_DIR || path.join(os.homedir(), '.termbeam');
+  const configDir =
+    config.configDir || process.env.TERMBEAM_CONFIG_DIR || path.join(os.homedir(), '.termbeam');
   const pushManager = new PushManager(configDir);
   pushManager.init().catch((err) => {
     log.warn(`Push notification init failed: ${err.message}`);

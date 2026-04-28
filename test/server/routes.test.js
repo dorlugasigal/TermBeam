@@ -53,9 +53,20 @@ function httpRequest(options, body) {
 }
 
 async function startServer(configOverrides = {}) {
-  const instance = createTermBeamServer({ config: makeConfig(configOverrides) });
+  // Isolate prefs/connection.json per server instance so tests don't read
+  // the developer's real ~/.termbeam/prefs.json (which would trigger
+  // workspace autoboot and override the test's expected default session).
+  const tmpConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tb-cfg-'));
+  const instance = createTermBeamServer({
+    config: makeConfig({ configDir: tmpConfigDir, ...configOverrides }),
+  });
   const { defaultId } = await instance.start();
   const port = instance.server.address().port;
+  const origShutdown = instance.shutdown.bind(instance);
+  instance.shutdown = async () => {
+    await origShutdown();
+    await safeCleanup(tmpConfigDir);
+  };
   return { ...instance, port, defaultId };
 }
 
