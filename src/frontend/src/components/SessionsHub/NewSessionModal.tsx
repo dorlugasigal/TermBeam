@@ -105,20 +105,24 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps — intentionally runs only on modal open/close
   }, [newSessionModalOpen]);
 
-  // Seed initial command from prefs.defaultInitialCommand. We track
-  // whether the user has touched the field so we don't keep overwriting
-  // their edits when prefs change later (or hydrate after the modal
-  // opened).
+  // Seed default folder + initial command from prefs. Track whether the
+  // user has touched each field so we don't keep overwriting their edits
+  // when prefs change later (or hydrate after the modal opened).
+  const cwdTouchedRef = useRef(false);
   const initialCommandTouchedRef = useRef(false);
 
   useEffect(() => {
     if (!newSessionModalOpen) return;
-    if (defaultFolder && !cwd) setCwd(defaultFolder);
+    if (defaultFolder && !cwdTouchedRef.current && !cwd) {
+      setCwd(defaultFolder);
+      // Also derive a reasonable name from the folder leaf
+      if (!nameManuallyEdited) deriveNameFromCwd(defaultFolder);
+    }
     if (defaultInitialCommand && !initialCommandTouchedRef.current && !initialCommand) {
       setInitialCommand(defaultInitialCommand);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps — seed when modal opens or default changes
-  }, [newSessionModalOpen, defaultInitialCommand]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps — seed when modal opens or defaults change
+  }, [newSessionModalOpen, defaultFolder, defaultInitialCommand]);
 
   function resetForm() {
     setSessionMode('terminal');
@@ -130,6 +134,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     setColor(SESSION_COLORS[0]);
     setBrowsing(false);
     setModel('claude-sonnet-4');
+    cwdTouchedRef.current = false;
     initialCommandTouchedRef.current = false;
   }
 
@@ -148,20 +153,21 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
       const cols = activeMs?.term?.cols;
       const rows = activeMs?.term?.rows;
 
-      // Belt-and-suspenders: if the user opened the modal but the seed
-      // effect hasn't run yet (rare race) and they hit Create immediately,
-      // fall back to the default. Read the latest pref directly from the
-      // store so we don't get burned by a stale React closure.
-      const liveDefault = (
-        usePreferencesStore.getState().prefs.defaultInitialCommand || ''
-      ).trim();
-      const effectiveInitialCommand = initialCommand.trim() || liveDefault;
+      // Belt-and-suspenders: read both defaults DIRECTLY from the prefs
+      // store so a stale React closure (or unhydrated value at mount)
+      // can't swallow them. If the user didn't type anything in either
+      // field, fall back to the saved default.
+      const livePrefs = usePreferencesStore.getState().prefs;
+      const liveDefaultCmd = (livePrefs.defaultInitialCommand || '').trim();
+      const liveDefaultFolder = (livePrefs.defaultFolder || '').trim();
+      const effectiveInitialCommand = initialCommand.trim() || liveDefaultCmd;
+      const effectiveCwd = cwd.trim() || liveDefaultFolder;
 
       const session = await createSession(
         sessionMode === 'copilot'
           ? {
               name: name.trim() || undefined,
-              cwd: cwd.trim() || undefined,
+              cwd: effectiveCwd || undefined,
               type: 'copilot',
               model,
               ...(cols && rows ? { cols, rows } : {}),
@@ -169,7 +175,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
           : {
               name: name.trim() || undefined,
               shell: shell || undefined,
-              cwd: cwd.trim() || undefined,
+              cwd: effectiveCwd || undefined,
               color,
               initialCommand: effectiveInitialCommand || undefined,
               ...(cols && rows ? { cols, rows } : {}),
@@ -239,6 +245,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
             <FolderBrowser
               currentDir={cwd || defaultFolder || '/'}
               onSelect={(dir: string) => {
+                cwdTouchedRef.current = true;
                 setCwd(dir);
                 deriveNameFromCwd(dir);
                 setBrowsing(false);
@@ -272,9 +279,12 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
                   <input
                     className={styles.input}
                     type="text"
-                    placeholder="/"
+                    placeholder={defaultFolder || '/'}
                     value={cwd}
-                    onChange={(e) => setCwd(e.target.value)}
+                    onChange={(e) => {
+                      cwdTouchedRef.current = true;
+                      setCwd(e.target.value);
+                    }}
                   />
                   <button
                     type="button"
