@@ -16,44 +16,39 @@
  * interactive keys stay inset above the safe area. */
 .touchBar {
   /* Total visible height: 36px (handle + gap) + 32px row + 4px gap + 32px row + 4px = 108px
-   * + clamped safe-area padding so the bg fills to the screen bottom. */
+   * + clamped safe-area padding so the keys stay above the home indicator. */
   height: calc(108px + min(8px, env(safe-area-inset-bottom, 0px)));
   /* Cap the safe-area padding to a small value — iOS PWA reports a much
-   * larger inset than the bar actually needs above the home indicator,
-   * which produced a giant dead zone below the chevron. */
+   * larger inset than the bar actually needs above the home indicator. */
   padding: 36px 4px min(8px, env(safe-area-inset-bottom, 0px));
-  /* Mirror the top nav bar gradient (TerminalApp.module.css uses
-   *   linear-gradient(to bottom, --surface 0%, --surface 35%, --bg 100%))
-   * so the touchbar reads as the same surface family. */
-  background: linear-gradient(to bottom, var(--surface) 0%, var(--surface) 35%, var(--bg) 100%);
+  /* No bg / border / shadow — the bar visually sits directly on the
+   * terminal background. Keys carry their own surface. */
+  background: transparent;
   display: flex;
   flex-direction: column;
   gap: 4px;
   justify-content: center;
   overflow: hidden;
   position: relative;
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+  border: none;
+  box-shadow: none;
   transition:
     height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
     padding-top 0.28s ease,
-    padding-bottom 0.28s ease,
-    background 0.25s ease,
-    box-shadow 0.25s ease;
+    padding-bottom 0.28s ease;
 }
 
 /* Collapsed: shrink to a thin strip with just the toggle handle. */
 .touchBarWrapper[data-collapsed='true'] .touchBar {
   height: calc(26px + min(8px, env(safe-area-inset-bottom, 0px)));
   padding: 0 4px min(8px, env(safe-area-inset-bottom, 0px));
-  background: var(--surface);
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.32);
+  background: transparent;
+  border: none;
+  box-shadow: none;
   transition:
     height 0.32s cubic-bezier(0.4, 0, 0.2, 1) 0.15s,
     padding-top 0.28s ease 0.15s,
-    padding-bottom 0.28s ease 0.15s,
-    background 0.25s ease 0.15s,
-    box-shadow 0.25s ease 0.15s;
+    padding-bottom 0.28s ease 0.15s;
 }
 
 /* Toggle button — pill with a CSS-drawn chevron. No horizontal-line
