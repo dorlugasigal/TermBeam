@@ -12,7 +12,7 @@ const PREFS_FILENAME = 'prefs.json';
 // Keep this list narrow; only add fields here that we actually round-trip
 // through the API. Unknown keys from the client are dropped.
 const DEFAULTS = Object.freeze({
-  themeId: 'dracula',
+  themeId: 'dark',
   fontSize: 14,
   notifications: false,
   haptics: true,

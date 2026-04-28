@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { usePreference } from '@/stores/preferencesStore';
 import { THEMES, type ThemeId } from '@/themes/terminalThemes';
 import { deleteSession, renameSession, fetchVersion, getShareUrl } from '@/services/api';
 import { playNotificationSound, setNotificationsEnabled } from '@/services/audio';
@@ -374,9 +375,7 @@ export default function ToolsPanel() {
   const open = useUIStore((s) => s.toolsPanelOpen);
   const close = useUIStore((s) => s.closeToolsPanel);
   const [showThemes, setShowThemes] = useState(false);
-  const [notificationsOn, setNotificationsOn] = useState(
-    () => localStorage.getItem('termbeam-notifications') !== 'false',
-  );
+  const notificationsOn = usePreference('notifications');
   const [aboutOpen, setAboutOpen] = useState(false);
   const [aboutVersion, setAboutVersion] = useState('');
   const [pushActive, setPushActive] = useState(() => isPushSubscribedSync());
@@ -515,7 +514,6 @@ export default function ToolsPanel() {
 
   const handleNotifications = async () => {
     const next = !notificationsOn;
-    setNotificationsOn(next);
     setNotificationsEnabled(next);
 
     if (next) {

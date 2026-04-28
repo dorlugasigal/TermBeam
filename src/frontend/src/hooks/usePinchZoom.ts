@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { usePinch } from '@use-gesture/react';
+import { usePreferencesStore } from '@/stores/preferencesStore';
 
 export interface UsePinchZoomOptions {
   ref: React.RefObject<HTMLElement | null>;
@@ -9,25 +10,13 @@ export interface UsePinchZoomOptions {
   max?: number;
 }
 
-const STORAGE_KEY = 'termbeam-font-size';
 const DEBOUNCE_MS = 50;
-
-function loadSavedSize(fallback: number): number {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = Number(saved);
-      if (!Number.isNaN(parsed) && parsed >= 2 && parsed <= 32) return parsed;
-    }
-  } catch {
-    // ignore
-  }
-  return fallback;
-}
 
 export function usePinchZoom(options: UsePinchZoomOptions): { fontSize: number } {
   const { ref, onFontSizeChange, initialSize = 14, min = 2, max = 32 } = options;
-  const [fontSize, setFontSize] = useState(() => loadSavedSize(initialSize));
+  const [fontSize, setFontSize] = useState(
+    () => usePreferencesStore.getState().prefs.fontSize ?? initialSize,
+  );
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const baseSizeRef = useRef(fontSize);
 
@@ -48,7 +37,9 @@ export function usePinchZoom(options: UsePinchZoomOptions): { fontSize: number }
       }
       const newSize = Math.round(Math.min(max, Math.max(min, baseSizeRef.current * scale)));
       setFontSize(newSize);
-      localStorage.setItem(STORAGE_KEY, String(newSize));
+      // Route through the unified preferences store (debounced PUT to server +
+      // localStorage cache write are handled inside the store).
+      usePreferencesStore.getState().setPreference('fontSize', newSize);
       debouncedCallback(newSize);
     },
     {
@@ -58,7 +49,6 @@ export function usePinchZoom(options: UsePinchZoomOptions): { fontSize: number }
     },
   );
 
-  // Clean up debounce timer on unmount
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -67,3 +57,4 @@ export function usePinchZoom(options: UsePinchZoomOptions): { fontSize: number }
 
   return { fontSize };
 }
+

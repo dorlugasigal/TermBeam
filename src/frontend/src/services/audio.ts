@@ -30,20 +30,14 @@ export function playNotificationSound(): void {
   }
 }
 
+import { usePreferencesStore } from '@/stores/preferencesStore';
+
 export function isNotificationsEnabled(): boolean {
-  try {
-    return localStorage.getItem('termbeam-notifications') !== 'false';
-  } catch {
-    return true;
-  }
+  return usePreferencesStore.getState().prefs.notifications;
 }
 
 export function setNotificationsEnabled(enabled: boolean): void {
-  try {
-    localStorage.setItem('termbeam-notifications', String(enabled));
-  } catch {
-    // Storage unavailable
-  }
+  usePreferencesStore.getState().setPreference('notifications', enabled);
 }
 
 import { isPushSubscribedSync } from './pushSubscription';

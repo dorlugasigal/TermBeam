@@ -115,7 +115,7 @@ describe('Preferences API', () => {
     assert.strictEqual(res.statusCode, 200);
     const body = JSON.parse(res.data);
     assert.strictEqual(body.version, 0);
-    assert.strictEqual(body.prefs.themeId, 'dracula');
+    assert.strictEqual(body.prefs.themeId, 'dark');
     assert.strictEqual(body.prefs.fontSize, 14);
   });
 

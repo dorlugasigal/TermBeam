@@ -1,22 +1,8 @@
 import { create } from 'zustand';
+import { usePreferencesStore } from './preferencesStore';
 
-const FONT_SIZE_KEY = 'termbeam-font-size';
 const MIN_FONT_SIZE = 2;
 const MAX_FONT_SIZE = 32;
-const DEFAULT_FONT_SIZE = 14;
-
-function loadFontSize(): number {
-  try {
-    const saved = localStorage.getItem(FONT_SIZE_KEY);
-    if (saved) {
-      const n = Number(saved);
-      if (!Number.isNaN(n) && n >= MIN_FONT_SIZE && n <= MAX_FONT_SIZE) return n;
-    }
-  } catch {
-    // ignore
-  }
-  return DEFAULT_FONT_SIZE;
-}
 
 interface UIState {
   toolsPanelOpen: boolean;
@@ -89,7 +75,7 @@ export const useUIStore = create<UIState>((set) => ({
   markdownModalOpen: false,
   selectModeActive: false,
   copyOverlayOpen: false,
-  fontSize: loadFontSize(),
+  fontSize: usePreferencesStore.getState().prefs.fontSize,
   touchCtrlActive: false,
   touchShiftActive: false,
   resumeBrowserOpen: false,
@@ -123,11 +109,7 @@ export const useUIStore = create<UIState>((set) => ({
   closeCopyOverlay: () => set({ copyOverlayOpen: false }),
   setFontSize: (size) => {
     const clamped = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, Math.round(size)));
-    try {
-      localStorage.setItem(FONT_SIZE_KEY, String(clamped));
-    } catch {
-      // localStorage may be unavailable (private browsing, quota exceeded)
-    }
+    usePreferencesStore.getState().setPreference('fontSize', clamped);
     set({ fontSize: clamped });
   },
   setTouchCtrl: (active) => set({ touchCtrlActive: active }),
@@ -150,3 +132,11 @@ export const useUIStore = create<UIState>((set) => ({
   setChatCancelHandler: (handler) => set({ chatCancelHandler: handler }),
   setChatNewlineHandler: (handler) => set({ chatNewlineHandler: handler }),
 }));
+
+// Mirror server-driven fontSize changes back into the UI store so subscribers
+// re-render when prefs are pushed from another device.
+usePreferencesStore.subscribe((state, prev) => {
+  if (state.prefs.fontSize !== prev.prefs.fontSize) {
+    useUIStore.setState({ fontSize: state.prefs.fontSize });
+  }
+});

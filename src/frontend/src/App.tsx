@@ -5,6 +5,7 @@ import SessionsHub from '@/components/SessionsHub/SessionsHub';
 import { TerminalApp } from '@/components/TerminalApp/TerminalApp';
 import CodeViewer from '@/components/CodeViewer/CodeViewer';
 import { useThemeStore } from '@/stores/themeStore';
+import { usePreferencesStore } from '@/stores/preferencesStore';
 import { THEMES } from '@/themes/terminalThemes';
 
 function getPath() {
@@ -49,6 +50,15 @@ function useChromeColor(screen: 'terminal' | 'main') {
 export default function App() {
   const { authenticated, passwordRequired, login, loading } = useAuth();
   const [path, setPath] = useState(getPath);
+
+  // Hydrate user preferences from the server once we're authenticated. The
+  // store seeds itself synchronously from localStorage on import so the first
+  // paint already uses cached prefs; this fetch reconciles with the server.
+  useEffect(() => {
+    if (authenticated) {
+      void usePreferencesStore.getState().hydrate();
+    }
+  }, [authenticated]);
 
   useEffect(() => {
     normalizeSessionParam();

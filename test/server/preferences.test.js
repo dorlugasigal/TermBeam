@@ -15,7 +15,7 @@ const {
 describe('preferences sanitize()', () => {
   it('returns defaults for empty input', () => {
     const d = getDefaults();
-    assert.strictEqual(d.themeId, 'dracula');
+    assert.strictEqual(d.themeId, 'dark');
     assert.strictEqual(d.fontSize, 14);
     assert.strictEqual(d.notifications, false);
     assert.strictEqual(d.haptics, true);
@@ -120,7 +120,7 @@ describe('preferences read/write', () => {
   it('returns defaults + version 0 when file is missing', () => {
     const { prefs, version } = readPreferences(tmpDir);
     assert.strictEqual(version, 0);
-    assert.strictEqual(prefs.themeId, 'dracula');
+    assert.strictEqual(prefs.themeId, 'dark');
   });
 
   it('writes prefs.json with mode 0o600 and increments version', () => {
@@ -158,6 +158,6 @@ describe('preferences read/write', () => {
     fs.writeFileSync(path.join(tmpDir, PREFS_FILENAME), '{not valid json');
     const { prefs, version } = readPreferences(tmpDir);
     assert.strictEqual(version, 0);
-    assert.strictEqual(prefs.themeId, 'dracula');
+    assert.strictEqual(prefs.themeId, 'dark');
   });
 });
