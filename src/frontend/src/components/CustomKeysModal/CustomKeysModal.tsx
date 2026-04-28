@@ -188,7 +188,8 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
 
   const addKey = useCallback(() => {
     const list = prefs.touchBarKeys ?? DEFAULT_TOUCHBAR_KEYS.map((k) => ({ ...k }));
-    // Insert before the mic key if it exists (so mic stays at the end)
+    // Insert before the mic key if it exists (so mic stays at the end).
+    // New keys default to row 1; user can drag them to other rows later.
     const micIdx = list.findIndex((k) => k.action === 'mic');
     const newKey: TouchBarKey = {
       id: genKeyId(),
@@ -196,6 +197,7 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
       send: '',
       size: 1,
       style: 'plain',
+      row: 1,
     };
     const next = [...list];
     if (micIdx >= 0) {
@@ -316,31 +318,19 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
 
   const draggedKey = draggedKeyIndex !== null ? customKeys[draggedKeyIndex] : null;
 
-  // Split for preview — pack keys into 8-column rows respecting size spans,
-  // matching the live TouchBar layout. Mic action goes into row 2's auto slot.
-  const COLS = 8;
-  const MAX_GRID_KEYS = 14;
+  // Split for preview — group keys by their explicit `row` field so the
+  // preview matches the live touchbar exactly. Within each row, keys keep
+  // their array order and span their declared size. Deleting/reordering a
+  // key never shifts unrelated keys into different slots.
   const micPreviewIndex = customKeys.findIndex((k) => k.action === 'mic');
-  const gridPreviewKeys = customKeys
-    .map((k, i) => ({ k, i }))
-    .filter(({ k }) => k.action !== 'mic')
-    .slice(0, MAX_GRID_KEYS);
-
-  // Pack into row1: take keys until adding the next would overflow 8 cols.
-  const row1: typeof gridPreviewKeys = [];
-  let row1Span = 0;
-  let cursor = 0;
-  while (cursor < gridPreviewKeys.length) {
-    const entry = gridPreviewKeys[cursor];
-    if (!entry) break;
-    const span = entry.k.size ?? 1;
-    if (row1Span + span > COLS) break;
-    row1.push(entry);
-    row1Span += span;
-    cursor += 1;
-  }
-  // Row2 gets the remainder.
-  const row2 = gridPreviewKeys.slice(cursor);
+  const row1: { k: TouchBarKey; i: number }[] = [];
+  const row2: { k: TouchBarKey; i: number }[] = [];
+  customKeys.forEach((k, i) => {
+    if (k.action === 'mic') return;
+    const r = k.row ?? 1;
+    if (r <= 1) row1.push({ k, i });
+    else row2.push({ k, i });
+  });
 
   return (
     <>

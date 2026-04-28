@@ -86,6 +86,14 @@ function sanitizeTouchBarKeys(input) {
     if (VALID_KEY_SIZES.has(entry.size)) {
       key.size = entry.size;
     }
+    if (
+      typeof entry.row === 'number' &&
+      Number.isInteger(entry.row) &&
+      entry.row >= 1 &&
+      entry.row <= 8
+    ) {
+      key.row = entry.row;
+    }
     if (typeof entry.bg === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(entry.bg)) {
       key.bg = entry.bg;
     }

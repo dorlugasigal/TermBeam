@@ -183,17 +183,23 @@ export default function TouchBar() {
     [customKeys],
   );
   const micKey = useMemo(() => effectiveKeys.find((k) => k.action === 'mic'), [effectiveKeys]);
-  const gridKeys = useMemo(
-    () => effectiveKeys.filter((k) => k.action !== 'mic').slice(0, 14),
+  // Group non-mic grid keys by their `row` field (default 1). Within a row,
+  // keys appear in array order with each spanning `size` columns. Empty
+  // slots at the end of a row stay empty — deleting a key never shifts
+  // unrelated keys into different positions.
+  const effectiveRow1 = useMemo(
+    () =>
+      effectiveKeys
+        .filter((k) => k.action !== 'mic' && (k.row ?? 1) === 1)
+        .map(touchBarKeyToDef),
     [effectiveKeys],
   );
-  const effectiveRow1 = useMemo(
-    () => gridKeys.slice(0, 7).map(touchBarKeyToDef),
-    [gridKeys],
-  );
   const effectiveRow2 = useMemo(
-    () => gridKeys.slice(7, 14).map(touchBarKeyToDef),
-    [gridKeys],
+    () =>
+      effectiveKeys
+        .filter((k) => k.action !== 'mic' && (k.row ?? 1) === 2)
+        .map(touchBarKeyToDef),
+    [effectiveKeys],
   );
   const activeSessionType = useSessionStore(
     (s) => (s.activeId ? s.sessions.get(s.activeId)?.type : undefined),

@@ -5,13 +5,10 @@ import {
   usePreferencesStore,
   PREF_DEFAULTS,
   type StartupSession,
-  type TouchBarKey,
   type Workspace,
 } from '@/stores/preferencesStore';
 import { THEMES } from '@/themes/terminalThemes';
 import { FolderBrowser } from '@/components/FolderBrowser/FolderBrowser';
-import { DEFAULT_TOUCHBAR_KEYS } from '@/components/TouchBar/defaultKeys';
-import touchBarStyles from '@/components/TouchBar/TouchBar.module.css';
 import styles from './SettingsPanel.module.css';
 
 const FONT_MIN = 8;
@@ -36,47 +33,6 @@ function Toggle({
       onClick={() => onChange(!on)}
     />
   );
-}
-
-function MicGlyph() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-      <line x1="12" y1="19" x2="12" y2="23" />
-      <line x1="8" y1="23" x2="16" y2="23" />
-    </svg>
-  );
-}
-
-function previewKeyClass(k: TouchBarKey): string {
-  const classes = [touchBarStyles.keyBtn];
-  if (k.modifier) classes.push(touchBarStyles.modifier);
-  if (k.style === 'accent') classes.push(touchBarStyles.keyEnter);
-  if (k.style === 'danger') classes.push(touchBarStyles.keyDanger);
-  return classes.filter(Boolean).join(' ');
-}
-
-function previewKeyStyle(k: TouchBarKey): React.CSSProperties {
-  const style: React.CSSProperties = {
-    gridColumn: `span ${k.size ?? 1}`,
-    pointerEvents: 'none',
-  };
-  if (k.style === 'custom') {
-    if (k.bg) style.background = k.bg;
-    if (k.color) style.color = k.color;
-  }
-  return style;
 }
 
 function cwdLeaf(cwd: string): string {
@@ -485,8 +441,8 @@ export default function SettingsPanel() {
                 Touchbar layout
                 <span className={styles.rowHint}>
                   {usingCustomKeys
-                    ? `${customKeys.length} custom key${customKeys.length === 1 ? '' : 's'} · tap any key to customize`
-                    : 'Built-in defaults · tap any key to customize'}
+                    ? `${customKeys.length} custom key${customKeys.length === 1 ? '' : 's'}`
+                    : 'Built-in defaults'}
                 </span>
               </span>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -500,62 +456,6 @@ export default function SettingsPanel() {
                 </button>
               </div>
             </div>
-
-            {(() => {
-              const livePreviewKeys = prefs.touchBarKeys ?? DEFAULT_TOUCHBAR_KEYS;
-              const nonMicKeys = livePreviewKeys.filter((k) => k.action !== 'mic').slice(0, 14);
-              const micKey = livePreviewKeys.find((k) => k.action === 'mic');
-              // Pack into row1 by total span (8 cols max) so a size:2 Enter
-              // fits as the 7th key in row1 instead of wrapping to row2.
-              const COLS = 8;
-              const row1: typeof nonMicKeys = [];
-              let row1Span = 0;
-              let cursor = 0;
-              while (cursor < nonMicKeys.length) {
-                const k = nonMicKeys[cursor];
-                if (!k) break;
-                const span = k.size ?? 1;
-                if (row1Span + span > COLS) break;
-                row1.push(k);
-                row1Span += span;
-                cursor += 1;
-              }
-              const row2 = nonMicKeys.slice(cursor);
-              return (
-                <button
-                  type="button"
-                  className={styles.touchBarLivePreview}
-                  onClick={openCustomKeysModal}
-                  aria-label="Open Touch Bar customizer"
-                >
-                  <div className={styles.touchBarLivePreviewRow}>
-                    {row1.map((k) => (
-                      <span key={k.id} className={previewKeyClass(k)} style={previewKeyStyle(k)}>
-                        {k.label}
-                      </span>
-                    ))}
-                  </div>
-                  <div
-                    className={`${styles.touchBarLivePreviewRow} ${styles.touchBarLivePreviewRowMic}`}
-                  >
-                    {row2.map((k) => (
-                      <span key={k.id} className={previewKeyClass(k)} style={previewKeyStyle(k)}>
-                        {k.label}
-                      </span>
-                    ))}
-                    {micKey && (
-                      <span
-                        key={micKey.id}
-                        className={`${touchBarStyles.keyBtn} ${touchBarStyles.special} ${touchBarStyles.micBtn}`}
-                        style={{ pointerEvents: 'none', minWidth: 32 }}
-                      >
-                        <MicGlyph />
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })()}
           </section>
 
           {/* ── Defaults ─────────────────────────────────────────── */}

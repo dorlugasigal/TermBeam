@@ -19,6 +19,10 @@ export interface TouchBarKey {
   action?: KeyAction;
   /** Grid column span (1-8, default 1). */
   size?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  /** Which row this key belongs to (1-based; default 1). Slots within a
+   *  row are filled in array order — deleting a key leaves empty space at
+   *  the end of its row instead of pulling other keys forward. */
+  row?: number;
   bg?: string;
   color?: string;
   style?: KeyLook;
@@ -48,6 +52,38 @@ function migrateTouchBarKey(k: TouchBarKey): TouchBarKey {
     next.style = 'custom';
   }
   return next;
+}
+
+/** Auto-assign `row` to legacy keys (those without an explicit row) by
+ *  packing them into 8-column rows in array order. Keys that already have
+ *  a `row` are left alone. Mic action keys always belong to the same row
+ *  as the last grid key (they render in the auto slot). */
+function assignDefaultRows(keys: TouchBarKey[]): TouchBarKey[] {
+  const COLS = 8;
+  if (keys.length === 0) return keys;
+  if (keys.every((k) => typeof k.row === 'number' && k.row >= 1)) return keys;
+  const out: TouchBarKey[] = [];
+  let currentRow = 1;
+  let currentSpan = 0;
+  for (const k of keys) {
+    if (k.action === 'mic') {
+      out.push({ ...k, row: currentRow });
+      continue;
+    }
+    if (typeof k.row === 'number' && k.row >= 1) {
+      out.push(k);
+      if (k.row > currentRow) currentRow = k.row;
+      continue;
+    }
+    const span = k.size ?? 1;
+    if (currentSpan + span > COLS) {
+      currentRow += 1;
+      currentSpan = 0;
+    }
+    out.push({ ...k, row: currentRow });
+    currentSpan += span;
+  }
+  return out;
 }
 
 export interface StartupSession {
@@ -139,7 +175,7 @@ function normalize(input: unknown): Preferences {
         ? p.touchBarCollapsed
         : PREF_DEFAULTS.touchBarCollapsed,
     touchBarKeys: Array.isArray(p.touchBarKeys)
-      ? (p.touchBarKeys as TouchBarKey[]).map(migrateTouchBarKey)
+      ? assignDefaultRows((p.touchBarKeys as TouchBarKey[]).map(migrateTouchBarKey))
       : null,
     startupWorkspace:
       p.startupWorkspace && typeof p.startupWorkspace === 'object'
