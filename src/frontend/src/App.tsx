@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import LoginPage from '@/components/LoginPage/LoginPage';
 import SessionsHub from '@/components/SessionsHub/SessionsHub';
@@ -7,6 +7,7 @@ import CodeViewer from '@/components/CodeViewer/CodeViewer';
 import { useThemeStore } from '@/stores/themeStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { THEMES } from '@/themes/terminalThemes';
+import { createSession } from '@/services/api';
 
 function getPath() {
   return window.location.pathname;
@@ -50,6 +51,7 @@ function useChromeColor(screen: 'terminal' | 'main') {
 export default function App() {
   const { authenticated, passwordRequired, login, loading } = useAuth();
   const [path, setPath] = useState(getPath);
+  const startupBootedRef = useRef(false);
 
   // Hydrate user preferences from the server once we're authenticated. The
   // store seeds itself synchronously from localStorage on import so the first
@@ -58,6 +60,41 @@ export default function App() {
     if (authenticated) {
       void usePreferencesStore.getState().hydrate();
     }
+  }, [authenticated]);
+
+  // Startup workspace: when the user has saved a list of "open these sessions
+  // on launch" entries, create them once after auth + hydrate. Guarded by a
+  // ref so HMR / re-renders don't re-spawn duplicates. We subscribe to the
+  // prefs store so we can run the boot exactly once, when hydrate() resolves
+  // and brings down the authoritative server-side preferences (otherwise we'd
+  // potentially boot from stale localStorage cache).
+  useEffect(() => {
+    if (!authenticated) return;
+    const tryBoot = (state: ReturnType<typeof usePreferencesStore.getState>) => {
+      if (startupBootedRef.current) return;
+      if (!state.hydrated) return;
+      const ws = state.prefs.startupWorkspace;
+      startupBootedRef.current = true;
+      if (!ws || !ws.enabled || !ws.sessions || ws.sessions.length === 0) return;
+      (async () => {
+        for (const s of ws.sessions) {
+          try {
+            await createSession({
+              name: s.name,
+              cwd: s.cwd || undefined,
+              initialCommand: s.initialCommand || undefined,
+              type: s.kind === 'agent' ? 'agent' : 'terminal',
+            });
+          } catch {
+            // Best-effort: a missing cwd or transient server error on one
+            // entry shouldn't block the remaining entries.
+          }
+        }
+      })();
+    };
+    tryBoot(usePreferencesStore.getState());
+    const unsub = usePreferencesStore.subscribe(tryBoot);
+    return unsub;
   }, [authenticated]);
 
   useEffect(() => {

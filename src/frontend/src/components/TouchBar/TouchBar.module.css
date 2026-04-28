@@ -203,3 +203,15 @@
     font-size: 12px;
   }
 }
+
+/* ── Collapsed state ────────────────────────────────────────────────
+ * When the user collapses the touchbar (via the chevron handle), it
+ * shrinks to a single tappable row that says "Show keys". The bar
+ * itself stays mounted (and keeps the same z-index / bottom offset)
+ * so the terminal layout doesn't reflow on toggle.
+ * ─────────────────────────────────────────────────────────────────── */
+.touchBar.collapsed {
+  height: 36px;
+  padding: 4px;
+  gap: 0;
+}

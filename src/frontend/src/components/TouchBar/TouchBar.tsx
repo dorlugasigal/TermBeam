@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
+import { usePreferencesStore, type TouchBarKey } from '@/stores/preferencesStore';
 import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
 import { uploadImage } from '@/services/api';
 import styles from './TouchBar.module.css';
@@ -124,6 +125,27 @@ export default function TouchBar() {
   const shiftActive = useUIStore((s) => s.touchShiftActive);
   const setCtrlActive = useUIStore((s) => s.setTouchCtrl);
   const setShiftActive = useUIStore((s) => s.setTouchShift);
+  const customKeys = usePreferencesStore((s) => s.prefs.touchBarKeys);
+  const haptics = usePreferencesStore((s) => s.prefs.haptics);
+  const startCollapsed = usePreferencesStore((s) => s.prefs.touchBarCollapsed);
+  const [collapsed, setCollapsed] = useState<boolean>(startCollapsed);
+  // Re-seed local state if the user changes the "Start collapsed" pref so
+  // they can preview the effect live without reloading.
+  useEffect(() => {
+    setCollapsed(startCollapsed);
+  }, [startCollapsed]);
+  // When the user has defined custom keys, use them to override ROW1 (so the
+  // bottom modifier row stays predictable and the mic button keeps a stable
+  // position). Limit to 7 to match the 8-column grid. Custom keys never
+  // carry actions or modifiers — they're plain "send a string" buttons.
+  const effectiveRow1: KeyDef[] = useMemo(() => {
+    if (!customKeys || customKeys.length === 0) return ROW1;
+    return customKeys.slice(0, 7).map((k: TouchBarKey) => ({
+      label: k.label || '·',
+      data: k.send,
+      type: 'special' as const,
+    }));
+  }, [customKeys]);
   const activeSessionType = useSessionStore(
     (s) => (s.activeId ? s.sessions.get(s.activeId)?.type : undefined),
   );
@@ -343,6 +365,13 @@ export default function TouchBar() {
 
       flash(def.label);
       sendInput(data);
+      if (haptics && typeof navigator !== 'undefined' && navigator.vibrate) {
+        try {
+          navigator.vibrate(8);
+        } catch {
+          // some browsers throw on rapid calls — non-fatal
+        }
+      }
 
       // Refocus terminal after sending key. On mobile, only refocus when
       // the virtual keyboard is already open (avoids popping it up when
@@ -356,7 +385,7 @@ export default function TouchBar() {
       if (ctrlActive) setCtrlActive(false);
       if (shiftActive) setShiftActive(false);
     },
-    [resolveKeyData, flash, ctrlActive, shiftActive, handleCopy, handlePaste],
+    [resolveKeyData, flash, ctrlActive, shiftActive, handleCopy, handlePaste, haptics],
   );
 
   const handleMouseDown = useCallback(
@@ -546,9 +575,38 @@ export default function TouchBar() {
   // Hide touchbar only for copilot CHAT mode (not when showing terminal)
   if (isAgentMode && !showingAgentTerminal) return null;
 
+  if (collapsed) {
+    return (
+      <div className={`${styles.touchBar} ${styles.collapsed}`} data-collapsed="true">
+        <button
+          type="button"
+          className={`${styles.keyBtn} ${styles.special}`}
+          aria-label="Expand TouchBar"
+          aria-expanded="false"
+          onClick={() => setCollapsed(false)}
+          style={{ width: '100%', height: '100%' }}
+        >
+          ▴ Show keys
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.touchBar}>
-      <div className={styles.row}>{ROW1.map(renderKey)}</div>
+      <div className={styles.row}>
+        <button
+          type="button"
+          className={`${styles.keyBtn} ${styles.special}`}
+          aria-label="Collapse TouchBar"
+          aria-expanded="true"
+          onClick={() => setCollapsed(true)}
+          style={{ gridColumn: 'span 1' }}
+        >
+          ▾
+        </button>
+        {effectiveRow1.slice(0, 7).map(renderKey)}
+      </div>
       <div className={styles.row}>
         {ROW2.map(renderKey)}
         {micButton}
