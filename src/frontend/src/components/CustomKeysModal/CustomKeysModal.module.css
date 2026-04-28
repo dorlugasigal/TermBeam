@@ -282,11 +282,13 @@
 .previewRow {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
+  /* Force a single row — without this, CSS grid can spawn implicit rows
+   * if the auto-flow algorithm bumps a cell down (e.g. when DOM order
+   * isn't strictly left-to-right). The TS render function sorts cells by
+   * col to prevent that, but this is the belt-and-suspenders backup. */
+  grid-template-rows: 32px;
   gap: 4px;
   padding: 0 2px;
-  /* Make all rows render at consistent height even when partially empty
-   * — placeholder slots inherit the row's min-content height. */
-  grid-auto-rows: 32px;
 }
 
 /* Both rows now use repeat(8, 1fr) so keys are exactly the same width

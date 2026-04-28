@@ -929,6 +929,17 @@ function PreviewRow({
     if (!occupied[c]) cells.push({ kind: 'slot', col: c });
   }
 
+  // CRITICAL: sort cells by their starting column. CSS grid `auto-flow: row`
+  // (the default) cannot backtrack — if DOM order has a key at col 8 followed
+  // by a slot at col 6, the slot gets bumped to row 2 instead of staying in
+  // row 1. Sorting by col guarantees left-to-right DOM order so every cell
+  // lands on row 1 of the grid.
+  cells.sort((a, b) => {
+    const aCol = a.kind === 'key' ? a.spanStart : a.kind === 'mic' ? (a.k.col ?? 8) : a.col;
+    const bCol = b.kind === 'key' ? b.spanStart : b.kind === 'mic' ? (b.k.col ?? 8) : b.col;
+    return aCol - bCol;
+  });
+
   return (
     <div className={styles.previewRow}>
       {cells.map((cell) => {
