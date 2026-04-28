@@ -19,7 +19,7 @@ function loadFontSize(): number {
 }
 
 interface UIState {
-  commandPaletteOpen: boolean;
+  toolsPanelOpen: boolean;
   searchBarOpen: boolean;
   sidePanelOpen: boolean;
   newSessionModalOpen: boolean;
@@ -41,9 +41,9 @@ interface UIState {
   setShowingAgentTerminal: (v: boolean) => void;
   openResumeBrowser: () => void;
   closeResumeBrowser: () => void;
-  openCommandPalette: () => void;
-  closeCommandPalette: () => void;
-  toggleCommandPalette: () => void;
+  openToolsPanel: () => void;
+  closeToolsPanel: () => void;
+  toggleToolsPanel: () => void;
   openSearchBar: () => void;
   closeSearchBar: () => void;
   openSidePanel: () => void;
@@ -79,7 +79,7 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  commandPaletteOpen: false,
+  toolsPanelOpen: false,
   searchBarOpen: false,
   sidePanelOpen: false,
   newSessionModalOpen: false,
@@ -101,9 +101,9 @@ export const useUIStore = create<UIState>((set) => ({
   setShowingAgentTerminal: (v) => set({ showingAgentTerminal: v }),
   openResumeBrowser: () => set({ resumeBrowserOpen: true }),
   closeResumeBrowser: () => set({ resumeBrowserOpen: false }),
-  openCommandPalette: () => set({ commandPaletteOpen: true }),
-  closeCommandPalette: () => set({ commandPaletteOpen: false }),
-  toggleCommandPalette: () => set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen })),
+  openToolsPanel: () => set({ toolsPanelOpen: true }),
+  closeToolsPanel: () => set({ toolsPanelOpen: false }),
+  toggleToolsPanel: () => set((s) => ({ toolsPanelOpen: !s.toolsPanelOpen })),
   openSearchBar: () => set({ searchBarOpen: true }),
   closeSearchBar: () => set({ searchBarOpen: false }),
   openSidePanel: () => set({ sidePanelOpen: true }),

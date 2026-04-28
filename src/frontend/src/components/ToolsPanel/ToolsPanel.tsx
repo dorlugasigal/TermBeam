@@ -8,7 +8,7 @@ import { deleteSession, renameSession, fetchVersion, getShareUrl } from '@/servi
 import { playNotificationSound, setNotificationsEnabled } from '@/services/audio';
 import { isPushSubscribedSync } from '@/services/pushSubscription';
 import { AboutModal } from '@/components/Modals/AboutModal';
-import styles from './CommandPalette.module.css';
+import styles from './ToolsPanel.module.css';
 
 /* ---------- inline SVG icons (16×16, stroke-based) ---------- */
 
@@ -370,9 +370,9 @@ function fallbackCopy(text: string): void {
 
 /* ---------- component ---------- */
 
-export default function CommandPalette() {
-  const open = useUIStore((s) => s.commandPaletteOpen);
-  const close = useUIStore((s) => s.closeCommandPalette);
+export default function ToolsPanel() {
+  const open = useUIStore((s) => s.toolsPanelOpen);
+  const close = useUIStore((s) => s.closeToolsPanel);
   const [showThemes, setShowThemes] = useState(false);
   const [notificationsOn, setNotificationsOn] = useState(
     () => localStorage.getItem('termbeam-notifications') !== 'false',

@@ -10,7 +10,7 @@ import { CopilotPane } from '@/components/CopilotPane/CopilotPane';
 import { TabBar } from '@/components/TabBar/TabBar';
 import TouchBar from '@/components/TouchBar/TouchBar';
 import SearchBar from '@/components/SearchBar/SearchBar';
-import CommandPalette from '@/components/CommandPalette/CommandPalette';
+import ToolsPanel from '@/components/ToolsPanel/ToolsPanel';
 import { SidePanel } from '@/components/SidePanel/SidePanel';
 import { FileBrowser } from '@/components/FileBrowser/FileBrowser';
 import { MarkdownBrowser } from '@/components/MarkdownBrowser/MarkdownBrowser';
@@ -39,8 +39,8 @@ export function TerminalApp() {
   const setActiveId = useSessionStore((s) => s.setActiveId);
 
   const openSearchBar = useUIStore((s) => s.openSearchBar);
-  const toggleCommandPalette = useUIStore((s) => s.toggleCommandPalette);
-  const closeCommandPalette = useUIStore((s) => s.closeCommandPalette);
+  const toggleToolsPanel = useUIStore((s) => s.toggleToolsPanel);
+  const closeToolsPanel = useUIStore((s) => s.closeToolsPanel);
   const closeSearchBar = useUIStore((s) => s.closeSearchBar);
   const openSidePanel = useUIStore((s) => s.openSidePanel);
   const openNewSessionModal = useUIStore((s) => s.openNewSessionModal);
@@ -357,7 +357,7 @@ export function TerminalApp() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
-        toggleCommandPalette();
+        toggleToolsPanel();
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault();
@@ -380,9 +380,9 @@ export function TerminalApp() {
           return;
         }
         const state = useUIStore.getState();
-        if (state.commandPaletteOpen) {
+        if (state.toolsPanelOpen) {
           e.preventDefault();
-          closeCommandPalette();
+          closeToolsPanel();
         } else if (state.searchBarOpen) {
           e.preventDefault();
           closeSearchBar();
@@ -392,9 +392,9 @@ export function TerminalApp() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [
-    toggleCommandPalette,
+    toggleToolsPanel,
     openSearchBar,
-    closeCommandPalette,
+    closeToolsPanel,
     closeSearchBar,
     showDownload,
     showMarkdown,
@@ -533,7 +533,7 @@ export function TerminalApp() {
           </button>
           <button
             className={styles.barBtn}
-            onClick={toggleCommandPalette}
+            onClick={toggleToolsPanel}
             onTouchStart={(e) => e.stopPropagation()}
             aria-label="Tools"
             title="Tools (Ctrl+K)"
@@ -607,7 +607,7 @@ export function TerminalApp() {
       <TouchBar />
 
       {/* ── Overlays ── */}
-      <CommandPalette />
+      <ToolsPanel />
       <SidePanel />
       <NewSessionModal onCreated={handleNewSessionCreated} />
       <UploadModal />
