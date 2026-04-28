@@ -172,21 +172,27 @@ export default function SettingsPanel() {
   const currentTheme = THEMES.find((t) => t.id === prefs.themeId) ?? THEMES[0]!;
 
   // Snapshot the current live sessions into a `StartupSession[]` for saving.
+  // For `shell`, only persist absolute paths (e.g. `/bin/zsh`) — the server's
+  // shell allowlist matches by full path, not by basename, so storing just
+  // `zsh` would cause the autostart to fail with "invalid shell".
   const snapshotCurrentSessions = useCallback((): StartupSession[] => {
     return Array.from(sessions.values())
       .filter((s) => !s.hidden)
-      .map((s) => ({
-        id: s.id,
-        name: s.name,
-        kind: (s.type === 'copilot' || s.type === 'agent' ? 'agent' : 'shell') as
-          | 'shell'
-          | 'agent',
-        cwd: s.cwd || '',
-        initialCommand: s.initialCommand || '',
-        agentId: s.type === 'copilot' || s.type === 'agent' ? s.model : undefined,
-        shell: s.shell || undefined,
-        color: s.color || undefined,
-      }));
+      .map((s) => {
+        const shell = s.shell && s.shell.startsWith('/') ? s.shell : undefined;
+        return {
+          id: s.id,
+          name: s.name,
+          kind: (s.type === 'copilot' || s.type === 'agent' ? 'agent' : 'shell') as
+            | 'shell'
+            | 'agent',
+          cwd: s.cwd || '',
+          initialCommand: s.initialCommand || '',
+          agentId: s.type === 'copilot' || s.type === 'agent' ? s.model : undefined,
+          shell,
+          color: s.color || undefined,
+        };
+      });
   }, [sessions]);
 
   // FIX #4: save current as a NEW named workspace (multi-workspace support).

@@ -77,26 +77,40 @@ export default function WorkspaceLauncher({ open, onClose, onLaunched }: Props) 
     let cmdCount = 0;
     try {
       for (const s of ws.sessions) {
+        const cmd = (s.initialCommand ?? '').trim();
+        const baseReq = {
+          name: s.name,
+          cwd: s.cwd || undefined,
+          color: s.color || undefined,
+          initialCommand: cmd || undefined,
+          type: (s.kind === 'agent' ? 'agent' : 'terminal') as 'agent' | 'terminal',
+        };
+        let created;
         try {
-          const cmd = (s.initialCommand ?? '').trim();
-          const created = await createSession({
-            name: s.name,
-            cwd: s.cwd || undefined,
-            color: s.color || undefined,
-            shell: s.shell || undefined,
-            initialCommand: cmd || undefined,
-            type: s.kind === 'agent' ? 'agent' : 'terminal',
-          });
-          if (!firstId) firstId = created.id;
-          if (cmd) {
-            useSessionStore.getState().setPendingInitialCommand(created.id, cmd);
-            if (!firstWithCommand) firstWithCommand = created.id;
-            cmdCount += 1;
-          }
+          created = await createSession({ ...baseReq, shell: s.shell || undefined });
         } catch (err) {
-          toast.error(
-            `Failed to launch "${s.name}": ${err instanceof Error ? err.message : 'unknown error'}`,
-          );
+          // Fall back without shell if the saved value isn't recognized
+          // on this host (basename vs full path, missing on this machine).
+          const msg = err instanceof Error ? err.message : '';
+          if (msg.toLowerCase().includes('shell')) {
+            try {
+              created = await createSession(baseReq);
+            } catch (err2) {
+              toast.error(
+                `Failed to launch "${s.name}": ${err2 instanceof Error ? err2.message : 'unknown error'}`,
+              );
+              continue;
+            }
+          } else {
+            toast.error(`Failed to launch "${s.name}": ${msg || 'unknown error'}`);
+            continue;
+          }
+        }
+        if (!firstId) firstId = created.id;
+        if (cmd) {
+          useSessionStore.getState().setPendingInitialCommand(created.id, cmd);
+          if (!firstWithCommand) firstWithCommand = created.id;
+          cmdCount += 1;
         }
       }
       const cmdSummary =

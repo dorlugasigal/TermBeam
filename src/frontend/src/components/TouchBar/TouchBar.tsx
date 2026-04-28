@@ -176,6 +176,18 @@ export default function TouchBar() {
   useEffect(() => {
     setTouchBarCollapsedLive(collapsed);
   }, [collapsed, setTouchBarCollapsedLive]);
+
+  // Also publish the bar's actual height as a CSS variable on :root so
+  // .terminalArea (in TerminalApp.module.css) can size itself dynamically
+  // — the terminal needs to grow when the bar collapses.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    root.style.setProperty('--touchbar-height', collapsed ? '26px' : '108px');
+    return () => {
+      root.style.removeProperty('--touchbar-height');
+    };
+  }, [collapsed]);
   // When the user has defined custom keys, that array becomes the SINGLE
   // source for the entire touch bar (both rows + mic). Default behavior
   // (customKeys === null) is identical to using DEFAULT_TOUCHBAR_KEYS.

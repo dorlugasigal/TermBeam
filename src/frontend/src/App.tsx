@@ -108,22 +108,39 @@ export default function App() {
           return;
         }
         for (const s of sessionsToBoot) {
+          const cmd = (s.initialCommand ?? '').trim();
+          const baseReq = {
+            name: s.name,
+            cwd: s.cwd || undefined,
+            color: s.color || undefined,
+            initialCommand: cmd || undefined,
+            type: (s.kind === 'agent' ? 'agent' : 'terminal') as 'agent' | 'terminal',
+          };
+          let created;
           try {
-            const cmd = (s.initialCommand ?? '').trim();
-            const created = await createSession({
-              name: s.name,
-              cwd: s.cwd || undefined,
-              color: s.color || undefined,
+            // First attempt: include the saved shell if any.
+            created = await createSession({
+              ...baseReq,
               shell: s.shell || undefined,
-              initialCommand: cmd || undefined,
-              type: s.kind === 'agent' ? 'agent' : 'terminal',
             });
-            if (cmd) {
-              useSessionStore.getState().setPendingInitialCommand(created.id, cmd);
+          } catch (err) {
+            // If the saved shell isn't a recognized path on this host
+            // (common when prefs were saved with just the basename, or
+            // when moving between machines), retry without a shell so
+            // the server uses its default.
+            const msg = err instanceof Error ? err.message : '';
+            if (msg.toLowerCase().includes('shell')) {
+              try {
+                created = await createSession(baseReq);
+              } catch {
+                continue;
+              }
+            } else {
+              continue;
             }
-          } catch {
-            // Best-effort: a missing cwd or transient server error on one
-            // entry shouldn't block the remaining entries.
+          }
+          if (cmd && created) {
+            useSessionStore.getState().setPendingInitialCommand(created.id, cmd);
           }
         }
       })();
