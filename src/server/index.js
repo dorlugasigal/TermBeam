@@ -115,7 +115,7 @@ function createTermBeamServer(overrides = {}) {
 
   const state = { shareBaseUrl: null, updateInfo: null, wss, tunnelStatus: null, getLoginInfo };
   app.use('/preview', auth.middleware, createPreviewProxy());
-  setupRoutes(app, { auth, sessions, config, state, pushManager, copilotService });
+  setupRoutes(app, { auth, sessions, config, state, pushManager, copilotService, configDir });
   setupWebSocket(wss, { auth, sessions, copilotService });
 
   // --- Lifecycle ---
