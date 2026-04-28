@@ -20,6 +20,10 @@ interface UIState {
   fontSize: number;
   touchCtrlActive: boolean;
   touchShiftActive: boolean;
+  /** Mirrors the live TouchBar collapsed state so other components
+   *  (e.g. TerminalPane) can react with a fit() when the bar height
+   *  changes. Set by TouchBar.tsx whenever the user toggles. */
+  touchBarCollapsedLive: boolean;
   resumeBrowserOpen: boolean;
   codeViewerOpen: boolean;
   codeViewerSessionId: string | null;
@@ -57,6 +61,7 @@ interface UIState {
   setFontSize: (size: number) => void;
   setTouchCtrl: (active: boolean) => void;
   setTouchShift: (active: boolean) => void;
+  setTouchBarCollapsedLive: (collapsed: boolean) => void;
   openCodeViewer: (sessionId: string, initialView?: 'files' | 'changes') => void;
   closeCodeViewer: () => void;
   openThemePicker: () => void;
@@ -92,6 +97,7 @@ export const useUIStore = create<UIState>((set) => ({
   fontSize: usePreferencesStore.getState().prefs.fontSize,
   touchCtrlActive: false,
   touchShiftActive: false,
+  touchBarCollapsedLive: false,
   resumeBrowserOpen: false,
   codeViewerOpen: false,
   codeViewerSessionId: null,
@@ -135,6 +141,7 @@ export const useUIStore = create<UIState>((set) => ({
   },
   setTouchCtrl: (active) => set({ touchCtrlActive: active }),
   setTouchShift: (active) => set({ touchShiftActive: active }),
+  setTouchBarCollapsedLive: (collapsed) => set({ touchBarCollapsedLive: collapsed }),
   openCodeViewer: (sessionId, initialView = 'files') =>
     set({
       codeViewerOpen: true,

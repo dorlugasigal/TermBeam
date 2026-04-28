@@ -165,11 +165,17 @@ export default function TouchBar() {
   const haptics = usePreferencesStore((s) => s.prefs.haptics);
   const startCollapsed = usePreferencesStore((s) => s.prefs.touchBarCollapsed);
   const [collapsed, setCollapsed] = useState<boolean>(startCollapsed);
+  const setTouchBarCollapsedLive = useUIStore((s) => s.setTouchBarCollapsedLive);
   // Re-seed local state if the user changes the "Start collapsed" pref so
   // they can preview the effect live without reloading.
   useEffect(() => {
     setCollapsed(startCollapsed);
   }, [startCollapsed]);
+  // Mirror the live collapsed state to the UI store so TerminalPane can
+  // re-fit when the bar height changes.
+  useEffect(() => {
+    setTouchBarCollapsedLive(collapsed);
+  }, [collapsed, setTouchBarCollapsedLive]);
   // When the user has defined custom keys, that array becomes the SINGLE
   // source for the entire touch bar (both rows + mic). Default behavior
   // (customKeys === null) is identical to using DEFAULT_TOUCHBAR_KEYS.

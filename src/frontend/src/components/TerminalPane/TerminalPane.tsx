@@ -291,6 +291,31 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     }
   }, [active, terminal, fit, inTouchFocusWindow]);
 
+  // Re-fit the terminal when the touchbar collapses/expands (its height
+  // changes via a ~320ms cubic-bezier transition with rows fading too).
+  // Schedule fits during the animation so the terminal keeps tracking
+  // the available viewport in real time.
+  const touchBarCollapsedLive = useUIStore((s) => s.touchBarCollapsedLive);
+  useEffect(() => {
+    if (!active || !terminal) return;
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    // Fire fit() repeatedly during the bar's height transition (the bar
+    // takes ~320ms + 150ms delay to fully resolve in either direction).
+    [0, 80, 180, 320, 500].forEach((ms) => {
+      timers.push(
+        setTimeout(() => {
+          if (cancelled) return;
+          fit();
+        }, ms),
+      );
+    });
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
+  }, [touchBarCollapsedLive, active, terminal, fit]);
+
   // Refocus terminal when overlays close (tools panel, search bar, etc.)
   const toolsPanelOpen = useUIStore((s) => s.toolsPanelOpen);
   const searchBarOpen = useUIStore((s) => s.searchBarOpen);

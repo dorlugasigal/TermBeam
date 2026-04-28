@@ -78,14 +78,20 @@ export default function App() {
 
       // Pick which session list to boot from. Preference order:
       //   1. A named workspace flagged `default: true`
-      //   2. Legacy single startupWorkspace (when enabled)
-      const defaultWs = (state.prefs.workspaces ?? []).find((w) => w.default);
+      //   2. If there's exactly ONE named workspace, treat it as default
+      //      (matches the user's intent — they only have one to choose)
+      //   3. Legacy single startupWorkspace (when enabled)
+      const namedWorkspaces = state.prefs.workspaces ?? [];
+      const explicitDefault = namedWorkspaces.find((w) => w.default);
+      const onlyWorkspace = namedWorkspaces.length === 1 ? namedWorkspaces[0] : null;
       const legacy = state.prefs.startupWorkspace;
-      const sessionsToBoot = defaultWs
-        ? defaultWs.sessions
-        : legacy && legacy.enabled && legacy.sessions
-          ? legacy.sessions
-          : [];
+      const sessionsToBoot = explicitDefault
+        ? explicitDefault.sessions
+        : onlyWorkspace
+          ? onlyWorkspace.sessions
+          : legacy && legacy.enabled && legacy.sessions
+            ? legacy.sessions
+            : [];
 
       if (sessionsToBoot.length === 0) return;
 
