@@ -139,7 +139,10 @@ describe('Preferences API', () => {
     const file = path.join(tmpConfigDir, 'prefs.json');
     assert.ok(fs.existsSync(file));
     const stat = fs.statSync(file);
-    assert.strictEqual(stat.mode & 0o777, 0o600);
+    // POSIX file modes aren't meaningfully enforced on Windows.
+    if (process.platform !== 'win32') {
+      assert.strictEqual(stat.mode & 0o777, 0o600);
+    }
   });
 
   it('PUT then GET round-trips the value and increments version', async () => {

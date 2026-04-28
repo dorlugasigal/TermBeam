@@ -131,8 +131,10 @@ describe('preferences read/write', () => {
 
     const file = path.join(tmpDir, PREFS_FILENAME);
     const stat = fs.statSync(file);
-    // mode bits: rw for owner only
-    assert.strictEqual(stat.mode & 0o777, 0o600);
+    // mode bits: rw for owner only (skip on Windows — POSIX modes not enforced)
+    if (process.platform !== 'win32') {
+      assert.strictEqual(stat.mode & 0o777, 0o600);
+    }
 
     const r2 = writePreferences(tmpDir, { themeId: 'solarized' });
     assert.strictEqual(r2.version, 2);
