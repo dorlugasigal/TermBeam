@@ -36,19 +36,27 @@
   transition:
     height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
     padding-top 0.28s ease,
-    padding-bottom 0.28s ease;
+    padding-bottom 0.28s ease,
+    /* Background fades in AFTER the bar has expanded, so opening
+     * doesn't show a sudden gradient snap. */
+    background 0.2s ease 0.2s;
 }
 
 .touchBarWrapper[data-collapsed='true'] .touchBar {
   height: 26px;
   padding: 0 4px 4px;
-  background: var(--surface);
+  /* Transparent when collapsed — only the chevron pill shows. The
+   * background fades out IMMEDIATELY on close (0s delay) so the user
+   * doesn't see a gradient block sliding down with the bar. On open
+   * the bar bg fades back in after the height has expanded. */
+  background: transparent;
   border: none;
   box-shadow: none;
   transition:
     height 0.32s cubic-bezier(0.4, 0, 0.2, 1) 0.15s,
     padding-top 0.28s ease 0.15s,
-    padding-bottom 0.28s ease 0.15s;
+    padding-bottom 0.28s ease 0.15s,
+    background 0.18s ease 0s;
 }
 
 /* Toggle button — pill with a CSS-drawn chevron. No horizontal-line

@@ -194,17 +194,62 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
 
   const addKey = useCallback(() => {
     const list = prefs.touchBarKeys ?? DEFAULT_TOUCHBAR_KEYS.map((k) => ({ ...k }));
-    // Insert before the mic key if it exists (so mic stays at the end).
-    // New keys default to row 1; user can drag them to other rows later.
-    const micIdx = list.findIndex((k) => k.action === 'mic');
+    const COLS = 8;
+    const MAX_ROWS = 3;
+
+    // Find the first (row, col) slot that's not currently occupied by any
+    // existing key (mic counted as occupying its declared col). Prefer
+    // slot in an existing row before creating a new one. If all rows are
+    // full and we're below MAX_ROWS, create a new row.
+    const occupied: Record<number, Set<number>> = {};
+    for (const k of list) {
+      const r = Math.max(1, Math.min(MAX_ROWS, k.row ?? 1));
+      const c = Math.max(1, Math.min(COLS, k.col ?? 1));
+      const span = Math.max(1, Math.min(COLS, k.size ?? 1));
+      if (!occupied[r]) occupied[r] = new Set();
+      for (let cc = c; cc < c + span && cc <= COLS; cc += 1) {
+        occupied[r].add(cc);
+      }
+    }
+
+    let chosenRow: number | null = null;
+    let chosenCol: number | null = null;
+    for (let r = 1; r <= MAX_ROWS; r += 1) {
+      const usedCols = occupied[r] ?? new Set<number>();
+      if (usedCols.size === 0 && r > 1) {
+        // empty row that doesn't exist yet — create here
+        chosenRow = r;
+        chosenCol = 1;
+        break;
+      }
+      for (let c = 1; c <= COLS; c += 1) {
+        if (!usedCols.has(c)) {
+          chosenRow = r;
+          chosenCol = c;
+          break;
+        }
+      }
+      if (chosenRow !== null) break;
+    }
+
+    if (chosenRow === null) {
+      // All 3 rows × 8 cols are full — silently no-op (or could toast).
+      return;
+    }
+
     const newKey: TouchBarKey = {
       id: genKeyId(),
       label: 'Key',
       send: '',
       size: 1,
       style: 'plain',
-      row: 1,
+      row: chosenRow,
+      col: chosenCol ?? 1,
     };
+
+    // Insert in array right before mic (if any) so mic stays last in the
+    // serialized order; visual position is driven by row/col.
+    const micIdx = list.findIndex((k) => k.action === 'mic');
     const next = [...list];
     if (micIdx >= 0) {
       next.splice(micIdx, 0, newKey);
