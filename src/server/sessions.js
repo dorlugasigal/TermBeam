@@ -170,6 +170,18 @@ class SessionManager {
       log.warn(`Invalid initialCommand rejected: ${typeof initialCommand}`);
       throw new Error('initialCommand must be a string');
     }
+    // Defense-in-depth length cap on initialCommand. The command is written
+    // verbatim to the user's own PTY's stdin (which the shell then
+    // interprets) — this is BY DESIGN, since `initialCommand` is the
+    // documented way for an authenticated session owner to script their own
+    // shell on launch (see /api/sessions and Workspaces in
+    // packages/site/.../configuration.md). The cap mitigates pathological
+    // inputs (megabyte-scale strings, infinite-loop chunks). 8 KiB easily
+    // covers legitimate scripts (longest typical: a multi-step setup line).
+    if (initialCommand !== null && initialCommand.length > 8192) {
+      log.warn(`Oversized initialCommand rejected: ${initialCommand.length} chars`);
+      throw new Error('initialCommand too long (max 8192 chars)');
+    }
 
     const id = crypto.randomBytes(16).toString('hex');
     if (!color) {

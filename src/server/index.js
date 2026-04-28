@@ -276,7 +276,24 @@ function createTermBeamServer(overrides = {}) {
           if (detectedShells.some((s) => s.path === shell || s.cmd === shell)) return shell;
           return undefined;
         };
+        const spawnDefault = () => {
+          // Wrapped in try/catch so a bad shell/cwd doesn't crash the whole
+          // server start — it'll come up with no sessions and the user can
+          // create one themselves once they connect.
+          try {
+            return sessions.create({
+              name: path.basename(config.cwd),
+              shell: config.shell,
+              args: config.shellArgs,
+              cwd: config.cwd,
+            });
+          } catch (err) {
+            log.warn(`Default session failed to spawn: ${err.message}`);
+            return undefined;
+          }
+        };
         if (workspaceSessions) {
+          let spawned = 0;
           for (const s of workspaceSessions) {
             try {
               const cwd = s.cwd && path.isAbsolute(s.cwd) ? s.cwd : config.cwd;
@@ -289,18 +306,23 @@ function createTermBeamServer(overrides = {}) {
                 color: s.color || null,
               });
               if (!defaultId) defaultId = id;
+              spawned += 1;
             } catch (err) {
               log.warn(`Workspace session "${s.name}" failed to spawn: ${err.message}`);
             }
           }
-          log.info(`Spawned ${workspaceSessions.length} workspace session(s) at startup`);
+          log.info(
+            `Spawned ${spawned}/${workspaceSessions.length} workspace session(s) at startup`,
+          );
+          // If every workspace session failed (e.g. all configured shells
+          // are gone after a host migration), fall back to the safe default
+          // so the user lands on something rather than an empty hub.
+          if (spawned === 0) {
+            log.warn('All workspace sessions failed; falling back to default session');
+            defaultId = spawnDefault();
+          }
         } else {
-          defaultId = sessions.create({
-            name: path.basename(config.cwd),
-            shell: config.shell,
-            args: config.shellArgs,
-            cwd: config.cwd,
-          });
+          defaultId = spawnDefault();
         }
 
         const lp = '\x1b[38;5;141m'; // light purple
