@@ -73,6 +73,7 @@ export default defineConfig({
           label: 'Guides',
           items: [
             { label: 'Usage Guide', slug: 'usage-guide' },
+            { label: 'Customization', slug: 'customization' },
             { label: 'AI Agents', slug: 'ai-agents' },
             { label: 'Configuration', slug: 'configuration' },
             { label: 'Resume & List', slug: 'resume' },

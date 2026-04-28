@@ -54,13 +54,7 @@ The environment variables `PTY_PASSWORD` and `PTY_CWD` are also supported as fal
 
 TermBeam exposes settings through the **Tools panel**, opened from the floating ▦ button or `Ctrl/Cmd+K`. From there pick **Settings…** (or use the `Cmd/Ctrl+,` shortcut). On mobile the panel slides up from the bottom; on desktop it docks to the right (~420 px wide). It is non-blocking so theme, font size, collapsed-touchbar and haptics changes can be observed live against the terminal underneath.
 
-Sections:
-
-- **Appearance** — theme picker (live preview cards) and font-size slider.
-- **Notifications & Feedback** — command-completion notifications, haptic feedback on TouchBar key presses.
-- **Touch Bar** — start collapsed by default; customize the keys via a dedicated editor that supports an 8-column grid up to 3 rows. Each key has a label, a literal `send` payload (or a built-in `action` like Copy/Paste, or a `modifier` like Ctrl/Shift) and an optional `size` (1–2 columns wide). Drag to reorder; reset to defaults at any time.
-- **New Session Defaults** — default folder and default initial command pre-fills used by new sessions and by workspace sessions when they don't override.
-- **Workspaces** — save named bundles of sessions (each with its own name, cwd, shell, color and initial command). Mark one with `default: true` and the **server** auto-spawns its sessions on startup — deletes from the UI are sticky until the next service restart. The legacy single `startupWorkspace` is still honored when no named workspace is configured.
+For the full UI walkthrough — Tools panel sections, Settings panels, Touch Bar key editor, Workspaces — see **[Customization](../customization/)**.
 
 ### Where preferences are stored
 
@@ -72,7 +66,7 @@ The schema is roughly:
 {
   "themeId": "one-dark",
   "fontSize": 13,
-  "notifications": true,
+  "notifications": false,
   "haptics": true,
   "defaultFolder": "",
   "defaultInitialCommand": "",
