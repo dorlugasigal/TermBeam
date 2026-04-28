@@ -9,17 +9,16 @@
   -webkit-user-select: none;
   touch-action: none;
   overscroll-behavior: none;
-  /* Safe area for bottom (iPhone home indicator). When collapsed we still
-   * want to honor it; when expanded it's already padded by the bar itself. */
-  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* The bar always renders — `data-collapsed` controls the height + key
- * animations so we get smooth open/close transitions instead of an
- * unmount-on-toggle pop. */
+/* Bar always renders. The background extends flush to the screen bottom
+ * (over the iPhone home-indicator zone for a tighter look) but the
+ * interactive keys stay inset above the safe area. */
 .touchBar {
-  height: 84px;
-  padding: 14px 4px 4px;
+  /* Total visible height: 26px (handle) + 32px row + 4px gap + 32px row + 4px = 98px
+   * + safe-area inside padding so the bg fills to the screen bottom. */
+  height: calc(98px + env(safe-area-inset-bottom, 0px));
+  padding: 26px 4px calc(4px + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(to bottom, var(--bg) 0%, var(--surface) 100%);
   display: flex;
   flex-direction: column;
@@ -27,70 +26,92 @@
   justify-content: center;
   overflow: hidden;
   position: relative;
+  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
   transition:
     height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
     padding-top 0.28s ease,
     padding-bottom 0.28s ease,
     background 0.25s ease;
-  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
 }
 
-/* Collapsed: collapse to just enough room for the grab handle. */
+/* Collapsed: shrink to just enough room for the toggle handle. The
+ * height/padding transition is delayed so the rows can fade out FIRST. */
 .touchBarWrapper[data-collapsed='true'] .touchBar {
-  height: 22px;
-  padding: 6px 4px 4px;
+  height: calc(28px + env(safe-area-inset-bottom, 0px));
+  padding: 0 4px env(safe-area-inset-bottom, 0px);
   background: var(--surface);
+  transition:
+    height 0.32s cubic-bezier(0.4, 0, 0.2, 1) 0.15s,
+    padding-top 0.28s ease 0.15s,
+    padding-bottom 0.28s ease 0.15s,
+    background 0.25s ease 0.15s;
 }
 
-/* iOS-style grab handle integrated INSIDE the touch bar at the top
- * center — tap-target is the full top strip, but only the pill is
- * visible. No more notched tab poking above the bar. */
+/* Toggle button — pill with a CSS-drawn chevron. No horizontal-line
+ * "grab" affordance; the rotating chevron is the indicator. */
 .collapseHandle {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 18px;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 64px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  border: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   padding: 0;
   z-index: 2;
-  transition: background 0.15s ease;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.collapseHandle:hover,
+.collapseHandle:active {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: var(--bg);
+  transform: translateX(-50%) scale(1.06);
 }
 
 .collapseHandle::before {
   content: '';
-  width: 36px;
-  height: 4px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text) 28%, transparent);
+  width: 9px;
+  height: 9px;
+  border-style: solid;
+  border-width: 0 1.8px 1.8px 0;
+  border-color: var(--text-secondary);
+  transform: rotate(45deg) translate(-1.5px, -1.5px);
   transition:
-    background 0.18s ease,
-    width 0.18s ease,
-    height 0.18s ease;
+    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.15s ease;
 }
 
-.collapseHandle:hover::before,
-.collapseHandle:active::before {
-  background: color-mix(in srgb, var(--accent) 80%, transparent);
-  width: 44px;
+.collapseHandle:hover::before {
+  border-color: var(--text);
+}
+
+.touchBarWrapper[data-collapsed='true'] .collapseHandle {
+  top: 3px;
 }
 
 .touchBarWrapper[data-collapsed='true'] .collapseHandle::before {
-  background: color-mix(in srgb, var(--text) 38%, transparent);
+  /* Up chevron when collapsed (tap to expand). */
+  transform: rotate(-135deg) translate(-1.5px, -1.5px);
 }
 
 .collapseHandle > span {
-  display: none; /* legacy text caret no longer needed */
+  display: none;
 }
 
-/* The wrapper holds the rows so we can fade them out while the bar
- * collapses. */
+/* Rows fade-out fires immediately on close; on open they fade in after
+ * a brief delay so the bar has room to expand first. */
 .rows {
   display: flex;
   flex-direction: column;
@@ -100,14 +121,17 @@
   opacity: 1;
   transform: translateY(0);
   transition:
-    opacity 0.22s ease,
-    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity 0.22s ease 0.15s,
+    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1) 0.15s;
 }
 
 .touchBarWrapper[data-collapsed='true'] .rows {
   opacity: 0;
   transform: translateY(8px);
   pointer-events: none;
+  transition:
+    opacity 0.18s ease 0s,
+    transform 0.22s cubic-bezier(0.4, 0, 0.2, 1) 0s;
 }
 
 @keyframes touchBarSlideIn {
@@ -119,9 +143,6 @@
   }
 }
 
-/* Cool entrance animation: keys flip in from below with a subtle
- * 3D rotation, staggered by --key-i. Uses cubic-bezier for an iOS-y
- * springy feel. */
 @keyframes keyFlipIn {
   0% {
     opacity: 0;
@@ -140,24 +161,46 @@
   }
 }
 
+/* Per-key exit animation when the bar is collapsing. Keys shrink and fade
+ * with a stagger from the right (last key goes first). The reverse stagger
+ * pairs nicely with the entrance (which goes left-to-right). */
+@keyframes keyFlipOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateX(0);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.7) rotateX(20deg);
+    filter: blur(1.5px);
+  }
+}
+
+.touchBarWrapper[data-collapsed='true'] .keyAnimIn {
+  animation: keyFlipOut 0.26s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+  /* Reverse stagger: rightmost keys exit first */
+  animation-delay: calc(max(0, 13 - var(--key-i, 0)) * 14ms);
+}
+
 .keyAnimIn {
   animation: keyFlipIn 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
   animation-delay: calc(var(--key-i, 0) * 22ms);
   transform-origin: 50% 100%;
-  /* Prevent flicker during 3D transform */
   backface-visibility: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .touchBar,
   .rows,
+  .collapseHandle,
+  .collapseHandle::before,
   .keyAnimIn {
     animation: none !important;
     transition: none !important;
   }
 }
 
-/* Keyboard open: bar stays put, no special handling needed. */
 :global([data-keyboard-open]) .touchBar {
   background: transparent;
 }

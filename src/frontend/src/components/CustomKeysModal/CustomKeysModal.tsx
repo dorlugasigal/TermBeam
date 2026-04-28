@@ -316,14 +316,31 @@ export default function CustomKeysModal({ open, onClose }: CustomKeysModalProps)
 
   const draggedKey = draggedKeyIndex !== null ? customKeys[draggedKeyIndex] : null;
 
-  // Split for preview — same logic the live TouchBar uses
+  // Split for preview — pack keys into 8-column rows respecting size spans,
+  // matching the live TouchBar layout. Mic action goes into row 2's auto slot.
+  const COLS = 8;
+  const MAX_GRID_KEYS = 14;
   const micPreviewIndex = customKeys.findIndex((k) => k.action === 'mic');
   const gridPreviewKeys = customKeys
     .map((k, i) => ({ k, i }))
     .filter(({ k }) => k.action !== 'mic')
-    .slice(0, 14);
-  const row1 = gridPreviewKeys.slice(0, 7);
-  const row2 = gridPreviewKeys.slice(7, 14);
+    .slice(0, MAX_GRID_KEYS);
+
+  // Pack into row1: take keys until adding the next would overflow 8 cols.
+  const row1: typeof gridPreviewKeys = [];
+  let row1Span = 0;
+  let cursor = 0;
+  while (cursor < gridPreviewKeys.length) {
+    const entry = gridPreviewKeys[cursor];
+    if (!entry) break;
+    const span = entry.k.size ?? 1;
+    if (row1Span + span > COLS) break;
+    row1.push(entry);
+    row1Span += span;
+    cursor += 1;
+  }
+  // Row2 gets the remainder.
+  const row2 = gridPreviewKeys.slice(cursor);
 
   return (
     <>

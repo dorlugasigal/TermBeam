@@ -925,7 +925,7 @@
 }
 
 .touchBarLivePreviewRowMic {
-  grid-template-columns: repeat(7, 1fr) auto;
+  grid-template-columns: repeat(8, 1fr) auto;
 }
 
 .keyEditorPanel {

@@ -505,8 +505,22 @@ export default function SettingsPanel() {
               const livePreviewKeys = prefs.touchBarKeys ?? DEFAULT_TOUCHBAR_KEYS;
               const nonMicKeys = livePreviewKeys.filter((k) => k.action !== 'mic').slice(0, 14);
               const micKey = livePreviewKeys.find((k) => k.action === 'mic');
-              const row1 = nonMicKeys.slice(0, 7);
-              const row2 = nonMicKeys.slice(7, 14);
+              // Pack into row1 by total span (8 cols max) so a size:2 Enter
+              // fits as the 7th key in row1 instead of wrapping to row2.
+              const COLS = 8;
+              const row1: typeof nonMicKeys = [];
+              let row1Span = 0;
+              let cursor = 0;
+              while (cursor < nonMicKeys.length) {
+                const k = nonMicKeys[cursor];
+                if (!k) break;
+                const span = k.size ?? 1;
+                if (row1Span + span > COLS) break;
+                row1.push(k);
+                row1Span += span;
+                cursor += 1;
+              }
+              const row2 = nonMicKeys.slice(cursor);
               return (
                 <button
                   type="button"

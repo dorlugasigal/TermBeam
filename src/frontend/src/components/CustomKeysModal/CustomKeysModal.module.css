@@ -281,13 +281,13 @@
 
 .previewRow {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 4px;
   padding: 0 2px;
 }
 
 .previewRowWithMic {
-  grid-template-columns: repeat(7, 1fr) auto;
+  grid-template-columns: repeat(8, 1fr) auto;
 }
 
 .previewMic {
