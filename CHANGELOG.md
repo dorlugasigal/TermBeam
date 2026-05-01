@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.23.2] - 2026-05-01
+
+- fix(tunnel): auto-strip macOS quarantine xattr to prevent Gatekeeper stalls (@dorlugasigal)
+- fix(tunnel): handle Windows PATHEXT lookup when binary name already has .exe (@dorlugasigal)
+
 ## [1.23.1] - 2026-05-01
 
 - fix(touchbar): sort keys by col so reordered layouts render all keys (@dorlugasigal)
