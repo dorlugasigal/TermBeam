@@ -44,6 +44,7 @@ describe('Version', () => {
     const origExecSync = child_process.execSync;
     child_process.execSync = (cmd, opts) => {
       if (cmd.includes('git describe')) return 'v2.5.0\n';
+      if (cmd.includes('git status --porcelain')) return '';
       return origExecSync(cmd, opts);
     };
     try {
@@ -62,6 +63,7 @@ describe('Version', () => {
     const origExecSync = child_process.execSync;
     child_process.execSync = (cmd, opts) => {
       if (cmd.includes('git describe')) return 'v2.5.0-3-gabcdef1\n';
+      if (cmd.includes('git status --porcelain')) return '';
       return origExecSync(cmd, opts);
     };
     try {
@@ -86,6 +88,44 @@ describe('Version', () => {
       delete require.cache[require.resolve('../../src/utils/version')];
       const { getVersion } = require('../../src/utils/version');
       assert.equal(getVersion(), '2.5.0-dev+dirty');
+    } finally {
+      child_process.execSync = origExecSync;
+      delete require.cache[require.resolve('../../src/utils/version')];
+    }
+  });
+
+  it('should mark version dirty when only untracked files are present', () => {
+    delete process.env.npm_package_version;
+    const child_process = require('child_process');
+    const origExecSync = child_process.execSync;
+    child_process.execSync = (cmd, opts) => {
+      if (cmd.includes('git describe')) return 'v2.5.0\n';
+      if (cmd.includes('git status --porcelain')) return '?? hi.txt\n';
+      return origExecSync(cmd, opts);
+    };
+    try {
+      delete require.cache[require.resolve('../../src/utils/version')];
+      const { getVersion } = require('../../src/utils/version');
+      assert.equal(getVersion(), '2.5.0-dev+dirty');
+    } finally {
+      child_process.execSync = origExecSync;
+      delete require.cache[require.resolve('../../src/utils/version')];
+    }
+  });
+
+  it('should stay clean when no untracked or modified files are present', () => {
+    delete process.env.npm_package_version;
+    const child_process = require('child_process');
+    const origExecSync = child_process.execSync;
+    child_process.execSync = (cmd, opts) => {
+      if (cmd.includes('git describe')) return 'v2.5.0\n';
+      if (cmd.includes('git status --porcelain')) return '';
+      return origExecSync(cmd, opts);
+    };
+    try {
+      delete require.cache[require.resolve('../../src/utils/version')];
+      const { getVersion } = require('../../src/utils/version');
+      assert.equal(getVersion(), '2.5.0');
     } finally {
       child_process.execSync = origExecSync;
       delete require.cache[require.resolve('../../src/utils/version')];

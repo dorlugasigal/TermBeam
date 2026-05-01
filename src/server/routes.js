@@ -163,11 +163,12 @@ function setupRoutes(
     }
   });
 
-  // Version API
+  // Version API — uses the version captured at server startup so dev/prod
+  // builds stay stable for the lifetime of the process. Restart the service
+  // to pick up a new git tag or dirty-state change.
   app.get('/api/version', (_req, res) => {
     log.debug('Version requested');
-    const { getVersion } = require('../utils/version');
-    res.json({ version: getVersion() });
+    res.json({ version: config.version });
   });
 
   // Changelog — served from repo CHANGELOG.md (bundled with the npm package).

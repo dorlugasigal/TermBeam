@@ -18,9 +18,10 @@ function getVersion() {
 
   // Running from source — git tags are the version source of truth.
   // This avoids drift between package.json and tagged releases.
+  const repoRoot = path.join(__dirname, '..', '..');
   try {
     const gitDesc = execSync('git describe --tags --always --dirty', {
-      cwd: path.join(__dirname, '..', '..'),
+      cwd: repoRoot,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
@@ -31,7 +32,10 @@ function getVersion() {
       const gitVersion = tagMatch[1];
       const commits = tagMatch[2];
       const hash = tagMatch[3];
-      const dirty = tagMatch[4];
+      // `git describe --dirty` only flags tracked-file modifications. Treat any
+      // untracked files (e.g. a fresh `hi.txt`) as dirty too so dev builds are
+      // always visibly distinct from the tagged release.
+      const dirty = tagMatch[4] || (hasUntrackedChanges(repoRoot) ? '-dirty' : '');
 
       // Exactly on a clean tag — return the tag version
       if (!commits && !dirty) {
@@ -67,6 +71,20 @@ function getVersion() {
 function isInstalledGlobally() {
   // Check if we're running from a node_modules path (npm/npx install)
   return __dirname.includes('node_modules');
+}
+
+function hasUntrackedChanges(cwd) {
+  try {
+    const status = execSync('git status --porcelain', {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    return status.trim().length > 0;
+  } catch {
+    return false;
+  }
 }
 
 module.exports = { getVersion };

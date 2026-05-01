@@ -528,7 +528,7 @@ Returned when the server was started with `--no-password`.
 
 #### `GET /api/version`
 
-Get the server version.
+Get the server version. The value is captured once at process startup and reflects the running code (not the latest git state on disk). Restart the service to pick up a new version.
 
 **Response:**
 
