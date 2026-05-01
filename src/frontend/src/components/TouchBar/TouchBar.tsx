@@ -208,12 +208,14 @@ export default function TouchBar() {
 
   // Publish bar height as a CSS var so .terminalArea sizes itself
   // dynamically. Height = handle padding (36) + N rows of 32 + (N-1) gaps
-  // of 4 + 4 bottom padding = 36 + 32N + 4(N-1) + 4 = 36N + 36 = 36*(N+1)
-  // For N=2: 108, for N=3: 144.
+  // of 4 + 8 bottom padding = 36 + 32N + 4(N-1) + 8 = 36N + 40
+  // For N=2: 112, for N=3: 148. Bottom padding bumped to 8px so the per-key
+  // box-shadow renders inside the bar instead of getting clipped against
+  // the iOS keyboard underneath.
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const root = document.documentElement;
-    const expandedH = 36 + rowCount * 32 + (rowCount - 1) * 4 + 4;
+    const expandedH = 36 + rowCount * 32 + (rowCount - 1) * 4 + 8;
     root.style.setProperty('--touchbar-height', collapsed ? '26px' : `${expandedH}px`);
     return () => {
       root.style.removeProperty('--touchbar-height');

@@ -79,3 +79,93 @@
     transform: rotate(360deg);
   }
 }
+
+/*
+ * App-wide motion primitives.
+ *
+ * Conventions:
+ *  - Mount entrances default to `lift-in` (8px upward fade, ease-out).
+ *  - List items append a CSS custom property `--stagger-i` to delay their
+ *    own animation (see SessionCard.module.css for an example).
+ *  - One-shot "beats" (connect, share, success) use `accent-flash`; they
+ *    live on the element for ~300ms via a class-toggle.
+ *  - The Wordmark component owns the brand cascade + cursor blink in its
+ *    own stylesheet — it does not consume primitives from here.
+ *
+ * The bottom of this file zeroes out animations under
+ * `prefers-reduced-motion: reduce` so authors don't have to remember.
+ */
+
+@keyframes lift-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pop-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+/*
+ * Brief accent halo. Use on a ::before/::after that sits behind the host so
+ * the host's own background isn't disturbed.
+ */
+@keyframes accent-flash {
+  0% {
+    box-shadow:
+      0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent),
+      0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+  60% {
+    box-shadow:
+      0 0 0 8px color-mix(in srgb, var(--accent) 0%, transparent),
+      0 0 12px 4px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  100% {
+    box-shadow:
+      0 0 0 12px color-mix(in srgb, var(--accent) 0%, transparent),
+      0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+}
+
+/*
+ * Reduced-motion safety net. Anything that opted into our keyframes above (or
+ * common transition timings) collapses to a near-instant fade so the UI still
+ * respects state changes without conveying motion.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

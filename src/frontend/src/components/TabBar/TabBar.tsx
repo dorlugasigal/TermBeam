@@ -72,7 +72,7 @@ export function TabBar({ inline = false }: TabBarProps) {
         <SortableContext items={visibleTabOrder} strategy={horizontalListSortingStrategy}>
           <div className={styles.tabScroller}>
             {orderedSessions.map((session) => (
-              <div key={session.id} style={{ position: 'relative' }}>
+              <div key={session.id} className={styles.tabSlot}>
                 <SortableTab
                   session={session}
                   isActive={session.id === activeId}

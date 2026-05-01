@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Wordmark } from '@/components/common/Wordmark';
 import styles from './LoginPage.module.css';
 
 interface LoginPageProps {
@@ -32,10 +33,7 @@ export default function LoginPage({ onLogin, loading }: LoginPageProps) {
   return (
     <div className={styles.backdrop}>
       <div className={styles.card}>
-        <div className={styles.logo}>
-          <span className={styles.logoIcon}>📡</span>
-          TermBeam
-        </div>
+        <Wordmark size="md" />
 
         <form className={styles.form} onSubmit={handleSubmit}>
           <input

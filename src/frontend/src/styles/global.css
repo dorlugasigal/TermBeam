@@ -54,6 +54,31 @@ button {
   background: none;
   color: inherit;
   font-size: inherit;
+  transition: transform 0.08s ease-out;
+}
+
+/*
+ * Universal micro-press feedback. Component styles win on specificity if they
+ * define their own :active rule (e.g. LoginPage button), so this only kicks
+ * in for unstyled defaults — exactly what we want for all the small icon
+ * buttons sprinkled across panels.
+ */
+button:active {
+  transform: scale(0.97);
+}
+
+/*
+ * Default global spinner used by App.tsx loading & reconnecting screens
+ * (and a defensive fallback for any other call site). Themed via CSS vars so
+ * it picks up the active theme accent.
+ */
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--border, #444);
+  border-top-color: var(--accent, #4a9eff);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 input,

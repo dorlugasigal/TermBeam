@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { ManagedSession } from '@/stores/sessionStore';
@@ -42,6 +42,25 @@ export function SortableTab({
   });
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
+  /*
+   * Signature "connected" beat: when the session transitions from
+   * disconnected → connected we briefly add `tabFlash` so the tab pulses
+   * with an accent halo. Skipped on the very first render (initial mount
+   * already has `pop-in` from the wrapper) and on disconnect transitions.
+   */
+  const prevConnected = useRef(session.connected);
+  const [flash, setFlash] = useState(false);
+
+  useEffect(() => {
+    if (!prevConnected.current && session.connected) {
+      setFlash(true);
+      const t = window.setTimeout(() => setFlash(false), 340);
+      return () => window.clearTimeout(t);
+    }
+    prevConnected.current = session.connected;
+    return undefined;
+  }, [session.connected]);
+
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -54,7 +73,7 @@ export function SortableTab({
     <div
       ref={setNodeRef}
       style={style}
-      className={`${styles.tab} ${isActive ? styles.tabActive : ''} ${isSplit ? styles.tabSplit : ''}`}
+      className={`${styles.tab} ${isActive ? styles.tabActive : ''} ${isSplit ? styles.tabSplit : ''} ${flash ? styles.tabFlash : ''}`}
       data-testid="session-tab"
       {...(isActive ? { 'data-active': 'true' } : {})}
       {...attributes}

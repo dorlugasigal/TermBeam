@@ -2,6 +2,14 @@
   position: relative;
   overflow: hidden;
   border-radius: 12px;
+  /*
+   * Staggered mount entrance. SessionsHub passes `--stagger-i` (capped at 8)
+   * so cards cascade in over a max of ~360ms. The animation only runs once
+   * per card lifecycle — polled list updates don't re-trigger because the
+   * key (session.id) is stable.
+   */
+  animation: lift-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--stagger-i, 0) * 45ms);
 }
 
 .deleteBackground {
@@ -44,11 +52,23 @@
   user-select: none;
   cursor: pointer;
   z-index: 1;
-  transition: border-color 0.15s;
+  transition:
+    border-color 0.15s,
+    transform 0.15s ease-out,
+    box-shadow 0.15s ease-out;
 }
 
-.card:hover {
-  border-color: var(--accent);
+/*
+ * Hover lift only on devices with a real pointer. On touch devices the
+ * inline `style.transform` set by the swipe handler must own this property,
+ * and a pseudo-hover from a tap would visually fight the swipe.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  }
 }
 
 /* Top row: dot + name + PID */

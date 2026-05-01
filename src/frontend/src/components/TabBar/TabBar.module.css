@@ -10,6 +10,16 @@
   overflow: hidden;
 }
 
+/*
+ * Per-tab wrapper. Owns the mount entrance (pop-in) so the actual
+ * SortableTab is free to take its inline transform from dnd-kit during
+ * drags without colliding with our keyframe.
+ */
+.tabSlot {
+  position: relative;
+  animation: pop-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .tabBarInline {
   flex: 1;
   display: flex;
@@ -85,6 +95,15 @@
   color: var(--text);
   font-weight: 600;
   background: var(--bg);
+}
+
+/*
+ * Signature "you're connected" beat. SortableTab flips this class on for one
+ * frame after the WebSocket attaches, then removes it once the keyframe
+ * completes — a single accent halo around the tab.
+ */
+.tabFlash {
+  animation: accent-flash 0.32s cubic-bezier(0.16, 0.84, 0.44, 1) 1;
 }
 
 .tabSplit {

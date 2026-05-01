@@ -1,0 +1,127 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  /*
+   * The whole composition fades up gently after a beat so it feels like the
+   * app is "powering on" rather than snapping into place. The logo's own
+   * radar pulse continues forever after this entrance settles.
+   */
+  animation: splash-enter 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.05s;
+  /* Reserve space for the status line so the logo stays centered when the
+     status changes between two states (avoids a vertical jump). */
+  padding-bottom: 80px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+.statusBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  /* Independent fade so the status text appears after the logo has settled. */
+  animation: splash-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.45s;
+}
+
+.status {
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary, #888);
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/*
+ * Three trailing dots that breathe sequentially so the user knows the status
+ * line is "live" even when the message itself isn't changing.
+ */
+.dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: dot-blink 1.4s ease-in-out infinite;
+  opacity: 0.3;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.dot:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+.action {
+  margin-top: 4px;
+  padding: 8px 22px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  transition:
+    transform 0.1s ease-out,
+    opacity 0.15s;
+}
+
+.action:hover {
+  opacity: 0.92;
+}
+
+.action:active {
+  transform: scale(0.97);
+}
+
+@keyframes splash-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dot-blink {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root,
+  .statusBlock {
+    animation-delay: 0s;
+  }
+  .dot {
+    animation: none;
+    opacity: 0.6;
+  }
+}

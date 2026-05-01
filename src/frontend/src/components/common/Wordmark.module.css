@@ -1,0 +1,135 @@
+.root {
+  display: inline-block;
+  user-select: none;
+  color: var(--text);
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/*
+ * Each letter is its own <path> (extracted from Montserrat ExtraBold),
+ * stroked then filled. `pathLength="100"` normalises stroke-dasharray
+ * across letters of different perimeters so they all draw at the same
+ * visual rate.
+ *
+ * Per-letter animations are choreographed with non-uniform delays so the
+ * reveal reads as an organic flutter, not a left-to-right sweep. Each
+ * letter draws over 0.6s (stroke-dashoffset 100 → 0), then snaps to
+ * filled state over 0.25s.
+ */
+.animated .letter {
+  fill: transparent;
+  stroke: var(--text);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation:
+    letter-draw 0.6s cubic-bezier(0.65, 0, 0.35, 1) both,
+    letter-fill 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.animated .accent {
+  stroke: var(--accent);
+  animation:
+    letter-draw 0.6s cubic-bezier(0.65, 0, 0.35, 1) both,
+    letter-fill-accent 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/*
+ * Two-stage delays per letter: `<draw-delay>, <fill-delay>` where
+ * fill-delay = draw-delay + 0.6s (so fill kicks in right when draw ends).
+ * The pattern is intentionally non-monotonic.
+ */
+.animated .letter:nth-child(1) {
+  animation-delay: 0s, 0.6s;
+}
+.animated .letter:nth-child(2) {
+  animation-delay: 0.18s, 0.78s;
+}
+.animated .letter:nth-child(3) {
+  animation-delay: 0.06s, 0.66s;
+}
+.animated .letter:nth-child(4) {
+  animation-delay: 0.3s, 0.9s;
+}
+.animated .letter:nth-child(5) {
+  animation-delay: 0.12s, 0.72s;
+}
+.animated .letter:nth-child(6) {
+  animation-delay: 0.42s, 1.02s;
+}
+.animated .letter:nth-child(7) {
+  animation-delay: 0.22s, 0.82s;
+}
+.animated .letter:nth-child(8) {
+  animation-delay: 0.55s, 1.15s;
+}
+
+/* Static mode: render the final filled state immediately. Used in the
+   SessionsHub header where the wordmark sits as a small persistent brand
+   element — playing the entrance on every visit would get tired fast. */
+.static .letter {
+  fill: var(--text);
+  stroke: none;
+}
+
+.static .accent {
+  fill: var(--accent);
+  stroke: none;
+}
+
+@keyframes letter-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes letter-fill {
+  to {
+    fill: var(--text);
+    stroke-width: 0;
+  }
+}
+
+@keyframes letter-fill-accent {
+  to {
+    fill: var(--accent);
+    stroke-width: 0;
+  }
+}
+
+/* ── Sizes ─────────────────────────────────────────────────────────── */
+
+.sm {
+  width: 130px;
+}
+
+.md {
+  width: 240px;
+}
+
+.lg {
+  width: 380px;
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .animated .letter,
+  .animated .accent {
+    animation: none;
+    fill: var(--text);
+    stroke: none;
+    stroke-width: 0;
+  }
+  .animated .accent {
+    fill: var(--accent);
+  }
+}

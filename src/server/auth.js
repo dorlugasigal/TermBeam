@@ -172,7 +172,6 @@ const LOGIN_HTML = `<!DOCTYPE html>
       padding:32px 24px; width:320px; max-width:calc(100vw - 32px); text-align:center;
       box-shadow:0 2px 8px var(--shadow); transition:background 0.3s,border-color 0.3s,box-shadow 0.3s; }
     h1 { font-size:22px; font-weight:700; margin-bottom:4px; }
-    h1 span { color:var(--accent); }
     .subtitle { font-size:13px; color:var(--text-secondary); margin-bottom:24px; }
     input { width:100%; padding:12px; background:var(--bg); border:1px solid var(--border);
       border-radius:8px; color:var(--text); font-size:16px; outline:none;
@@ -185,6 +184,29 @@ const LOGIN_HTML = `<!DOCTYPE html>
     .btn:active { background:var(--accent-active); }
     .error { color:var(--danger); font-size:13px; margin-top:12px; display:none; transition:color 0.3s; }
     .tagline { margin-top:24px; font-size:12px; color:var(--text-dim); transition:color 0.3s; }
+    /*
+     * Wordmark — system-fallback Montserrat-style render. Server-rendered
+     * login can't easily pull a webfont, so we lean on a stack that keeps
+     * the brand silhouette close: Montserrat first if installed locally,
+     * then system-ui (San Francisco / Segoe UI / Roboto) which all render
+     * cleanly at 800 weight. Animation matches the React Wordmark
+     * component's reduced-motion fallback (no stroke-draw — too fragile to
+     * reproduce inline against an unknown system fallback).
+     */
+    .wordmark { font-family:'Montserrat',-apple-system,BlinkMacSystemFont,
+      'Segoe UI','Helvetica Neue',Arial,sans-serif;
+      font-weight:800; font-size:36px; letter-spacing:-1.4px;
+      color:var(--text); display:inline-block; user-select:none;
+      opacity:0; transform:scale(0.985); filter:blur(6px);
+      animation:wordmark-bloom 0.75s cubic-bezier(0.16,1,0.3,1) 0.08s both; }
+    .wordmark .accent { color:var(--accent); }
+    @keyframes wordmark-bloom {
+      from { opacity:0; transform:scale(0.985); filter:blur(6px); }
+      to   { opacity:1; transform:scale(1); filter:blur(0); }
+    }
+    @media (prefers-reduced-motion:reduce) {
+      .wordmark { animation:none !important; opacity:1; transform:none; filter:none; }
+    }
   </style>
 </head>
 <body>
@@ -235,7 +257,7 @@ const LOGIN_HTML = `<!DOCTYPE html>
     </div>
   </div>
   <div class="card">
-    <h1>📡 Term<span>Beam</span></h1>
+    <h1 class="wordmark" aria-label="TermBeam">Term<span class="accent">Beam</span></h1>
     <p class="subtitle">Enter the access password</p>
     <form id="form">
       <input type="password" id="pw" placeholder="Password" autocomplete="off" autofocus />

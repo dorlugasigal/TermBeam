@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useMinDuration } from '@/hooks/useMinDuration';
 import LoginPage from '@/components/LoginPage/LoginPage';
 import SessionsHub from '@/components/SessionsHub/SessionsHub';
 import { TerminalApp } from '@/components/TerminalApp/TerminalApp';
 import CodeViewer from '@/components/CodeViewer/CodeViewer';
+import { Splash } from '@/components/common/Splash';
+import splashStyles from '@/components/common/Splash.module.css';
 import { useThemeStore } from '@/stores/themeStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { THEMES } from '@/themes/terminalThemes';
@@ -51,6 +54,15 @@ export default function App() {
   const { authenticated, passwordRequired, login, loading } = useAuth();
   const [path, setPath] = useState(getPath);
 
+  /*
+   * Hold the splash screen for at least 1500ms on cold load so the
+   * per-letter Keynote-bloom animation (last letter starts at 0.55s,
+   * 0.85s duration = 1.40s end) plays through with a 100ms beat to read
+   * the settled wordmark. Without this gate, auth on localhost resolves
+   * in ~50ms and the user never sees the animation.
+   */
+  const splashElapsed = useMinDuration(1500);
+
   // Hydrate user preferences from the server once we're authenticated. The
   // store seeds itself synchronously from localStorage on import so the first
   // paint already uses cached prefs; this fetch reconciles with the server.
@@ -81,60 +93,27 @@ export default function App() {
   const isTerminalScreen = path === '/terminal' && !codeSessionId;
   useChromeColor(isTerminalScreen ? 'terminal' : 'main');
 
-  // Still checking auth
-  if (authenticated === null) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          background: 'var(--bg)',
-          color: 'var(--text)',
-        }}
-      >
-        <div className="spinner" />
-      </div>
-    );
+  // Still checking auth, OR auth done but we haven't yet hit the minimum
+  // splash duration. The status text changes once auth resolves so the
+  // splash feels like a real loading sequence instead of a fixed timer.
+  if (authenticated === null || (authenticated && !splashElapsed)) {
+    const status = authenticated ? 'Connected' : 'Establishing link';
+    return <Splash status={status} />;
   }
 
   if (!authenticated) {
     // No-password mode: server is unreachable — show reconnecting UI instead of login
     if (!passwordRequired) {
       return (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100vh',
-            gap: '16px',
-            background: 'var(--bg)',
-            color: 'var(--text)',
-          }}
-        >
-          <div className="spinner" />
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-            Reconnecting to server…
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              marginTop: '8px',
-              padding: '8px 20px',
-              background: 'var(--accent)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '13px',
-            }}
-          >
-            Retry
-          </button>
-        </div>
+        <Splash
+          size="md"
+          status="Reconnecting to server"
+          action={
+            <button onClick={() => window.location.reload()} className={splashStyles.action}>
+              Retry
+            </button>
+          }
+        />
       );
     }
     return <LoginPage onLogin={login} loading={loading} />;

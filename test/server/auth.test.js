@@ -360,8 +360,9 @@ describe('Auth', () => {
   describe('loginHTML', () => {
     it('should contain TermBeam branding', () => {
       const auth = createAuth('pw');
-      assert.ok(auth.loginHTML.includes('TermBeam'));
-      assert.ok(auth.loginHTML.includes('Term<span>Beam</span>'));
+      assert.ok(auth.loginHTML.includes('aria-label="TermBeam"'));
+      assert.ok(auth.loginHTML.includes('class="wordmark"'));
+      assert.ok(auth.loginHTML.includes('Term<span class="accent">Beam</span>'));
     });
   });
 

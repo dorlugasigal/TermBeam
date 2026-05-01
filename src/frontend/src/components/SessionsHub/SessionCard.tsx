@@ -9,6 +9,11 @@ interface SessionCardProps {
   onDelete: (id: string) => void;
   revealedId: string | null;
   onRevealChange: (id: string | null) => void;
+  /**
+   * Position of the card within the list. Drives the staggered mount
+   * entrance so cards cascade in instead of appearing all at once.
+   */
+  index?: number;
 }
 
 function formatActivity(lastActivity: string | number): string {
@@ -90,6 +95,7 @@ export default function SessionCard({
   onDelete,
   revealedId,
   onRevealChange,
+  index = 0,
 }: SessionCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef(0);
@@ -206,7 +212,10 @@ export default function SessionCard({
   const isClean = git?.status?.clean === true;
 
   return (
-    <div className={styles.wrapper}>
+    <div
+      className={styles.wrapper}
+      style={{ ['--stagger-i' as string]: Math.min(index, 8) }}
+    >
       <button
         className={styles.deleteBackground}
         onClick={handleDeleteClick}

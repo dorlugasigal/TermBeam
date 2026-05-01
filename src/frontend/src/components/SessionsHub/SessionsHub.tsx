@@ -7,6 +7,7 @@ import type { Session } from '@/types';
 import UpdateBanner from '@/components/common/UpdateBanner';
 import TunnelBanner from '@/components/common/TunnelBanner';
 import SessionCard from './SessionCard';
+import { Wordmark } from '@/components/common/Wordmark';
 import NewSessionModal from './NewSessionModal';
 import ResumeBrowser from '@/components/ResumeBrowser/ResumeBrowser';
 import WorkspaceLauncher from '@/components/WorkspaceLauncher/WorkspaceLauncher';
@@ -173,18 +174,13 @@ export default function SessionsHub() {
       <header className={styles.header}>
         <div className={styles.brand}>
           <h1 className={styles.title}>
-            <span className={styles.brandIcon} aria-hidden="true">
-              {'>_'}
-            </span>
-            <span className={styles.brandName}>
-              Term<span className={styles.accent}>Beam</span>
-            </span>
+            <Wordmark size="sm" animated={false} />
+            {version ? (
+              <span className={styles.version} data-testid="hub-version">
+                v{version}
+              </span>
+            ) : null}
           </h1>
-          {version ? (
-            <span className={styles.version} data-testid="hub-version">
-              v{version}
-            </span>
-          ) : null}
         </div>
 
         <div className={styles.headerActions}>
@@ -234,7 +230,7 @@ export default function SessionsHub() {
           </div>
         ) : sessions.length === 0 ? (
           <div className={styles.emptyState} data-testid="empty-state">
-            <span className={styles.emptyIcon}>📡</span>
+            <Wordmark size="md" />
             <span className={styles.emptyText}>No active sessions</span>
             <span className={styles.emptyHint}>
               Tap &quot;+ New Session&quot; to create a new terminal session
@@ -261,7 +257,7 @@ export default function SessionsHub() {
                 data-testid="sessions-list"
                 data-filter-active={filterActive || undefined}
               >
-                {visibleSessions.map((session) => (
+                {visibleSessions.map((session, i) => (
                   <SessionCard
                     key={session.id}
                     session={session}
@@ -269,6 +265,7 @@ export default function SessionsHub() {
                     onDelete={handleDelete}
                     revealedId={revealedId}
                     onRevealChange={setRevealedId}
+                    index={i}
                   />
                 ))}
               </div>

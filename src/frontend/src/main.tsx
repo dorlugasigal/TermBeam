@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { Toaster } from 'sonner';
 import App from './App';
+import '@fontsource-variable/montserrat';
 import './styles/themes.css';
 import './styles/global.css';
 import './styles/animations.css';
