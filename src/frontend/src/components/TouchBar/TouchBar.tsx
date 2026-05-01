@@ -5,7 +5,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { usePreferencesStore, type TouchBarKey } from '@/stores/preferencesStore';
 import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
 import { uploadImage } from '@/services/api';
-import { DEFAULT_TOUCHBAR_KEYS } from './defaultKeys';
+import { DEFAULT_TOUCHBAR_KEYS, sortKeysByCol } from './defaultKeys';
 import styles from './TouchBar.module.css';
 
 let hapticsUnsupportedWarned = false;
@@ -715,18 +715,24 @@ export default function TouchBar() {
         <div className={styles.rows} aria-hidden={collapsed}>
           {([1, 2, 3] as const).map((rowNum) => {
             if (rowGroups[rowNum].length === 0) return null;
-            const rowKeys = rowGroups[rowNum];
-            // Mic is rendered separately for its hold-to-record behaviour;
-            // exclude it from the regular renderKey loop.
-            const nonMicKeys = rowKeys.filter((k) => k.action !== 'mic');
-            const rowMic = rowKeys.find((k) => k.action === 'mic');
+            // Sort by `col` so DOM order matches visual column order.
+            // Required because CSS Grid auto-flow can spawn a phantom row
+            // when DOM order is out of column order — see sortKeysByCol's
+            // docstring and the matching customizer fix in commit ab68d5eb.
+            const sortedKeys = sortKeysByCol(rowGroups[rowNum]);
             const startIndex = (rowNum - 1) * 8;
             return (
               <div key={`row-${rowNum}`} className={styles.row}>
-                {nonMicKeys.map((k, i) =>
-                  renderKey(touchBarKeyToDef(k), startIndex + i),
-                )}
-                {rowMic === micKey && micKey && micButton}
+                {sortedKeys.map((k, i) => {
+                  // Render the mic in its sorted-by-col position rather
+                  // than always last, so DOM order is strictly L→R.
+                  if (k.action === 'mic' && k.id === micKey?.id) {
+                    return (
+                      <React.Fragment key={k.id ?? 'mic'}>{micButton}</React.Fragment>
+                    );
+                  }
+                  return renderKey(touchBarKeyToDef(k), startIndex + i);
+                })}
               </div>
             );
           })}

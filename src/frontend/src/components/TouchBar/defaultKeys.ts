@@ -32,6 +32,23 @@ export const DEFAULT_TOUCHBAR_KEYS: TouchBarKey[] = [
   { id: 'mic', label: 'Mic', send: '', style: 'plain', action: 'mic', row: 2, col: 8 },
 ];
 
+/** Sort touchbar keys within a row by their starting column.
+ *
+ *  CSS Grid `auto-flow: row` (the default) doesn't reliably backtrack when
+ *  DOM order has a key at a later column ahead of one at an earlier column.
+ *  After a drag-swap (e.g. `Tab` at col 3 ↔ `↓` at col 6), the persisted
+ *  `touchBarKeys` array still has the keys in their original array order,
+ *  so DOM order no longer matches visual column order. Without sorting,
+ *  later keys get pushed onto a phantom CSS row 2, where the JS-computed
+ *  bar height clips them — they vanish from the rendered TouchBar even
+ *  though the customizer's Live Preview still shows them (the Live Preview
+ *  shipped this fix in commit ab68d5eb; the runtime bar regressed).
+ *
+ *  Returns a new array, never mutates input. */
+export function sortKeysByCol<T extends { col?: number }>(keys: T[]): T[] {
+  return [...keys].sort((a, b) => (a.col ?? 1) - (b.col ?? 1));
+}
+
 /** Map from a TouchBarKey "look" preset to the display name shown in the
  *  customizer. */
 export const KEY_LOOK_OPTIONS: { value: NonNullable<TouchBarKey['style']>; label: string; description: string }[] = [

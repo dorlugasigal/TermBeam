@@ -222,8 +222,16 @@
 .row {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
+  /* Pin to a single row of fixed height. Defensive belt-and-suspenders:
+   * sortKeysByCol() in TouchBar.tsx already guarantees DOM order matches
+   * column order so CSS Grid lays everything out on row 1, but if a future
+   * change ever emitted an out-of-order key the implicit row would still
+   * be clipped by overflow:hidden instead of vanishing into a phantom row
+   * that the JS-computed bar height can't reach. */
+  grid-template-rows: 32px;
   gap: 4px;
   padding: 0 2px;
+  overflow: hidden;
 }
 
 /* Both rows use the same 8-column grid so keys are the same width across
