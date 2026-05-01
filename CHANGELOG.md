@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.23.1] - 2026-05-01
+
+- fix(touchbar): sort keys by col so reordered layouts render all keys (@dorlugasigal)
+
 ## [1.23.0] - 2026-04-28
 
 - chore(ci): bump the all-actions group with 6 updates (#223) (@dependabot[bot])
