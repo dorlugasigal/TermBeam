@@ -27,9 +27,12 @@ function resolveBinaryPath(binPathOrName) {
   }
   const PATH = process.env.PATH || '';
   const sep = process.platform === 'win32' ? ';' : ':';
+  // On Windows, PATHEXT lists the extensions to append when the name has no
+  // extension. We always try the bare name first so callers passing
+  // 'devtunnel.exe' or 'node.exe' don't end up with 'node.exe.exe'.
   const exts =
     process.platform === 'win32'
-      ? (process.env.PATHEXT || '.EXE').split(';').map((e) => e.toLowerCase())
+      ? ['', ...(process.env.PATHEXT || '.EXE').split(';').map((e) => e.toLowerCase())]
       : [''];
   for (const dir of PATH.split(sep)) {
     if (!dir) continue;

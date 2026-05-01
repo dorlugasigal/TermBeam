@@ -52,11 +52,23 @@ describe('resolveBinaryPath', () => {
 
   it('resolves a bare command name via $PATH', () => {
     // node was used to run this test, so it must be on PATH
-    const nodeName = process.platform === 'win32' ? 'node.exe' : 'node';
-    const r = resolveBinaryPath(nodeName);
-    assert.ok(r, `expected to find ${nodeName} on PATH`);
+    const r = resolveBinaryPath('node');
+    assert.ok(r, 'expected to find node on PATH');
     assert.ok(path.isAbsolute(r));
     assert.ok(fs.existsSync(r));
+  });
+
+  it('resolves a name that already includes the platform extension', () => {
+    if (process.platform === 'win32') {
+      const r = resolveBinaryPath('node.exe');
+      assert.ok(r, 'expected to find node.exe on PATH');
+      assert.ok(path.isAbsolute(r));
+      assert.ok(fs.existsSync(r), `${r} should exist (no double-extension lookup)`);
+    } else {
+      // POSIX: node has no extension, so this just exercises the no-ext path
+      const r = resolveBinaryPath('node');
+      assert.ok(r);
+    }
   });
 
   it('returns null for a bare name that is not on $PATH', () => {
