@@ -5,7 +5,7 @@ const os = require('os');
 const dns = require('dns');
 const EventEmitter = require('events');
 const log = require('../utils/logger');
-const { promptInstall } = require('./install');
+const { promptInstall, stripQuarantine, resolveBinaryPath, hasQuarantine } = require('./install');
 
 const TUNNEL_CONFIG_DIR = path.join(os.homedir(), '.termbeam');
 const TUNNEL_CONFIG_PATH = path.join(TUNNEL_CONFIG_DIR, 'tunnel.json');
@@ -100,16 +100,53 @@ function isNetworkReachable() {
   });
 }
 
+// One-time per-session flag so the "stripped quarantine" warning isn't
+// spammed if the auth-poll loop trips it repeatedly during a brew upgrade.
+let quarantineWarned = false;
+
 function isLoggedIn() {
-  try {
-    const out = execFileSync(devtunnelCmd, ['user', 'show'], {
+  const tryShow = () =>
+    execFileSync(devtunnelCmd, ['user', 'show'], {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 10_000,
       windowsHide: true,
     });
+  try {
+    const out = tryShow();
     return out && !out.toLowerCase().includes('not logged in');
-  } catch {
+  } catch (err) {
+    // On macOS, brew upgrades silently re-tag the devtunnel binary with
+    // com.apple.quarantine, which causes Gatekeeper to block our spawn and
+    // makes this throw with no useful output. If we can prove the binary is
+    // actually quarantined, strip and retry once before reporting failure.
+    if (process.platform === 'darwin' && err && err.code !== 'ENOENT') {
+      const resolved = resolveBinaryPath(devtunnelCmd);
+      if (resolved && hasQuarantine(resolved)) {
+        const result = stripQuarantine(devtunnelCmd);
+        if (result === 'stripped') {
+          if (!quarantineWarned) {
+            log.warn(
+              'devtunnel was quarantined by macOS Gatekeeper (likely after a brew upgrade); ' +
+                'stripped com.apple.quarantine and retrying',
+            );
+            quarantineWarned = true;
+          }
+          try {
+            const out = tryShow();
+            return out && !out.toLowerCase().includes('not logged in');
+          } catch {
+            // fall through and return false
+          }
+        } else if (result === 'failed' && !quarantineWarned) {
+          log.error(
+            'devtunnel is quarantined by macOS Gatekeeper but quarantine removal failed. ' +
+              `Run manually: xattr -dr com.apple.quarantine "${resolved}"`,
+          );
+          quarantineWarned = true;
+        }
+      }
+    }
     return false;
   }
 }
@@ -637,6 +674,12 @@ async function startTunnel(port, options = {}) {
     return null;
   }
   devtunnelCmd = found;
+
+  // On macOS, brew --cask installs (and upgrades) tag the binary with
+  // com.apple.quarantine. The first time we spawn devtunnel from a
+  // non-interactive context Gatekeeper would block it and prompt the user.
+  // Strip the attribute on every startup so brew upgrades don't break us.
+  stripQuarantine(devtunnelCmd);
 
   log.info('Starting devtunnel...');
   try {

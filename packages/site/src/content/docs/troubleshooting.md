@@ -86,6 +86,27 @@ If TermBeam is running as a long-lived service (`termbeam service`) and the tunn
 
 You'll see `[WARN] Tunnel paused — waiting for network connectivity` in the logs followed by `[INFO] Network connectivity restored — resuming tunnel` when it recovers. If the logs instead show repeated `Tunnel restart returned no URL` with no final giveup, the watchdog is still cycling through its 10 restart attempts; wait a few minutes for it to settle into network-wait.
 
+### macOS: tunnel paused after a brew upgrade ("DevTunnel auth restored" loop)
+
+On macOS, `brew install --cask devtunnel` (and every subsequent upgrade) tags the binary with the `com.apple.quarantine` extended attribute. The first time TermBeam spawns the new binary from a non-interactive context (e.g. a `pm2`-managed service), Gatekeeper holds the spawn and pops a system dialog — until you click **Open** on the host machine, the auth probe reads as a failure and the watchdog logs:
+
+```text
+[INFO] DevTunnel auth restored — resuming tunnel
+```
+
+…right after you dismiss the dialog (the misleading message is because the spawn failure looks like an auth failure to the watchdog).
+
+TermBeam **automatically strips the quarantine attribute** on every startup and re-strips it as a self-heal step inside the auth probe, so this should not recur. If you still see the dialog, run:
+
+```bash
+xattr -dr com.apple.quarantine "$(brew --prefix)/Caskroom/devtunnel"
+spctl --assess --verbose "$(readlink -f "$(which devtunnel)")"
+```
+
+:::tip
+This is harmless — the binary is still signed by Microsoft (`TeamIdentifier=UBF8T346G9`). Stripping `com.apple.quarantine` only removes the "downloaded from the internet" tag that triggers the Gatekeeper dialog.
+:::
+
 ---
 
 ## Authentication Issues
