@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.23.3] - 2026-05-01
+
+- feat(ui): polished wordmark animation + touchbar shadow fix (@dorlugasigal)
+
 ## [1.23.2] - 2026-05-01
 
 - fix(tunnel): auto-strip macOS quarantine xattr to prevent Gatekeeper stalls (@dorlugasigal)
