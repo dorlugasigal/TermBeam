@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.24.0] - 2026-05-01
+
+- feat(ui): configurable splash + mobile tips on empty SessionsHub (@dorlugasigal)
+
 ## [1.23.4] - 2026-05-01
 
 - fix(version): mark dev builds dirty for untracked files; freeze /api/version at startup (@dorlugasigal)
