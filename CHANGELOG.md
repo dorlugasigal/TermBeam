@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.23.4] - 2026-05-01
+
+- fix(version): mark dev builds dirty for untracked files; freeze /api/version at startup (@dorlugasigal)
+
 ## [1.23.3] - 2026-05-01
 
 - feat(ui): polished wordmark animation + touchbar shadow fix (@dorlugasigal)
