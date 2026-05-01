@@ -72,4 +72,18 @@ describe('usePreferencesStore', () => {
     expect(raw).toBeTruthy();
     expect(JSON.parse(raw!).fontSize).toBe(18);
   });
+
+  it('seeds showSplash to true by default', () => {
+    const { prefs } = usePreferencesStore.getState();
+    expect(prefs.showSplash).toBe(true);
+    expect(PREF_DEFAULTS.showSplash).toBe(true);
+  });
+
+  it('round-trips showSplash through setPreference', () => {
+    const { setPreference } = usePreferencesStore.getState();
+    setPreference('showSplash', false);
+    expect(usePreferencesStore.getState().prefs.showSplash).toBe(false);
+    setPreference('showSplash', true);
+    expect(usePreferencesStore.getState().prefs.showSplash).toBe(true);
+  });
 });

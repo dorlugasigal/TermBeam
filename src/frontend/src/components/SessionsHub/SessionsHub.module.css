@@ -138,6 +138,69 @@
   color: var(--text-primary);
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   Empty-state Tip Card
+   Shown only when there are zero sessions. Designed to feel like a
+   helpful aside, not a banner — reads well on a phone in portrait.
+   ────────────────────────────────────────────────────────────────── */
+
+.tipCard {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 12px;
+  margin-top: 1.5rem;
+  padding: 14px 16px;
+  max-width: 340px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-align: left;
+  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.02) inset;
+}
+
+.tipBadge {
+  position: absolute;
+  top: -9px;
+  left: 14px;
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--bg);
+  color: var(--accent, var(--text-dim));
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.tipIcon {
+  font-size: 22px;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.tipBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tipTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tipText {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
 .hubFooter {
   position: fixed;
   bottom: var(--safe-bottom);

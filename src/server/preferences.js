@@ -16,6 +16,7 @@ const DEFAULTS = Object.freeze({
   fontSize: 14,
   notifications: false,
   haptics: true,
+  showSplash: true,
   defaultFolder: '',
   defaultInitialCommand: '',
   touchBarCollapsed: false,
@@ -188,6 +189,7 @@ function sanitize(prefs) {
     fontSize: clampNumber(src.fontSize, FONT_MIN, FONT_MAX, DEFAULTS.fontSize),
     notifications: asBool(src.notifications, DEFAULTS.notifications),
     haptics: asBool(src.haptics, DEFAULTS.haptics),
+    showSplash: asBool(src.showSplash, DEFAULTS.showSplash),
     defaultFolder: asString(src.defaultFolder, DEFAULTS.defaultFolder, 1024),
     defaultInitialCommand: asString(
       src.defaultInitialCommand,

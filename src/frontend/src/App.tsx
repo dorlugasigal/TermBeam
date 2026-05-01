@@ -53,6 +53,7 @@ function useChromeColor(screen: 'terminal' | 'main') {
 export default function App() {
   const { authenticated, passwordRequired, login, loading } = useAuth();
   const [path, setPath] = useState(getPath);
+  const showSplash = usePreferencesStore((s) => s.prefs.showSplash);
 
   /*
    * Hold the splash screen for at least 1500ms on cold load so the
@@ -60,8 +61,13 @@ export default function App() {
    * 0.85s duration = 1.40s end) plays through with a 100ms beat to read
    * the settled wordmark. Without this gate, auth on localhost resolves
    * in ~50ms and the user never sees the animation.
+   *
+   * When the user has opted out via Settings → Startup → "Show splash
+   * screen", `splashHoldMs` collapses to 0 so we skip straight through
+   * to the app shell.
    */
-  const splashElapsed = useMinDuration(1500);
+  const splashHoldMs = showSplash ? 1500 : 0;
+  const splashElapsed = useMinDuration(splashHoldMs);
 
   // Hydrate user preferences from the server once we're authenticated. The
   // store seeds itself synchronously from localStorage on import so the first

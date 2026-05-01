@@ -27,13 +27,13 @@ The **Theme picker** is rendered inline inside the **VIEW** section — tap the 
 
 Reach **Settings** from the Tools panel → **Settings…** (or via <kbd>Cmd+,</kbd> / <kbd>Ctrl+,</kbd>). The panel is non-blocking so theme, font and haptics changes are visible against the terminal as you make them.
 
-| Section                      | What it controls                                                                                                                   |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Appearance**               | Theme picker (live preview cards) and font-size slider.                                                                            |
-| **Notifications & Feedback** | Browser notifications when a backgrounded command completes, and haptic feedback on TouchBar key presses.                          |
-| **Touch Bar**                | Toggle "Start collapsed by default" and open the **Customize keys** editor.                                                        |
-| **New Session Defaults**     | Default folder and default initial command pre-fills used by **+ New session** and by workspace sessions when they don't override. |
-| **Workspaces**               | List of named workspaces. Mark one as the default startup workspace, edit per-workspace sessions, drag to reorder.                 |
+| Section                      | What it controls                                                                                                                                                            |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Appearance**               | Theme picker (live preview cards) and font-size slider.                                                                                                                     |
+| **Notifications & Feedback** | Browser notifications when a backgrounded command completes, haptic feedback on TouchBar key presses, and a **Splash screen** toggle to skip the cold-load brand animation. |
+| **Touch Bar**                | Toggle "Start collapsed by default" and open the **Customize keys** editor.                                                                                                 |
+| **New Session Defaults**     | Default folder and default initial command pre-fills used by **+ New session** and by workspace sessions when they don't override.                                          |
+| **Workspaces**               | List of named workspaces. Mark one as the default startup workspace, edit per-workspace sessions, drag to reorder.                                                          |
 
 All of the above is persisted to `~/.termbeam/prefs.json` (mode `0o600`) on the server. The browser keeps a `localStorage` cache (`termbeam-prefs`) for instant first paint and offline UX, but the server file is the source of truth.
 
@@ -115,6 +115,7 @@ The schema is roughly:
   "fontSize": 13,
   "notifications": false,
   "haptics": true,
+  "showSplash": true,
   "defaultFolder": "",
   "defaultInitialCommand": "",
   "touchBarCollapsed": true,

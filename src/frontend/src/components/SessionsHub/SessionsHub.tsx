@@ -12,6 +12,7 @@ import NewSessionModal from './NewSessionModal';
 import ResumeBrowser from '@/components/ResumeBrowser/ResumeBrowser';
 import WorkspaceLauncher from '@/components/WorkspaceLauncher/WorkspaceLauncher';
 import FilterBar from './FilterBar';
+import { pickRandomTip } from './tips';
 import {
   EMPTY_FILTER,
   deriveFacets,
@@ -125,6 +126,11 @@ export default function SessionsHub() {
   );
   const filterActive = !isEmptyFilter(filter);
 
+  // Pin one tip for the lifetime of this hub mount so it doesn't shuffle
+  // while the user is looking at the empty state. A fresh tip is picked
+  // on the next visit / refresh.
+  const tip = useMemo(() => pickRandomTip(), []);
+
   function navigateToSession(id: string) {
     window.history.pushState(null, '', `/terminal?session=${id}`);
     window.dispatchEvent(new PopStateEvent('popstate'));
@@ -235,6 +241,17 @@ export default function SessionsHub() {
             <span className={styles.emptyHint}>
               Tap &quot;+ New Session&quot; to create a new terminal session
             </span>
+
+            <div className={styles.tipCard} data-testid="hub-tip">
+              <span className={styles.tipBadge}>Tip</span>
+              <span className={styles.tipIcon} aria-hidden="true">
+                {tip.icon}
+              </span>
+              <div className={styles.tipBody}>
+                <strong className={styles.tipTitle}>{tip.title}</strong>
+                <span className={styles.tipText}>{tip.body}</span>
+              </div>
+            </div>
           </div>
         ) : (
           <>

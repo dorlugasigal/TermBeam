@@ -424,6 +424,20 @@ export default function SettingsPanel() {
                 onChange={(v) => setPreference('haptics', v)}
               />
             </div>
+
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>
+                Splash screen
+                <span className={styles.rowHint}>
+                  Show the brand animation on cold load. Turn off to jump straight to the app.
+                </span>
+              </span>
+              <Toggle
+                on={prefs.showSplash}
+                ariaLabel="Toggle splash screen"
+                onChange={(v) => setPreference('showSplash', v)}
+              />
+            </div>
           </section>
 
           {/* ── Touch Bar ─────────────────────────────────────────── */}

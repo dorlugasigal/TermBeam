@@ -138,6 +138,9 @@ export interface Preferences {
   fontSize: number;
   notifications: boolean;
   haptics: boolean;
+  /** When false, the brand splash animation is skipped on cold load and the
+   *  user goes straight to the app shell. Default: true. */
+  showSplash: boolean;
   defaultFolder: string;
   defaultInitialCommand: string;
   touchBarCollapsed: boolean;
@@ -159,6 +162,7 @@ export const PREF_DEFAULTS: Preferences = Object.freeze({
   // the Notifications toggle doesn't flip on first hydrate.
   notifications: false,
   haptics: true,
+  showSplash: true,
   defaultFolder: '',
   defaultInitialCommand: '',
   touchBarCollapsed: false,
@@ -197,6 +201,7 @@ function normalize(input: unknown): Preferences {
     fontSize: clampFont(typeof p.fontSize === 'number' ? p.fontSize : PREF_DEFAULTS.fontSize),
     notifications: typeof p.notifications === 'boolean' ? p.notifications : PREF_DEFAULTS.notifications,
     haptics: typeof p.haptics === 'boolean' ? p.haptics : PREF_DEFAULTS.haptics,
+    showSplash: typeof p.showSplash === 'boolean' ? p.showSplash : PREF_DEFAULTS.showSplash,
     defaultFolder: typeof p.defaultFolder === 'string' ? p.defaultFolder : '',
     defaultInitialCommand:
       typeof p.defaultInitialCommand === 'string' ? p.defaultInitialCommand : '',
