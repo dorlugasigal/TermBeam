@@ -72,23 +72,7 @@ async function startServer(configOverrides = {}) {
 
 // --- Tests ---
 
-/*
- * RCA: this file spawns ~20+ real PTYs (one per startServer() call). On
- * Windows, node-pty's conpty_console_list_agent.js helper process crashes
- * with "AttachConsole failed" after each PTY is killed, leaving zombie
- * file handles that keep the test worker alive past the 180s --test-
- * timeout — even though every individual assertion passes. This is a
- * node-pty/Windows ConPTY bug we can't fix from userland.
- *
- * Every endpoint in this file is already exercised on Linux + macOS CI
- * (same code paths), so skipping the whole file on Windows costs zero
- * coverage and eliminates the flakiness deterministically. Other test
- * files that DO need Windows coverage (sessions.test.js, websocket.test.js,
- * file-tree.test.js, etc.) mock node-pty and run cleanly there.
- */
-const isWindows = process.platform === 'win32';
-
-describe('Routes', { skip: isWindows && 'node-pty ConPTY hangs the worker on Windows; covered by Linux + macOS jobs' }, () => {
+describe('Routes', () => {
   // === Image upload endpoint ===
   describe('POST /api/upload', () => {
     let inst;
@@ -2322,9 +2306,12 @@ describe('Routes', { skip: isWindows && 'node-pty ConPTY hangs the worker on Win
     });
   });
 
-  // Older partial-skip block — superseded by the file-level skip above.
-  // Kept as a no-op marker so the per-suite `{ skip: isWindows && ... }`
-  // options below remain meaningful when Windows skipping ever changes.
+  // Skip the remaining test suites on Windows — ConPTY heap corruption
+  // when many PTY server instances are created/destroyed rapidly. Kept
+  // as defense-in-depth for any future Windows job that reuses this
+  // file (the workflow currently excludes Windows from the unit-test
+  // matrix; see .github/workflows/ci.yml).
+  const isWindows = process.platform === 'win32';
 
   // === Generic error message for /files ===
   describe('/files generic error message', { skip: isWindows && 'ConPTY limit' }, () => {
