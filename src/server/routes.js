@@ -163,12 +163,14 @@ function setupRoutes(
     }
   });
 
-  // Version API — uses the version captured at server startup so dev/prod
-  // builds stay stable for the lifetime of the process. Restart the service
-  // to pick up a new git tag or dirty-state change.
+  // Version API — recomputes per request so dev source checkouts surface new
+  // commits/dirty state without a restart. In production (npm install) the
+  // npm_package_version short-circuit in getVersion() makes this a cheap
+  // package.json read; only source checkouts incur the git describe cost.
   app.get('/api/version', (_req, res) => {
     log.debug('Version requested');
-    res.json({ version: config.version });
+    const { getVersion } = require('../utils/version');
+    res.json({ version: getVersion() });
   });
 
   // Changelog — served from repo CHANGELOG.md (bundled with the npm package).

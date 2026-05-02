@@ -528,7 +528,7 @@ Returned when the server was started with `--no-password`.
 
 #### `GET /api/version`
 
-Get the server version. The value is captured once at process startup and reflects the running code (not the latest git state on disk). Restart the service to pick up a new version.
+Get the server version. Recomputed per request so dev source checkouts surface new commits and dirty state without a restart. Production installs short-circuit to the cached `package.json` value, so the cost is negligible.
 
 **Response:**
 
