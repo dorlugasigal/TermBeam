@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.24.2] - 2026-05-02
+
+- fix(hub): ground every empty-state tip in real shipping behavior (@dorlugasigal)
+
 ## [1.24.1] - 2026-05-02
 
 - feat(hub): expand empty-state tips to 41 and make them browsable (@dorlugasigal)
