@@ -1,0 +1,61 @@
+/*
+ * Host-element fragmentation fade. Played in parallel with the canvas
+ * particle dissolve (see `useParticleDissolve.ts`). Consumers control
+ * the duration via the `--termbeam-fragment-ms` CSS custom property
+ * — the default (600 ms) suits big card-shaped surfaces; tab-style
+ * surfaces (TabBar tabs, SidePanel rows) override it to 280 ms via
+ * inline style for a snappier feel.
+ *
+ * If the canvas fallback path is taken (reduced motion, concurrency
+ * cap exceeded, no element passed), this same animation is the only
+ * visual the user gets — at which point reduced-motion further shrinks
+ * it to a 140 ms opacity fade.
+ */
+
+.dissolving {
+  pointer-events: none;
+  /* The canvas particles emit from the original rect, so any ancestor
+   * with `overflow: hidden` would clip them. Lifting overflow on the
+   * dissolving element itself isn't enough (parents still clip), but
+   * the canvas is portaled at body level so this is mostly a defense
+   * for the host's own children that may extend beyond its border-
+   * radius briefly during the scale animation. */
+  overflow: visible !important;
+  transform-origin: center center;
+  animation: termbeam-fragment var(--termbeam-fragment-ms, 600ms) cubic-bezier(0.4, 0, 0.7, 0.2)
+    both;
+  will-change: opacity, transform, filter;
+}
+
+@keyframes termbeam-fragment {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    filter: none;
+  }
+  25% {
+    opacity: 0.92;
+    transform: scale(1.02);
+    filter: blur(0.4px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95) translateY(-5px);
+    filter: blur(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dissolving {
+    animation: termbeam-fragment-reduced 140ms linear both;
+  }
+
+  @keyframes termbeam-fragment-reduced {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+}

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import { fetchSessions, deleteSession, fetchVersion, getShareUrl } from '@/services/api';
 import { useUIStore } from '@/stores/uiStore';
+import { useSessionStore } from '@/stores/sessionStore';
+import { useDissolveDelete } from '@/hooks/useDissolveDelete';
 import ThemePicker from '@/components/common/ThemePicker';
 import type { Session } from '@/types';
 import UpdateBanner from '@/components/common/UpdateBanner';
@@ -87,6 +89,7 @@ export default function SessionsHub() {
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<SessionFilterState>(() => loadFilterFromStorage());
   const [workspaceLauncherOpen, setWorkspaceLauncherOpen] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
   const {
     openNewSessionModal,
     openResumeBrowser,
@@ -95,10 +98,23 @@ export default function SessionsHub() {
     closeThemePicker,
   } = useUIStore();
 
+  const dissolvingIds = useSessionStore((s) => s.dissolvingIds);
+  const dissolveDelete = useDissolveDelete();
+
   const loadSessions = useCallback(async () => {
     try {
       const list = await fetchSessions();
-      setSessions(list.filter((s) => !s.hidden));
+      const visible = list.filter((s) => !s.hidden);
+      setSessions((prev) => {
+        // Re-include any sessions currently mid-dissolve so the row
+        // stays mounted long enough for the disintegrate animation to
+        // play. The server has already removed them by this point.
+        const visibleIds = new Set(visible.map((s) => s.id));
+        const dissolveExtras = prev.filter(
+          (s) => useSessionStore.getState().dissolvingIds.has(s.id) && !visibleIds.has(s.id),
+        );
+        return [...visible, ...dissolveExtras];
+      });
     } catch {
       // Silently retry on next poll
     } finally {
@@ -149,9 +165,16 @@ export default function SessionsHub() {
 
   async function handleDelete(id: string) {
     const session = sessions.find((s) => s.id === id);
+    const element = listRef.current?.querySelector<HTMLElement>(
+      `[data-session-id="${id}"]`,
+    );
     try {
-      await deleteSession(id);
-      setSessions((prev) => prev.filter((s) => s.id !== id));
+      await dissolveDelete(id, {
+        element: element ?? null,
+        color: session?.color ?? '#6ec1e4',
+        apiDelete: () => deleteSession(id),
+        finalize: () => setSessions((prev) => prev.filter((s) => s.id !== id)),
+      });
       toast.success(`Session "${session?.name ?? id}" deleted`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete session');
@@ -355,6 +378,7 @@ export default function SessionsHub() {
               </div>
             ) : (
               <div
+                ref={listRef}
                 className={styles.sessionsList}
                 data-testid="sessions-list"
                 data-filter-active={filterActive || undefined}
@@ -368,6 +392,7 @@ export default function SessionsHub() {
                     revealedId={revealedId}
                     onRevealChange={setRevealedId}
                     index={i}
+                    dissolving={dissolvingIds.has(session.id)}
                   />
                 ))}
               </div>

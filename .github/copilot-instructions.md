@@ -35,6 +35,8 @@ Pre-commit hooks (Husky + lint-staged) auto-format and syntax-check staged files
 - **`test/cli/resume.test.js`** — uses `TERMBEAM_CONFIG_DIR` env var pointing to a temp directory for isolation.
 - **WebSocket connections** — close in `finally` blocks or `after()` hooks to prevent connection leaks.
 - **Windows temp directory cleanup** — on Windows, node-pty ConPTY holds directory locks after `pty.kill()`. Use `await safeCleanup(dir)` (async `fs.promises.rm` with `maxRetries`) instead of `fs.rmSync` in `after()` hooks and `finally` blocks when the temp dir was used as a PTY CWD. See the `safeCleanup()` helper in `test/server/routes.test.js`.
+- **`configDir` isolation** — every test that calls `createTermBeamServer({ config })` MUST set `configDir` (or `TERMBEAM_CONFIG_DIR` env var) to a fresh `mkdtempSync` temp directory. Without this, the server reads the developer's real `~/.termbeam/prefs.json` and may auto-spawn workspace sessions with a different `cwd`, silently breaking assertions about the default session. `routes.test.js`'s `startServer()` is the canonical example.
+- **`--test-force-exit`** — `npm test` passes this flag so dangling Windows ConPTY threads can't keep the worker alive past the 180 s per-file timeout. Tests that legitimately need to leak resources for assertions should be flagged in the suite description.
 
 **Port isolation:** Integration tests use port `0` (OS-assigned random port) to avoid conflicts. Never hardcode ports in tests.
 

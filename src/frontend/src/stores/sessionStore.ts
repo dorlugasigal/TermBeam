@@ -50,6 +50,18 @@ interface SessionState {
   tabOrder: string[];
   splitMode: SplitMode;
   deletedIds: Set<string>;
+  /**
+   * IDs whose row/tab is currently playing the disintegrate animation.
+   * The session is still rendered (intentionally) so users see the
+   * particle dissolve, but consumers should treat it as gone:
+   *  - polling loops must NOT remove it via the missing-from-server
+   *    branch (otherwise the row vanishes mid-animation),
+   *  - polling loops must NOT re-add it from the server list
+   *    (the server briefly still returns it before our DELETE lands),
+   *  - input/focus/click handlers should no-op for these ids.
+   * Cleared by `clearDissolving` once the animation timer fires.
+   */
+  dissolvingIds: Set<string>;
   /** Pending initialCommand strings keyed by session id, set by NewSessionModal
    * before the session is added to the store. Consumed (and removed) by addSession. */
   pendingInitialCommands: Map<string, string>;
@@ -64,6 +76,9 @@ interface SessionState {
   markUnread: (id: string) => void;
   clearUnread: (id: string) => void;
   isDeleted: (id: string) => boolean;
+  markDissolving: (id: string) => void;
+  clearDissolving: (id: string) => void;
+  isDissolving: (id: string) => boolean;
   setPendingInitialCommand: (id: string, command: string) => void;
 }
 
@@ -90,6 +105,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   tabOrder: loadTabOrder(),
   splitMode: 'off' as SplitMode,
   deletedIds: new Set(),
+  dissolvingIds: new Set(),
   pendingInitialCommands: new Map(),
 
   addSession: (session) =>
@@ -202,6 +218,24 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     }),
 
   isDeleted: (id) => get().deletedIds.has(id),
+
+  markDissolving: (id) =>
+    set((state) => {
+      if (state.dissolvingIds.has(id)) return state;
+      const dissolvingIds = new Set(state.dissolvingIds);
+      dissolvingIds.add(id);
+      return { dissolvingIds };
+    }),
+
+  clearDissolving: (id) =>
+    set((state) => {
+      if (!state.dissolvingIds.has(id)) return state;
+      const dissolvingIds = new Set(state.dissolvingIds);
+      dissolvingIds.delete(id);
+      return { dissolvingIds };
+    }),
+
+  isDissolving: (id) => get().dissolvingIds.has(id),
 
   setPendingInitialCommand: (id, command) =>
     set((state) => {

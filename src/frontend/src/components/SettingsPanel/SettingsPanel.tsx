@@ -438,6 +438,21 @@ export default function SettingsPanel() {
                 onChange={(v) => setPreference('showSplash', v)}
               />
             </div>
+
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>
+                Particle dissolve
+                <span className={styles.rowHint}>
+                  Play the canvas particle effect when deleting a session. Turn off for a plain
+                  fade only — useful on low-power devices.
+                </span>
+              </span>
+              <Toggle
+                on={prefs.particleDissolve}
+                ariaLabel="Toggle particle dissolve effect"
+                onChange={(v) => setPreference('particleDissolve', v)}
+              />
+            </div>
           </section>
 
           {/* ── Touch Bar ─────────────────────────────────────────── */}

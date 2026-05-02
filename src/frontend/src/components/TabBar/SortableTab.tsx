@@ -3,12 +3,15 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { ManagedSession } from '@/stores/sessionStore';
 import { CopilotLogo } from '@/components/common/CopilotLogo';
+import dissolveStyles from '@/components/common/Disintegrate.module.css';
 import styles from './TabBar.module.css';
 
 interface SortableTabProps {
   session: ManagedSession;
   isActive: boolean;
   isSplit?: boolean;
+  /** When true, this tab is currently playing the disintegrate animation. */
+  dissolving?: boolean;
   onActivate: () => void;
   onClose: () => void;
   onMouseEnter?: (e: React.MouseEvent<HTMLDivElement>) => void;
@@ -32,6 +35,7 @@ export function SortableTab({
   session,
   isActive,
   isSplit = false,
+  dissolving = false,
   onActivate,
   onClose,
   onMouseEnter,
@@ -65,6 +69,9 @@ export function SortableTab({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    // Snappier host fade for tabs (280 ms) — matches the 'tab' variant
+    // in useDissolveDelete. Cards (Hub) keep the default 600 ms.
+    ...(dissolving ? { ['--termbeam-fragment-ms' as string]: '280ms' } : null),
   };
 
   const activity = formatTabActivity(session.lastActivity);
@@ -73,9 +80,10 @@ export function SortableTab({
     <div
       ref={setNodeRef}
       style={style}
-      className={`${styles.tab} ${isActive ? styles.tabActive : ''} ${isSplit ? styles.tabSplit : ''} ${flash ? styles.tabFlash : ''}`}
+      className={`${styles.tab} ${isActive ? styles.tabActive : ''} ${isSplit ? styles.tabSplit : ''} ${flash ? styles.tabFlash : ''} ${dissolving ? dissolveStyles.dissolving : ''}`}
       data-testid="session-tab"
       {...(isActive ? { 'data-active': 'true' } : {})}
+      aria-hidden={dissolving || undefined}
       {...attributes}
       {...listeners}
       onPointerDown={(e) => {

@@ -86,4 +86,18 @@ describe('usePreferencesStore', () => {
     setPreference('showSplash', true);
     expect(usePreferencesStore.getState().prefs.showSplash).toBe(true);
   });
+
+  it('seeds particleDissolve to true by default', () => {
+    const { prefs } = usePreferencesStore.getState();
+    expect(prefs.particleDissolve).toBe(true);
+    expect(PREF_DEFAULTS.particleDissolve).toBe(true);
+  });
+
+  it('round-trips particleDissolve through setPreference', () => {
+    const { setPreference } = usePreferencesStore.getState();
+    setPreference('particleDissolve', false);
+    expect(usePreferencesStore.getState().prefs.particleDissolve).toBe(false);
+    setPreference('particleDissolve', true);
+    expect(usePreferencesStore.getState().prefs.particleDissolve).toBe(true);
+  });
 });

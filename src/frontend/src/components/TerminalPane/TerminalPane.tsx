@@ -6,6 +6,7 @@ import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
 import { uploadImage } from '@/services/api';
+import { BootSequence } from './BootSequence';
 import styles from './TerminalPane.module.css';
 
 function isEditable(el: HTMLElement | null): boolean {
@@ -137,6 +138,25 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
       }
     }
   }, [connected, terminal, fit]);
+
+  /*
+   * Warmup signal: drives off the first xterm `onWriteParsed` event,
+   * NOT just `connected` (which only means the WebSocket attach ack
+   * came back — output may still be in flight). The `BootSequence`
+   * component owns its own show-delay, fade timing, and reduced-motion
+   * fallback; this hook only flips the boolean.
+   */
+  const [firstByteSeen, setFirstByteSeen] = useState(false);
+  useEffect(() => {
+    if (!terminal) return;
+    if (firstByteSeen) return;
+    const disposable = terminal.onWriteParsed(() => {
+      setFirstByteSeen(true);
+    });
+    return () => disposable.dispose();
+  }, [terminal, firstByteSeen]);
+
+  const showBootSequence = !exited && !hadConnectedRef.current;
 
   // On mobile, our touch scroll handler prevents touchmove default, which
   // blocks the browser from synthesising click events. We need a persistent
@@ -839,6 +859,8 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
           <span>Reconnecting…</span>
         </div>
       )}
+
+      {showBootSequence && <BootSequence complete={firstByteSeen} />}
 
       {showDisconnectedOverlay && (
         <div className={styles.reconnectOverlay} data-testid="reconnect-overlay">

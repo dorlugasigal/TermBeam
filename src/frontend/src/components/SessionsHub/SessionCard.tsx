@@ -3,6 +3,8 @@ import type { Session } from '@/types';
 import { CopilotLogo } from '@/components/common/CopilotLogo';
 import styles from './SessionCard.module.css';
 
+import dissolveStyles from '@/components/common/Disintegrate.module.css';
+
 interface SessionCardProps {
   session: Session;
   onSelect: (id: string) => void;
@@ -14,6 +16,12 @@ interface SessionCardProps {
    * entrance so cards cascade in instead of appearing all at once.
    */
   index?: number;
+  /**
+   * When true, the card is playing the disintegrate (Thanos-snap)
+   * animation prior to being removed. Disables interaction and applies
+   * the dust effect via a CSS modifier class.
+   */
+  dissolving?: boolean;
 }
 
 function formatActivity(lastActivity: string | number): string {
@@ -96,6 +104,7 @@ export default function SessionCard({
   revealedId,
   onRevealChange,
   index = 0,
+  dissolving = false,
 }: SessionCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef(0);
@@ -213,14 +222,17 @@ export default function SessionCard({
 
   return (
     <div
-      className={styles.wrapper}
+      className={`${styles.wrapper} ${dissolving ? dissolveStyles.dissolving : ''}`}
       style={{ ['--stagger-i' as string]: Math.min(index, 8) }}
+      data-session-id={session.id}
+      aria-hidden={dissolving || undefined}
     >
       <button
         className={styles.deleteBackground}
         onClick={handleDeleteClick}
         aria-label={`Delete session ${session.name}`}
         type="button"
+        disabled={dissolving}
       >
         <TrashIcon />
         Delete
@@ -229,7 +241,10 @@ export default function SessionCard({
         ref={cardRef}
         className={styles.card}
         data-testid="session-card"
-        onClick={() => onSelect(session.id)}
+        onClick={() => {
+          if (dissolving) return;
+          onSelect(session.id);
+        }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}

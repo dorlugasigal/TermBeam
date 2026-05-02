@@ -11,6 +11,7 @@ import {
 import { SortableContext, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
+import { useDissolveDelete } from '@/hooks/useDissolveDelete';
 import { deleteSession } from '@/services/api';
 import { SortableTab } from './SortableTab';
 import { TabPreview } from './TabPreview';
@@ -25,13 +26,16 @@ export function TabBar({ inline = false }: TabBarProps) {
   const activeId = useSessionStore((s) => s.activeId);
   const tabOrder = useSessionStore((s) => s.tabOrder);
   const splitMode = useSessionStore((s) => s.splitMode);
+  const dissolvingIds = useSessionStore((s) => s.dissolvingIds);
   const setActiveId = useSessionStore((s) => s.setActiveId);
   const setTabOrder = useSessionStore((s) => s.setTabOrder);
   const removeSession = useSessionStore((s) => s.removeSession);
   const openNewSessionModal = useUIStore((s) => s.openNewSessionModal);
+  const dissolveDelete = useDissolveDelete();
 
   const [previewSession, setPreviewSession] = useState<string | null>(null);
   const previewAnchorRef = useRef<HTMLDivElement | null>(null);
+  const tabScrollerRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -70,17 +74,44 @@ export function TabBar({ inline = false }: TabBarProps) {
     <div className={inline ? styles.tabBarInline : styles.tabBar}>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={visibleTabOrder} strategy={horizontalListSortingStrategy}>
-          <div className={styles.tabScroller}>
+          <div className={styles.tabScroller} ref={tabScrollerRef}>
             {orderedSessions.map((session) => (
-              <div key={session.id} className={styles.tabSlot}>
+              <div
+                key={session.id}
+                className={styles.tabSlot}
+                data-session-id={session.id}
+              >
                 <SortableTab
                   session={session}
                   isActive={session.id === activeId}
                   isSplit={session.id === splitSecondId}
-                  onActivate={() => setActiveId(session.id)}
+                  dissolving={dissolvingIds.has(session.id)}
+                  onActivate={() => {
+                    if (dissolvingIds.has(session.id)) return;
+                    setActiveId(session.id);
+                  }}
                   onClose={() => {
-                    deleteSession(session.id).catch(() => {});
-                    removeSession(session.id);
+                    if (dissolvingIds.has(session.id)) return;
+                    /*
+                     * If the user is closing the active tab, swap to the
+                     * next visible tab immediately so they aren't
+                     * stranded staring at a fading terminal during the
+                     * disintegrate.
+                     */
+                    if (session.id === activeId) {
+                      const nextActive = visibleTabOrder.find((id) => id !== session.id);
+                      if (nextActive) setActiveId(nextActive);
+                    }
+                    const tabEl = tabScrollerRef.current?.querySelector<HTMLElement>(
+                      `[data-session-id="${session.id}"]`,
+                    );
+                    void dissolveDelete(session.id, {
+                      element: tabEl ?? null,
+                      color: session.color || '#6ec1e4',
+                      variant: 'tab',
+                      apiDelete: () => deleteSession(session.id),
+                      finalize: () => removeSession(session.id),
+                    });
                   }}
                   onMouseEnter={(e) => {
                     previewAnchorRef.current = e.currentTarget;

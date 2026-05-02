@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ManagedSession } from '@/stores/sessionStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
+import { useDissolveDelete } from '@/hooks/useDissolveDelete';
 import { fetchVersion, deleteSession } from '@/services/api';
 import { FileBrowser } from '@/components/FileBrowser/FileBrowser';
+import dissolveStyles from '@/components/common/Disintegrate.module.css';
 import styles from './SidePanel.module.css';
 
 function getActivityLabel(ts: string | number | undefined): string {
@@ -59,13 +61,16 @@ export function SidePanel() {
   const sessions = useSessionStore((s) => s.sessions);
   const activeId = useSessionStore((s) => s.activeId);
   const tabOrder = useSessionStore((s) => s.tabOrder);
+  const dissolvingIds = useSessionStore((s) => s.dissolvingIds);
   const setActiveId = useSessionStore((s) => s.setActiveId);
   const removeSession = useSessionStore((s) => s.removeSession);
+  const dissolveDelete = useDissolveDelete();
 
   const [closing, setClosing] = useState(false);
   const [version, setVersion] = useState('');
   const [showFiles, setShowFiles] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const animateClose = useCallback(() => {
     setClosing(true);
@@ -107,9 +112,21 @@ export function SidePanel() {
 
   const handleClose = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+    if (dissolvingIds.has(id)) return;
     if (confirm('Close this session?')) {
-      deleteSession(id).catch(() => {});
-      removeSession(id);
+      if (id === activeId) {
+        const nextActive = tabOrder.find((tid) => tid !== id && sessions.has(tid));
+        if (nextActive) setActiveId(nextActive);
+      }
+      const session = sessions.get(id);
+      const rowEl = listRef.current?.querySelector<HTMLElement>(`[data-session-id="${id}"]`);
+      void dissolveDelete(id, {
+        element: rowEl ?? null,
+        color: session?.color || '#6ec1e4',
+        variant: 'tab',
+        apiDelete: () => deleteSession(id),
+        finalize: () => removeSession(id),
+      });
     }
   };
 
@@ -164,23 +181,49 @@ export function SidePanel() {
             <div className={styles.sectionTitle}>Sessions</div>
 
             {/* Session list */}
-            <div className={styles.list} data-testid="side-panel-list">
+            <div ref={listRef} className={styles.list} data-testid="side-panel-list">
               {orderedSessions.map((session) => {
                 const activity = getActivityLabel(session.lastActivity);
                 const git = session.git;
+                const isDissolvingRow = dissolvingIds.has(session.id);
 
                 return (
                   <div
                     key={session.id}
-                    className={`${styles.card} ${session.id === activeId ? styles.cardActive : ''}`}
+                    className={`${styles.card} ${session.id === activeId ? styles.cardActive : ''} ${isDissolvingRow ? dissolveStyles.dissolving : ''}`}
                     data-testid="side-panel-card"
-                    onClick={() => selectSession(session.id)}
+                    data-session-id={session.id}
+                    aria-hidden={isDissolvingRow || undefined}
+                    style={
+                      isDissolvingRow
+                        ? ({ ['--termbeam-fragment-ms' as string]: '280ms' } as React.CSSProperties)
+                        : undefined
+                    }
+                    onClick={() => {
+                      if (isDissolvingRow) return;
+                      selectSession(session.id);
+                    }}
                     onAuxClick={(e) => {
+                      if (isDissolvingRow) return;
                       if (e.button === 1) {
                         e.preventDefault();
                         if (confirm('Close this session?')) {
-                          deleteSession(session.id).catch(() => {});
-                          removeSession(session.id);
+                          if (session.id === activeId) {
+                            const nextActive = tabOrder.find(
+                              (tid) => tid !== session.id && sessions.has(tid),
+                            );
+                            if (nextActive) setActiveId(nextActive);
+                          }
+                          const rowEl = listRef.current?.querySelector<HTMLElement>(
+                            `[data-session-id="${session.id}"]`,
+                          );
+                          void dissolveDelete(session.id, {
+                            element: rowEl ?? null,
+                            color: session.color || '#6ec1e4',
+                            variant: 'tab',
+                            apiDelete: () => deleteSession(session.id),
+                            finalize: () => removeSession(session.id),
+                          });
                         }
                       }
                     }}

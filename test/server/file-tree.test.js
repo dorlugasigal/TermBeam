@@ -44,11 +44,12 @@ const baseConfig = {
 };
 
 describe('GET /api/sessions/:id/file-tree', () => {
-  let inst, tmpDir, port, defaultId, cookieHeader;
+  let inst, tmpDir, tmpConfigDir, port, defaultId, cookieHeader;
 
   after(async () => {
     inst?.shutdown();
     await safeCleanup(tmpDir);
+    await safeCleanup(tmpConfigDir);
   });
 
   async function setup() {
@@ -65,6 +66,11 @@ describe('GET /api/sessions/:id/file-tree', () => {
     //   .secret/        (hidden dir — should be filtered)
     //     private.txt
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tb-ftree-'));
+    // Isolated config dir — without this, the server picks up the developer's
+    // real ~/.termbeam/prefs.json which may contain workspace sessions whose
+    // cwd points elsewhere, causing the default session to spawn outside
+    // tmpDir and the file-tree to return the wrong directory's contents.
+    tmpConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tb-ftree-cfg-'));
 
     const alphaDir = path.join(tmpDir, 'alpha');
     const deepDir = path.join(alphaDir, 'deep');
@@ -80,7 +86,7 @@ describe('GET /api/sessions/:id/file-tree', () => {
     fs.writeFileSync(path.join(secretDir, 'private.txt'), 'secret');
 
     const tb = createTermBeamServer({
-      config: { ...baseConfig, cwd: tmpDir },
+      config: { ...baseConfig, cwd: tmpDir, configDir: tmpConfigDir },
     });
     const result = await tb.start();
     inst = tb;

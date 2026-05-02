@@ -3,10 +3,18 @@
 const { describe, it, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 const EventEmitter = require('events');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const http = require('http');
 const { createTermBeamServer } = require('../../src/server');
 
 // --- Helpers ---
+
+async function safeCleanup(dir) {
+  if (!dir) return;
+  await fs.promises.rm(dir, { recursive: true, force: true, maxRetries: 4, retryDelay: 250 });
+}
 
 const baseConfig = {
   port: 0,
@@ -41,11 +49,26 @@ function httpRequest(options, body) {
   });
 }
 
+const startedConfigDirs = [];
+
 async function startServer(configOverrides = {}) {
-  const instance = createTermBeamServer({ config: { ...baseConfig, ...configOverrides } });
+  // Isolate per-server config dir so workspace prefs from a developer's
+  // ~/.termbeam/prefs.json don't bleed into the test (would override the
+  // expected default session and break unrelated assertions).
+  const tmpConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tb-tun-cfg-'));
+  startedConfigDirs.push(tmpConfigDir);
+  const instance = createTermBeamServer({
+    config: { ...baseConfig, configDir: tmpConfigDir, ...configOverrides },
+  });
   const { defaultId } = await instance.start();
   const port = instance.server.address().port;
   return { ...instance, port, defaultId };
+}
+
+async function cleanupConfigDirs() {
+  while (startedConfigDirs.length > 0) {
+    await safeCleanup(startedConfigDirs.pop());
+  }
 }
 
 describe('tunnel token renewal', () => {
@@ -207,6 +230,7 @@ describe('tunnel token renewal', () => {
 
     after(async () => {
       if (instance) await instance.shutdown();
+      await cleanupConfigDirs();
     });
 
     it('should return tunnel status', async () => {

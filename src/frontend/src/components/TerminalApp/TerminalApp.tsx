@@ -333,8 +333,13 @@ export function TerminalApp() {
         }
 
         // Remove sessions that no longer exist on server
+        // Remove sessions deleted on the server, but keep any session
+        // currently mid-disintegrate animation in place — the dissolve
+        // helper has already called DELETE so the server will return
+        // the empty set, and we need the row mounted long enough for
+        // the visual to play out before `removeSession` fires.
         for (const [id, ms] of store.sessions) {
-          if (!serverIds.has(id) && !ms.exited) {
+          if (!serverIds.has(id) && !ms.exited && !store.dissolvingIds.has(id)) {
             // If it's a copilot session, also remove its companion PTY
             if (ms.companionTermId) {
               store.removeSession(ms.companionTermId);

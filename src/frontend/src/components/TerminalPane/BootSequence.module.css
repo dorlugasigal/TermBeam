@@ -1,0 +1,74 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  z-index: 6;
+  font-family: 'JetBrains Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  /*
+   * Quick mount fade so the overlay doesn't hard-snap on. The whole
+   * component is gated behind a 150ms delay timer in BootSequence.tsx
+   * — if the first byte arrives faster than that, this animation
+   * never plays. */
+  animation: boot-fade-in 240ms ease-out both;
+}
+
+.overlay[data-fading='true'] {
+  animation: boot-fade-out 420ms cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted, #999);
+}
+
+/*
+ * Spinner glyph — the JS owns the actual frame string, but we use a
+ * fixed-width inline-block so the label text doesn't jitter as the
+ * spinner cycles through Braille glyphs of varying visual weight.
+ */
+.spinner {
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+  color: var(--accent, #6ec1e4);
+  font-size: 1.15em;
+  line-height: 1;
+}
+
+@keyframes boot-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes boot-fade-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px);
+    filter: blur(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .overlay[data-fading='true'] {
+    animation: none;
+  }
+}

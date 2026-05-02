@@ -20,6 +20,7 @@ describe('preferences sanitize()', () => {
     assert.strictEqual(d.notifications, false);
     assert.strictEqual(d.haptics, true);
     assert.strictEqual(d.showSplash, true);
+    assert.strictEqual(d.particleDissolve, true);
     assert.strictEqual(d.touchBarCollapsed, false);
     assert.strictEqual(d.touchBarKeys, null);
     assert.deepStrictEqual(d.startupWorkspace, { enabled: false, sessions: [] });
@@ -46,6 +47,14 @@ describe('preferences sanitize()', () => {
     assert.strictEqual(sanitize({ showSplash: 'nope' }).showSplash, true);
     assert.strictEqual(sanitize({ showSplash: null }).showSplash, true);
     assert.strictEqual(sanitize({}).showSplash, true);
+  });
+
+  it('round-trips particleDissolve and falls back to true for bad input', () => {
+    assert.strictEqual(sanitize({ particleDissolve: false }).particleDissolve, false);
+    assert.strictEqual(sanitize({ particleDissolve: true }).particleDissolve, true);
+    assert.strictEqual(sanitize({ particleDissolve: 'nope' }).particleDissolve, true);
+    assert.strictEqual(sanitize({ particleDissolve: null }).particleDissolve, true);
+    assert.strictEqual(sanitize({}).particleDissolve, true);
   });
 
   it('drops unknown keys silently (forward compat)', () => {

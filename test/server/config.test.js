@@ -1,9 +1,17 @@
 const { describe, it, after } = require('node:test');
 const assert = require('node:assert');
 const http = require('http');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { createTermBeamServer } = require('../../src/server');
 
 // --- Helpers ---
+
+async function safeCleanup(dir) {
+  if (!dir) return;
+  await fs.promises.rm(dir, { recursive: true, force: true, maxRetries: 4, retryDelay: 250 });
+}
 
 const baseConfig = {
   port: 0,
@@ -41,11 +49,26 @@ function httpRequest(options) {
   });
 }
 
+const startedConfigDirs = [];
+
 async function startServer(configOverrides = {}) {
-  const instance = createTermBeamServer({ config: makeConfig(configOverrides) });
+  // Isolate per-server config dir so workspace prefs from a developer's
+  // ~/.termbeam/prefs.json don't bleed into the test (would override the
+  // expected default session and break unrelated assertions).
+  const tmpConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tb-cfg-cfg-'));
+  startedConfigDirs.push(tmpConfigDir);
+  const instance = createTermBeamServer({
+    config: makeConfig({ configDir: tmpConfigDir, ...configOverrides }),
+  });
   await instance.start();
   const port = instance.server.address().port;
   return { ...instance, port };
+}
+
+async function cleanupConfigDirs() {
+  while (startedConfigDirs.length > 0) {
+    await safeCleanup(startedConfigDirs.pop());
+  }
 }
 
 // --- Tests ---
@@ -53,7 +76,10 @@ async function startServer(configOverrides = {}) {
 describe('GET /api/config', () => {
   describe('with password set', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+      await cleanupConfigDirs();
+    });
 
     it('returns passwordRequired: true', async () => {
       inst = await startServer({ password: 'testpass' });
@@ -71,7 +97,10 @@ describe('GET /api/config', () => {
 
   describe('with no password', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+      await cleanupConfigDirs();
+    });
 
     it('returns passwordRequired: false', async () => {
       inst = await startServer({ password: null });
@@ -89,7 +118,10 @@ describe('GET /api/config', () => {
 
   describe('does not require authentication', () => {
     let inst;
-    after(() => inst?.shutdown());
+    after(async () => {
+      await inst?.shutdown();
+      await cleanupConfigDirs();
+    });
 
     it('returns 200 without any auth cookie or token', async () => {
       inst = await startServer({ password: 'secretpass' });

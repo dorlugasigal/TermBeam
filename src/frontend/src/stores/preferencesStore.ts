@@ -141,6 +141,10 @@ export interface Preferences {
   /** When false, the brand splash animation is skipped on cold load and the
    *  user goes straight to the app shell. Default: true. */
   showSplash: boolean;
+  /** When false, deleting a session skips the canvas particle animation
+   *  (and falls through to the plain CSS fade). Useful on low-power devices
+   *  or for users who find the effect distracting. Default: true. */
+  particleDissolve: boolean;
   defaultFolder: string;
   defaultInitialCommand: string;
   touchBarCollapsed: boolean;
@@ -163,6 +167,7 @@ export const PREF_DEFAULTS: Preferences = Object.freeze({
   notifications: false,
   haptics: true,
   showSplash: true,
+  particleDissolve: true,
   defaultFolder: '',
   defaultInitialCommand: '',
   touchBarCollapsed: false,
@@ -202,6 +207,10 @@ function normalize(input: unknown): Preferences {
     notifications: typeof p.notifications === 'boolean' ? p.notifications : PREF_DEFAULTS.notifications,
     haptics: typeof p.haptics === 'boolean' ? p.haptics : PREF_DEFAULTS.haptics,
     showSplash: typeof p.showSplash === 'boolean' ? p.showSplash : PREF_DEFAULTS.showSplash,
+    particleDissolve:
+      typeof p.particleDissolve === 'boolean'
+        ? p.particleDissolve
+        : PREF_DEFAULTS.particleDissolve,
     defaultFolder: typeof p.defaultFolder === 'string' ? p.defaultFolder : '',
     defaultInitialCommand:
       typeof p.defaultInitialCommand === 'string' ? p.defaultInitialCommand : '',

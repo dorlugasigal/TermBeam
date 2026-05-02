@@ -17,6 +17,7 @@ const DEFAULTS = Object.freeze({
   notifications: false,
   haptics: true,
   showSplash: true,
+  particleDissolve: true,
   defaultFolder: '',
   defaultInitialCommand: '',
   touchBarCollapsed: false,
@@ -190,6 +191,7 @@ function sanitize(prefs) {
     notifications: asBool(src.notifications, DEFAULTS.notifications),
     haptics: asBool(src.haptics, DEFAULTS.haptics),
     showSplash: asBool(src.showSplash, DEFAULTS.showSplash),
+    particleDissolve: asBool(src.particleDissolve, DEFAULTS.particleDissolve),
     defaultFolder: asString(src.defaultFolder, DEFAULTS.defaultFolder, 1024),
     defaultInitialCommand: asString(
       src.defaultInitialCommand,
