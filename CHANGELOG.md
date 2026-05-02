@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.24.3] - 2026-05-02
+
+- feat(frontend): theme-aware particle dissolve + spinner spawn loader (@dorlugasigal)
+- fix(test): force-exit routes.test.js worker on Windows after suite completes (@dorlugasigal)
+- chore(deps): drop Node 20 — EOL 2026-04-30 (@dorlugasigal)
+- fix(version): make /api/version recompute per request again (@dorlugasigal)
+- test(routes): skip whole file on Windows — RCA on node-pty ConPTY hang (@dorlugasigal)
+- ci: drop Windows from unit-test matrix — RCA-based fix for chronic flakes (@dorlugasigal)
+
 ## [1.24.2] - 2026-05-02
 
 - fix(hub): ground every empty-state tip in real shipping behavior (@dorlugasigal)
