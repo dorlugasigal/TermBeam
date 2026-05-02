@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import { fetchSessions, deleteSession, fetchVersion, getShareUrl } from '@/services/api';
 import { useUIStore } from '@/stores/uiStore';
@@ -12,7 +12,7 @@ import NewSessionModal from './NewSessionModal';
 import ResumeBrowser from '@/components/ResumeBrowser/ResumeBrowser';
 import WorkspaceLauncher from '@/components/WorkspaceLauncher/WorkspaceLauncher';
 import FilterBar from './FilterBar';
-import { pickRandomTip } from './tips';
+import { HUB_TIPS, getTipAt, pickRandomTipIndex } from './tips';
 import {
   EMPTY_FILTER,
   deriveFacets,
@@ -24,6 +24,8 @@ import styles from './SessionsHub.module.css';
 
 const POLL_INTERVAL = 3000;
 const FILTER_STORAGE_KEY = 'termbeam-hub-filter';
+/** Minimum horizontal travel (px) to count a swipe on the tip card. */
+const TIP_SWIPE_THRESHOLD = 40;
 
 function loadFilterFromStorage(): SessionFilterState {
   try {
@@ -85,7 +87,13 @@ export default function SessionsHub() {
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<SessionFilterState>(() => loadFilterFromStorage());
   const [workspaceLauncherOpen, setWorkspaceLauncherOpen] = useState(false);
-  const { openNewSessionModal, openResumeBrowser, themePickerOpen, openThemePicker, closeThemePicker } = useUIStore();
+  const {
+    openNewSessionModal,
+    openResumeBrowser,
+    themePickerOpen,
+    openThemePicker,
+    closeThemePicker,
+  } = useUIStore();
 
   const loadSessions = useCallback(async () => {
     try {
@@ -120,16 +128,19 @@ export default function SessionsHub() {
   }, [filter]);
 
   const facets = useMemo(() => deriveFacets(sessions), [sessions]);
-  const visibleSessions = useMemo(
-    () => filterSessions(sessions, filter),
-    [sessions, filter],
-  );
+  const visibleSessions = useMemo(() => filterSessions(sessions, filter), [sessions, filter]);
   const filterActive = !isEmptyFilter(filter);
 
-  // Pin one tip for the lifetime of this hub mount so it doesn't shuffle
-  // while the user is looking at the empty state. A fresh tip is picked
-  // on the next visit / refresh.
-  const tip = useMemo(() => pickRandomTip(), []);
+  // Pin a starting tip for the lifetime of this hub mount so the carousel
+  // doesn't reshuffle while the user is looking at it. A fresh starting
+  // tip is picked on the next visit / refresh, and the user can page
+  // forward/back from there.
+  const [tipIndex, setTipIndex] = useState<number>(() => pickRandomTipIndex());
+  const tip = getTipAt(tipIndex);
+  const tipCount = HUB_TIPS.length;
+  const showPrevTip = useCallback(() => setTipIndex((i) => i - 1), []);
+  const showNextTip = useCallback(() => setTipIndex((i) => i + 1), []);
+  const tipSwipeStartX = useRef<number | null>(null);
 
   function navigateToSession(id: string) {
     window.history.pushState(null, '', `/terminal?session=${id}`);
@@ -196,7 +207,14 @@ export default function SessionsHub() {
             aria-label="Choose theme"
             title="Theme"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <circle cx="13.5" cy="6.5" r="1.5" fill="currentColor" />
               <circle cx="17.5" cy="10.5" r="1.5" fill="currentColor" />
               <circle cx="8.5" cy="7.5" r="1.5" fill="currentColor" />
@@ -242,7 +260,24 @@ export default function SessionsHub() {
               Tap &quot;+ New Session&quot; to create a new terminal session
             </span>
 
-            <div className={styles.tipCard} data-testid="hub-tip">
+            <div
+              className={styles.tipCard}
+              data-testid="hub-tip"
+              role="region"
+              aria-label="Tip carousel"
+              aria-live="polite"
+              onTouchStart={(e) => {
+                tipSwipeStartX.current = e.touches[0]?.clientX ?? null;
+              }}
+              onTouchEnd={(e) => {
+                const start = tipSwipeStartX.current;
+                tipSwipeStartX.current = null;
+                if (start == null) return;
+                const dx = (e.changedTouches[0]?.clientX ?? start) - start;
+                if (dx <= -TIP_SWIPE_THRESHOLD) showNextTip();
+                else if (dx >= TIP_SWIPE_THRESHOLD) showPrevTip();
+              }}
+            >
               <span className={styles.tipBadge}>Tip</span>
               <span className={styles.tipIcon} aria-hidden="true">
                 {tip.icon}
@@ -250,6 +285,56 @@ export default function SessionsHub() {
               <div className={styles.tipBody}>
                 <strong className={styles.tipTitle}>{tip.title}</strong>
                 <span className={styles.tipText}>{tip.body}</span>
+              </div>
+              <div className={styles.tipNav} data-testid="hub-tip-nav">
+                <button
+                  type="button"
+                  className={styles.tipNavBtn}
+                  onClick={showPrevTip}
+                  aria-label="Previous tip"
+                  data-testid="hub-tip-prev"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+                <span
+                  className={styles.tipCounter}
+                  aria-label={`Tip ${(((tipIndex % tipCount) + tipCount) % tipCount) + 1} of ${tipCount}`}
+                  data-testid="hub-tip-counter"
+                >
+                  {(((tipIndex % tipCount) + tipCount) % tipCount) + 1}
+                  <span aria-hidden="true"> / {tipCount}</span>
+                </span>
+                <button
+                  type="button"
+                  className={styles.tipNavBtn}
+                  onClick={showNextTip}
+                  aria-label="Next tip"
+                  data-testid="hub-tip-next"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
@@ -300,11 +385,7 @@ export default function SessionsHub() {
         >
           + New Session
         </button>
-        <button
-          className={styles.resumeBtn}
-          onClick={openResumeBrowser}
-          aria-label="Resume agent"
-        >
+        <button className={styles.resumeBtn} onClick={openResumeBrowser} aria-label="Resume agent">
           ↺ Resume Agent
         </button>
         <button

@@ -148,10 +148,13 @@
   position: relative;
   display: grid;
   grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'icon body'
+    'nav  nav';
   align-items: start;
   gap: 12px;
   margin-top: 1.5rem;
-  padding: 14px 16px;
+  padding: 14px 16px 10px;
   max-width: 340px;
   width: 100%;
   background: var(--surface);
@@ -159,6 +162,8 @@
   border-radius: 12px;
   text-align: left;
   box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.02) inset;
+  /* Allow horizontal swipe gestures without the browser hijacking them. */
+  touch-action: pan-y;
 }
 
 .tipBadge {
@@ -177,12 +182,14 @@
 }
 
 .tipIcon {
+  grid-area: icon;
   font-size: 22px;
   line-height: 1;
   margin-top: 2px;
 }
 
 .tipBody {
+  grid-area: body;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -199,6 +206,60 @@
   font-size: 0.82rem;
   line-height: 1.4;
   color: var(--text-dim);
+}
+
+/* Carousel navigation: prev / counter / next, sized for a thumb. */
+.tipNav {
+  grid-area: nav;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.tipNavBtn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 36px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s,
+    transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tipNavBtn:hover,
+.tipNavBtn:focus-visible {
+  color: var(--text);
+  background: var(--bg);
+  border-color: var(--border);
+  outline: none;
+}
+
+.tipNavBtn:active {
+  transform: scale(0.94);
+}
+
+.tipCounter {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
 }
 
 .hubFooter {
