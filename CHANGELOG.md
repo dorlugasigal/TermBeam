@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.24.1] - 2026-05-02
+
+- feat(hub): expand empty-state tips to 41 and make them browsable (@dorlugasigal)
+
 ## [1.24.0] - 2026-05-01
 
 - feat(ui): configurable splash + mobile tips on empty SessionsHub (@dorlugasigal)
