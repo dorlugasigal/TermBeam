@@ -42,7 +42,7 @@ export const HUB_TIPS: Tip[] = [
   {
     icon: '↕️',
     title: 'Stack more keys',
-    body: 'Drag the TouchBar handle upward to add up to 3 rows for vim, tmux, or your own combos',
+    body: 'Tap the TouchBar handle to expand and reveal up to 3 rows for vim, tmux, or your own combos',
   },
   {
     icon: '⚙️',
@@ -62,12 +62,12 @@ export const HUB_TIPS: Tip[] = [
   {
     icon: '🗂️',
     title: 'Save a workspace',
-    body: 'Group your favorite sessions into a workspace from ▦ → Save Workspace, then re-launch with one tap',
+    body: 'Group your favorite sessions in Settings → Workspaces → Save current as new workspace, then re-launch with one tap',
   },
   {
     icon: '↺',
     title: 'Pick up where you left off',
-    body: 'Resume Agent reattaches to running Claude Code, Codex, or other agent sessions with full history',
+    body: 'Resume Agent opens your latest Copilot, Claude, or OpenCode conversation in a fresh terminal with the full history',
   },
   {
     icon: '⏯',
@@ -77,7 +77,7 @@ export const HUB_TIPS: Tip[] = [
   {
     icon: '🛰️',
     title: 'Cellular access on the go',
-    body: 'A persistent dev tunnel lets you reach this terminal from your phone over LTE — no VPN needed',
+    body: 'An optional dev tunnel lets you reach this terminal from your phone over LTE — no VPN, no LAN, no fuss',
   },
   {
     icon: '🎨',
@@ -106,13 +106,13 @@ export const HUB_TIPS: Tip[] = [
   },
   {
     icon: '🔔',
-    title: 'Get pinged when builds finish',
-    body: 'Enable Notifications in Settings — TermBeam beeps and buzzes when a long-running command completes',
+    title: 'Get pinged when output goes quiet',
+    body: 'Enable Notifications in Settings — TermBeam beeps on bell signals or after a busy command goes silent',
   },
   {
     icon: '📳',
     title: 'Feel every keypress',
-    body: 'Haptics on iOS-style devices add a subtle buzz to TouchBar taps — toggle in Settings → Notifications',
+    body: 'Haptics on iOS-style devices add a subtle buzz to TouchBar taps — toggle in Settings → Notifications & Feedback',
   },
   {
     icon: '🧭',
@@ -137,12 +137,12 @@ export const HUB_TIPS: Tip[] = [
   {
     icon: '🪄',
     title: 'Multiple shells, one tap',
-    body: 'Open ▦ → New Session and pick zsh, bash, pwsh — TermBeam picks up your installed shells automatically',
+    body: 'Open ▦ → New tab and pick zsh, bash, pwsh — TermBeam auto-detects every shell installed on your machine',
   },
   {
-    icon: '🧩',
-    title: 'Files in agent output? Tap them',
-    body: 'When Claude Code or Codex mentions a file path, tap it to open the in-app code viewer — diffs included',
+    icon: '📑',
+    title: 'Watch the agent edit your code',
+    body: 'When Claude or Copilot edits a file through a tool call, the change renders as a diff right inside the chat',
   },
   {
     icon: '🔭',
@@ -152,7 +152,7 @@ export const HUB_TIPS: Tip[] = [
   {
     icon: '🪟',
     title: 'Split the screen',
-    body: 'Tap ▦ → Split to put two terminals side by side — perfect for tests in one and edits in the other',
+    body: 'Open ▦ → Split vertical or Split horizontal to put two terminals side by side — tests in one, edits in the other',
   },
   {
     icon: '🏷️',
@@ -186,13 +186,13 @@ export const HUB_TIPS: Tip[] = [
   },
   {
     icon: '🗒️',
-    title: 'Tabs inside a session',
-    body: 'Tap ▦ → New tab to open another shell inside the same session — switch between them from the tab bar',
+    title: 'Sessions live in tabs',
+    body: 'Tap ▦ → New tab to spin up another session — switch between every running session from the tab bar at the top',
   },
   {
     icon: '🧹',
-    title: 'Clear without typing',
-    body: 'Hit ▦ → Clear terminal when scrollback gets noisy — quicker than reaching for the C key on the on-screen keyboard',
+    title: 'Clean slate, no typing',
+    body: 'Hit ▦ → Clear terminal to wipe both the viewport and scrollback — quicker than reaching for the on-screen keyboard',
   },
   {
     icon: '🧯',
@@ -201,8 +201,8 @@ export const HUB_TIPS: Tip[] = [
   },
   {
     icon: '📎',
-    title: 'Paste long text safely',
-    body: 'When you paste multi-line content, TermBeam shows a confirm overlay so a stray newline can never run a command by surprise',
+    title: 'Paste many lines, no surprises',
+    body: 'Multi-line pastes use bracketed-paste markers so the shell treats them as one chunk — no stray commands sneak through',
   },
   {
     icon: '🔐',
@@ -215,11 +215,6 @@ export const HUB_TIPS: Tip[] = [
     body: 'Multiple browsers attached to the same session see the same output frame-by-frame — great for pair debugging',
   },
   {
-    icon: '🌗',
-    title: 'Auto theme on iOS / Android',
-    body: 'Pick the System theme and TermBeam follows your phone\u2019s light/dark schedule automatically',
-  },
-  {
     icon: '🖋️',
     title: 'Tweak the font, not the world',
     body: 'Use ▦ → Increase/Decrease font size for finer control than pinch — perfect for reading code on a small screen',
@@ -227,7 +222,7 @@ export const HUB_TIPS: Tip[] = [
   {
     icon: 'ℹ️',
     title: 'Wondering what version you are on?',
-    body: 'Tap ▦ → About to see the running version, your tunnel URL, and quick links to docs',
+    body: 'Tap ▦ → About to see the running version, links to docs and source, and a one-tap update check',
   },
 ];
 
