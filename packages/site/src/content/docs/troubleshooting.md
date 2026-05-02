@@ -151,7 +151,7 @@ curl -H "Authorization: Bearer YOUR_PASSWORD" http://localhost:3456/api/sessions
 - **Alpine (Docker):** `apk add build-base python3`
 - **Windows (Admin PowerShell):** `npm install --global windows-build-tools`
 
-Ensure your Node.js version is 20 or higher — older versions are not supported.
+Ensure your Node.js version is 22 or higher — older versions (including Node 20, EOL 2026-04-30) are not supported.
 
 ### "Port already in use"
 

@@ -343,7 +343,7 @@ If you use `--tunnel` with a background service, pass `--persisted-tunnel` so th
 
 <!-- prettier-ignore -->
 :::tip[Node.js Requirement]
-TermBeam requires Node.js 20 or higher. Verify with `node --version` before setting up a background service.
+TermBeam requires Node.js 22 or higher (Node 20 was dropped after its EOL on 2026-04-30). Verify with `node --version` before setting up a background service.
 :::
 
 <!-- prettier-ignore -->

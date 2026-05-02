@@ -5,7 +5,7 @@ description: Install TermBeam and connect to your terminal from any device in un
 
 ## Prerequisites
 
-- **Node.js** 20 or higher
+- **Node.js** 22 or higher
 - A terminal (macOS, Linux, or Windows)
 
 ## Installation

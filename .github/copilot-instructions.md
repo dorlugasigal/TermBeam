@@ -107,7 +107,7 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 - **Minimal dependencies** — prefer built-in Node.js APIs over npm packages
 - **One responsibility per file** — modules organized in `src/server/`, `src/cli/`, `src/tunnel/`, `src/utils/`, each owning a single concern
 - **Prettier formatting** — single quotes, trailing commas, 100 char width, semicolons (`.prettierrc`)
-- **Cross-platform support** — must work on Windows, macOS, and Linux; CI tests on Ubuntu + Windows with Node 20, 22, 24
+- **Cross-platform support** — must work on Windows, macOS, and Linux; CI tests on Ubuntu + Windows with Node 22 and 24 (Node 20 was dropped after its EOL on 2026-04-30; bump `package.json` engines + this line in lockstep)
 - **PTY session cleanup** — `pty.kill()` is async; the `onExit` callback removes the session from the Map
 - **Coverage exclusion** — `src/tunnel/` directory is excluded from coverage (requires external DevTunnel CLI)
 - **Build artifact** — `public/` is a gitignored build artifact; run `npm run build:frontend` to regenerate from `src/frontend/`
