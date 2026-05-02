@@ -4976,4 +4976,25 @@ describe('Routes', () => {
       });
     },
   );
+
+  /*
+   * Windows-only worker-exit shim. After every Routes subtest completes,
+   * node-pty's `conpty_console_list_agent.js` helper process can crash with
+   * `AttachConsole failed` and keep our test worker's event loop alive on
+   * dangling stdio pipes. The per-file --test-timeout (180s) then fires
+   * and marks the WHOLE file as failed even though every assertion passed.
+   *
+   * `--test-force-exit` doesn't help here — that flag only acts on the
+   * parent test runner, not on per-file worker processes.
+   *
+   * After every test in this file has reported, force-exit the worker
+   * itself with a brief grace period for any in-flight `pty.kill()`
+   * IPC to settle. Skipped on non-Windows so we still get full process
+   * leak detection on Linux/macOS.
+   */
+  if (process.platform === 'win32') {
+    after(() => {
+      setTimeout(() => process.exit(0), 1500).unref();
+    });
+  }
 });
