@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.24.5] - 2026-05-03
+
+- fix(frontend): show live version on hub by hitting /api/version directly (@dorlugasigal)
+
 ## [1.24.4] - 2026-05-03
 
 - fix(sessions): clean global store on Hub deletes to prevent ghost session tabs (@dorlugasigal)
