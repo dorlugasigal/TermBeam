@@ -169,6 +169,21 @@ export function TerminalApp() {
         const list: Session[] = await fetchSessions();
         const store = useSessionStore.getState();
         const urlSessionId = getSessionIdFromUrl();
+        const serverIds = new Set(list.map((s) => s.id));
+
+        // Defensive prune: the global session store survives across
+        // unmount/remount of TerminalApp (Zustand state is module-global).
+        // If a session was deleted while we were elsewhere (Hub view, code
+        // viewer, etc.), the store may still hold its entry. Clean those up
+        // BEFORE rendering — otherwise TerminalPane mounts for the orphan,
+        // opens a WebSocket, and the server replies "Session not found".
+        // Skip ids currently mid-disintegrate (animation in flight).
+        for (const [id, ms] of store.sessions) {
+          if (!serverIds.has(id) && !ms.exited && !store.dissolvingIds.has(id)) {
+            if (ms.companionTermId) store.removeSession(ms.companionTermId);
+            store.removeSession(id);
+          }
+        }
 
         // Add ALL sessions from server (matching old UI behavior)
         for (const s of list) {

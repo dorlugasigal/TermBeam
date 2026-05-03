@@ -173,7 +173,22 @@ export default function SessionsHub() {
         element: element ?? null,
         color: session?.color ?? '#6ec1e4',
         apiDelete: () => deleteSession(id),
-        finalize: () => setSessions((prev) => prev.filter((s) => s.id !== id)),
+        finalize: () => {
+          // Hub deletes must clear the GLOBAL session store too, not just our
+          // local list. The global store may already hold this session if the
+          // user previously visited TerminalApp during the same SPA session
+          // (the Map persists across mount/unmount of TerminalApp). Without
+          // this, a later SPA navigation back to /terminal would re-mount
+          // TerminalPanes for the orphan ids in tabOrder, fail WS attach with
+          // "Session not found", and leak the deleted id back into localStorage.
+          // removeSession also adds the id to deletedIds so any in-flight
+          // attach error toasts are suppressed.
+          const store = useSessionStore.getState();
+          const ms = store.sessions.get(id);
+          if (ms?.companionTermId) store.removeSession(ms.companionTermId);
+          store.removeSession(id);
+          setSessions((prev) => prev.filter((s) => s.id !== id));
+        },
       });
       toast.success(`Session "${session?.name ?? id}" deleted`);
     } catch (err) {
