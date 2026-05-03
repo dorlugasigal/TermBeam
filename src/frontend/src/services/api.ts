@@ -376,6 +376,19 @@ export async function getUpdateStatus(): Promise<UpdateState | null> {
 }
 
 export async function fetchVersion(): Promise<string> {
+  // Hit /api/version directly — it recomputes per request via getVersion()
+  // and reflects the current git state (dirty, commits-ahead). The richer
+  // checkUpdate() endpoint reuses config.version which is computed once at
+  // server startup, so it lags the working tree on long-running dev servers.
+  try {
+    const res = await fetchWithTimeout(`${BASE}/api/version`, { credentials: 'same-origin' });
+    if (res.ok) {
+      const data = await res.json();
+      if (typeof data?.version === 'string') return data.version;
+    }
+  } catch {
+    // Fall through to checkUpdate()
+  }
   try {
     const data = await checkUpdate();
     if (data?.current) return data.current;
