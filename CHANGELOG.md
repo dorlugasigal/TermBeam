@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.24.4] - 2026-05-03
+
+- fix(sessions): clean global store on Hub deletes to prevent ghost session tabs (@dorlugasigal)
+
 ## [1.24.3] - 2026-05-02
 
 - feat(frontend): theme-aware particle dissolve + spinner spawn loader (@dorlugasigal)
