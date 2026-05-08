@@ -139,9 +139,9 @@
 
 /*
  * Active session: just a 3px left-edge accent stripe. The card border stays
- * neutral (--border) — no accent tint anywhere else. Earlier iterations
- * tinted the border or background and the result still read as a colored
- * box. The stripe alone is the only chromatic cue.
+ * neutral (--border) — no accent tint anywhere else, even on hover. Earlier
+ * iterations tinted the border or background and the result still read as
+ * a colored box. The stripe alone is the only chromatic cue.
  */
 .cardActive::before {
   content: '';
@@ -153,6 +153,15 @@
   background: var(--accent);
   border-radius: 10px 0 0 10px;
   pointer-events: none;
+}
+
+/*
+ * The generic .card:hover above tints every card's border with an accent
+ * color-mix. Override it for the active card so its border stays neutral
+ * on hover too — the left-edge stripe is the only visual cue we want.
+ */
+.cardActive:hover {
+  border-color: var(--border);
 }
 
 /* Card header row */

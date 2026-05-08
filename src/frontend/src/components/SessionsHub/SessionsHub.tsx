@@ -299,7 +299,7 @@ export default function SessionsHub() {
 
       <ThemePicker open={themePickerOpen} onClose={closeThemePicker} hideTrigger />
 
-      <main className={styles.content}>
+      <main className={styles.content} aria-busy={loading || undefined}>
         {loading ? null : sessions.length === 0 ? (
           <div className={styles.emptyState} data-testid="empty-state">
             <Wordmark size="md" />
