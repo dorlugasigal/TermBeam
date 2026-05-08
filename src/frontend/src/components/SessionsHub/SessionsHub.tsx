@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
-import { fetchSessions, deleteSession, fetchVersion, getShareUrl } from '@/services/api';
+import { fetchSessions, deleteSession, fetchVersion } from '@/services/api';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useDissolveDelete } from '@/hooks/useDissolveDelete';
 import ThemePicker from '@/components/common/ThemePicker';
+import SettingsPanel from '@/components/SettingsPanel/SettingsPanel';
+import CustomKeysModal from '@/components/CustomKeysModal/CustomKeysModal';
+import ToolsPanel from '@/components/ToolsPanel/ToolsPanel';
 import type { Session } from '@/types';
 import UpdateBanner from '@/components/common/UpdateBanner';
 import TunnelBanner from '@/components/common/TunnelBanner';
@@ -46,38 +49,21 @@ function loadFilterFromStorage(): SessionFilterState {
   }
 }
 
-/* clipboard fallback for non-secure (HTTP) contexts */
-function fallbackCopyShare(text: string): void {
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
-  textarea.select();
-  try {
-    document.execCommand('copy');
-    toast.success('URL copied to clipboard');
-  } catch {
-    toast.error('Failed to copy URL');
-  }
-  document.body.removeChild(textarea);
-}
-
-const ShareIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <circle cx="18" cy="5" r="3" />
-    <circle cx="6" cy="12" r="3" />
-    <circle cx="18" cy="19" r="3" />
-    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-  </svg>
-);
-
-const RefreshIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <polyline points="23 4 23 10 17 10" />
-    <polyline points="1 20 1 14 7 14" />
-    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+const ToolsIcon = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
   </svg>
 );
 
@@ -85,7 +71,6 @@ export default function SessionsHub() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [arriving, setArriving] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [version, setVersion] = useState('');
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<SessionFilterState>(() => loadFilterFromStorage());
@@ -96,8 +81,10 @@ export default function SessionsHub() {
     openNewSessionModal,
     openResumeBrowser,
     themePickerOpen,
-    openThemePicker,
     closeThemePicker,
+    toggleToolsPanel,
+    customKeysModalOpen,
+    closeCustomKeysModal,
   } = useUIStore();
 
   const dissolvingIds = useSessionStore((s) => s.dissolvingIds);
@@ -180,9 +167,7 @@ export default function SessionsHub() {
 
   async function handleDelete(id: string) {
     const session = sessions.find((s) => s.id === id);
-    const element = listRef.current?.querySelector<HTMLElement>(
-      `[data-session-id="${id}"]`,
-    );
+    const element = listRef.current?.querySelector<HTMLElement>(`[data-session-id="${id}"]`);
     try {
       await dissolveDelete(id, {
         element: element ?? null,
@@ -211,30 +196,26 @@ export default function SessionsHub() {
     }
   }
 
-  async function handleRefresh() {
-    setRefreshing(true);
-    try {
-      if ('caches' in window && typeof window.caches?.keys === 'function') {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+  // Cmd/Ctrl+K toggles the Tools panel — mirrors TerminalApp so the
+  // shortcut is consistent across the app shell. Skip when focus is on a
+  // text field (e.g. the FilterBar input) so the shortcut doesn't hijack
+  // typing inside the search box.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        const target = e.target as HTMLElement | null;
+        const isEditable =
+          target?.tagName === 'INPUT' ||
+          target?.tagName === 'TEXTAREA' ||
+          target?.isContentEditable;
+        if (isEditable) return;
+        e.preventDefault();
+        toggleToolsPanel();
       }
-    } finally {
-      location.reload();
-    }
-  }
-
-  function handleShare() {
-    getShareUrl().then((url) => {
-      if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(url).then(
-          () => toast.success('URL copied to clipboard'),
-          () => fallbackCopyShare(url),
-        );
-      } else {
-        fallbackCopyShare(url);
-      }
-    });
-  }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [toggleToolsPanel]);
 
   return (
     <div className={styles.page}>
@@ -256,48 +237,20 @@ export default function SessionsHub() {
         <div className={styles.headerActions}>
           <button
             className={styles.headerBtn}
-            onClick={openThemePicker}
-            aria-label="Choose theme"
-            title="Theme"
+            onClick={toggleToolsPanel}
+            aria-label="Tools"
+            title="Tools (Ctrl+K)"
+            data-testid="palette-trigger"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="13.5" cy="6.5" r="1.5" fill="currentColor" />
-              <circle cx="17.5" cy="10.5" r="1.5" fill="currentColor" />
-              <circle cx="8.5" cy="7.5" r="1.5" fill="currentColor" />
-              <circle cx="6.5" cy="12.5" r="1.5" fill="currentColor" />
-              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-5.52-4.48-10-10-10z" />
-            </svg>
-          </button>
-          <button
-            className={styles.headerBtn}
-            onClick={handleShare}
-            aria-label="Share URL"
-            title="Share"
-          >
-            <ShareIcon />
-          </button>
-          <button
-            className={styles.headerBtn}
-            onClick={handleRefresh}
-            aria-label="Refresh sessions"
-            title="Refresh"
-            data-testid="hub-refresh-btn"
-          >
-            <span className={refreshing ? styles.refreshSpin : ''} style={{ display: 'flex' }}>
-              <RefreshIcon />
-            </span>
+            <ToolsIcon />
           </button>
         </div>
       </header>
 
       <ThemePicker open={themePickerOpen} onClose={closeThemePicker} hideTrigger />
+      <ToolsPanel inHub />
+      <SettingsPanel inHub />
+      <CustomKeysModal open={customKeysModalOpen} onClose={closeCustomKeysModal} />
 
       <main className={styles.content} aria-busy={loading || undefined}>
         {loading ? null : sessions.length === 0 ? (

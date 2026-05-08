@@ -539,21 +539,39 @@ test.describe('Hub Page', () => {
     expect(versionText).toMatch(/v?\d+\.\d+/);
   });
 
-  test('refresh button reloads session list', async ({ page }) => {
-    await createSessionViaAPI();
+  test('tools button opens tools panel with hub-relevant actions', async ({ page }) => {
     await navigateToHub(page);
 
-    // Session list should have sessions (auto-created + API-created)
-    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(2, {
-      timeout: 5_000,
-    });
+    // Panel should not exist initially
+    await expect(page.locator('[data-testid="palette-panel"][data-open="true"]')).toHaveCount(0);
 
-    // Click refresh
-    await page.click('[data-testid="hub-refresh-btn"]');
+    // Open via the new Tools button in the header (same testid as terminal)
+    await page.click('[data-testid="palette-trigger"]');
+    const panel = page.locator('[data-testid="palette-panel"][data-open="true"]');
+    await expect(panel).toBeVisible({ timeout: 3_000 });
 
-    // Sessions should still be listed after refresh
-    await expect(page.locator('[data-testid="session-card"]')).toHaveCount(2, {
-      timeout: 5_000,
+    // Hub-relevant actions should be present
+    await expect(panel.getByText('Copy link', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Launch agent', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Resume agent session', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Settings…', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Refresh', { exact: true })).toBeVisible();
+    await expect(panel.getByText('About', { exact: true })).toBeVisible();
+
+    // Theme picker is mounted under the VIEW section (the section's
+    // action buttons are filtered out on the Hub but the picker stays).
+    await expect(panel.locator('[data-testid="theme-trigger"]')).toBeVisible();
+
+    // Session-specific actions should be hidden
+    await expect(panel.getByText('Browse files', { exact: true })).toHaveCount(0);
+    await expect(panel.getByText('Clear terminal', { exact: true })).toHaveCount(0);
+    await expect(panel.getByText('New tab', { exact: true })).toHaveCount(0);
+    await expect(panel.getByText('Increase font size', { exact: true })).toHaveCount(0);
+
+    // Functional check: clicking Settings… opens the SettingsPanel
+    await panel.getByText('Settings…', { exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible({
+      timeout: 3_000,
     });
   });
 

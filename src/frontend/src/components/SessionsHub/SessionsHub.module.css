@@ -373,13 +373,3 @@
     padding: 12px 8px;
   }
 }
-
-.refreshSpin {
-  animation: spin 0.6s linear;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}

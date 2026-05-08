@@ -46,7 +46,19 @@ function truncateCmd(cmd: string, max = 36): string {
   return `${cmd.slice(0, max - 1).trimEnd()}…`;
 }
 
-export default function SettingsPanel() {
+interface SettingsPanelProps {
+  /**
+   * Set when the panel is rendered from the Sessions hub (no active terminal
+   * session). Hides actions that depend on the live session store
+   * (`Save current as new workspace`, per-workspace `Update`) because the
+   * global session store is not authoritative on the Hub — the Hub maintains
+   * its own polled list. Without this, "Update" on an existing workspace
+   * could clobber it with stale leftovers from a prior terminal visit.
+   */
+  inHub?: boolean;
+}
+
+export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}) {
   const open = useUIStore((s) => s.settingsPanelOpen);
   const close = useUIStore((s) => s.closeSettingsPanel);
   const openThemePicker = useUIStore((s) => s.openThemePicker);
@@ -443,8 +455,8 @@ export default function SettingsPanel() {
               <span className={styles.rowLabel}>
                 Particle dissolve
                 <span className={styles.rowHint}>
-                  Play the canvas particle effect when deleting a session. Turn off for a plain
-                  fade only — useful on low-power devices.
+                  Play the canvas particle effect when deleting a session. Turn off for a plain fade
+                  only — useful on low-power devices.
                 </span>
               </span>
               <Toggle
@@ -462,7 +474,9 @@ export default function SettingsPanel() {
             <div className={styles.row}>
               <span className={styles.rowLabel}>
                 Start collapsed
-                <span className={styles.rowHint}>Hide TouchBar by default; tap the handle to expand</span>
+                <span className={styles.rowHint}>
+                  Hide TouchBar by default; tap the handle to expand
+                </span>
               </span>
               <Toggle
                 on={prefs.touchBarCollapsed}
@@ -558,7 +572,7 @@ export default function SettingsPanel() {
 
               return (
                 <>
-                  {!fullyEmpty && (
+                  {!fullyEmpty && !inHub && (
                     <div className={styles.workspaceSaveRow}>
                       <button
                         type="button"
@@ -578,16 +592,24 @@ export default function SettingsPanel() {
                       </div>
                       <div className={styles.workspaceEmptyTitle}>No workspaces yet</div>
                       <p className={styles.workspaceEmptyDesc}>
-                        Save groups of sessions to launch them together. Open some sessions, then
-                        click <strong>Save current as new workspace</strong>.
+                        {inHub
+                          ? 'Save groups of sessions to launch them together. Open a session, then come back here to capture it.'
+                          : 'Save groups of sessions to launch them together. Open some sessions, then click '}
+                        {!inHub && (
+                          <>
+                            <strong>Save current as new workspace</strong>.
+                          </>
+                        )}
                       </p>
-                      <button
-                        type="button"
-                        className={styles.workspaceEmptyCta}
-                        onClick={saveAsNewWorkspace}
-                      >
-                        Save current as new workspace
-                      </button>
+                      {!inHub && (
+                        <button
+                          type="button"
+                          className={styles.workspaceEmptyCta}
+                          onClick={saveAsNewWorkspace}
+                        >
+                          Save current as new workspace
+                        </button>
+                      )}
                       {saveToast && (
                         <span className={styles.saveToastChip} style={{ marginTop: 10 }}>
                           {saveToast}
@@ -610,16 +632,16 @@ export default function SettingsPanel() {
                               <div className={styles.workspaceCardTitle}>
                                 <span className={styles.workspaceCardName}>{ws.name}</span>
                                 {ws.default && (
-                                  <span className={styles.workspaceAutoStartChip}>
-                                    Auto-start
-                                  </span>
+                                  <span className={styles.workspaceAutoStartChip}>Auto-start</span>
                                 )}
                               </div>
                             </div>
                             <div className={styles.workspaceCardSummary}>
                               {ws.sessions.length} session{ws.sessions.length === 1 ? '' : 's'}
-                              {shellCount > 0 && ` · ${shellCount} terminal${shellCount === 1 ? '' : 's'}`}
-                              {agentCount > 0 && ` · ${agentCount} agent${agentCount === 1 ? '' : 's'}`}
+                              {shellCount > 0 &&
+                                ` · ${shellCount} terminal${shellCount === 1 ? '' : 's'}`}
+                              {agentCount > 0 &&
+                                ` · ${agentCount} agent${agentCount === 1 ? '' : 's'}`}
                             </div>
 
                             {ws.sessions.length === 0 ? (
@@ -646,10 +668,7 @@ export default function SettingsPanel() {
                                         </code>
                                       )}
                                       {s.cwd && (
-                                        <span
-                                          className={styles.workspaceMiniCwd}
-                                          title={s.cwd}
-                                        >
+                                        <span className={styles.workspaceMiniCwd} title={s.cwd}>
                                           {cwdLeaf(s.cwd)}
                                         </span>
                                       )}
@@ -669,14 +688,16 @@ export default function SettingsPanel() {
                                 <span>Launch on TermBeam start</span>
                               </label>
                               <div className={styles.workspaceCardActions}>
-                                <button
-                                  type="button"
-                                  className={styles.linkBtn}
-                                  onClick={() => updateWorkspaceFromCurrent(ws.id)}
-                                  title="Replace this workspace with the currently open sessions"
-                                >
-                                  Update
-                                </button>
+                                {!inHub && (
+                                  <button
+                                    type="button"
+                                    className={styles.linkBtn}
+                                    onClick={() => updateWorkspaceFromCurrent(ws.id)}
+                                    title="Replace this workspace with the currently open sessions"
+                                  >
+                                    Update
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   className={styles.linkBtn}
@@ -707,15 +728,21 @@ export default function SettingsPanel() {
                         Restore default startup
                         <span className={styles.rowHint}>
                           {prefs.startupWorkspace.sessions.length} session
-                          {prefs.startupWorkspace.sessions.length === 1 ? '' : 's'} (legacy) ·{' '}
-                          <button
-                            type="button"
-                            className={styles.linkBtn}
-                            onClick={saveWorkspace}
-                            style={{ padding: 0, fontSize: '0.75rem' }}
-                          >
-                            update from current
-                          </button>
+                          {prefs.startupWorkspace.sessions.length === 1 ? '' : 's'} (legacy)
+                          {!inHub && (
+                            <>
+                              {' '}
+                              ·{' '}
+                              <button
+                                type="button"
+                                className={styles.linkBtn}
+                                onClick={saveWorkspace}
+                                style={{ padding: 0, fontSize: '0.75rem' }}
+                              >
+                                update from current
+                              </button>
+                            </>
+                          )}
                         </span>
                       </span>
                       <Toggle
@@ -741,9 +768,7 @@ export default function SettingsPanel() {
               type="button"
               className={styles.linkBtn}
               onClick={() => {
-                if (
-                  confirm('Reset all preferences to defaults? This will sync to the server.')
-                ) {
+                if (confirm('Reset all preferences to defaults? This will sync to the server.')) {
                   Object.entries(PREF_DEFAULTS).forEach(([k, v]) => {
                     setPreference(k as keyof typeof PREF_DEFAULTS, v as never);
                   });
