@@ -228,16 +228,14 @@ export function SidePanel() {
                       }
                     }}
                   >
-                    {/* Card header: color dot, name, status, close */}
+                    {/* Card header: combined color+status dot, name, close */}
                     <div className={styles.cardHeader}>
-                      <span className={styles.cardDot} style={{ backgroundColor: session.color }} />
-                      <span className={styles.cardName}>{session.name}</span>
-                      {session.id !== activeId && session.hasUnread && (
-                        <span className={styles.unreadDot} />
-                      )}
                       <span
-                        className={styles.cardStatus}
-                        style={{ backgroundColor: statusColor(session) }}
+                        className={styles.cardDot}
+                        style={{
+                          backgroundColor: session.color,
+                          boxShadow: `0 0 0 2px var(--surface), 0 0 0 4px ${statusColor(session)}`,
+                        }}
                         title={
                           session.exited
                             ? 'Exited'
@@ -246,6 +244,10 @@ export function SidePanel() {
                               : 'Disconnected'
                         }
                       />
+                      <span className={styles.cardName}>{session.name}</span>
+                      {session.id !== activeId && session.hasUnread && (
+                        <span className={styles.unreadDot} />
+                      )}
                       <button
                         className={styles.cardClose}
                         onClick={(e) => handleClose(e, session.id)}
@@ -288,7 +290,7 @@ export function SidePanel() {
             <div className={styles.footer}>
               <div className={styles.footerRow}>
                 <button
-                  className={styles.footerBtn}
+                  className={styles.footerBtnPrimary}
                   onClick={() => {
                     openNewSessionModal();
                     animateClose();
@@ -297,7 +299,7 @@ export function SidePanel() {
                   + New Session
                 </button>
                 <button
-                  className={styles.footerBtn}
+                  className={styles.footerBtnSecondary}
                   onClick={() => {
                     useUIStore.getState().openResumeBrowser();
                     animateClose();
