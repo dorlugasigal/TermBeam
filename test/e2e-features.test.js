@@ -570,9 +570,25 @@ test.describe('Hub Page', () => {
 
     // Functional check: clicking Settings… opens the SettingsPanel
     await panel.getByText('Settings…', { exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible({
+    const settingsDialog = page.getByRole('dialog', { name: 'Settings' });
+    await expect(settingsDialog).toBeVisible({
       timeout: 3_000,
     });
+
+    // Hub-mode SettingsPanel must hide actions that snapshot the live
+    // session store — see the `inHub` prop on SettingsPanel. Without this
+    // guard, "Save current as new workspace" / per-workspace "Update" /
+    // legacy "update from current" could clobber a saved workspace with
+    // stale leftovers from a prior terminal visit.
+    await expect(
+      settingsDialog.getByRole('button', { name: /Save current as new workspace/i }),
+    ).toHaveCount(0);
+    await expect(settingsDialog.getByRole('button', { name: 'Update', exact: true })).toHaveCount(
+      0,
+    );
+    await expect(
+      settingsDialog.getByRole('button', { name: 'update from current', exact: true }),
+    ).toHaveCount(0);
   });
 
   test('connect button on session card navigates to terminal', async ({ page }) => {
