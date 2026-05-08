@@ -17,7 +17,7 @@
   bottom: 0;
   z-index: 201;
   width: min(85vw, 380px);
-  background: var(--surface);
+  background: var(--bg);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -119,7 +119,8 @@
 /* ── Session card ── */
 
 .card {
-  background: var(--bg);
+  position: relative;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   cursor: pointer;
@@ -133,12 +134,34 @@
 }
 
 .card:hover {
-  border-color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 }
 
-.cardActive {
-  border-color: var(--accent);
-  border-width: 2px;
+/*
+ * Active session: just a 3px left-edge accent stripe. The card border stays
+ * neutral (--border) — no accent tint anywhere else, even on hover. Earlier
+ * iterations tinted the border or background and the result still read as
+ * a colored box. The stripe alone is the only chromatic cue.
+ */
+.cardActive::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 10px 0 0 10px;
+  pointer-events: none;
+}
+
+/*
+ * The generic .card:hover above tints every card's border with an accent
+ * color-mix. Override it for the active card so its border stays neutral
+ * on hover too — the left-edge stripe is the only visual cue we want.
+ */
+.cardActive:hover {
+  border-color: var(--border);
 }
 
 /* Card header row */
@@ -155,6 +178,15 @@
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
+  /*
+   * Combined session-color + connection-status indicator. The dot itself
+   * carries the session color (set inline). A 2px gap (matching surface)
+   * then a 2px halo ring (status color) are layered via box-shadow so the
+   * single visual conveys both pieces of state without duplicate dots.
+   * The actual ring color is set inline alongside the background.
+   */
+  margin-right: 4px;
+  transition: box-shadow 0.2s ease;
 }
 
 .cardName {
@@ -165,13 +197,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.cardStatus {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
 }
 
 .cardClose {
@@ -226,7 +251,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  background: var(--surface);
+  background: var(--bg);
   padding: 1px 6px;
   border-radius: 3px;
 }
@@ -244,7 +269,7 @@
 .cardPreview {
   margin: 0 8px 8px;
   padding: 6px 8px;
-  background: var(--surface);
+  background: var(--bg);
   border-radius: 6px;
   font-family: 'NerdFont', 'JetBrains Mono', monospace;
   font-size: 9px;
@@ -274,16 +299,22 @@
 
 .footerRow {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
-.footerBtn {
+/*
+ * Footer hierarchy: "+ New Session" is the primary action (filled accent),
+ * "↺ Resume" is secondary (solid border, neutral text). Replaces an older
+ * pair of identical dashed-border buttons that read like file-drop zones
+ * and reused the same accent color as the active-session indicator.
+ */
+.footerBtnPrimary {
   flex: 1;
-  padding: 10px;
-  border: 1px dashed var(--border);
+  padding: 11px;
+  border: none;
   border-radius: 8px;
-  background: none;
-  color: var(--accent);
+  background: var(--accent);
+  color: #fff;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -291,25 +322,60 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: background 0.15s;
+  transition:
+    background 0.15s,
+    transform 0.1s,
+    opacity 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
 
-.footerBtn:hover {
-  background: var(--bg);
+.footerBtnPrimary:hover {
+  background: var(--accent-hover, var(--accent));
+  opacity: 0.94;
 }
 
-.footerBtn:active {
+.footerBtnPrimary:active {
   transform: scale(0.98);
 }
 
-.footerBtn:disabled {
-  opacity: 0.4;
+.footerBtnPrimary:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-.footerBtn:disabled:hover {
-  background: none;
+.footerBtnSecondary {
+  flex: 1;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.footerBtnSecondary:hover {
+  background: var(--surface);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.footerBtnSecondary:active {
+  transform: scale(0.98);
+}
+
+.footerBtnSecondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .newBtn {
@@ -330,7 +396,7 @@
 }
 
 .newBtn:hover {
-  background: var(--bg);
+  background: var(--surface);
 }
 
 .newBtn:active {

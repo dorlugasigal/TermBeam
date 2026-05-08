@@ -12,6 +12,40 @@
   animation-delay: calc(var(--stagger-i, 0) * 45ms);
 }
 
+/*
+ * "Fold-in" arrival — cards rotate down on the X-axis from above, like
+ * folding into place from a horizontal plane. No overshoot at the end —
+ * the previous bounce-back caused a visible micro-jitter on the final
+ * frames. The perspective lives on the parent .sessionsList only;
+ * specifying it again inside the keyframe transforms caused inconsistent
+ * compositing.
+ *
+ * SessionsHub flips data-arriving for ~2s after the initial fetch resolves
+ * (8 cards * 220ms stagger + 0.38s duration ≈ 2.1s).
+ */
+.wrapper[data-arriving='true'] {
+  animation: fold-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--stagger-i, 0) * 220ms);
+  transform-origin: top center;
+}
+
+@keyframes fold-in {
+  from {
+    opacity: 0;
+    transform: rotateX(-72deg);
+  }
+  to {
+    opacity: 1;
+    transform: rotateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrapper[data-arriving='true'] {
+    animation: none;
+  }
+}
+
 .deleteBackground {
   position: absolute;
   top: 0;

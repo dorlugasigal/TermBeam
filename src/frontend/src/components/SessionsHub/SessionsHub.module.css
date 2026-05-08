@@ -99,6 +99,17 @@
   gap: 12px;
 }
 
+/*
+ * During the post-load "fold-in" cascade, give the list a perspective so
+ * each SessionCard's rotateX renders as real 3D depth instead of a flat
+ * vertical squish. The attribute is removed once the cascade finishes, so
+ * we don't pay any rendering cost in steady state.
+ */
+.sessionsList[data-arriving='true'] {
+  perspective: 1100px;
+  perspective-origin: 50% -10%;
+}
+
 .emptyState {
   display: flex;
   flex-direction: column;

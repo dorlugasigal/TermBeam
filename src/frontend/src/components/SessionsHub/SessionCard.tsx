@@ -17,6 +17,12 @@ interface SessionCardProps {
    */
   index?: number;
   /**
+   * When true, the card is part of the post-load "magical arrival" — uses
+   * a richer, slightly slower stagger so the freshly-fetched list cascades
+   * in with more presence than ordinary mounts.
+   */
+  arriving?: boolean;
+  /**
    * When true, the card is playing the disintegrate (Thanos-snap)
    * animation prior to being removed. Disables interaction and applies
    * the dust effect via a CSS modifier class.
@@ -104,6 +110,7 @@ export default function SessionCard({
   revealedId,
   onRevealChange,
   index = 0,
+  arriving = false,
   dissolving = false,
 }: SessionCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -225,6 +232,7 @@ export default function SessionCard({
       className={`${styles.wrapper} ${dissolving ? dissolveStyles.dissolving : ''}`}
       style={{ ['--stagger-i' as string]: Math.min(index, 8) }}
       data-session-id={session.id}
+      data-arriving={arriving || undefined}
       aria-hidden={dissolving || undefined}
     >
       <button

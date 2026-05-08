@@ -84,12 +84,14 @@ const RefreshIcon = () => (
 export default function SessionsHub() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  const [arriving, setArriving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [version, setVersion] = useState('');
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<SessionFilterState>(() => loadFilterFromStorage());
   const [workspaceLauncherOpen, setWorkspaceLauncherOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const prevLoadingRef = useRef(true);
   const {
     openNewSessionModal,
     openResumeBrowser,
@@ -127,6 +129,19 @@ export default function SessionsHub() {
     const timer = setInterval(loadSessions, POLL_INTERVAL);
     return () => clearInterval(timer);
   }, [loadSessions]);
+
+  // SessionsHub flips arriving=true for ~2s once the initial fetch resolves
+  // so the sequential fold-in cascade has room to play (8 cards * 220ms
+  // stagger + 0.38s duration ≈ 2.1s).
+  useEffect(() => {
+    if (prevLoadingRef.current && !loading) {
+      setArriving(true);
+      const t = setTimeout(() => setArriving(false), 2200);
+      prevLoadingRef.current = loading;
+      return () => clearTimeout(t);
+    }
+    prevLoadingRef.current = loading;
+  }, [loading]);
 
   useEffect(() => {
     fetchVersion().then((v) => {
@@ -284,13 +299,8 @@ export default function SessionsHub() {
 
       <ThemePicker open={themePickerOpen} onClose={closeThemePicker} hideTrigger />
 
-      <main className={styles.content}>
-        {loading ? (
-          <div className={styles.emptyState}>
-            <span className={styles.emptyIcon}>⏳</span>
-            <span className={styles.emptyText}>Loading sessions…</span>
-          </div>
-        ) : sessions.length === 0 ? (
+      <main className={styles.content} aria-busy={loading || undefined}>
+        {loading ? null : sessions.length === 0 ? (
           <div className={styles.emptyState} data-testid="empty-state">
             <Wordmark size="md" />
             <span className={styles.emptyText}>No active sessions</span>
@@ -397,6 +407,7 @@ export default function SessionsHub() {
                 className={styles.sessionsList}
                 data-testid="sessions-list"
                 data-filter-active={filterActive || undefined}
+                data-arriving={arriving || undefined}
               >
                 {visibleSessions.map((session, i) => (
                   <SessionCard
@@ -407,6 +418,7 @@ export default function SessionsHub() {
                     revealedId={revealedId}
                     onRevealChange={setRevealedId}
                     index={i}
+                    arriving={arriving}
                     dissolving={dissolvingIds.has(session.id)}
                   />
                 ))}
