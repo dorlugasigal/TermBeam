@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.6] - 2026-05-08
+
+- chore(deps): bump the all-npm group across 1 directory with 2 updates (#230) (@dependabot[bot])
+- chore(ci): bump github/codeql-action from 4.35.2 to 4.35.3 in the all-actions group across 1 directory (#229) (@dependabot[bot])
+- feat(ui): polish SidePanel and add Sessions hub fold-in cascade (#232) (@dorlugasigal)
+- feat(hub): replace theme/share/refresh buttons with single Tools button (#234) (@dorlugasigal)
+
 ## [1.24.5] - 2026-05-03
 
 - fix(frontend): show live version on hub by hitting /api/version directly (@dorlugasigal)
