@@ -345,7 +345,6 @@ const iconSettings = (
   </svg>
 );
 
-
 /* ---------- clipboard fallback for non-secure (HTTP) contexts ---------- */
 
 function fallbackCopy(text: string): void {
@@ -366,7 +365,7 @@ function fallbackCopy(text: string): void {
 
 /* ---------- component ---------- */
 
-export default function ToolsPanel() {
+export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) {
   const open = useUIStore((s) => s.toolsPanelOpen);
   const closeAction = useUIStore((s) => s.closeToolsPanel);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -461,10 +460,12 @@ export default function ToolsPanel() {
   /* ---- section definitions ---- */
 
   type Action = { id: string; label: string; icon: React.ReactNode; action: () => void };
-  type Section = { title: string; actions: Action[] };
+  type SectionId = 'session' | 'files' | 'view' | 'share' | 'agents' | 'settings' | 'system';
+  type Section = { id: SectionId; title: string; actions: Action[] };
 
-  const sections: Section[] = [
+  const allSections: Section[] = [
     {
+      id: 'session',
       title: 'SESSION',
       actions: [
         {
@@ -500,6 +501,7 @@ export default function ToolsPanel() {
       ],
     },
     {
+      id: 'files',
       title: 'FILES',
       actions: [
         {
@@ -536,6 +538,7 @@ export default function ToolsPanel() {
       ],
     },
     {
+      id: 'view',
       title: 'VIEW',
       actions: [
         {
@@ -593,6 +596,7 @@ export default function ToolsPanel() {
       ],
     },
     {
+      id: 'share',
       title: 'SHARE',
       actions: [
         {
@@ -628,6 +632,7 @@ export default function ToolsPanel() {
       ],
     },
     {
+      id: 'agents',
       title: 'AGENTS',
       actions: [
         {
@@ -645,6 +650,7 @@ export default function ToolsPanel() {
       ],
     },
     {
+      id: 'settings',
       title: 'SETTINGS',
       actions: [
         {
@@ -656,6 +662,7 @@ export default function ToolsPanel() {
       ],
     },
     {
+      id: 'system',
       title: 'SYSTEM',
       actions: [
         {
@@ -692,12 +699,28 @@ export default function ToolsPanel() {
     },
   ];
 
+  // On the Hub there is no active terminal session, so:
+  //   - Hide SESSION + FILES entirely (every action depends on activeId).
+  //   - Keep VIEW with no action buttons but render the ThemePicker — theme
+  //     is a global preference that's useful on the Hub.
+  //   - Keep SHARE, AGENTS, SETTINGS as-is (universal actions).
+  //   - Keep SYSTEM minus 'Clear terminal' (no terminal to clear).
+  // Filter by stable section IDs so display titles can change without
+  // breaking this logic.
+  const sections: Section[] = inHub
+    ? allSections
+        .filter((s) => s.id !== 'session' && s.id !== 'files')
+        .map((s) => {
+          if (s.id === 'view') return { ...s, actions: [] };
+          if (s.id === 'system')
+            return { ...s, actions: s.actions.filter((a) => a.id !== 'clear') };
+          return s;
+        })
+    : allSections;
+
   return (
     <>
-      <div
-        className={`${styles.backdrop} ${mounted ? styles.backdropOpen : ''}`}
-        onClick={close}
-      />
+      <div className={`${styles.backdrop} ${mounted ? styles.backdropOpen : ''}`} onClick={close} />
       <div className={panelCls} data-testid="palette-panel" data-open="true">
         <div className={styles.header}>
           <span className={styles.title}>Tools</span>
@@ -707,7 +730,7 @@ export default function ToolsPanel() {
         </div>
         <div className={styles.body}>
           {sections.map((sec) => (
-            <div key={sec.title} className={styles.section}>
+            <div key={sec.id} className={styles.section}>
               <div className={styles.sectionTitle}>{sec.title}</div>
               {sec.actions.map((a) => (
                 <button
@@ -720,7 +743,7 @@ export default function ToolsPanel() {
                   {a.label}
                 </button>
               ))}
-              {sec.title === 'VIEW' && (
+              {sec.id === 'view' && (
                 <div className={styles.themePickerRow}>
                   <ThemePicker onSelect={() => close()} />
                 </div>
