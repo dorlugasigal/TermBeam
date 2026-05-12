@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.24.7] - 2026-05-12
+
+- Delete .agents directory (@dorlugasigal)
+- fix(security): patch HIGH CVEs in @github/copilot and fast-uri (@dorlugasigal)
+- chore(deps): bump the all-npm group across 1 directory with 3 updates (#237) (@dependabot[bot])
+- chore(deps): bump node from 25-slim to 26-slim in the all-docker group across 1 directory (#236) (@dependabot[bot])
+- chore(ci): bump github/codeql-action from 4.35.3 to 4.35.4 in the all-actions group across 1 directory (#238) (@dependabot[bot])
+- chore(security): patch remaining HIGH/MED CVEs flagged by OpenSSF Scorecard (#239) (@dorlugasigal)
+- fix(release): add NPM_TOKEN fallback for npm publish (#240) (@dorlugasigal)
+- fix(test): make GET /api/sessions/:id/files error-path test deterministic (#241) (@dorlugasigal)
+
 ## [1.24.6] - 2026-05-08
 
 - chore(deps): bump the all-npm group across 1 directory with 2 updates (#230) (@dependabot[bot])
