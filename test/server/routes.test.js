@@ -4216,11 +4216,13 @@ describe('Routes', () => {
     after(async () => {
       inst?.shutdown();
       await safeCleanup(path.join(process.cwd(), '.termbeam-test-files-err'));
+      await safeCleanup(path.join(process.cwd(), '.termbeam-test-files-err-moved'));
     });
 
     it('should return 500 when session cwd no longer exists', async () => {
       inst = await startServer({ password: null });
       const tmpDir = path.join(process.cwd(), '.termbeam-test-files-err');
+      const movedDir = path.join(process.cwd(), '.termbeam-test-files-err-moved');
       fs.mkdirSync(tmpDir, { recursive: true });
 
       const body = JSON.stringify({ name: 'files-err', cwd: tmpDir });
@@ -4239,7 +4241,13 @@ describe('Routes', () => {
       );
       const sessionId = JSON.parse(createRes.data).id;
 
-      fs.rmSync(tmpDir, { recursive: true, force: true });
+      // Rename (don't rm) so the PTY's cwd inode stays alive — otherwise on
+      // fast macOS arm64 the shell exits before the GET arrives, removing the
+      // session and yielding a 404 instead of the 500 we want to assert.
+      try {
+        fs.rmSync(movedDir, { recursive: true, force: true });
+      } catch {}
+      fs.renameSync(tmpDir, movedDir);
 
       const res = await httpRequest({
         hostname: '127.0.0.1',
