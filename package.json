@@ -84,6 +84,9 @@
   "optionalDependencies": {
     "better-sqlite3": "^12.8.0"
   },
+  "overrides": {
+    "@github/copilot": ">=1.0.43"
+  },
   "c8": {
     "check-coverage": true,
     "lines": 92,
