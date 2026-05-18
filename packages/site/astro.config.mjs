@@ -2,19 +2,9 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
-// Build target is driven by env so the same source can ship to multiple hosts:
-//   default: GitHub Pages — base /TermBeam, site dorlugasigal.github.io
-//   Cloudflare Pages: detected automatically via CF_PAGES=1 (set by Cloudflare's
-//     Git integration during builds) OR explicitly via DEPLOY_TARGET=cloudflare.
-//     Base /, site from CF_PAGES_URL (set by Cloudflare) or SITE_URL.
-const explicitTarget = process.env.DEPLOY_TARGET;
-const isCF = explicitTarget === 'cloudflare' || process.env.CF_PAGES === '1';
-
-const site = isCF
-  ? process.env.SITE_URL || process.env.CF_PAGES_URL || 'https://termbeam.pages.dev'
-  : 'https://dorlugasigal.github.io';
-const base = isCF ? '/' : '/TermBeam';
-const ogImage = `${site.replace(/\/$/, '')}${base === '/' ? '' : base}/og-image.png`;
+const site = 'https://dorlugasigal.github.io';
+const base = '/TermBeam';
+const ogImage = `${site}${base}/og-image.png`;
 
 // https://astro.build/config
 export default defineConfig({
