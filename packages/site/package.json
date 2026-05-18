@@ -16,7 +16,8 @@
   },
   "overrides": {
     "yaml": ">=2.8.3",
-    "fast-uri": ">=3.1.2"
+    "fast-uri": ">=3.1.2",
+    "devalue": ">=5.8.1"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.8",
