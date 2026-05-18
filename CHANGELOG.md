@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.24.8] - 2026-05-18
+
+- chore(site): drop Cloudflare Pages, ship docs site only via GitHub Pages (@dorlugasigal)
+- fix(security): patch HIGH CVEs flagged by Trivy (@dorlugasigal)
+
 ## [1.24.7] - 2026-05-12
 
 - Delete .agents directory (@dorlugasigal)
