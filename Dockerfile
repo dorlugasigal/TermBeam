@@ -1,4 +1,4 @@
-FROM node:26-slim@sha256:a12126cfec3cd85577cb573fa86a588018721098c18fe67fe1a554cc25a1a6a5
+FROM node:26-slim@sha256:424cafd2a035ed2b2d74acc3142b68b426fb62a47742c80a75e7117db02d6b30
 
 RUN apt-get update \
     && apt-get upgrade -y \
