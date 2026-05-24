@@ -430,9 +430,9 @@ describe('CLI', () => {
       const origPlatform = os.platform;
       const origExecFileSync = child_process.execFileSync;
       os.platform = () => 'linux';
-      child_process.execFileSync = (cmd, ...args) => {
+      child_process.execFileSync = (cmd) => {
         if (cmd === 'ps') throw new Error('ps not available');
-        return origExecFileSync(cmd, ...args);
+        throw new Error(`unexpected execFileSync call in test: ${cmd}`);
       };
       try {
         process.argv = ['node', 'termbeam'];
@@ -452,9 +452,9 @@ describe('CLI', () => {
       const origPlatform = os.platform;
       const origExecFileSync = child_process.execFileSync;
       os.platform = () => 'linux';
-      child_process.execFileSync = (cmd, args, opts) => {
+      child_process.execFileSync = (cmd) => {
         if (cmd === 'ps') return 'bash\n';
-        return origExecFileSync(cmd, args, opts);
+        throw new Error(`unexpected execFileSync call in test: ${cmd}`);
       };
       try {
         process.argv = ['node', 'termbeam'];
