@@ -32,6 +32,15 @@ name: Combine Dependabot PRs
 #   never checks out PR-supplied code. It only invokes `gh` + `git` on
 #   PR refs to merge their commits into our branch. No PR-controlled
 #   script executes here.
+#
+# Token note:
+#   PRs created with the default `GITHUB_TOKEN` do NOT trigger downstream
+#   workflow runs (GitHub anti-recursion). To get CI to start on the
+#   combined PR automatically, add a fine-grained PAT as repository secret
+#   `COMBINE_PRS_TOKEN` (scopes: contents:write, pull-requests:write).
+#   Without that secret the workflow still falls back to `GITHUB_TOKEN`,
+#   the combined PR will be created, but you'll have to close+reopen it
+#   once to kick CI.
 on:
   pull_request_target:
     types: [opened, reopened, ready_for_review, labeled]
@@ -74,7 +83,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.COMBINE_PRS_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Configure git
         run: |
@@ -83,7 +92,7 @@ jobs:
 
       - name: Combine open Dependabot PRs
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.COMBINE_PRS_TOKEN || secrets.GITHUB_TOKEN }}
           DRY_RUN: ${{ inputs.dry-run }}
         run: |
           set -euo pipefail
