@@ -9,20 +9,32 @@ name: Combine Dependabot PRs
 # one diff and CI runs once.
 #
 # Triggers:
+#   - pull_request_target → fires right after Dependabot opens a
+#     `dependencies`-labeled PR. A 2-minute settle delay + concurrency
+#     cancel ensures that when Dependabot opens 3 PRs in a wave (one
+#     per ecosystem) only the final run actually performs the combine.
 #   - workflow_dispatch  → run on demand from the Actions tab
-#   - schedule (monthly) → run automatically on the 1st of the month
 #
 # Behavior:
 #   - Picks all open PRs from `app/dependabot` carrying the
 #     `dependencies` label whose branches still merge cleanly into main.
-#   - Creates branch `combined-deps/<date>`, merges each candidate
-#     into it, pushes, and opens (or updates) a single PR.
+#   - Updates the stable branch `combined-deps/open` (force-with-lease)
+#     and opens or updates a single PR against it, so repeated runs
+#     converge on the same PR instead of creating new ones.
 #   - Skips PRs that cause a merge conflict and reports them in the
 #     PR body so a human can deal with them individually.
 #   - Does NOT close the source PRs automatically — merging the
 #     combined PR will auto-close them because git sees their
 #     commits as already in main.
+#
+# Security note on `pull_request_target`:
+#   The job runs in the base-repo context with write permissions, but
+#   never checks out PR-supplied code. It only invokes `gh` + `git` on
+#   PR refs to merge their commits into our branch. No PR-controlled
+#   script executes here.
 on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, labeled]
   workflow_dispatch:
     inputs:
       dry-run:
@@ -30,23 +42,38 @@ on:
         required: false
         type: boolean
         default: false
-  schedule:
-    - cron: '0 6 1 * *'
 
 permissions:
   contents: read
+
+# A wave of Dependabot PRs triggers this workflow N times in ~1-2 minutes.
+# Cancel any in-flight run when a new one starts; the last run sees all PRs.
+concurrency:
+  group: combine-prs
+  cancel-in-progress: true
 
 jobs:
   combine:
     name: Combine open Dependabot PRs
     runs-on: ubuntu-latest
+    # Only act on Dependabot PRs (or manual dispatch). Without this guard
+    # every PR open/label event would otherwise trigger the workflow.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.user.login == 'dependabot[bot]' &&
+       contains(github.event.pull_request.labels.*.name, 'dependencies'))
     permissions:
       contents: write
       pull-requests: write
     steps:
+      - name: Wait for Dependabot wave to settle
+        if: github.event_name == 'pull_request_target'
+        run: sleep 120
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
+          ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure git
@@ -62,14 +89,17 @@ jobs:
           set -euo pipefail
 
           DATE=$(date +%Y-%m-%d)
-          COMBINED_BRANCH="combined-deps/${DATE}"
+          # Stable branch name so repeated runs (Dependabot waves, manual
+          # dispatches, retries) converge on a single combined PR instead
+          # of spawning a new one per date.
+          COMBINED_BRANCH="combined-deps/open"
 
           mapfile -t PRS < <(gh pr list \
             --state open \
             --author "app/dependabot" \
             --label dependencies \
-            --json number,title,headRefName,headRefOid \
-            --jq '.[] | "\(.number)\t\(.title)\t\(.headRefName)\t\(.headRefOid)"')
+            --json number,title,headRefName \
+            --jq '.[] | "\(.number)\t\(.title)\t\(.headRefName)"')
 
           if [ "${#PRS[@]}" -eq 0 ]; then
             echo "No open Dependabot PRs labeled 'dependencies' found. Nothing to do."
@@ -92,7 +122,7 @@ jobs:
           SKIPPED_LINES=()
 
           for entry in "${PRS[@]}"; do
-            IFS=$'\t' read -r number title head_ref head_sha <<<"${entry}"
+            IFS=$'\t' read -r number title head_ref <<<"${entry}"
             echo "::group::Merging #${number} (${head_ref})"
             git fetch origin "pull/${number}/head:pr-${number}" --quiet
             if git merge --no-edit --no-ff -m "Merge #${number}: ${title}" "pr-${number}"; then
