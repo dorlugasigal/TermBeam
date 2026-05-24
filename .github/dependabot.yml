@@ -1,3 +1,9 @@
+# Dependabot is configured to group all updates within each ecosystem
+# into a single PR. Note: Dependabot cannot group across ecosystems
+# (npm / github-actions / docker each produce their own PR). For an
+# all-in-one PR, see `.github/workflows/combine-prs.yml`, which runs
+# monthly (and on demand) and stitches every open Dependabot PR into
+# a single consolidated PR.
 version: 2
 updates:
   - package-ecosystem: npm
