@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.9] - 2026-06-25
+
+- chore(deps): consolidate #242 #243 #244 + fix CodeQL alert + npm audit fix (#245) (@dorlugasigal)
+- chore(deps): combined dependency updates 2026-05-24 (#249) (@github-actions[bot])
+- ci(combine-prs): support optional PAT to trigger downstream CI (#250) (@dorlugasigal)
+- chore(deps): combined dependency updates 2026-06-22 (#254) (@dorlugasigal)
+
 ## [1.24.8] - 2026-05-18
 
 - chore(site): drop Cloudflare Pages, ship docs site only via GitHub Pages (@dorlugasigal)
