@@ -6,6 +6,10 @@ on:
     branches:
       - 'dependabot/**'
   bots: ['dependabot[bot]']
+  # Dependabot has no repo write permission, so gh-aw's default role gate
+  # (admin/maintainer/write) would block activation. Allow all actors — the
+  # `bots:` filter already restricts activation to Dependabot-authored runs.
+  roles: all
   workflow_dispatch:
     inputs:
       pr:
