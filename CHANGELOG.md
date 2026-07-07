@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.24.10] - 2026-07-07
+
+- feat(ci): autonomous Dependabot auto-fix and auto-merge workflows (#263) (@dorlugasigal)
+- fix(ci): allow Dependabot to activate the autofix agent (roles: all) (#266) (@dorlugasigal)
+- chore(ci): bump the all-actions group across 1 directory with 5 updates (#264) (@dependabot[bot])
+- chore(deps): bump the all-npm group across 1 directory with 7 updates (#260) (@dependabot[bot])
+- chore(deps): bump node from `aa27a5f` to `a1d9d67` in the all-docker group (#257) (@dependabot[bot])
+- feat(ci): auto patch-release after Dependabot merges (#268) (@dorlugasigal)
+
 ## [1.24.9] - 2026-06-25
 
 - chore(deps): consolidate #242 #243 #244 + fix CodeQL alert + npm audit fix (#245) (@dorlugasigal)
