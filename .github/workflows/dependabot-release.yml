@@ -1,0 +1,77 @@
+# Auto-publishes a single patch release after Dependabot dependency PRs merge to main.
+#
+# Grouped/burst merges are batched: each new Dependabot merge cancels the pending
+# debounce timer and starts a fresh 30-minute quiet window, so a run of grouped PRs
+# results in exactly ONE patch release covering all of them.
+#
+# Only Dependabot dependency merges trigger this. Your own feature/fix merges are
+# released manually via the publish workflow with a chosen bump.
+name: Dependabot Auto Patch Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Runs on every push. Decides whether HEAD is a Dependabot dependency merge.
+  # Kept separate from the debounce job so that a non-Dependabot push never enters
+  # the shared concurrency group and cancels a pending release.
+  detect:
+    runs-on: ubuntu-latest
+    # Skip the release bot's own commits to avoid any chance of a loop.
+    if: >-
+      !startsWith(github.event.head_commit.message, 'chore(release)') &&
+      !contains(github.event.head_commit.message, '[skip ci]')
+    permissions:
+      pull-requests: read
+    outputs:
+      is_dependabot: ${{ steps.check.outputs.is_dependabot }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          # Extract the PR number from the merge subject. Handles squash subjects
+          # ("... (#N)") and merge-commit subjects ("Merge pull request #N from ...").
+          PR=$(printf '%s\n' "$HEAD_MSG" | head -1 | grep -oE '#[0-9]+' | tail -1 | tr -dc '0-9')
+          if [ -z "$PR" ]; then
+            echo "No PR reference in head commit; not a merge."
+            echo "is_dependabot=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          AUTHOR=$(gh pr view "$PR" -R "$GITHUB_REPOSITORY" --json author --jq '.author.login' 2>/dev/null || echo "")
+          echo "PR #$PR author: ${AUTHOR:-<unknown>}"
+          if [ "$AUTHOR" = "app/dependabot" ] || [ "$AUTHOR" = "dependabot" ] || [ "$AUTHOR" = "dependabot[bot]" ]; then
+            echo "is_dependabot=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_dependabot=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Debounce window. A newer Dependabot merge cancels this run (cancel-in-progress)
+  # and restarts the timer, so bursts collapse into one release.
+  debounce-release:
+    needs: detect
+    if: needs.detect.outputs.is_dependabot == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: dependabot-auto-patch-release
+      cancel-in-progress: true
+    permissions:
+      actions: write
+    steps:
+      - name: Wait for grouped merges to settle
+        run: |
+          echo "Debouncing for 30 minutes; a newer Dependabot merge will restart this."
+          sleep 1800
+
+      - name: Dispatch patch release
+        env:
+          # PAT so the dispatched release run isn't suppressed and can push the tag/commit.
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          echo "Quiet window elapsed. Dispatching patch release."
+          gh workflow run release.yml -R "$GITHUB_REPOSITORY" -f bump=patch -f dry-run=false
