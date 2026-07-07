@@ -35,8 +35,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_MSG: ${{ github.event.head_commit.message }}
         run: |
-          # Squash-merge subjects end with "(#N)". Extract the PR number.
-          PR=$(printf '%s\n' "$HEAD_MSG" | head -1 | grep -oE '\(#[0-9]+\)' | tail -1 | tr -dc '0-9')
+          # Extract the PR number from the merge subject. Handles squash subjects
+          # ("... (#N)") and merge-commit subjects ("Merge pull request #N from ...").
+          PR=$(printf '%s\n' "$HEAD_MSG" | head -1 | grep -oE '#[0-9]+' | tail -1 | tr -dc '0-9')
           if [ -z "$PR" ]; then
             echo "No PR reference in head commit; not a merge."
             echo "is_dependabot=false" >> "$GITHUB_OUTPUT"
