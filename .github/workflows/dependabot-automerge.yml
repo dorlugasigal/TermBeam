@@ -1,0 +1,81 @@
+name: Dependabot Auto-Merge
+
+# Zero-touch approving + merging of Dependabot PRs, on your behalf.
+#
+# When the CI workflow finishes on a `dependabot/**` branch, this approves the PR
+# and turns on GitHub's native auto-merge so it merges itself once EVERY required
+# status check is green — you never click approve or merge.
+#
+# Why native auto-merge (and not the agent)?
+#   gh-aw's `merge-pull-request` safe output intentionally refuses to merge into the
+#   default branch, and Dependabot PRs target `main`. Native auto-merge is the correct
+#   primitive: it waits for all required checks across every workflow, then merges.
+#
+# Why `workflow_run`?
+#   Dependabot `pull_request` runs get a restricted token and NO regular Actions
+#   secrets. `workflow_run` runs in the base-repo context with full secrets, so the
+#   personal token below is available here.
+#
+# "On behalf of you":
+#   DEPENDABOT_MERGE_PAT should be a fine-grained PAT owned by a CODEOWNER
+#   (@dorlugasigal) with `Contents: read/write` + `Pull requests: read/write` on this
+#   repo. The approval then satisfies the code-owner review rule and the merge is
+#   attributed to you. Falls back to GITHUB_TOKEN if the secret is absent (works when
+#   code-owner review isn't a hard gate, but the approval is then from github-actions).
+#
+# Red PRs are fixed first by `dependabot-autofix.md`; once green, the auto-merge
+# queued here completes. Required status checks on `main` guarantee a broken bump
+# never merges.
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches:
+      - 'dependabot/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependabot-automerge-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  automerge:
+    name: Approve and enable auto-merge
+    runs-on: ubuntu-latest
+    if: >-
+      github.repository == 'dorlugasigal/TermBeam' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Approve and enable auto-merge
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_MERGE_PAT || secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          PR=$(gh pr list --repo "$REPO" --head "$HEAD_BRANCH" --state open \
+            --json number,author \
+            --jq '.[] | select(.author.login == "app/dependabot") | .number' | head -n1)
+
+          if [ -z "${PR:-}" ]; then
+            echo "No open Dependabot PR for branch ${HEAD_BRANCH}; nothing to do."
+            exit 0
+          fi
+
+          echo "Enabling zero-touch merge for PR #${PR}."
+
+          # Approve on your behalf (harmless if a prior approval already exists).
+          gh pr review "$PR" --repo "$REPO" --approve \
+            || echo "Approval skipped (already approved or not permitted by this token)."
+
+          # Queue the merge; GitHub holds it until every required check is green.
+          gh pr merge "$PR" --repo "$REPO" --auto --squash \
+            || echo "Auto-merge could not be enabled (it may already be enabled)."
