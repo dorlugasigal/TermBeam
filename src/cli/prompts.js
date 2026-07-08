@@ -74,24 +74,60 @@ function choose(rl, question, choices, defaultIndex = 0) {
     }
     process.stdin.resume();
 
-    function onKey(buf) {
-      const key = buf.toString();
+    // Bytes arrive as a raw stream: a single keypress may be split across
+    // multiple 'data' events, and several keypresses may be coalesced into one
+    // (common when keys are pressed quickly). Buffer the stream and consume one
+    // recognized token at a time so navigation never silently drops keys.
+    let pending = Buffer.alloc(0);
 
-      if (key === '\x1b[A' || key === 'k') {
-        selected = (selected - 1 + items.length) % items.length;
-        render(true);
-      } else if (key === '\x1b[B' || key === 'j') {
-        selected = (selected + 1) % items.length;
-        render(true);
-      } else if (key === '\r' || key === '\n') {
-        cleanup();
-        process.stdout.write('\r\x1b[K\n');
-        console.log(dim(`  Selected: ${items[selected].label}`));
-        resolve({ index: selected, value: items[selected].label });
-      } else if (key === '\x03') {
-        cleanup();
-        process.stdout.write('\x1b[?1049l');
-        process.exit(0);
+    function moveUp() {
+      selected = (selected - 1 + items.length) % items.length;
+      render(true);
+    }
+    function moveDown() {
+      selected = (selected + 1) % items.length;
+      render(true);
+    }
+
+    function onKey(buf) {
+      pending = pending.length ? Buffer.concat([pending, buf]) : buf;
+
+      while (pending.length > 0) {
+        const b = pending[0];
+
+        if (b === 0x1b) {
+          // Escape sequence — need at least ESC '[' <code> to interpret.
+          if (pending.length < 2) return; // wait for more bytes
+          if (pending[1] === 0x5b /* [ */) {
+            if (pending.length < 3) return; // wait for the final byte
+            const code = pending[2];
+            if (code === 0x41 /* A */) moveUp();
+            else if (code === 0x42 /* B */) moveDown();
+            // Ignore other CSI sequences (left/right/home/etc.)
+            pending = pending.subarray(3);
+          } else {
+            // Lone ESC or unsupported sequence — drop the ESC and continue.
+            pending = pending.subarray(1);
+          }
+          continue;
+        }
+
+        if (b === 0x0d /* \r */ || b === 0x0a /* \n */) {
+          cleanup();
+          process.stdout.write('\r\x1b[K\n');
+          console.log(dim(`  Selected: ${items[selected].label}`));
+          resolve({ index: selected, value: items[selected].label });
+          return;
+        }
+        if (b === 0x03 /* Ctrl-C */) {
+          cleanup();
+          process.stdout.write('\x1b[?1049l');
+          process.exit(0);
+        }
+        if (b === 0x6b /* k */) moveUp();
+        else if (b === 0x6a /* j */) moveDown();
+        // Any other byte is ignored.
+        pending = pending.subarray(1);
       }
     }
 

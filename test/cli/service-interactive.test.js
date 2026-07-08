@@ -251,4 +251,48 @@ describe('choose()', () => {
     assert.strictEqual(result.value, 'Only');
     rl.close();
   });
+
+  it('handles multiple arrow presses coalesced into one data event', async () => {
+    const { rl } = createMockRL();
+    const promise = choose(rl, 'Pick:', ['A', 'B', 'C']);
+    await new Promise((r) => setImmediate(r));
+    // Two down arrows arriving together (fast key presses).
+    process.stdin.emit('data', Buffer.from('\x1b[B\x1b[B'));
+    await new Promise((r) => setImmediate(r));
+    process.stdin.emit('data', Buffer.from('\r'));
+    const result = await promise;
+    assert.strictEqual(result.index, 2);
+    assert.strictEqual(result.value, 'C');
+    rl.close();
+  });
+
+  it('handles an arrow and Enter coalesced into one data event', async () => {
+    const { rl } = createMockRL();
+    const promise = choose(rl, 'Pick:', ['A', 'B', 'C']);
+    await new Promise((r) => setImmediate(r));
+    // Down arrow immediately followed by Enter in a single buffer.
+    process.stdin.emit('data', Buffer.from('\x1b[B\r'));
+    const result = await promise;
+    assert.strictEqual(result.index, 1);
+    assert.strictEqual(result.value, 'B');
+    rl.close();
+  });
+
+  it('handles an escape sequence split across two data events', async () => {
+    const { rl } = createMockRL();
+    const promise = choose(rl, 'Pick:', ['A', 'B', 'C']);
+    await new Promise((r) => setImmediate(r));
+    // Arrow sequence delivered one byte fragment at a time.
+    process.stdin.emit('data', Buffer.from('\x1b'));
+    await new Promise((r) => setImmediate(r));
+    process.stdin.emit('data', Buffer.from('['));
+    await new Promise((r) => setImmediate(r));
+    process.stdin.emit('data', Buffer.from('B'));
+    await new Promise((r) => setImmediate(r));
+    process.stdin.emit('data', Buffer.from('\r'));
+    const result = await promise;
+    assert.strictEqual(result.index, 1);
+    assert.strictEqual(result.value, 'B');
+    rl.close();
+  });
 });

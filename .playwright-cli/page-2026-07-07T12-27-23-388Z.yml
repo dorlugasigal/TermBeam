@@ -1,0 +1,319 @@
+- generic [ref=e1]:
+    - generic [ref=e2]:
+        - generic [ref=e3]:
+            - link "Skip to content" [ref=e4] [cursor=pointer]:
+                - /url: '#start-of-content'
+            - generic [ref=e6]: '*'
+            - banner "Global navigation menu" [ref=e9]:
+                - generic [ref=e10]:
+                    - generic [ref=e11]:
+                        - button "Open menu" [ref=e13] [cursor=pointer]:
+                            - img [ref=e14]
+                        - link "Homepage (g then d)" [ref=e16] [cursor=pointer]:
+                            - /url: /
+                            - img [ref=e17]
+                    - generic [ref=e19]:
+                        - navigation "Breadcrumbs" [ref=e20]:
+                            - list [ref=e21]:
+                                - listitem [ref=e22]:
+                                    - link "volvo-cars" [ref=e23] [cursor=pointer]:
+                                        - /url: /volvo-cars
+                                        - generic [ref=e24]: volvo-cars
+                                - listitem [ref=e25]:
+                                    - link "enterprise-search" [ref=e26] [cursor=pointer]:
+                                        - /url: /volvo-cars/enterprise-search
+                                        - img [ref=e27]
+                                        - text: enterprise-search
+                                    - button "Switch repository (option shift r)" [ref=e29] [cursor=pointer]:
+                                        - img [ref=e30]
+                        - button "Search or jump to…" [ref=e34] [cursor=pointer]:
+                            - generic [ref=e35]:
+                                - generic:
+                                    - img
+                                - generic [ref=e36]:
+                                    - generic:
+                                        - text: Type
+                                        - generic: /
+                                        - text: to search
+                    - generic [ref=e37]:
+                        - generic [ref=e38]:
+                            - generic [ref=e40]:
+                                - generic [ref=e41]:
+                                    - link "Chat with Copilot" [ref=e43] [cursor=pointer]:
+                                        - /url: /copilot
+                                        - img [ref=e44]
+                                    - button "Open Copilot…" [ref=e48] [cursor=pointer]:
+                                        - generic:
+                                            - img
+                                - button "Open agents panel" [ref=e49] [cursor=pointer]:
+                                    - generic [ref=e50]:
+                                        - generic:
+                                            - img
+                                        - generic:
+                                            - img
+                            - button "Create new..." [ref=e52] [cursor=pointer]:
+                                - generic [ref=e53]:
+                                    - generic:
+                                        - img
+                                - generic:
+                                    - img
+                            - generic [ref=e54]:
+                                - link "All issues" [ref=e55] [cursor=pointer]:
+                                    - /url: /issues
+                                    - img [ref=e56]
+                                - link "All pull requests" [ref=e59] [cursor=pointer]:
+                                    - /url: /pulls
+                                    - img [ref=e60]
+                                - link "All repositories" [ref=e62] [cursor=pointer]:
+                                    - /url: /repos
+                                    - img [ref=e63]
+                        - link "You have unread notifications (g then n)" [ref=e65] [cursor=pointer]:
+                            - /url: /notifications
+                            - img [ref=e66]
+                        - button "Open user navigation menu" [ref=e69] [cursor=pointer]:
+                            - img "Dor Lugasi-Gal" [ref=e70]
+                - heading "Repository navigation" [level=2] [ref=e71]
+                - navigation "Repository" [ref=e72]:
+                    - list [ref=e73]:
+                        - listitem [ref=e74]:
+                            - link "Code" [ref=e75] [cursor=pointer]:
+                                - /url: /volvo-cars/enterprise-search
+                                - img [ref=e77]
+                                - generic [ref=e79]: Code
+                        - listitem [ref=e80]:
+                            - link "Issues (4)" [ref=e81] [cursor=pointer]:
+                                - /url: /volvo-cars/enterprise-search/issues
+                                - img [ref=e83]
+                                - generic [ref=e86]: Issues
+                                - generic [ref=e87]:
+                                    - generic [ref=e88]: '4'
+                                    - generic [ref=e89]: (4)
+                        - listitem [ref=e90]:
+                            - link "Pull requests (3)" [active] [ref=e91] [cursor=pointer]:
+                                - /url: /volvo-cars/enterprise-search/pulls
+                                - img [ref=e93]
+                                - generic [ref=e95]: Pull requests
+                                - generic [ref=e96]:
+                                    - generic [ref=e97]: '3'
+                                    - generic [ref=e98]: (3)
+                        - listitem [ref=e99]:
+                            - link "Agents" [ref=e100] [cursor=pointer]:
+                                - /url: /volvo-cars/enterprise-search/agents?author=dorlugasigal
+                                - img [ref=e102]
+                                - generic [ref=e105]: Agents
+                        - listitem [ref=e106]:
+                            - link "Actions" [ref=e107] [cursor=pointer]:
+                                - /url: /volvo-cars/enterprise-search/actions
+                                - img [ref=e109]
+                                - generic [ref=e111]: Actions
+                        - listitem [ref=e112]:
+                            - link "Projects" [ref=e113] [cursor=pointer]:
+                                - /url: /volvo-cars/enterprise-search/projects
+                                - img [ref=e115]
+                                - generic [ref=e117]: Projects
+                        - listitem [ref=e118]:
+                            - link "Wiki" [ref=e119] [cursor=pointer]:
+                                - /url: /volvo-cars/enterprise-search/wiki
+                                - img [ref=e121]
+                                - generic [ref=e123]: Wiki
+                        - listitem [ref=e124]:
+                            - link "Security and quality (95)" [ref=e125] [cursor=pointer]:
+                                - /url: /volvo-cars/enterprise-search/security
+                                - img [ref=e127]
+                                - generic [ref=e129]: Security and quality
+                                - generic [ref=e130]:
+                                    - generic [ref=e131]: '95'
+                                    - generic [ref=e132]: (95)
+                        - listitem [ref=e133]:
+                            - link "Insights" [ref=e134] [cursor=pointer]:
+                                - /url: /volvo-cars/enterprise-search/pulse
+                                - img [ref=e136]
+                                - generic [ref=e138]: Insights
+                        - listitem [ref=e139]:
+                            - link "Settings" [ref=e140] [cursor=pointer]:
+                                - /url: /volvo-cars/enterprise-search/settings
+                                - img [ref=e142]
+                                - generic [ref=e144]: Settings
+        - main [ref=e148]:
+            - generic [ref=e150]:
+                - paragraph [ref=e151]:
+                    - text: It looks like you are opted in to receive
+                    - strong [ref=e152]: volvo-cars
+                    - text: email notifications, but you have an ineligible email address configured in your notification routing settings. In order to receive email notifications for this organization, you'll have to update your organization routing settings for
+                    - strong [ref=e153]: volvo-cars
+                    - text: 'to use an email from one of the following domains:'
+                - list [ref=e154]:
+                    - listitem [ref=e155]: volvocars.com
+                    - listitem [ref=e156]: www.volvocars.com
+                - paragraph
+                - link "View notifications settings" [ref=e157] [cursor=pointer]:
+                    - /url: /settings/notifications#organization_routing
+            - generic [ref=e159]:
+                - 'heading "Pull requests: volvo-cars/enterprise-search" [level=1] [ref=e160]'
+                - generic [ref=e161]:
+                    - search [ref=e162]:
+                        - group [ref=e163]:
+                            - button "Filters" [ref=e164] [cursor=pointer]:
+                                - generic [ref=e166]: Filters
+                                - generic:
+                                    - img
+                        - search "Issues" [ref=e167]:
+                            - textbox "Search all issues" [ref=e168]: is:pr is:open
+                            - img
+                        - navigation "Issue" [ref=e170]:
+                            - link "Labels 13" [ref=e171] [cursor=pointer]:
+                                - /url: /volvo-cars/enterprise-search/labels
+                                - img [ref=e172]
+                                - text: Labels 13
+                            - link "Milestones 0" [ref=e174] [cursor=pointer]:
+                                - /url: /volvo-cars/enterprise-search/milestones
+                                - img [ref=e175]
+                                - text: Milestones 0
+                    - link "New pull request" [ref=e179] [cursor=pointer]:
+                        - /url: /volvo-cars/enterprise-search/compare
+                        - generic [ref=e182]: New pull request
+                - generic [ref=e183]:
+                    - generic [ref=e184]:
+                        - checkbox "Select all issues" [ref=e186]
+                        - generic [ref=e187]:
+                            - generic [ref=e189]:
+                                - link "3 Open" [ref=e190] [cursor=pointer]:
+                                    - /url: /volvo-cars/enterprise-search/pulls?q=is%3Aopen+is%3Apr
+                                    - img [ref=e191]
+                                    - text: 3 Open
+                                - link "60 Closed" [ref=e193] [cursor=pointer]:
+                                    - /url: /volvo-cars/enterprise-search/pulls?q=is%3Apr+is%3Aclosed
+                                    - img [ref=e194]
+                                    - text: 60 Closed
+                            - generic [ref=e196]:
+                                - group [ref=e197]:
+                                    - button "Author" [ref=e198] [cursor=pointer]: Author
+                                - group [ref=e200]:
+                                    - button "Label" [ref=e201] [cursor=pointer]: Label
+                                - generic [ref=e203]:
+                                    - group [ref=e204]:
+                                        - button "Projects" [ref=e205] [cursor=pointer]: Projects
+                                    - group [ref=e207]:
+                                        - button "Milestones" [ref=e208] [cursor=pointer]: Milestones
+                                    - group [ref=e210]:
+                                        - button "Reviews" [ref=e211] [cursor=pointer]: Reviews
+                                - group [ref=e213]:
+                                    - button "Assignee" [ref=e214] [cursor=pointer]: Assignee
+                                - group [ref=e216]:
+                                    - button "Sort" [ref=e217] [cursor=pointer]: Sort
+                    - heading "Pull requests list" [level=2] [ref=e219]
+                    - group "Issues" [ref=e220]:
+                        - generic [ref=e221]:
+                            - generic [ref=e223]:
+                                - checkbox "replace Magentic router with MAF GroupChat" [ref=e225]
+                                - generic "Open Pull Request" [ref=e227]:
+                                    - img [ref=e228]
+                                - generic [ref=e230]:
+                                    - link "replace Magentic router with MAF GroupChat" [ref=e231] [cursor=pointer]:
+                                        - /url: /volvo-cars/enterprise-search/pull/76
+                                    - group [ref=e233]:
+                                        - generic "9 / 10 checks OK" [ref=e234] [cursor=pointer]:
+                                            - img "9 / 10 checks OK" [ref=e235]
+                                    - generic [ref=e238]:
+                                        - text: '#76 opened Jul 7, 202619 minutes ago by'
+                                        - link "Dor Lugasi-Gal (dorlugasigal)" [ref=e239] [cursor=pointer]:
+                                            - /url: /volvo-cars/enterprise-search/issues?q=is%3Apr+is%3Aopen+author%3Adorlugasigal
+                                - generic [ref=e240]:
+                                    - generic [ref=e243]:
+                                        - generic "Assigned to"
+                                    - link "1 comment" [ref=e245] [cursor=pointer]:
+                                        - /url: /volvo-cars/enterprise-search/pull/76
+                                        - img [ref=e246]
+                                        - text: '1'
+                            - generic [ref=e249]:
+                                - checkbox "Telemetry One-pager & Evidence" [ref=e251]
+                                - generic "Open Pull Request" [ref=e253]:
+                                    - img [ref=e254]
+                                - generic [ref=e256]:
+                                    - link "Telemetry One-pager & Evidence" [ref=e257] [cursor=pointer]:
+                                        - /url: /volvo-cars/enterprise-search/pull/74
+                                    - group [ref=e259]:
+                                        - generic "9 / 10 checks OK" [ref=e260] [cursor=pointer]:
+                                            - img "9 / 10 checks OK" [ref=e261]
+                                    - generic [ref=e264]:
+                                        - text: '#74 opened Jul 6, 2026yesterday by'
+                                        - link "EfratLe1" [ref=e265] [cursor=pointer]:
+                                            - /url: /volvo-cars/enterprise-search/issues?q=is%3Apr+is%3Aopen+author%3AEfratLe1
+                                - generic [ref=e266]:
+                                    - generic [ref=e269]:
+                                        - generic "Assigned to"
+                                    - link "1 comment" [ref=e271] [cursor=pointer]:
+                                        - /url: /volvo-cars/enterprise-search/pull/74
+                                        - img [ref=e272]
+                                        - text: '1'
+                            - generic [ref=e275]:
+                                - checkbox "Telemetry suggested solution" [ref=e277]
+                                - generic "Open Pull Request" [ref=e279]:
+                                    - img [ref=e280]
+                                - generic [ref=e282]:
+                                    - link "Telemetry suggested solution" [ref=e283] [cursor=pointer]:
+                                        - /url: /volvo-cars/enterprise-search/pull/64
+                                    - generic [ref=e284]:
+                                        - generic [ref=e285]:
+                                            - text: '#64 opened Jun 25, 20262 weeks ago by'
+                                            - link "EfratLe1" [ref=e286] [cursor=pointer]:
+                                                - /url: /volvo-cars/enterprise-search/issues?q=is%3Apr+is%3Aopen+author%3AEfratLe1
+                                        - generic [ref=e288]:
+                                            - text: •
+                                            - link "2 reviews requesting changes" [ref=e289] [cursor=pointer]:
+                                                - /url: /volvo-cars/enterprise-search/pull/64#partial-pull-merging
+                                                - text: Changes requested
+                                - generic [ref=e290]:
+                                    - generic [ref=e293]:
+                                        - generic "Assigned to"
+                                    - link "20 comments" [ref=e295] [cursor=pointer]:
+                                        - /url: /volvo-cars/enterprise-search/pull/64
+                                        - img [ref=e296]
+                                        - text: '20'
+                - generic [ref=e298]:
+                    - img [ref=e299]
+                    - strong [ref=e301]: ProTip!
+                    - text: Find all pull requests that aren't related to any open issues with
+                    - link "-linked:issue" [ref=e302] [cursor=pointer]:
+                        - /url: /volvo-cars/enterprise-search/issues?q=is%3Apr+is%3Aopen+-linked%3Aissue
+                    - text: .
+        - contentinfo [ref=e303]:
+            - heading "Footer" [level=2] [ref=e304]
+            - generic [ref=e305]:
+                - generic [ref=e306]:
+                    - link "GitHub Homepage" [ref=e307] [cursor=pointer]:
+                        - /url: https://github.com
+                        - img [ref=e308]
+                    - generic [ref=e310]: © 2026 GitHub, Inc.
+                - navigation "Footer" [ref=e311]:
+                    - heading "Footer navigation" [level=3] [ref=e312]
+                    - list "Footer navigation" [ref=e313]:
+                        - listitem [ref=e314]:
+                            - button "Site admin mode off" [ref=e316] [cursor=pointer]
+                        - listitem [ref=e317]:
+                            - link "Terms" [ref=e318] [cursor=pointer]:
+                                - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+                        - listitem [ref=e319]:
+                            - link "Privacy" [ref=e320] [cursor=pointer]:
+                                - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+                        - listitem [ref=e321]:
+                            - link "Security" [ref=e322] [cursor=pointer]:
+                                - /url: https://github.com/security
+                        - listitem [ref=e323]:
+                            - link "Status" [ref=e324] [cursor=pointer]:
+                                - /url: https://www.githubstatus.com/
+                        - listitem [ref=e325]:
+                            - link "Community" [ref=e326] [cursor=pointer]:
+                                - /url: https://github.community/
+                        - listitem [ref=e327]:
+                            - link "Docs" [ref=e328] [cursor=pointer]:
+                                - /url: https://docs.github.com/
+                        - listitem [ref=e329]:
+                            - link "Contact" [ref=e330] [cursor=pointer]:
+                                - /url: https://support.github.com?tags=dotcom-footer
+                        - listitem [ref=e331]:
+                            - button "Manage cookies" [ref=e333] [cursor=pointer]
+                        - listitem [ref=e334]:
+                            - button "Do not share my personal information" [ref=e336] [cursor=pointer]
+    - generic:
+        - document

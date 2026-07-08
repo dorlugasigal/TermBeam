@@ -1,0 +1,9 @@
+- generic [active] [ref=e1]:
+    - generic [ref=e2]:
+        - generic [ref=e4]:
+            - img "TermBeam" [ref=e5]:
+                - img [ref=e6]
+            - generic [ref=e16]: Connected
+        - region "Notifications alt+T"
+    - generic:
+        - document
