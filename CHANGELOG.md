@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.24.11] - 2026-07-08
+
+- fix(cli): handle split and coalesced key input in choose() arrow navigation (@dorlugasigal)
+
 ## [1.24.10] - 2026-07-07
 
 - feat(ci): autonomous Dependabot auto-fix and auto-merge workflows (#263) (@dorlugasigal)
