@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.24.12] - 2026-07-13
+
+- chore(deps): bump node from `a1d9d67` to `ffc7838` in the all-docker group (#269) (@dependabot[bot])
+
 ## [1.24.11] - 2026-07-08
 
 - fix(cli): handle split and coalesced key input in choose() arrow navigation (@dorlugasigal)
