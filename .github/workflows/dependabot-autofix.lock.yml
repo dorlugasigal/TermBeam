@@ -71,6 +71,7 @@ name: 'Dependabot Auto-Fix'
       - completed
     workflows:
       - CI
+      - Security
 
 permissions: {}
 
