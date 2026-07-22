@@ -1,7 +1,12 @@
 ---
 on:
   workflow_run:
-    workflows: ['CI']
+    # Watch every required workflow that gates a Dependabot merge, not just CI.
+    # In practice the check that most often goes red on a bump is `Security`
+    # (npm audit / Trivy), which used to leave the PR stuck because this agent
+    # only listened to `CI`. Listening to both makes the auto-fix resilient to
+    # whichever required workflow actually fails.
+    workflows: ['CI', 'Security']
     types: [completed]
     branches:
       - 'dependabot/**'
@@ -92,8 +97,8 @@ safe-outputs:
 # Dependabot Auto-Fix
 
 You are the owner of this repository's Dependabot pull requests. A dependency-update
-PR opened by Dependabot has **failing CI**, and your job is to make every check green
-again — without changing the application's behavior.
+PR opened by Dependabot has a **failing required check**, and your job is to make every
+check green again — without changing the application's behavior.
 
 ## Context
 
@@ -101,9 +106,12 @@ again — without changing the application's behavior.
 
 - You were dispatched manually to fix PR **#{{ github.event.inputs.pr }}**.
   {{else}}
-- The `CI` workflow just concluded with **failure** on the branch
-  `{{ github.event.workflow_run.head_branch }}`
-  (commit `{{ github.event.workflow_run.head_sha }}`).
+- The `{{ github.event.workflow_run.name }}` workflow just concluded with **failure**
+  on the branch `{{ github.event.workflow_run.head_branch }}`
+  (commit `{{ github.event.workflow_run.head_sha }}`). This may be the `CI` workflow
+  (tests, lint, frontend build, e2e, coverage) **or** the `Security` workflow
+  (`npm audit`, Trivy filesystem/Docker scans, secret detection) — inspect the PR's
+  actual failing checks to see which.
   {{/if}}
 - This repository is **TermBeam**, a Node.js CLI tool. Conventions live in
   `.github/copilot-instructions.md` — read it before making changes.
@@ -145,7 +153,8 @@ Only proceed to fix if neither label is present.
 ## Step 3 — Reproduce and diagnose
 
 1. Read the failing check runs on the PR to see which jobs failed (test, lint,
-   frontend build, e2e, coverage, etc.) and read their logs.
+   frontend build, e2e, coverage, `npm audit`, Trivy filesystem/Docker scans, etc.)
+   and read their logs.
 2. Reproduce locally in your workspace. Typical commands:
    - `npm ci`
    - `cd src/frontend && npm ci && npm run build && cd ../..`
@@ -153,9 +162,14 @@ Only proceed to fix if neither label is present.
      `node --test 'test/server/*.test.js'`)
    - `npm run lint`
    - `cd src/frontend && npx tsc --noEmit`
+   - For **`Security` workflow** failures: `npm audit --audit-level=moderate` to
+     reproduce an audit failure; for a Trivy failure, read the scan output on the PR
+     to identify the vulnerable package (or, for the Docker image scan, the vulnerable
+     base image in the `Dockerfile`).
 3. Determine the **root cause** caused by the dependency bump — e.g. a renamed export,
    a changed API signature, a stricter type, an updated snapshot, a lockfile that is
-   out of sync, or a transitive-dependency conflict.
+   out of sync, a transitive-dependency conflict, or a newly-introduced known
+   vulnerability (CVE) surfaced by `npm audit` / Trivy.
 
 ## Step 4 — Fix it (minimal, behavior-preserving)
 
@@ -165,6 +179,11 @@ Apply the **smallest** change that makes the checks pass:
   definitions, mocks, snapshots, and call sites to match the new dependency versions.
 - Adapt code only where the new version _requires_ it (renamed imports, changed
   signatures, moved types).
+- For a **`Security`** failure, remediate the vulnerability the scanner reported: run
+  `npm audit fix` (without `--force`) or bump the specific vulnerable dependency to a
+  patched version, and for a Trivy Docker-image failure bump the base image tag in the
+  `Dockerfile` to a patched release. Only fix vulnerabilities that actually have a fix
+  available (the scans use `ignore-unfixed: true`, so a failure means a fix exists).
 - Follow repo conventions: CommonJS, `node:test`, Prettier (`npm run format`),
   Conventional Commits.
 
@@ -201,14 +220,17 @@ your job is done once the fix is pushed and reported.
 
 ## Usage
 
-This workflow runs automatically whenever the `CI` workflow fails on a `dependabot/**`
-branch. To fix a specific PR on demand, trigger it from the **Actions** tab
-(`workflow_dispatch`) and pass the PR number.
+This workflow runs automatically whenever the `CI` **or** `Security` workflow fails on a
+`dependabot/**` branch. To fix a specific PR on demand, trigger it from the **Actions**
+tab (`workflow_dispatch`) and pass the PR number.
 
 **Required secrets:**
 
-- `COPILOT_GITHUB_TOKEN` — used by the `copilot` engine (already configured for the
-  `scorecard-monitor` workflow).
+- `COPILOT_GITHUB_TOKEN` — used by the `copilot` engine (shared with the
+  `scorecard-monitor` workflow). This must be a **valid, non-expired** Copilot-entitled
+  token: if it expires the agent fails at startup with `No authentication information
+found` and never runs. Rotate it (`gh secret set COPILOT_GITHUB_TOKEN`) if agentic
+  runs start failing with that error.
 - `GH_AW_CI_TRIGGER_TOKEN` — a fine-grained PAT with `Contents: Read & Write`. gh-aw
   uses this magic secret to push an empty commit that re-triggers CI on the fixed
   branch. Without it, the fix is pushed but CI will not re-run automatically (a human
