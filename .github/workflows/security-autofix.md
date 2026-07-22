@@ -79,6 +79,11 @@ safe-outputs:
     # (Authoring by the bot, not the code-owner PAT, is deliberate: the auto-merge workflow
     # approves the PR as the code owner, and a PR author cannot approve their own PR.)
     github-token-for-extra-empty-commit: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
+    # Force PR creation via GITHUB_TOKEN so the author is github-actions[bot], NOT the
+    # code-owner PAT. This is essential: @dorlugasigal is the sole CODEOWNER, and GitHub
+    # forbids approving your own PR — if the PAT authored it, the required code-owner
+    # review could never be satisfied and the PR would never merge.
+    github-token: ${{ secrets.GITHUB_TOKEN }}
   add-comment:
     target: '*'
     max: 1
