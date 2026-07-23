@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.24.14] - 2026-07-23
+
+- fix(workflows): trigger dependabot auto-fix on Security failures too (@dorlugasigal)
+- fix(workflows): recompile agentic workflows to gh-aw v0.82.14 for reliable auth (@dorlugasigal)
+- fix(ci): make dependabot auto-merge clear all post-autofix gates (@dorlugasigal)
+- feat(ci): add security-autofix agent to remediate ambient CVEs automatically (@dorlugasigal)
+- fix(ci): author security-autofix PR as github-actions[bot] for code-owner approval (@dorlugasigal)
+- docs(ci): teach security-autofix that npm audit does not cover the Docker image (@dorlugasigal)
+- fix(deps): remediate security scan findings (#280) (@github-actions[bot])
+- fix(site): patch fast-uri/js-yaml/sharp/svgo via overrides, keep astro 6 (@dorlugasigal)
+- chore(ci): bump the all-actions group across 1 directory with 7 updates (#274) (@dependabot[bot])
+- chore(deps): bump the all-npm group with 5 updates (#273) (@dependabot[bot])
+- chore(deps): bump node from `ffc7838` to `715e55e` in the all-docker group (#272) (@dependabot[bot])
+- chore(ci): stop agentic workflows from filing no-op and failure issues (@dorlugasigal)
+
 ## [1.24.13] - 2026-07-13
 
 - chore(deps): bump the all-npm group across 1 directory with 4 updates (#270) (@dependabot[bot])
