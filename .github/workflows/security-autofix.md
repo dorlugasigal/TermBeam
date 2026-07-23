@@ -143,10 +143,18 @@ Reproduce every failing scan so you fix real findings, not guesses.
    job log from the most recent failing Security run (use the GitHub tools) to get the
    exact `Library`, `Installed Version`, and `Fixed Version` for each HIGH/CRITICAL
    finding, and which lockfile it came from.
-3. **Trivy Docker image.** Read the failing `Trivy (Docker image)` job log the same way.
-   Note the file **path** Trivy reports for each finding (e.g.
-   `app/node_modules/@github/copilot/...`) — the path tells you whether the vulnerable
-   package lives in a lockfile you control or is **vendored inside a third-party package**.
+3. **Trivy Docker image.** **You cannot run this scan in your sandbox** (there is no
+   Docker daemon and no Trivy vulnerability database), and — critically — **`npm audit`
+   does NOT cover it.** The Docker image is built with `npm ci --omit=dev`, so it contains
+   production dependencies _and everything they bundle_, including third-party CLIs that
+   vendor their own `node_modules` which `npm audit` cannot see. **Do not assume the image
+   is clean just because `npm audit` passes.** Instead, read the most recent failing
+   `Trivy (Docker image)` job log via the GitHub tools and record every HIGH/CRITICAL
+   finding with its `Library`, `Installed Version`, `Fixed Version`, and the **file path**
+   Trivy reports. In particular, dependencies bundled under
+   `node_modules/@github/copilot/**` (the Copilot CLI, pulled in transitively by the
+   `@github/copilot-sdk` production dependency — e.g. `adm-zip`, `sharp`) are a recurring
+   source of image-only findings that are **not** in any lockfile you control.
 
 ## Step 3 — Remediate each finding by category
 
@@ -205,6 +213,11 @@ these categories:
 - Run `npm ci` in the root and `cd src/frontend && npm ci && npm run build` to confirm the
   refreshed lockfiles still install and the frontend still builds.
 - Run `npm run format` so lockfile/manifest formatting matches the repo style.
+- **You cannot re-run the Trivy Docker-image scan locally.** For image-only findings,
+  trust the findings you read from the failing `Trivy (Docker image)` log and make sure
+  each one is either resolved by a bump you made or listed in `.trivyignore` with
+  justification — do not leave an image finding unhandled on the assumption that
+  `npm audit` covers it (it does not).
 
 ## Step 6 — Open the pull request
 
