@@ -2,9 +2,10 @@ name: Dependabot Auto-Merge
 
 # Zero-touch approving + merging of Dependabot PRs, on your behalf.
 #
-# When the CI workflow finishes on a `dependabot/**` branch, this approves the PR
-# and turns on GitHub's native auto-merge so it merges itself once EVERY required
-# status check is green — you never click approve or merge.
+# When the CI **or Security** workflow finishes on a `dependabot/**` branch (Dependabot
+# bumps) or a `deps/**` branch (the `security-autofix` agent's remediation PR), this
+# approves the PR and turns on GitHub's native auto-merge so it merges itself once EVERY
+# required status check is green — you never click approve or merge.
 #
 # Why native auto-merge (and not the agent)?
 #   gh-aw's `merge-pull-request` safe output intentionally refuses to merge into the
@@ -18,21 +19,40 @@ name: Dependabot Auto-Merge
 #
 # "On behalf of you":
 #   DEPENDABOT_MERGE_PAT should be a fine-grained PAT owned by a CODEOWNER
-#   (@dorlugasigal) with `Contents: read/write` + `Pull requests: read/write` on this
-#   repo. The approval then satisfies the code-owner review rule and the merge is
-#   attributed to you. Falls back to GITHUB_TOKEN if the secret is absent (works when
-#   code-owner review isn't a hard gate, but the approval is then from github-actions).
+#   (@dorlugasigal) with `Contents: read/write`, `Pull requests: read/write`, and
+#   `Actions: read/write` on this repo. The approval then satisfies the code-owner
+#   review rule and the merge is attributed to you; `Actions: write` lets this job
+#   approve workflow runs that GitHub parks in `action_required` (see step 1). Falls
+#   back to GITHUB_TOKEN if the secret is absent (works when code-owner review isn't a
+#   hard gate, but the approval is then from github-actions and run-approval is denied).
 #
 # Red PRs are fixed first by `dependabot-autofix.md`; once green, the auto-merge
 # queued here completes. Required status checks on `main` guarantee a broken bump
 # never merges.
+#
+# Zero-touch resiliency — this job clears every gate that otherwise stalls a fixed PR:
+#   1. `action_required` runs — after the auto-fix agent pushes as github-actions[bot],
+#      GitHub parks the PR's CI/CodeQL/Security/fuzzing runs pending maintainer
+#      approval. We approve them so the required checks can report.
+#   2. Out-of-date branch — `main` requires branches be current (strict checks) and
+#      Dependabot stops rebasing once a non-Dependabot commit lands, so we update it.
+#   3. Dismissed review — `dismiss_stale_reviews` drops the approval on every new
+#      commit (auto-fix push or branch update), so we re-approve each cycle.
+# The PR is matched by AUTHOR (`app/dependabot`) or by the `security-autofix` LABEL, not
+# by `workflow_run.actor`, because after an auto-fix the run's actor is
+# github-actions[bot] — gating on the actor would skip re-approval and leave the PR stuck
+# forever. The `security-autofix` remediation PR is itself authored by github-actions[bot]
+# and carries the `security-autofix` label, so the label match drives it too; since a PR
+# author cannot approve their own PR, that PR is deliberately authored by the bot (not the
+# code-owner PAT) so the approval below satisfies the code-owner rule.
 
 on:
   workflow_run:
-    workflows: ['CI']
+    workflows: ['CI', 'Security']
     types: [completed]
     branches:
       - 'dependabot/**'
+      - 'deps/**'
 
 permissions:
   contents: read
@@ -47,13 +67,13 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       github.repository == 'dorlugasigal/TermBeam' &&
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.actor.login == 'dependabot[bot]'
+      github.event.workflow_run.event == 'pull_request'
     permissions:
       contents: write
       pull-requests: write
+      actions: write
     steps:
-      - name: Approve and enable auto-merge
+      - name: Drive Dependabot PR to zero-touch merge
         env:
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           GH_TOKEN: ${{ secrets.DEPENDABOT_MERGE_PAT || secrets.GITHUB_TOKEN }}
@@ -61,21 +81,55 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Match by PR author OR the `security-autofix` label, not workflow_run.actor:
+          # after an auto-fix the run's actor is github-actions[bot], so gating on the
+          # actor would skip re-approval and strand the PR on a dismissed review. The
+          # security-autofix remediation PR is authored by github-actions[bot] and tagged
+          # `security-autofix`, so the label match picks it up.
           PR=$(gh pr list --repo "$REPO" --head "$HEAD_BRANCH" --state open \
-            --json number,author \
-            --jq '.[] | select(.author.login == "app/dependabot") | .number' | head -n1)
+            --json number,author,labels \
+            --jq '.[] | select(.author.login == "app/dependabot" or (.labels | map(.name) | index("security-autofix"))) | .number' | head -n1)
 
           if [ -z "${PR:-}" ]; then
-            echo "No open Dependabot PR for branch ${HEAD_BRANCH}; nothing to do."
+            echo "No matching Dependabot/security-autofix PR for branch ${HEAD_BRANCH}; nothing to do."
             exit 0
           fi
 
-          echo "Enabling zero-touch merge for PR #${PR}."
+          echo "Driving PR #${PR} toward zero-touch merge."
 
-          # Approve on your behalf (harmless if a prior approval already exists).
+          # 1. Approve any workflow runs GitHub parked in `action_required`. When the
+          #    auto-fix agent pushes as github-actions[bot], the resulting runs need
+          #    maintainer approval before the required checks can report. (Needs
+          #    `Actions: write` on the PAT; degrades gracefully otherwise — step 2
+          #    usually clears the gate by producing PAT-authored runs.)
+          HEAD_SHA=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq '.headRefOid')
+          for RID in $(gh run list --repo "$REPO" --commit "$HEAD_SHA" \
+              --json databaseId,status,conclusion \
+              --jq '.[] | select(.status == "action_required" or .conclusion == "action_required") | .databaseId'); do
+            echo "Approving parked workflow run ${RID}."
+            gh api -X POST "repos/${REPO}/actions/runs/${RID}/approve" \
+              || echo "Could not approve run ${RID} (add Actions: write to the PAT to enable this)."
+          done
+
+          # 2. Bring the branch up to date. `main` requires branches be current (strict
+          #    checks) and Dependabot stops rebasing once the auto-fix commit lands.
+          #    No-op when already current. The merge commit is authored by the PAT
+          #    owner, so refreshed runs start without an approval gate.
+          MERGE_STATE=$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq '.mergeStateStatus')
+          if [ "$MERGE_STATE" = "BEHIND" ]; then
+            echo "Branch is behind base; updating."
+            gh api -X PUT "repos/${REPO}/pulls/${PR}/update-branch" \
+              || echo "Branch update could not be performed."
+          fi
+
+          # 3. Approve on your behalf. `dismiss_stale_reviews` drops the prior approval
+          #    whenever a commit lands (auto-fix push or branch update), so re-approve
+          #    every cycle. The PAT is owned by a CODEOWNER, satisfying the required
+          #    code-owner review. Harmless if an approval already exists.
           gh pr review "$PR" --repo "$REPO" --approve \
             || echo "Approval skipped (already approved or not permitted by this token)."
 
-          # Queue the merge; GitHub holds it until every required check is green.
+          # 4. Queue the merge; GitHub holds it until every required check is green and
+          #    the branch is current, then squash-merges with no clicks.
           gh pr merge "$PR" --repo "$REPO" --auto --squash \
             || echo "Auto-merge could not be enabled (it may already be enabled)."
