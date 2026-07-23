@@ -2,9 +2,10 @@ name: Dependabot Auto-Merge
 
 # Zero-touch approving + merging of Dependabot PRs, on your behalf.
 #
-# When the CI workflow finishes on a `dependabot/**` branch, this approves the PR
-# and turns on GitHub's native auto-merge so it merges itself once EVERY required
-# status check is green — you never click approve or merge.
+# When the CI **or Security** workflow finishes on a `dependabot/**` branch (Dependabot
+# bumps) or a `deps/**` branch (the `security-autofix` agent's remediation PR), this
+# approves the PR and turns on GitHub's native auto-merge so it merges itself once EVERY
+# required status check is green — you never click approve or merge.
 #
 # Why native auto-merge (and not the agent)?
 #   gh-aw's `merge-pull-request` safe output intentionally refuses to merge into the
@@ -37,9 +38,13 @@ name: Dependabot Auto-Merge
 #      Dependabot stops rebasing once a non-Dependabot commit lands, so we update it.
 #   3. Dismissed review — `dismiss_stale_reviews` drops the approval on every new
 #      commit (auto-fix push or branch update), so we re-approve each cycle.
-# The PR is matched by AUTHOR (`app/dependabot`), not by `workflow_run.actor`, because
-# after an auto-fix the run's actor is github-actions[bot] — gating on the actor would
-# skip re-approval and leave the PR stuck forever.
+# The PR is matched by AUTHOR (`app/dependabot`) or by the `security-autofix` LABEL, not
+# by `workflow_run.actor`, because after an auto-fix the run's actor is
+# github-actions[bot] — gating on the actor would skip re-approval and leave the PR stuck
+# forever. The `security-autofix` remediation PR is itself authored by github-actions[bot]
+# and carries the `security-autofix` label, so the label match drives it too; since a PR
+# author cannot approve their own PR, that PR is deliberately authored by the bot (not the
+# code-owner PAT) so the approval below satisfies the code-owner rule.
 
 on:
   workflow_run:
@@ -47,6 +52,7 @@ on:
     types: [completed]
     branches:
       - 'dependabot/**'
+      - 'deps/**'
 
 permissions:
   contents: read
@@ -75,15 +81,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Match by PR author, not workflow_run.actor: after dependabot-autofix pushes
-          # a fix the run's actor is github-actions[bot], so gating on the actor would
-          # skip re-approval and strand the PR on a dismissed review.
+          # Match by PR author OR the `security-autofix` label, not workflow_run.actor:
+          # after an auto-fix the run's actor is github-actions[bot], so gating on the
+          # actor would skip re-approval and strand the PR on a dismissed review. The
+          # security-autofix remediation PR is authored by github-actions[bot] and tagged
+          # `security-autofix`, so the label match picks it up.
           PR=$(gh pr list --repo "$REPO" --head "$HEAD_BRANCH" --state open \
-            --json number,author \
-            --jq '.[] | select(.author.login == "app/dependabot") | .number' | head -n1)
+            --json number,author,labels \
+            --jq '.[] | select(.author.login == "app/dependabot" or (.labels | map(.name) | index("security-autofix"))) | .number' | head -n1)
 
           if [ -z "${PR:-}" ]; then
-            echo "No open Dependabot PR for branch ${HEAD_BRANCH}; nothing to do."
+            echo "No matching Dependabot/security-autofix PR for branch ${HEAD_BRANCH}; nothing to do."
             exit 0
           fi
 
