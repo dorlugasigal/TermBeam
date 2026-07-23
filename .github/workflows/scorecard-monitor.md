@@ -22,6 +22,12 @@ safe-outputs:
   close-issue:
   add-labels:
   update-issue:
+  # The intentional output of this monitor is the scorecard issue above. Everything
+  # else is noise: don't open an "[aw] No-Op Runs" issue when the score is unchanged,
+  # and don't open an "[aw] … failed" issue on a transient scan failure.
+  noop:
+    report-as-issue: false
+  report-failure-as-issue: false
 ---
 
 # OpenSSF Scorecard Monitor

@@ -87,6 +87,11 @@ safe-outputs:
   add-comment:
     target: '*'
     max: 1
+  # Silence gh-aw automation-noise issues (no-op runs / transient failures). The run
+  # itself is already visible in the Actions tab; a fresh issue per run is pure spam.
+  noop:
+    report-as-issue: false
+  report-failure-as-issue: false
 ---
 
 # Security Auto-Fix

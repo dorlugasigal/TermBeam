@@ -92,6 +92,12 @@ safe-outputs:
     target: '*'
     allowed: [dependencies, agent-fixed, needs-human]
     max: 2
+  # Silence gh-aw's automation-noise issues. Without these, every run that finds
+  # nothing to fix opens an "[aw] No-Op Runs" issue and every transient failure opens
+  # an "[aw] … failed" issue — the failing run is already visible in the Actions tab.
+  noop:
+    report-as-issue: false
+  report-failure-as-issue: false
 ---
 
 # Dependabot Auto-Fix
