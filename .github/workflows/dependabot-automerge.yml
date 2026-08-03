@@ -108,8 +108,14 @@ jobs:
             fi
 
             if [ "$MERGE_STATE" = "BEHIND" ]; then
-              gh api -X PUT "repos/${REPO}/pulls/${PR}/update-branch"
-              sleep 2
+              if [[ "$HEAD_BRANCH" == dependabot/github_actions/* ]]; then
+                gh pr comment "$PR" --repo "$REPO" --body "@dependabot rebase"
+                echo "Requested Dependabot rebase for workflow-file PR #${PR}."
+                continue
+              else
+                gh api -X PUT "repos/${REPO}/pulls/${PR}/update-branch"
+                sleep 2
+              fi
             fi
 
             HEAD_SHA=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq '.headRefOid')
