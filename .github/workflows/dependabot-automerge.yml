@@ -45,6 +45,7 @@ jobs:
           INPUT_PR: ${{ github.event.inputs.pr }}
           WORKFLOW_BRANCH: ${{ github.event.workflow_run.head_branch }}
           GH_TOKEN: ${{ secrets.DEPENDABOT_MERGE_PAT }}
+          ACTIONS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -128,7 +129,7 @@ jobs:
               for RID in $(gh run list --repo "$REPO" --commit "$HEAD_SHA" --limit 100 \
                   --json databaseId,conclusion \
                   --jq '.[] | select(.conclusion == "failure" or .conclusion == "cancelled") | .databaseId'); do
-                gh run rerun "$RID" --repo "$REPO" --failed
+                GH_TOKEN="$ACTIONS_TOKEN" gh run rerun "$RID" --repo "$REPO" --failed
               done
               gh pr edit "$PR" --repo "$REPO" --remove-label ci-transient
             elif [ "$FAILED" -gt 0 ] &&
@@ -137,7 +138,8 @@ jobs:
                 --json status \
                 --jq '[.[] | select(.status == "in_progress" or .status == "queued" or .status == "waiting" or .status == "pending")] | length')
               if [ "$AUTO_FIX_BUSY" -eq 0 ]; then
-                gh workflow run "Dependabot Auto-Fix" --repo "$REPO" -f pr="$PR"
+                GH_TOKEN="$ACTIONS_TOKEN" gh workflow run "Dependabot Auto-Fix" \
+                  --repo "$REPO" -f pr="$PR"
               else
                 echo "An auto-fix run is already active; a later sweep will handle PR #${PR}."
               fi
