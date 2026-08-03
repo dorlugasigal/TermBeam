@@ -133,9 +133,11 @@ safe-outputs:
     protected-files: allowed
   add-comment:
     target: '*'
+    github-token: ${{ secrets.GITHUB_TOKEN }}
     max: 2
   add-labels:
     target: '*'
+    github-token: ${{ secrets.GITHUB_TOKEN }}
     allowed: [dependencies, agent-fixed, needs-human, ci-transient]
     max: 2
   # Silence gh-aw's automation-noise issues. Without these, every run that finds

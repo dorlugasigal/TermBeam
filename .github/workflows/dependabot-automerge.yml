@@ -96,6 +96,17 @@ jobs:
             echo "Driving PR #${PR} (${HEAD_BRANCH})."
 
             MERGE_STATE=$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq '.mergeStateStatus')
+            if [ "$MERGE_STATE" = "DIRTY" ]; then
+              if [[ "$HEAD_BRANCH" == dependabot/* ]]; then
+                gh pr comment "$PR" --repo "$REPO" --body "@dependabot recreate"
+                echo "Requested recreation of conflicted Dependabot PR #${PR}."
+              else
+                gh pr edit "$PR" --repo "$REPO" --add-label needs-human
+                echo "PR #${PR} has merge conflicts and requires human intervention."
+              fi
+              continue
+            fi
+
             if [ "$MERGE_STATE" = "BEHIND" ]; then
               gh api -X PUT "repos/${REPO}/pulls/${PR}/update-branch"
               sleep 2
@@ -107,6 +118,20 @@ jobs:
                 --jq '.[] | select(.status == "action_required" or .conclusion == "action_required") | .databaseId'); do
               gh api -X POST "repos/${REPO}/actions/runs/${RID}/approve"
             done
+
+            REQUIRED_RUNS=$(gh run list --repo "$REPO" --commit "$HEAD_SHA" --limit 100 \
+              --json workflowName \
+              --jq '[.[] | select(.workflowName == "CI" or .workflowName == "Security")] | length')
+            if [ "$REQUIRED_RUNS" -eq 0 ]; then
+              # shellcheck disable=SC2016
+              gh api graphql \
+                -f query='mutation($repository:String!,$branch:String!,$oid:GitObjectID!){createCommitOnBranch(input:{branch:{repositoryNameWithOwner:$repository,branchName:$branch},message:{headline:"ci: trigger checks"},expectedHeadOid:$oid,fileChanges:{}}){commit{oid}}}' \
+                -f repository="$REPO" \
+                -f branch="$HEAD_BRANCH" \
+                -f oid="$HEAD_SHA"
+              echo "Created a PAT-authored empty commit to trigger required checks for PR #${PR}."
+              continue
+            fi
 
             LABELS=$(gh pr view "$PR" --repo "$REPO" --json labels --jq '[.labels[].name] | join(",")')
             AUTO_MERGE=$(gh pr view "$PR" --repo "$REPO" --json autoMergeRequest \
