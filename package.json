@@ -82,7 +82,7 @@
     "ws": "^8.19.0"
   },
   "optionalDependencies": {
-    "better-sqlite3": "^12.8.0"
+    "better-sqlite3": "^13.0.2"
   },
   "overrides": {
     "@github/copilot": ">=1.0.43"
