@@ -33,10 +33,12 @@ Must exit cleanly. If it fails, stop and report.
 ## Step 2.5 — Security audit
 
 ```bash
-npm audit --audit-level=moderate
+npm audit --omit=dev --audit-level=moderate
 ```
 
-Must exit cleanly (0 vulnerabilities at moderate or higher). If it fails:
+Must exit cleanly (0 runtime vulnerabilities at moderate or higher). Dev dependencies
+remain covered by the Security workflow's Trivy filesystem scan, which ignores findings
+only while no patched version exists. If the runtime audit fails:
 
 1. Try `npm audit fix` to resolve automatically.
 2. If that fixes it, continue (the lockfile change will be committed in Step 5).

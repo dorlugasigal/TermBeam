@@ -232,7 +232,7 @@ Only proceed to a normal fix if neither label is present.
      `node --test 'test/server/*.test.js'`)
    - `npm run lint`
    - `cd src/frontend && npx tsc --noEmit`
-   - For **`Security` workflow** failures: `npm audit --audit-level=moderate` to
+   - For **`Security` workflow** failures: `npm audit --omit=dev --audit-level=moderate` to
      reproduce an audit failure; for a Trivy failure, read the scan output on the PR
      to identify the vulnerable package (or, for the Docker image scan, the vulnerable
      base image in the `Dockerfile`).

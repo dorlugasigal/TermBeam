@@ -143,11 +143,10 @@ whose head branch is `deps/security-autofix`.
 
 Reproduce every failing scan so you fix real findings, not guesses.
 
-1. **npm audit.** For each directory that has a `package-lock.json` — the repo root,
-   `src/frontend`, `packages/site`, and `packages/demo-video` — run `npm ci` then
-   `npm audit --audit-level=moderate` and record every advisory that has a fix available.
-   (The Security workflow only runs `npm audit` at the repo root, but fixing the
-   sub-packages too keeps the Trivy filesystem scan green.)
+1. **npm audit.** At the repo root, run `npm ci` then
+   `npm audit --omit=dev --audit-level=moderate` and record every runtime advisory that
+   has a fix available. The Security workflow audits production dependencies because
+   Trivy separately scans the full lockfile and ignores unfixed dev-tool findings.
 2. **Trivy filesystem.** This scan walks every `package-lock.json` in the repo except
    `packages/demo-video` (it is in `skip-dirs`). Read the failing `Trivy (filesystem)`
    job log from the most recent failing Security run (use the GitHub tools) to get the
@@ -216,8 +215,8 @@ these categories:
 
 ## Step 5 — Verify before opening the PR
 
-- Re-run `npm audit --audit-level=moderate` at the repo root and in each sub-package you
-  changed; it must report no fixable advisories at moderate+ severity.
+- Re-run `npm audit --omit=dev --audit-level=moderate` at the repo root; it must report
+  no runtime advisories at moderate+ severity.
 - For every `overrides` pin, confirm the lockfile now resolves the package at/above the
   `Fixed Version`.
 - Run `npm ci` in the root and `cd src/frontend && npm ci && npm run build` to confirm the
