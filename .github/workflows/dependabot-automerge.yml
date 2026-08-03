@@ -109,8 +109,10 @@ jobs:
 
             if [ "$MERGE_STATE" = "BEHIND" ]; then
               if [[ "$HEAD_BRANCH" == dependabot/github_actions/* ]]; then
-                gh pr comment "$PR" --repo "$REPO" --body "@dependabot rebase"
-                echo "Requested Dependabot rebase for workflow-file PR #${PR}."
+                # Workflow branches cannot be updated with a PAT that lacks workflow scope.
+                # Recreation also recovers branches previously edited by an automated merge.
+                gh pr comment "$PR" --repo "$REPO" --body "@dependabot recreate"
+                echo "Requested Dependabot recreation for workflow-file PR #${PR}."
                 continue
               else
                 gh api -X PUT "repos/${REPO}/pulls/${PR}/update-branch"
