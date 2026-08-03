@@ -20,7 +20,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm audit --audit-level=moderate
+      # Runtime dependencies must be fixable before release. Trivy separately scans
+      # the full lockfile and ignores dev-only advisories only while no fix exists.
+      - run: npm audit --omit=dev --audit-level=moderate
 
   trivy-fs:
     name: Trivy (filesystem)

@@ -130,7 +130,7 @@ jobs:
             REQUIRED_RUNS=$(gh run list --repo "$REPO" --commit "$HEAD_SHA" --limit 100 \
               --json workflowName \
               --jq '[.[] | select(.workflowName == "CI" or .workflowName == "Security")] | length')
-            if [ "$REQUIRED_RUNS" -eq 0 ]; then
+            if [ "$REQUIRED_RUNS" -lt 2 ]; then
               # shellcheck disable=SC2016
               gh api graphql \
                 -f query='mutation($repository:String!,$branch:String!,$oid:GitObjectID!){createCommitOnBranch(input:{branch:{repositoryNameWithOwner:$repository,branchName:$branch},message:{headline:"ci: trigger checks"},expectedHeadOid:$oid,fileChanges:{}}){commit{oid}}}' \
