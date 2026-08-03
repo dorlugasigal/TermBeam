@@ -1,8 +1,5 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { CacheFirst } from 'workbox-strategies';
-import { ExpirationPlugin } from 'workbox-expiration';
 
 declare let self: ServiceWorkerGlobalScope;
 
@@ -15,20 +12,6 @@ cleanupOutdatedCaches();
 // They go directly to the server, which sets Cache-Control: no-store.
 // This prevents stale/poisoned HTML (e.g. cached login pages, DevTunnel
 // auth pages) from being served when the network is temporarily unavailable.
-
-// Cache-first for CDN fonts (NerdFont)
-registerRoute(
-  ({ url }) => url.hostname === 'cdn.jsdelivr.net' && url.pathname.endsWith('.ttf'),
-  new CacheFirst({
-    cacheName: 'termbeam-fonts',
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 5,
-        maxAgeSeconds: 365 * 24 * 60 * 60,
-      }),
-    ],
-  }),
-);
 
 // API calls are NOT intercepted — they fall through to native fetch.
 

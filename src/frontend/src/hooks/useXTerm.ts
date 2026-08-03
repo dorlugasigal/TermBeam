@@ -7,6 +7,7 @@ import { CanvasAddon } from '@xterm/addon-canvas';
 import { useThemeStore } from '@/stores/themeStore';
 import { useUIStore } from '@/stores/uiStore';
 import { getTerminalTheme } from '@/themes/terminalThemes';
+import nerdFontUrl from '@/assets/JetBrainsMonoNerdFont-Regular.ttf?url';
 import '@xterm/xterm/css/xterm.css';
 
 export interface UseXTermOptions {
@@ -224,27 +225,23 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     setFitAddon(fitAddonInstance);
     setSearchAddon(search);
 
-    // Load NerdFont asynchronously
-    const font = new FontFace(
-      'NerdFont',
-      'url(https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@latest/patched-fonts/JetBrainsMono/Ligatures/Regular/JetBrainsMonoNerdFont-Regular.ttf)',
-    );
+    const font = new FontFace('NerdFont', `url(${nerdFontUrl})`);
     font
       .load()
-      .then((f) => {
+      .then((loadedFont) => {
         if (disposed) return;
-        document.fonts.add(f);
+        document.fonts.add(loadedFont);
         if (termRef.current) {
           termRef.current.options.fontFamily = FONT_FAMILY;
           try {
             customFitRef.current();
           } catch {
-            // ignore
+            // Terminal may have been disposed while the font was loading.
           }
         }
       })
       .catch(() => {
-        // NerdFont unavailable — keep default monospace
+        // Keep the system monospace fallback if the local asset cannot be loaded.
       });
 
     // ResizeObserver for container size changes.

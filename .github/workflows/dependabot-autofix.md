@@ -10,7 +10,8 @@ on:
     types: [completed]
     branches:
       - 'dependabot/**'
-  bots: ['dependabot[bot]']
+      - 'deps/security-autofix'
+  bots: ['dependabot[bot]', 'github-actions[bot]']
   # Dependabot has no repo write permission, so gh-aw's default role gate
   # (admin/maintainer/write) would block activation. Allow all actors — the
   # `bots:` filter already restricts activation to Dependabot-authored runs.
@@ -18,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       pr:
-        description: 'Dependabot PR number to fix'
+        description: 'Trusted automation PR number to fix'
         required: true
         type: string
 
@@ -45,21 +46,58 @@ tools:
     toolsets: [default]
 
 steps:
-  # Check out the Dependabot PR branch so the agent has the code that is failing.
-  - name: Resolve PR head ref
+  # Reject everything except same-repository Dependabot updates and the single
+  # security-autofix branch before checking out attacker-controlled content.
+  - name: Resolve and validate trusted automation PR
     id: head
     env:
       HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
       PR_INPUT: ${{ github.event.inputs.pr }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set -euo pipefail
       if [ -n "${PR_INPUT:-}" ]; then
-        REF=$(gh pr view "$PR_INPUT" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')
+        PR="$PR_INPUT"
       else
-        REF="${HEAD_SHA}"
+        PR=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$HEAD_BRANCH" --state open \
+          --json number --jq '.[0].number')
       fi
+
+      [ -n "${PR:-}" ] || { echo "No open PR found."; exit 1; }
+
+      DATA=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}")
+      AUTHOR=$(jq -r '.user.login' <<<"$DATA")
+      HEAD_REPO=$(jq -r '.head.repo.full_name' <<<"$DATA")
+      HEAD_REF=$(jq -r '.head.ref' <<<"$DATA")
+      BASE_REF=$(jq -r '.base.ref' <<<"$DATA")
+      REF=$(jq -r '.head.sha' <<<"$DATA")
+      LABELS=$(jq -r '[.labels[].name] | join(",")' <<<"$DATA")
+
+      TRUSTED=false
+      if [ "$AUTHOR" = "dependabot[bot]" ] &&
+         [[ "$HEAD_REF" == dependabot/* ]] &&
+         [[ ",$LABELS," == *,dependencies,* ]]; then
+        TRUSTED=true
+      elif [ "$AUTHOR" = "github-actions[bot]" ] &&
+           [ "$HEAD_REF" = "deps/security-autofix" ] &&
+           [[ ",$LABELS," == *,dependencies,* ]] &&
+           [[ ",$LABELS," == *,security-autofix,* ]]; then
+        TRUSTED=true
+      fi
+
+      if [ "$TRUSTED" != true ] ||
+         [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ] ||
+         [ "$BASE_REF" != "main" ]; then
+        echo "Refusing untrusted PR #${PR}: author=${AUTHOR} head=${HEAD_REPO}:${HEAD_REF} base=${BASE_REF}"
+        exit 1
+      fi
+
+      if [ -n "${HEAD_BRANCH:-}" ] && [ "$HEAD_REF" != "$HEAD_BRANCH" ]; then
+        echo "Workflow branch ${HEAD_BRANCH} does not match PR head ${HEAD_REF}."
+        exit 1
+      fi
+
+      echo "pr=${PR}" >> "$GITHUB_OUTPUT"
       echo "ref=${REF}" >> "$GITHUB_OUTPUT"
   - name: Checkout PR head
     uses: actions/checkout@v6
@@ -74,8 +112,16 @@ steps:
 safe-outputs:
   push-to-pull-request-branch:
     target: '*'
-    labels: [dependencies]
+    required-labels: [dependencies]
     if-no-changes: 'ignore'
+    github-token: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
+    fallback-as-pull-request: false
+    excluded-files:
+      - '.github/**'
+      - 'CODEOWNERS'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'GEMINI.md'
     # Dependency fixes must edit npm manifests + lockfiles, which gh-aw protects by
     # default, so protection is opened here. Guardrails that remain in force:
     #   - only fires on Dependabot-triggered runs (bots filter) for `dependencies` PRs;
@@ -90,7 +136,7 @@ safe-outputs:
     max: 2
   add-labels:
     target: '*'
-    allowed: [dependencies, agent-fixed, needs-human]
+    allowed: [dependencies, agent-fixed, needs-human, ci-transient]
     max: 2
   # Silence gh-aw's automation-noise issues. Without these, every run that finds
   # nothing to fix opens an "[aw] No-Op Runs" issue and every transient failure opens
@@ -102,9 +148,9 @@ safe-outputs:
 
 # Dependabot Auto-Fix
 
-You are the owner of this repository's Dependabot pull requests. A dependency-update
-PR opened by Dependabot has a **failing required check**, and your job is to make every
-check green again — without changing the application's behavior.
+You repair failing trusted automation pull requests. The PR is either a Dependabot
+dependency update or the repository's `deps/security-autofix` remediation PR. Your job
+is to make every required check green without changing application behavior.
 
 ## Context
 
@@ -125,14 +171,14 @@ check green again — without changing the application's behavior.
 
 ## Step 1 — Identify the pull request
 
-Use the GitHub tools to find the open Dependabot pull request for this branch:
+Identify the PR from the manual input or the triggering workflow branch. The pre-agent
+checkout validation confirmed that it is same-repository, targets `main`, and is either:
 
-- If you were given a PR number above, use it.
-- Otherwise, list open PRs by author `app/dependabot` and match the one whose head
-  branch is `{{ github.event.workflow_run.head_branch }}`.
+- a `dependabot[bot]` PR on `dependabot/**` with the `dependencies` label; or
+- a `github-actions[bot]` PR on exactly `deps/security-autofix` with both the
+  `dependencies` and `security-autofix` labels.
 
-Confirm the PR author is `dependabot[bot]`. If it is **not** a Dependabot PR, stop and
-do nothing.
+Re-check those facts before pushing. Stop if any no longer holds.
 
 **`github-actions` bumps — fix what you can, escalate only the workflow edit:** a
 `dependabot/github_actions/**` branch bumps an action pinned inside
@@ -188,10 +234,15 @@ Only proceed to a normal fix if neither label is present.
      reproduce an audit failure; for a Trivy failure, read the scan output on the PR
      to identify the vulnerable package (or, for the Docker image scan, the vulnerable
      base image in the `Dockerfile`).
-3. Determine the **root cause** caused by the dependency bump — e.g. a renamed export,
-   a changed API signature, a stricter type, an updated snapshot, a lockfile that is
-   out of sync, a transitive-dependency conflict, or a newly-introduced known
-   vulnerability (CVE) surfaced by `npm audit` / Trivy.
+3. Classify the failure before editing:
+   - **PR-caused:** the changed dependency or remediation explains the failure.
+   - **Ambient deterministic:** the same failure exists on the base revision or comes
+     from unchanged repository code, an external service, or a runner/toolchain change.
+   - **Transient:** a runner outage, rate limit, or non-reproducible network failure.
+4. For ambient failures, compare the PR diff with the failing path and, when practical,
+   reproduce on the base revision. Do not blame unrelated lockfile changes.
+5. For transient failures, add `ci-transient`, comment with the evidence, and stop
+   without changing code. The companion sweep will rerun failed checks once.
 
 ## Step 4 — Fix it (minimal, behavior-preserving)
 
@@ -217,6 +268,10 @@ Apply the **smallest** change that makes the checks pass:
   `security-autofix` workflow, which owns repo-wide scan remediation.
 - Follow repo conventions: CommonJS, `node:test`, Prettier (`npm run format`),
   Conventional Commits.
+- For an **ambient deterministic** failure, make one separate, minimal stabilization
+  commit on the trusted automation branch. Fix the shared root cause rather than
+  weakening tests or adding a broad ignore. The PR comment must clearly say the failure
+  was ambient and unrelated to the automation PR's original diff.
 
 **Do NOT:**
 
@@ -226,7 +281,8 @@ Apply the **smallest** change that makes the checks pass:
 - Downgrade or pin a dependency below the version Dependabot proposed just to dodge the
   failure. If the bump genuinely cannot be adapted without a behavioral change, treat it
   as a "needs human" case (Step 2 rules) rather than guessing.
-- Touch files unrelated to the dependency update.
+- Touch files unrelated to the dependency update unless they are the proven root cause
+  of an ambient deterministic failure.
 - Modify CI/workflow files (`.github/`), `CODEOWNERS`, or agent-instruction files
   (`AGENTS.md`, `.github/copilot-instructions.md`, etc.). If a bump genuinely requires
   a CI or config change, treat it as a "needs human" case (Step 2) — do not attempt it.
@@ -251,9 +307,9 @@ your job is done once the fix is pushed and reported.
 
 ## Usage
 
-This workflow runs automatically whenever the `CI` **or** `Security` workflow fails on a
-`dependabot/**` branch. To fix a specific PR on demand, trigger it from the **Actions**
-tab (`workflow_dispatch`) and pass the PR number.
+This workflow runs automatically whenever `CI` or `Security` fails on a Dependabot PR
+or the trusted `deps/security-autofix` PR. To fix a specific trusted automation PR on
+demand, trigger it from the Actions tab and pass the PR number.
 
 **Required secrets:**
 

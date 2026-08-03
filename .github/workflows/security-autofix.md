@@ -72,8 +72,13 @@ safe-outputs:
     # `.github/**` pushes remain impossible without a `workflows: write` token.
     protected-files: allowed
     if-no-changes: 'ignore'
-    # Dependency remediations can touch several lockfiles at once.
-    max-patch-files: 500
+    max-patch-files: 50
+    excluded-files:
+      - '.github/**'
+      - 'CODEOWNERS'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'GEMINI.md'
     # The created PR is authored by github-actions[bot]; PRs from GITHUB_TOKEN do not
     # trigger CI, so push an empty commit with a real PAT to kick the required checks.
     # (Authoring by the bot, not the code-owner PAT, is deliberate: the auto-merge workflow
