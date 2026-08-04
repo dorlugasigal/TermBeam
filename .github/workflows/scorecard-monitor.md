@@ -61,7 +61,8 @@ Monitor the OpenSSF Scorecard for this repository and create actionable improvem
 
 5. If a check has improved to >= 7 since the last run, close its existing issue with a celebratory comment noting the improvement.
 
-6. If the overall score is >= 8, create a summary issue celebrating the achievement instead.
+6. If the overall score is >= 8 and no actionable checks remain below 7, close the existing
+   scorecard issue and emit a no-op. Do not create celebration or summary issues.
 
 ## Context
 
