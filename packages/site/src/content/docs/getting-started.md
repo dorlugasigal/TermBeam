@@ -49,7 +49,7 @@ Or start directly with defaults:
         ██║   ███████╗██║  ██║██║ ╚═╝ ██║██████╔╝███████╗██║  ██║██║ ╚═╝ ██║
         ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝
 
-     Beam your terminal to any device 📡  v1.22.0
+     Beam your terminal to any device 📡  v1.24.14
 
      Shell:    /bin/zsh
      Session:  a1b2c3d4

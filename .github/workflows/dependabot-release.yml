@@ -70,8 +70,9 @@ jobs:
 
       - name: Dispatch patch release
         env:
-          # PAT so the dispatched release run isn't suppressed and can push the tag/commit.
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          # workflow_dispatch runs triggered with GITHUB_TOKEN are not event-suppressed.
+          # The release workflow uses its own token for the tag and version commit.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Quiet window elapsed. Dispatching patch release."
           gh workflow run release.yml -R "$GITHUB_REPOSITORY" -f bump=patch -f dry-run=false

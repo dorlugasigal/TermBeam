@@ -14,6 +14,7 @@ network:
     - api.securityscorecards.dev
 
 safe-outputs:
+  github-token: ${{ secrets.GITHUB_TOKEN }}
   create-issue:
     title-prefix: '[scorecard] '
     labels: [security, scorecard]

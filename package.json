@@ -85,7 +85,11 @@
     "better-sqlite3": "^13.0.2"
   },
   "overrides": {
-    "@github/copilot": ">=1.0.43"
+    "@github/copilot": ">=1.0.43",
+    "brace-expansion@>=1.0.0 <2.0.0": "^1.1.18",
+    "brace-expansion@>=2.0.0 <3.0.0": "^2.1.4",
+    "brace-expansion@>=4.0.0": "^5.0.9",
+    "ip-address": ">=10.3.1"
   },
   "c8": {
     "check-coverage": true,

@@ -4,27 +4,27 @@
   "description": "TermBeam demo video built with Remotion",
   "private": true,
   "dependencies": {
-    "@remotion/cli": "4.0.421",
-    "@remotion/google-fonts": "4.0.421",
-    "@remotion/transitions": "4.0.421",
-    "@remotion/zod-types": "4.0.421",
+    "@remotion/cli": "4.0.500",
+    "@remotion/google-fonts": "4.0.500",
+    "@remotion/transitions": "4.0.500",
+    "@remotion/zod-types": "4.0.500",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "remotion": "4.0.421",
-    "zod": "3.22.3"
+    "remotion": "4.0.500",
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "@remotion/eslint-config-flat": "4.0.421",
+    "@remotion/eslint-config-flat": "4.0.500",
     "@types/react": "19.2.7",
     "@types/web": "0.0.166",
     "prettier": "3.6.0",
     "typescript": "5.9.3"
   },
   "overrides": {
-    "brace-expansion@>=1.0.0 <2.0.0": "^1.1.13",
-    "brace-expansion@>=2.0.0 <3.0.0": "^2.0.3",
-    "fast-uri": ">=3.1.2",
-    "postcss": ">=8.5.10"
+    "brace-expansion@>=1.0.0 <2.0.0": "^1.1.18",
+    "brace-expansion@>=2.0.0 <3.0.0": "^2.1.4",
+    "fast-uri": ">=3.1.5",
+    "postcss": ">=8.5.23"
   },
   "scripts": {
     "dev": "remotion studio",
