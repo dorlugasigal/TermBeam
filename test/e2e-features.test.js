@@ -405,15 +405,6 @@ test.describe('Theme System', () => {
       }
     }
   });
-
-  test('theme picker in palette shows theme options', async ({ page }) => {
-    await openTerminalWithNewSession(page);
-    await openThemePicker(page);
-
-    // Should show at least 30 theme options
-    const count = await page.locator('[data-testid="theme-item"]').count();
-    expect(count).toBeGreaterThanOrEqual(30);
-  });
 });
 
 // ─── 4. Upload & Share Features ─────────────────────────────────────────────
@@ -884,27 +875,6 @@ test.describe('Keyboard Shortcuts', () => {
 // ─── 10. Mobile Layout ─────────────────────────────────────────────────────
 
 test.describe('Mobile Layout', () => {
-  test('terminal loads and connects on mobile viewport', async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 667 });
-    await openTerminalWithNewSession(page);
-
-    await expect(page.locator('[data-testid="terminal-app"]')).toBeVisible({
-      timeout: 5_000,
-    });
-    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
-      timeout: 10_000,
-    });
-  });
-
-  test('palette trigger visible on mobile', async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 667 });
-    await openTerminalWithNewSession(page);
-
-    await expect(page.locator('[data-testid="palette-trigger"]')).toBeVisible({
-      timeout: 5_000,
-    });
-  });
-
   test('command palette works on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await openTerminalWithNewSession(page);

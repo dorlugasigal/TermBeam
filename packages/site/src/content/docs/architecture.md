@@ -153,7 +153,7 @@ Generates and persists VAPID key pairs for Web Push authentication. Keys are sto
 
 ### `utils/update-check.js` — Update Checker
 
-Checks the npm registry for newer versions of TermBeam. Fetches the latest published version from `registry.npmjs.org`, compares it against the running version using semver comparison (`isNewerVersion`), and caches the result for 24 hours in `~/.termbeam/update-check.json` to avoid repeated network requests. Includes `sanitizeVersion()` to strip ANSI escape sequences and control characters from registry responses (terminal injection protection). Also provides `detectInstallMethod()` which inspects environment variables to determine whether TermBeam was installed via npm, npx, yarn, or pnpm, returning the appropriate upgrade command.
+Checks npm and GitHub Releases for newer versions of TermBeam and uses the newest valid stable version. GitHub provides a fallback when `registry.npmjs.org` is blocked or a registry proxy is stale. The result is compared against the running version using semver comparison (`isNewerVersion`) and cached for 24 hours in `~/.termbeam/update-check.json`. Includes `sanitizeVersion()` to strip ANSI escape sequences and control characters from responses (terminal injection protection). Also provides `detectInstallMethod()` which inspects environment variables to determine whether TermBeam was installed via npm, npx, yarn, or pnpm, returning the appropriate upgrade command.
 
 ### `utils/version.js` — Version Detection
 

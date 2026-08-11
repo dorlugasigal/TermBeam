@@ -552,7 +552,9 @@ Get public server configuration. No authentication required.
 
 #### `GET /api/update-check`
 
-Check if a newer version of TermBeam is available on npm. Results are cached for 24 hours.
+Check if a newer version of TermBeam is available. TermBeam compares npm with the latest
+GitHub Release and uses the newest valid stable version, so the check still works when npm is
+blocked or a registry proxy is stale. Results are cached for 24 hours.
 Requires authentication (session cookie or `Authorization: Bearer <password>`) when authentication is enabled. If the server is started with `--no-password`, this endpoint is accessible without authentication.
 
 **Query parameters:**

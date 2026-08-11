@@ -15,21 +15,38 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version: 22
+          registry-url: https://registry.npmjs.org
 
-      - name: Wait for npm registry propagation
-        run: sleep 30
-
-      - name: Verify npx termbeam --help
+      - name: Wait for released version
         run: |
-          OUTPUT=$(npx termbeam@latest --help 2>&1)
+          VERSION=$(node -p "require('./package.json').version")
+          for attempt in {1..12}; do
+            PUBLISHED=$(npm view "termbeam@${VERSION}" version 2>/dev/null || true)
+            if [ "$PUBLISHED" = "$VERSION" ]; then
+              echo "version=${VERSION}" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            echo "Waiting for termbeam@${VERSION} (attempt ${attempt}/12)"
+            sleep 10
+          done
+          echo "termbeam@${VERSION} did not reach npm within 2 minutes" >&2
+          exit 1
+
+      - name: Verify released package with npx
+        run: |
+          OUTPUT=$(npx --yes "termbeam@${version}" --help 2>&1)
           echo "$OUTPUT"
           echo "$OUTPUT" | grep -i "termbeam"
 
       - name: Verify global install
         run: |
-          npm install -g termbeam@latest
-          termbeam --version
+          npm install -g "termbeam@${version}"
+          test "$(termbeam --version)" = "termbeam v${version}"
           termbeam --help

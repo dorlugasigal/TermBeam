@@ -4,6 +4,9 @@
  * Run:  npx playwright test test/e2e-empty-sessions.test.js
  */
 const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { createTermBeamServer } = require('../src/server');
 
 const baseConfig = {
@@ -21,14 +24,26 @@ const baseConfig = {
 };
 
 let inst;
+let configDir;
 
 test.beforeEach(async () => {
-  inst = createTermBeamServer({ config: { ...baseConfig } });
+  configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'termbeam-e2e-empty-'));
+  inst = createTermBeamServer({ config: { ...baseConfig, configDir } });
   await inst.start();
 });
 
 test.afterEach(async () => {
   if (inst) await inst.shutdown();
+  inst = null;
+  if (configDir) {
+    await fs.promises.rm(configDir, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 200,
+    });
+  }
+  configDir = null;
 });
 
 test('shows empty-state hub when no sessions exist', async ({ page }) => {

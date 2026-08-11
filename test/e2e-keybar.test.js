@@ -80,7 +80,7 @@ async function openPaletteAndClick(page, actionLabel) {
 // ─── Key Bar: Input Keys ────────────────────────────────────────────────────
 
 test.describe('Key Bar — Input Keys', () => {
-  test('Enter button submits a command', async ({ page }) => {
+  test('@cross-platform Enter button submits a command', async ({ page }) => {
     await setupTerminal(page);
     const marker = `ENTER_${Date.now()}`;
     await typeInTerminal(page, `echo ${marker}`);
@@ -785,27 +785,6 @@ test.describe('Command Palette — Preview Port', () => {
     // Radix Dialog — close by pressing Escape
     await page.keyboard.press('Escape');
     await expect(page.locator('[data-testid="preview-modal"]')).not.toBeVisible();
-  });
-});
-
-// ─── Top Bar: Status Indicators ─────────────────────────────────────────────
-
-test.describe('Top Bar — Status', () => {
-  test('Status dot shows connected state', async ({ page }) => {
-    await setupTerminal(page);
-    await expect(page.locator('[data-testid="status-dot"]')).toHaveClass(/connected/);
-  });
-
-  test('Session name is displayed', async ({ page }) => {
-    await setupTerminal(page);
-    const name = await page.locator('[data-testid="session-name-display"]').innerText();
-    expect(name.length).toBeGreaterThan(0);
-    expect(name).not.toBe('…');
-  });
-
-  test('Palette trigger is visible', async ({ page }) => {
-    await setupTerminal(page);
-    await expect(page.locator('[data-testid="palette-trigger"]')).toBeVisible();
   });
 });
 

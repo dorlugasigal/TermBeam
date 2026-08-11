@@ -328,6 +328,30 @@ describe('update-check', () => {
       }
     });
 
+    it('should use a newer GitHub release when the npm registry is stale', async () => {
+      const http = require('http');
+      const server = http.createServer((req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        if (req.url === '/npm') {
+          res.end(JSON.stringify({ version: '1.24.14' }));
+        } else {
+          res.end(JSON.stringify({ tag_name: 'v1.24.15' }));
+        }
+      });
+      await new Promise((r) => server.listen(0, '127.0.0.1', r));
+      const port = server.address().port;
+      try {
+        const { fetchLatestVersion } = require('../../src/utils/update-check');
+        const result = await fetchLatestVersion(
+          `http://127.0.0.1:${port}/npm`,
+          `http://127.0.0.1:${port}/github`,
+        );
+        assert.equal(result, '1.24.15');
+      } finally {
+        server.close();
+      }
+    });
+
     it('should return null on server error', async () => {
       const http = require('http');
       const server = http.createServer((_req, res) => {

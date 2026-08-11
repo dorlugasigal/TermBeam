@@ -32,9 +32,11 @@ npm test                # run all unit/integration tests (node:test)
 npm run test:coverage   # tests + coverage report (c8)
 npm run lint            # syntax-check with node --check
 npm run format          # format with Prettier
+npx playwright test     # full browser E2E suite
 ```
 
-TermBeam also has end-to-end UI tests using [Playwright](https://playwright.dev/) (in `test/e2e-*.test.js` files). These are not included in `npm test` and require a separate Playwright setup.
+TermBeam's Playwright tests live in `test/e2e-*.test.js` and are not included in `npm test`.
+CI runs the full suite on Linux and a tagged real-PTY smoke test on macOS and Windows.
 
 ### Pull Request Checklist
 

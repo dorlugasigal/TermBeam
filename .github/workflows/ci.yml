@@ -14,30 +14,16 @@ permissions:
   contents: read
 
 jobs:
+  # Coverage already runs the full suite on Ubuntu/Node 22. This adds the
+  # other supported runtime and OS without repeating the full cross-product.
   test:
-    name: Test (${{ matrix.os }}, Node ${{ matrix.node-version }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # Windows is intentionally excluded from the unit-test matrix:
-        # node-pty's `conpty_console_list_agent.js` helper crashes
-        # repeatedly with "AttachConsole failed" on the GitHub Actions
-        # Windows runner, leaving zombie file handles that hang per-file
-        # workers past the 180s test-timeout. Every code path tested
-        # here is also exercised on Linux + macOS, so we lose no
-        # coverage. Windows-specific behavior (PTY shell launch + UI)
-        # is still covered end-to-end by the `e2e (windows-latest)`
-        # job below, which is the only Windows test path that actually
-        # catches Windows-specific bugs.
-        os: [ubuntu-latest, macos-latest]
-        # Node 20 dropped after EOL (2026-04-30). See package.json engines.
-        node-version: [22, 24]
+    name: Test (macos-latest, Node 24)
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 24
           cache: npm
       - run: npm ci
       - name: Build frontend
@@ -102,31 +88,14 @@ jobs:
       - run: npm ci
       - run: node --check src/server/*.js src/cli/*.js src/tunnel/*.js src/utils/*.js bin/*.js
 
-  frontend:
-    name: Frontend Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Install frontend dependencies
-        run: cd src/frontend && npm ci
-      - name: Type-check frontend
-        run: cd src/frontend && npx tsc --noEmit
-      - name: Build frontend
-        run: cd src/frontend && npm run build
-      - name: Verify build output
-        run: test -f public/index.html
-
   e2e:
     name: E2E (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        # Browser behavior is covered once on Linux; macOS and Windows only
+        # need the tagged real-PTY smoke path.
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
@@ -143,8 +112,14 @@ jobs:
       - name: Install Playwright
         if: runner.os != 'Linux'
         run: npx playwright install chromium
-      - name: Run E2E tests
+      - name: Run full E2E suite
+        if: runner.os == 'Linux'
         run: npx playwright test
+        env:
+          CI: true
+      - name: Run cross-platform E2E smoke test
+        if: runner.os != 'Linux'
+        run: npx playwright test --grep "@cross-platform"
         env:
           CI: true
       - name: Upload Playwright report

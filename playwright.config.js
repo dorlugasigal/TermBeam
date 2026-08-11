@@ -8,7 +8,7 @@ module.exports = defineConfig({
   testMatch: 'e2e-*.test.js',
   timeout: isCI ? 60_000 : 30_000,
   retries: isCI ? 1 : 0,
-  workers: isCI ? 2 : 3, // parallelize across e2e files; CI is more conservative
+  workers: isCI ? 1 : 3,
   reporter: isCI ? [['html', { open: 'never' }], ['list']] : 'list',
   use: {
     headless: true,

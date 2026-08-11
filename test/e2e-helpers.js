@@ -143,11 +143,12 @@ function setupSharedServer(test) {
       state.inst = null;
     }
     if (state.configDir) {
-      try {
-        fs.rmSync(state.configDir, { recursive: true, force: true });
-      } catch {
-        // ignore
-      }
+      await fs.promises.rm(state.configDir, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 200,
+      });
       state.configDir = null;
     }
     if (state.prevConfigDir === undefined) {

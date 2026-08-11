@@ -7,6 +7,7 @@ const log = require('./logger');
 
 const PACKAGE_NAME = 'termbeam';
 const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
+const GITHUB_RELEASE_URL = 'https://api.github.com/repos/dorlugasigal/TermBeam/releases/latest';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const REQUEST_TIMEOUT_MS = 5000;
 const MAX_RESPONSE_SIZE = 100 * 1024; // 100 KB — real npm responses are ~3-4 KB
@@ -144,19 +145,12 @@ function sanitizeVersion(v) {
   );
 }
 
-/**
- * Fetch the latest version from the npm registry.
- * Returns the version string or null on failure.
- * @param {string} [registryUrl] - Override the registry URL (for testing).
- */
-function fetchLatestVersion(registryUrl) {
-  const url = registryUrl || REGISTRY_URL;
+function fetchVersion(url, field, headers = {}) {
   const client = url.startsWith('https') ? https : http;
-  log.debug('Fetching latest version from npm registry');
   return new Promise((resolve) => {
-    const req = client.get(url, { timeout: REQUEST_TIMEOUT_MS }, (res) => {
+    const req = client.get(url, { headers, timeout: REQUEST_TIMEOUT_MS }, (res) => {
       if (res.statusCode !== 200) {
-        log.warn(`Registry returned HTTP ${res.statusCode}`);
+        log.debug(`Update source returned HTTP ${res.statusCode}: ${url}`);
         res.resume();
         resolve(null);
         return;
@@ -177,16 +171,17 @@ function fetchLatestVersion(registryUrl) {
         if (aborted) return;
         try {
           const data = JSON.parse(body);
-          const version = data.version;
-          if (!version || typeof version !== 'string') {
+          const rawVersion = data[field];
+          if (!rawVersion || typeof rawVersion !== 'string') {
             resolve(null);
             return;
           }
+          const version = sanitizeVersion(rawVersion).replace(/^v/i, '');
           if (!/^\d+\.\d+\.\d+$/.test(version)) {
             resolve(null);
             return;
           }
-          resolve(sanitizeVersion(version));
+          resolve(version);
         } catch {
           resolve(null);
         }
@@ -195,15 +190,41 @@ function fetchLatestVersion(registryUrl) {
     // Unref so a pending update check can't delay process exit
     req.on('socket', (socket) => socket.unref());
     req.on('error', (err) => {
-      log.debug(`Network error checking updates: ${err.message}`);
+      log.debug(`Update source failed (${url}): ${err.message}`);
       resolve(null);
     });
     req.on('timeout', () => {
-      log.warn('Update check timed out');
+      log.debug(`Update source timed out: ${url}`);
       req.destroy();
       resolve(null);
     });
   });
+}
+
+/**
+ * Fetch the latest published version. npm remains the primary source; GitHub
+ * Releases covers networks where registry.npmjs.org is blocked or stale.
+ * @param {string} [registryUrl] - Override the registry URL (for testing).
+ * @param {string} [releaseUrl] - Optional GitHub-style fallback URL (for testing).
+ */
+async function fetchLatestVersion(registryUrl, releaseUrl) {
+  const npmUrl = registryUrl || REGISTRY_URL;
+  const githubUrl = releaseUrl || (registryUrl ? null : GITHUB_RELEASE_URL);
+  log.debug('Fetching latest published version');
+
+  const [npmVersion, githubVersion] = await Promise.all([
+    fetchVersion(npmUrl, 'version'),
+    githubUrl
+      ? fetchVersion(githubUrl, 'tag_name', {
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'TermBeam-update-check',
+        })
+      : null,
+  ]);
+
+  if (!npmVersion) return githubVersion;
+  if (!githubVersion) return npmVersion;
+  return isNewerVersion(npmVersion, githubVersion) ? githubVersion : npmVersion;
 }
 
 /**
