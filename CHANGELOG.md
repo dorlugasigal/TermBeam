@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.24.18] - 2026-08-11
+
+- fix(ci): remove redundant npx smoke probe (@dorlugasigal)
+- fix(sessions): remove deleted sessions immediately (@dorlugasigal)
+
 ## [1.24.17] - 2026-08-11
 
 - fix(release): bypass stale npm proxies (@dorlugasigal)
