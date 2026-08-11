@@ -457,6 +457,7 @@ describe('update-check', () => {
         assert.equal(result.restartStrategy, 'none');
         if (result.method === 'source') {
           assert.ok(result.cwd, 'source method should include cwd');
+          assert.ok(result.command.includes('registry.npmjs.org'));
         }
       } finally {
         if (origPm2Home !== undefined) process.env.PM2_HOME = origPm2Home;
@@ -487,6 +488,7 @@ describe('update-check', () => {
         assert.equal(result.canAutoUpdate, true);
         assert.equal(result.restartStrategy, 'pm2');
         assert.ok(result.command.includes('pm2 restart'), 'command should include pm2 restart');
+        assert.ok(result.command.includes('registry.npmjs.org'));
         assert.ok(result.installCmd, 'should have installCmd for auto-update');
         assert.ok(result.installArgs, 'should have installArgs for auto-update');
         assert.ok(result.cwd, 'should include cwd for source install');

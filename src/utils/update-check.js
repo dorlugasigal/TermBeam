@@ -7,6 +7,7 @@ const log = require('./logger');
 
 const PACKAGE_NAME = 'termbeam';
 const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
+const PUBLIC_REGISTRY = 'https://registry.npmjs.org';
 const GITHUB_RELEASE_URL = 'https://api.github.com/repos/dorlugasigal/TermBeam/releases/latest';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const REQUEST_TIMEOUT_MS = 5000;
@@ -291,9 +292,9 @@ function detectInstallMethod() {
     log.debug('Install method: npx');
     return {
       method: 'npx',
-      command: 'npx termbeam@latest',
+      command: `npx --registry=${PUBLIC_REGISTRY} termbeam@latest`,
       installCmd: 'npx',
-      installArgs: ['termbeam@latest'],
+      installArgs: [`--registry=${PUBLIC_REGISTRY}`, 'termbeam@latest'],
       canAutoUpdate: false,
       restartStrategy: 'none',
     };
@@ -309,9 +310,9 @@ function detectInstallMethod() {
     log.debug(`Install method: yarn${isPm2 ? ' (PM2)' : ''}`);
     return {
       method: 'yarn',
-      command: 'yarn global add termbeam@latest',
+      command: `yarn global add termbeam@latest --registry ${PUBLIC_REGISTRY}`,
       installCmd: 'yarn',
-      installArgs: ['global', 'add', 'termbeam@latest'],
+      installArgs: ['global', 'add', 'termbeam@latest', '--registry', PUBLIC_REGISTRY],
       canAutoUpdate: true,
       restartStrategy: isPm2 ? 'pm2' : 'exit',
     };
@@ -320,9 +321,9 @@ function detectInstallMethod() {
     log.debug(`Install method: pnpm${isPm2 ? ' (PM2)' : ''}`);
     return {
       method: 'pnpm',
-      command: 'pnpm add -g termbeam@latest',
+      command: `pnpm add -g termbeam@latest --registry=${PUBLIC_REGISTRY}`,
       installCmd: 'pnpm',
-      installArgs: ['add', '-g', 'termbeam@latest'],
+      installArgs: ['add', '-g', 'termbeam@latest', `--registry=${PUBLIC_REGISTRY}`],
       canAutoUpdate: true,
       restartStrategy: isPm2 ? 'pm2' : 'exit',
     };
@@ -333,7 +334,8 @@ function detectInstallMethod() {
   // should be treated as source, not Docker
   if (isRunningFromSource()) {
     const sourceRoot = getSourceRoot();
-    const baseCmd = 'git pull && npm install && npm run build:frontend';
+    const npmRegistry = `--registry=${PUBLIC_REGISTRY}`;
+    const baseCmd = `git pull && npm install ${npmRegistry} && npm ${npmRegistry} run build:frontend`;
 
     if (isPm2) {
       log.debug('Install method: source (PM2)');
@@ -377,9 +379,9 @@ function detectInstallMethod() {
   log.debug(`Install method: npm${isPm2 ? ' (PM2)' : ''}`);
   return {
     method: 'npm',
-    command: 'npm install -g termbeam@latest',
+    command: `npm install --registry=${PUBLIC_REGISTRY} -g termbeam@latest`,
     installCmd: 'npm',
-    installArgs: ['install', '-g', 'termbeam@latest'],
+    installArgs: ['install', `--registry=${PUBLIC_REGISTRY}`, '-g', 'termbeam@latest'],
     canAutoUpdate: true,
     restartStrategy: isPm2 ? 'pm2' : 'exit',
   };

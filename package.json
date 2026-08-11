@@ -4,7 +4,7 @@
   "description": "Beam your terminal to any device — mobile-optimized web terminal with multi-session support",
   "main": "src/server/index.js",
   "bin": {
-    "termbeam": "./bin/termbeam.js"
+    "termbeam": "bin/termbeam.js"
   },
   "scripts": {
     "start": "node bin/termbeam.js",
@@ -42,7 +42,7 @@
   "homepage": "https://dorlugasigal.github.io/TermBeam",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dorlugasigal/TermBeam.git"
+    "url": "git+https://github.com/dorlugasigal/TermBeam.git"
   },
   "bugs": {
     "url": "https://github.com/dorlugasigal/TermBeam/issues"

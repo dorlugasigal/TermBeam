@@ -571,7 +571,7 @@ Requires authentication (session cookie or `Authorization: Bearer <password>`) w
   "latest": "1.11.0",
   "updateAvailable": true,
   "method": "npm",
-  "command": "npm install -g termbeam@latest",
+  "command": "npm install --registry=https://registry.npmjs.org -g termbeam@latest",
   "canAutoUpdate": true,
   "restartStrategy": "exit"
 }
