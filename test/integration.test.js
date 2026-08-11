@@ -293,28 +293,7 @@ describe('Integration', () => {
       });
       assert.strictEqual(deleteRes.statusCode, 204);
 
-      // Wait for the PTY onExit handler to remove the session from the map
-      await new Promise((resolve) => {
-        const poll = setInterval(async () => {
-          const r = await httpRequest({
-            hostname: '127.0.0.1',
-            port: inst.port,
-            path: '/api/sessions',
-            method: 'GET',
-          });
-          const list = JSON.parse(r.data);
-          if (list.length <= 1) {
-            clearInterval(poll);
-            resolve();
-          }
-        }, 100);
-        setTimeout(() => {
-          clearInterval(poll);
-          resolve();
-        }, 5000);
-      });
-
-      // GET /api/sessions should only have the default session
+      // GET /api/sessions should no longer include the deleted session
       const listRes2 = await httpRequest({
         hostname: '127.0.0.1',
         port: inst.port,
@@ -322,7 +301,7 @@ describe('Integration', () => {
         method: 'GET',
       });
       const list2 = JSON.parse(listRes2.data);
-      assert.strictEqual(list2.length, 1, 'Should have 1 session after deletion');
+      assert.ok(!list2.some((session) => session.id === created.id));
     });
   });
 

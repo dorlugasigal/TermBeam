@@ -475,6 +475,7 @@ class SessionManager {
     _gitCache.delete(id);
     clearInterval(s._childMonitor);
     s.pty.kill();
+    this.sessions.delete(id);
     return true;
   }
 
