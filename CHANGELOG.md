@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.24.15] - 2026-08-11
+
+- fix(ci): self-heal automated dependency PRs (@dorlugasigal)
+- docs(licenses): include bundled Nerd Font notice (@dorlugasigal)
+- fix(deps): patch site PostCSS advisory (@dorlugasigal)
+- fix(ci): dispatch PR repairs with Actions token (@dorlugasigal)
+- chore(deps): bump node from `715e55e` to `deae974` in the all-docker group (#289) (@dependabot[bot])
+- fix(ci): complete automated PR recovery paths (@dorlugasigal)
+- fix(ci): let Dependabot rebase workflow updates (@dorlugasigal)
+- fix(ci): recreate edited workflow update PRs (@dorlugasigal)
+- fix(ci): recover missing required workflow runs (@dorlugasigal)
+- chore(deps): bump the all-npm group across 1 directory with 7 updates (#284) (@dependabot[bot])
+- chore(ci): bump the all-actions group across 1 directory with 8 updates (#288) (@dependabot[bot])
+- fix(security): remediate scorecard vulnerabilities (@dorlugasigal)
+- fix(ci): stop scorecard issue churn (@dorlugasigal)
+- chore(deps): bump node from `deae974` to `4ebb5ac` in the all-docker group (#292) (@dependabot[bot])
+- chore(deps): bump the all-npm group with 5 updates (#293) (@dependabot[bot])
+- chore(ci): bump the all-actions group across 1 directory with 4 updates (#294) (@dependabot[bot])
+- fix(deps): remediate security scan findings (#291) (@github-actions[bot])
+
 ## [1.24.14] - 2026-07-23
 
 - fix(workflows): trigger dependabot auto-fix on Security failures too (@dorlugasigal)
