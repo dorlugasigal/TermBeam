@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.24.17] - 2026-08-11
+
+- fix(release): bypass stale npm proxies (@dorlugasigal)
+
 ## [1.24.16] - 2026-08-11
 
 - test(ci): reduce flaky duplicate coverage (@dorlugasigal)
