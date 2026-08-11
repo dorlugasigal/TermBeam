@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.24.16] - 2026-08-11
+
+- test(ci): reduce flaky duplicate coverage (@dorlugasigal)
+
 ## [1.24.15] - 2026-08-11
 
 - fix(ci): self-heal automated dependency PRs (@dorlugasigal)
