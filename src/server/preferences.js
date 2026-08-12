@@ -14,6 +14,7 @@ const PREFS_FILENAME = 'prefs.json';
 const DEFAULTS = Object.freeze({
   themeId: 'dark',
   fontSize: 14,
+  terminalEngine: 'xterm',
   notifications: false,
   haptics: true,
   showSplash: true,
@@ -188,6 +189,7 @@ function sanitize(prefs) {
   return {
     themeId: asString(src.themeId, DEFAULTS.themeId, 64),
     fontSize: clampNumber(src.fontSize, FONT_MIN, FONT_MAX, DEFAULTS.fontSize),
+    terminalEngine: src.terminalEngine === 'ghostty' ? 'ghostty' : 'xterm',
     notifications: asBool(src.notifications, DEFAULTS.notifications),
     haptics: asBool(src.haptics, DEFAULTS.haptics),
     showSplash: asBool(src.showSplash, DEFAULTS.showSplash),

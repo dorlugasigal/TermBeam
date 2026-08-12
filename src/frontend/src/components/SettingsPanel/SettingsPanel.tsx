@@ -196,8 +196,7 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
           id: s.id,
           name: s.name,
           kind: (s.type === 'copilot' || s.type === 'agent' ? 'agent' : 'shell') as
-            | 'shell'
-            | 'agent',
+            'shell' | 'agent',
           cwd: s.cwd || '',
           initialCommand: s.initialCommand || '',
           agentId: s.type === 'copilot' || s.type === 'agent' ? s.model : undefined,
@@ -406,6 +405,27 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
                 <span>{currentTheme.name}</span>
                 <span className={styles.themeChevron}>›</span>
               </button>
+            </div>
+          </section>
+
+          {/* ── Terminal engine ──────────────────────────────────── */}
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>Terminal</h3>
+
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>
+                Ghostty engine
+                <span className={styles.rowHint}>
+                  Experimental; terminal search and inline images are not supported yet
+                </span>
+              </span>
+              <Toggle
+                on={prefs.terminalEngine === 'ghostty'}
+                ariaLabel="Toggle experimental Ghostty terminal engine"
+                onChange={(enabled) =>
+                  setPreference('terminalEngine', enabled ? 'ghostty' : 'xterm')
+                }
+              />
             </div>
           </section>
 

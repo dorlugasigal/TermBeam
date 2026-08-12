@@ -4,6 +4,7 @@ import { useXTerm } from '@/hooks/useXTerm';
 import { useGhosttyTerminal } from '@/hooks/useGhosttyTerminal';
 import { useTerminalSocket } from '@/hooks/useTerminalSocket';
 import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
+import { usePreferencesStore } from '@/stores/preferencesStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
 import { uploadImage } from '@/services/api';
@@ -94,11 +95,12 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     }
   }, []);
 
+  const preferredTerminalEngine = usePreferencesStore((state) => state.prefs.terminalEngine);
   const terminalEngine =
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('terminal-engine') === 'ghostty'
       ? 'ghostty'
-      : 'xterm';
+      : preferredTerminalEngine;
   const terminalOptions = {
     fontSize,
     onData: handleData,

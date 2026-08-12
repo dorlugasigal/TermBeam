@@ -17,6 +17,7 @@ describe('preferences sanitize()', () => {
     const d = getDefaults();
     assert.strictEqual(d.themeId, 'dark');
     assert.strictEqual(d.fontSize, 14);
+    assert.strictEqual(d.terminalEngine, 'xterm');
     assert.strictEqual(d.notifications, false);
     assert.strictEqual(d.haptics, true);
     assert.strictEqual(d.showSplash, true);
@@ -32,6 +33,12 @@ describe('preferences sanitize()', () => {
     assert.strictEqual(sanitize({ fontSize: 15.7 }).fontSize, 16);
     assert.strictEqual(sanitize({ fontSize: 'twelve' }).fontSize, 14);
     assert.strictEqual(sanitize({ fontSize: NaN }).fontSize, 14);
+  });
+
+  it('accepts only known terminal engines', () => {
+    assert.strictEqual(sanitize({ terminalEngine: 'ghostty' }).terminalEngine, 'ghostty');
+    assert.strictEqual(sanitize({ terminalEngine: 'xterm' }).terminalEngine, 'xterm');
+    assert.strictEqual(sanitize({ terminalEngine: 'other' }).terminalEngine, 'xterm');
   });
 
   it('coerces booleans and rejects bad types', () => {

@@ -81,12 +81,7 @@ function assignDefaultRows(keys: TouchBarKey[]): TouchBarKey[] {
       out.push({ ...k, row: Math.min(currentRow, MAX_ROWS), col: 8 });
       continue;
     }
-    if (
-      typeof k.row === 'number' &&
-      k.row >= 1 &&
-      k.row <= MAX_ROWS &&
-      typeof k.col === 'number'
-    ) {
+    if (typeof k.row === 'number' && k.row >= 1 && k.row <= MAX_ROWS && typeof k.col === 'number') {
       out.push(k);
       if (k.row > currentRow) {
         currentRow = k.row;
@@ -136,6 +131,7 @@ export interface Workspace {
 export interface Preferences {
   themeId: ThemeId;
   fontSize: number;
+  terminalEngine: 'xterm' | 'ghostty';
   notifications: boolean;
   haptics: boolean;
   /** When false, the brand splash animation is skipped on cold load and the
@@ -161,6 +157,7 @@ export interface Preferences {
 export const PREF_DEFAULTS: Preferences = Object.freeze({
   themeId: 'dark' as ThemeId,
   fontSize: 14,
+  terminalEngine: 'xterm',
   // Match server default in src/server/preferences.js — keeps first-paint
   // (cached/legacy) state aligned with the authoritative server value so
   // the Notifications toggle doesn't flip on first hydrate.
@@ -204,13 +201,13 @@ function normalize(input: unknown): Preferences {
   return {
     themeId: isValidThemeId(p.themeId) ? p.themeId : PREF_DEFAULTS.themeId,
     fontSize: clampFont(typeof p.fontSize === 'number' ? p.fontSize : PREF_DEFAULTS.fontSize),
-    notifications: typeof p.notifications === 'boolean' ? p.notifications : PREF_DEFAULTS.notifications,
+    terminalEngine: p.terminalEngine === 'ghostty' ? 'ghostty' : 'xterm',
+    notifications:
+      typeof p.notifications === 'boolean' ? p.notifications : PREF_DEFAULTS.notifications,
     haptics: typeof p.haptics === 'boolean' ? p.haptics : PREF_DEFAULTS.haptics,
     showSplash: typeof p.showSplash === 'boolean' ? p.showSplash : PREF_DEFAULTS.showSplash,
     particleDissolve:
-      typeof p.particleDissolve === 'boolean'
-        ? p.particleDissolve
-        : PREF_DEFAULTS.particleDissolve,
+      typeof p.particleDissolve === 'boolean' ? p.particleDissolve : PREF_DEFAULTS.particleDissolve,
     defaultFolder: typeof p.defaultFolder === 'string' ? p.defaultFolder : '',
     defaultInitialCommand:
       typeof p.defaultInitialCommand === 'string' ? p.defaultInitialCommand : '',

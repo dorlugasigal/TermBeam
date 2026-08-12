@@ -27,6 +27,7 @@ describe('usePreferencesStore', () => {
     const { prefs } = usePreferencesStore.getState();
     expect(prefs.themeId).toBe(PREF_DEFAULTS.themeId);
     expect(prefs.fontSize).toBe(PREF_DEFAULTS.fontSize);
+    expect(prefs.terminalEngine).toBe('xterm');
     expect(prefs.haptics).toBe(true);
     expect(prefs.touchBarKeys).toBeNull();
     expect(prefs.startupWorkspace).toEqual({ enabled: false, sessions: [] });
@@ -45,6 +46,14 @@ describe('usePreferencesStore', () => {
     // Cast through unknown to exercise the runtime guard without a TS error.
     setPreference('themeId', 'not-a-real-theme' as unknown as never);
     expect(usePreferencesStore.getState().prefs.themeId).toBe(PREF_DEFAULTS.themeId);
+  });
+
+  it('accepts only known terminal engines', () => {
+    const { setPreference } = usePreferencesStore.getState();
+    setPreference('terminalEngine', 'ghostty');
+    expect(usePreferencesStore.getState().prefs.terminalEngine).toBe('ghostty');
+    setPreference('terminalEngine', 'other' as unknown as never);
+    expect(usePreferencesStore.getState().prefs.terminalEngine).toBe('xterm');
   });
 
   it('round-trips touchBarKeys via setPreference', () => {

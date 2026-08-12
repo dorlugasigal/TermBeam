@@ -33,6 +33,15 @@ async function createSessionViaAPI(name) {
   return res.json();
 }
 
+async function setTerminalEngine(engine) {
+  const current = await fetch(`${getBaseURL()}/api/preferences`).then((res) => res.json());
+  await fetch(`${getBaseURL()}/api/preferences`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prefs: { ...current.prefs, terminalEngine: engine } }),
+  });
+}
+
 async function navigateToTerminal(page, sessionId) {
   await page.goto(`${getBaseURL()}/terminal?id=${sessionId}`);
   await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
@@ -210,10 +219,18 @@ test.describe('Inline terminal images', () => {
 test.describe('Experimental Ghostty terminal', () => {
   test('connects, accepts input, resizes, and selects text', async ({ page, context }) => {
     const { id } = await createSessionViaAPI(`Ghostty_${Date.now()}`);
+    await setTerminalEngine('xterm');
     await context.grantPermissions(['clipboard-read', 'clipboard-write'], {
       origin: new URL(getBaseURL()).origin,
     });
-    await page.goto(`${getBaseURL()}/terminal?id=${id}&terminal-engine=ghostty`);
+    await page.goto(`${getBaseURL()}/terminal?id=${id}`);
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
+      timeout: 10_000,
+    });
+    await page.locator('[data-testid="palette-trigger"]').click();
+    await page.getByText('Settings…', { exact: true }).click();
+    await page.getByLabel('Toggle experimental Ghostty terminal engine').click();
+    await page.getByLabel('Close settings').click();
 
     const pane = page.locator(
       '[data-testid="terminal-pane"][data-terminal-engine="ghostty"][data-visible="true"]',
@@ -255,6 +272,7 @@ test.describe('Experimental Ghostty terminal', () => {
         .toContain('GHOSTTY_SELECTION');
     } finally {
       if (existsSync(marker)) unlinkSync(marker);
+      await setTerminalEngine('xterm');
     }
   });
 });
