@@ -96,6 +96,19 @@ async function writeTerminalCommand(page, cmd) {
   await page.keyboard.press('Enter');
 }
 
+function countRenderedImagePixels(imageLayer) {
+  return imageLayer.evaluate((canvas) => {
+    const context = canvas.getContext('2d');
+    if (!context) return 0;
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let visiblePixels = 0;
+    for (let index = 3; index < pixels.length; index += 4) {
+      if (pixels[index] !== 0) visiblePixels += 1;
+    }
+    return visiblePixels;
+  });
+}
+
 async function openPaletteAndClick(page, actionLabel) {
   await page.click('[data-testid="palette-trigger"]');
   await expect(page.locator('[data-testid="palette-panel"][data-open="true"]')).toBeVisible({
@@ -131,9 +144,7 @@ test.describe('Inline terminal images', () => {
       '[data-testid="terminal-pane"][data-visible="true"] canvas[class^="xterm-image-layer-"]',
     );
     await expect(imageLayer).toHaveCount(1, { timeout: 5_000 });
-    await expect
-      .poll(() => imageLayer.evaluate((canvas) => canvas.width > 0 && canvas.height > 0))
-      .toBe(true);
+    await expect.poll(() => countRenderedImagePixels(imageLayer)).toBeGreaterThan(0);
   });
 
   test('renders Kitty Unicode-placeholder image output', async ({ page }) => {
@@ -144,7 +155,8 @@ test.describe('Inline terminal images', () => {
     const command =
       `node -e "const E=String.fromCharCode(27),T=String.fromCharCode(27,92),` +
       `p='${png}',c=(x)=>String.fromCodePoint(0x10eeee,0x305,x);` +
-      `process.stdout.write(E+'_Ga=T,U=1,i=1,c=2,r=1,f=100,q=2;'+p+T+` +
+      `process.stdout.write(E+'_Ga=T,U=1,i=1,c=2,r=1,f=100,q=2,m=1;'+p.slice(0,70)+T+` +
+      `E+'_Gm=0;'+p.slice(70)+T+` +
       `E+'[38;2;0;0;1m'+c(0x305)+c(0x30d)+E+'[39m')"`;
     await writeTerminalCommand(page, command);
 
@@ -152,9 +164,21 @@ test.describe('Inline terminal images', () => {
       '[data-testid="terminal-pane"][data-visible="true"] canvas[class^="xterm-image-layer-"]',
     );
     await expect(imageLayer).toHaveCount(1, { timeout: 5_000 });
-    await expect
-      .poll(() => imageLayer.evaluate((canvas) => canvas.width > 0 && canvas.height > 0))
-      .toBe(true);
+    await expect.poll(() => countRenderedImagePixels(imageLayer)).toBeGreaterThan(0);
+
+    const deletePlacementCommand =
+      `node -e "const E=String.fromCharCode(27),T=String.fromCharCode(27,92);` +
+      `process.stdout.write(E+'_Ga=d,d=i,i=1,q=2'+T)"`;
+    await writeTerminalCommand(page, deletePlacementCommand);
+    await expect(imageLayer).toHaveCount(0, { timeout: 5_000 });
+    await page.setViewportSize({ width: 390, height: 500 });
+
+    const replacePlacementCommand =
+      `node -e "const E=String.fromCharCode(27),T=String.fromCharCode(27,92);` +
+      `process.stdout.write(E+'_Ga=p,U=1,i=1,c=2,r=1,q=2'+T)"`;
+    await writeTerminalCommand(page, replacePlacementCommand);
+    await expect(imageLayer).toHaveCount(1, { timeout: 5_000 });
+    await expect.poll(() => countRenderedImagePixels(imageLayer)).toBeGreaterThan(0);
   });
 });
 

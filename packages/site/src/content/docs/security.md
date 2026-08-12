@@ -174,7 +174,7 @@ The following UI features are entirely client-side and introduce **no new server
 
 - **Command completion notifications** — uses the browser [Notification API](https://developer.mozilla.org/en-US/docs/Web/API/Notifications_API), which requires explicit user permission (opt-in). No data is sent to external services; notifications are generated locally in the browser.
 - **Terminal search** — runs in the browser via the xterm.js SearchAddon. Search queries never leave the client.
-- **Inline terminal images** — Kitty graphics, Sixel, and iTerm image sequences are decoded locally in the browser with bounded per-terminal memory limits.
+- **Inline terminal images** — Kitty graphics, Sixel, and iTerm image sequences are decoded locally in the browser with bounded per-terminal limits, including a 32 MB encoded-data cache used for Kitty placement restoration.
 - **Command palette** — a client-side UI panel that triggers existing actions. No new endpoints or permissions required.
 
 ### Network Binding

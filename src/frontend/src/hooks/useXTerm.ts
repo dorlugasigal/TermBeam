@@ -28,6 +28,18 @@ export interface UseXTermReturn {
   getSelection: () => string;
 }
 
+function kittyControlValue(data: string, key: string): string | undefined {
+  const controls = data.split(';', 1)[0] ?? '';
+  for (const field of controls.split(',')) {
+    const separator = field.indexOf('=');
+    if (separator === -1) continue;
+    if (field.slice(0, separator) === key) return field.slice(separator + 1);
+  }
+  return undefined;
+}
+
+const KITTY_RETAINED_DATA_LIMIT = 32 * 1024 * 1024;
+
 export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
   const { fontSize = 14, onData, onResize, onSelectionChange } = options;
   const terminalRef = useRef<HTMLDivElement | null>(null);
@@ -145,6 +157,101 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     term.loadAddon(search);
     term.loadAddon(webLinks);
     term.loadAddon(images);
+
+    // The xterm.js beta treats Kitty's placement-only d=i like d=I and frees
+    // the image bytes. Keep a bounded copy of transmissions so a later
+    // placement can restore the protocol-defined retained data.
+    const retainedKittyImages = new Map<string, { commands: string[]; size: number }>();
+    const deletedKittyPlacements = new Set<string>();
+    let retainedKittyBytes = 0;
+    let pendingKittyTransmission:
+      { id: string; commands: string[]; size: number } | undefined;
+    let replayingKittyImage = false;
+    const removeRetainedKittyImage = (id: string) => {
+      const retained = retainedKittyImages.get(id);
+      if (!retained) return;
+      retainedKittyBytes -= retained.size;
+      retainedKittyImages.delete(id);
+    };
+    const cacheKittyImage = (id: string, commands: string[]) => {
+      removeRetainedKittyImage(id);
+      const size = commands.reduce((total, command) => total + command.length, 0);
+      if (size > KITTY_RETAINED_DATA_LIMIT) return;
+      retainedKittyImages.set(id, { commands, size });
+      retainedKittyBytes += size;
+      while (retainedKittyBytes > KITTY_RETAINED_DATA_LIMIT) {
+        const oldestId = retainedKittyImages.keys().next().value;
+        if (!oldestId) break;
+        removeRetainedKittyImage(oldestId);
+        deletedKittyPlacements.delete(oldestId);
+      }
+    };
+    const kittyCommand = (data: string) => `\x1b_G${data}\x1b\\`;
+    term.parser.registerApcHandler({ final: 'G' }, (data) => {
+      if (replayingKittyImage) return false;
+
+      const action = kittyControlValue(data, 'a');
+      const imageId = kittyControlValue(data, 'i');
+      const moreChunks = kittyControlValue(data, 'm') === '1';
+
+      if ((action === 't' || action === 'T') && imageId) {
+        deletedKittyPlacements.delete(imageId);
+        if (moreChunks) {
+          pendingKittyTransmission =
+            data.length <= KITTY_RETAINED_DATA_LIMIT
+              ? { id: imageId, commands: [data], size: data.length }
+              : undefined;
+        } else {
+          pendingKittyTransmission = undefined;
+          cacheKittyImage(imageId, [data]);
+        }
+      } else if (pendingKittyTransmission && !action && !imageId) {
+        pendingKittyTransmission.size += data.length;
+        if (pendingKittyTransmission.size > KITTY_RETAINED_DATA_LIMIT) {
+          pendingKittyTransmission = undefined;
+          return false;
+        }
+        pendingKittyTransmission.commands.push(data);
+        if (!moreChunks) {
+          cacheKittyImage(pendingKittyTransmission.id, pendingKittyTransmission.commands);
+          pendingKittyTransmission = undefined;
+        }
+      } else if (action) {
+        pendingKittyTransmission = undefined;
+      }
+
+      if (action === 'd') {
+        const selector = kittyControlValue(data, 'd') ?? 'a';
+        if (selector === 'i' && imageId) {
+          deletedKittyPlacements.add(imageId);
+        } else if (selector === 'I' && imageId) {
+          removeRetainedKittyImage(imageId);
+          deletedKittyPlacements.delete(imageId);
+        } else if (selector === 'a') {
+          for (const id of retainedKittyImages.keys()) deletedKittyPlacements.add(id);
+        } else if (selector === 'A') {
+          retainedKittyImages.clear();
+          deletedKittyPlacements.clear();
+          retainedKittyBytes = 0;
+        }
+        return false;
+      }
+
+      if (action === 'p' && imageId && deletedKittyPlacements.has(imageId)) {
+        const retained = retainedKittyImages.get(imageId);
+        deletedKittyPlacements.delete(imageId);
+        if (retained) {
+          replayingKittyImage = true;
+          const commands = [...retained.commands, data].map(kittyCommand).join('');
+          term.write(commands, () => {
+            replayingKittyImage = false;
+            term.refresh(0, term.rows - 1);
+          });
+          return true;
+        }
+      }
+      return false;
+    });
 
     // Let Ctrl+K, Ctrl+F, and Escape (when overlays are open) propagate to the document
     term.attachCustomKeyEventHandler((e) => {
@@ -294,6 +401,8 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       clearTimeout(roTimer);
       initRo?.disconnect();
       observer.disconnect();
+      retainedKittyImages.clear();
+      deletedKittyPlacements.clear();
       term.dispose();
       termRef.current = null;
       fitRef.current = null;
