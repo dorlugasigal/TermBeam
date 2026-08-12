@@ -85,7 +85,7 @@ termbeam -i                     # interactive setup wizard
 - **30 color themes** with adjustable font size
 - **Port preview** — reverse-proxy a local web server through TermBeam
 - **Image paste** from clipboard
-- **Inline terminal images** — renders Kitty graphics, Sixel, and iTerm image output from modern CLI tools, preserving Kitty images across redraws and viewport resizes
+- **Inline terminal images** — renders Kitty graphics, Sixel, and iTerm image output from modern CLI tools, preserving Kitty virtual placements across redraws, viewport resizes, and placement updates
 
 ### Secure by Default
 

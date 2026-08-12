@@ -185,6 +185,8 @@ test.describe('Inline terminal images', () => {
     );
     await expect(imageLayer).toHaveCount(1, { timeout: 5_000 });
     await expect.poll(() => countRenderedImagePixels(imageLayer)).toBeGreaterThan(0);
+    await page.setViewportSize({ width: 390, height: 500 });
+    await expect.poll(() => countRenderedImagePixels(imageLayer)).toBeGreaterThan(0);
     const initialImagePixels = await countRenderedImagePixels(imageLayer);
 
     const deletePlacementCommand =
@@ -193,7 +195,6 @@ test.describe('Inline terminal images', () => {
     await writeTerminalCommand(page, deletePlacementCommand);
     await expect.poll(() => countRenderedImagePixels(imageLayer)).toBeLessThan(initialImagePixels);
     const deletedPlacementPixels = await countRenderedImagePixels(imageLayer);
-    await page.setViewportSize({ width: 390, height: 500 });
 
     const replacePlacementCommand =
       `node -e "const E=String.fromCharCode(27),T=String.fromCharCode(27,92);` +

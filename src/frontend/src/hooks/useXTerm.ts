@@ -41,12 +41,51 @@ function kittyControlValue(data: string, key: string): string | undefined {
 
 interface KittyStorageCompatibility {
   _kittyIdToStorageId: Map<number, number>;
-  _storageIdToKittyId: Map<number, number>;
   _storage: {
-    deleteImage: (storageId: number) => void;
+    _images: Map<number, { tileCount: number }>;
+    _renderer: { clearAll: () => void };
     render: (range: { start: number; end: number }) => void;
   };
-  deleteById: (kittyId: number) => void;
+}
+
+interface KittyHandlerCompatibility {
+  _kittyStorage: KittyStorageCompatibility;
+  _parsedCommand: { id?: number; cursorMovement?: number } | null;
+  _parseControlDataString: () => string;
+  _streamPayload: (data: Uint32Array, start: number, end: number) => void;
+  _handleDelete: (cmd: { id?: number; deleteSelector?: string }) => boolean;
+  _handlePlacement: (cmd: { id?: number; cursorMovement?: number }) => boolean | Promise<boolean>;
+  _handleTransmitDisplay: (
+    cmd: { id?: number; cursorMovement?: number },
+    bytes: Uint8Array,
+    decodeError: boolean,
+  ) => boolean | Promise<boolean>;
+}
+
+function clearImageTiles(term: Terminal, storageId: number): void {
+  const buffer = (
+    term as unknown as {
+      _core: {
+        buffer: {
+          lines: {
+            length: number;
+            get: (
+              row: number,
+            ) => { _extendedAttrs?: Array<{ imageId?: number; tileId?: number }> } | undefined;
+          };
+        };
+      };
+    }
+  )._core.buffer;
+  for (let row = 0; row < buffer.lines.length; row++) {
+    const line = buffer.lines.get(row);
+    if (!line?._extendedAttrs) continue;
+    for (const attrs of Object.values(line._extendedAttrs)) {
+      if (attrs?.imageId !== storageId) continue;
+      attrs.imageId = -1;
+      attrs.tileId = -1;
+    }
+  }
 }
 
 export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
@@ -168,39 +207,57 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     term.loadAddon(webLinks);
     term.loadAddon(images);
 
-    // The xterm.js beta treats Kitty's placement-only d=i like d=I and frees
-    // the image bytes. Correct that operation at the storage boundary while
-    // retaining uppercase d=I behavior, which intentionally frees the data.
+    // Fill the addon beta's gaps for Kitty virtual placements: U=1 must preserve
+    // the cursor, and lowercase d=i must remove tiles without freeing image data.
     const kittyHandler = (
       images as unknown as {
-        _handlers: Map<string, { _kittyStorage: KittyStorageCompatibility }>;
+        _handlers: Map<string, KittyHandlerCompatibility>;
       }
     )._handlers.get('kitty');
     if (!kittyHandler) throw new Error('Kitty image handler failed to initialize');
     const kittyStorage = kittyHandler._kittyStorage;
-    const originalDeleteById = kittyStorage.deleteById.bind(kittyStorage);
-    const placementOnlyDeletes = new Set<number>();
-    kittyStorage.deleteById = (kittyId) => {
-      if (!placementOnlyDeletes.delete(kittyId)) {
-        originalDeleteById(kittyId);
-        return;
+    const virtualPlacementIds = new Set<number>();
+    const originalStreamPayload = kittyHandler._streamPayload.bind(kittyHandler);
+    kittyHandler._streamPayload = (data, start, end) => {
+      const cmd = kittyHandler._parsedCommand;
+      if (
+        cmd?.id !== undefined &&
+        kittyControlValue(kittyHandler._parseControlDataString(), 'U') === '1'
+      ) {
+        virtualPlacementIds.add(cmd.id);
+        cmd.cursorMovement = 1;
       }
-      const storageId = kittyStorage._kittyIdToStorageId.get(kittyId);
-      if (storageId === undefined) return;
-      kittyStorage._kittyIdToStorageId.delete(kittyId);
-      kittyStorage._storageIdToKittyId.delete(storageId);
-      kittyStorage._storage.deleteImage(storageId);
-      kittyStorage._storage.render({ start: 0, end: term.rows - 1 });
+      originalStreamPayload(data, start, end);
     };
-    term.parser.registerApcHandler({ final: 'G' }, (data) => {
-      const action = kittyControlValue(data, 'a');
-      const imageId = kittyControlValue(data, 'i');
-      if (action === 'd' && kittyControlValue(data, 'd') === 'i' && imageId) {
-        placementOnlyDeletes.add(Number(imageId));
+    const originalHandleDelete = kittyHandler._handleDelete.bind(kittyHandler);
+    kittyHandler._handleDelete = (cmd) => {
+      if (cmd.id !== undefined && cmd.deleteSelector === 'i') {
+        const storageId = kittyStorage._kittyIdToStorageId.get(cmd.id);
+        if (storageId === undefined) return true;
+        clearImageTiles(term, storageId);
+        const image = kittyStorage._storage._images.get(storageId);
+        if (image) image.tileCount = 0;
+        kittyStorage._storage._renderer.clearAll();
+        kittyStorage._storage.render({ start: 0, end: term.rows - 1 });
+        return true;
       }
-      return false;
-    });
-
+      if (cmd.id !== undefined && cmd.deleteSelector === 'I') virtualPlacementIds.delete(cmd.id);
+      return originalHandleDelete(cmd);
+    };
+    const originalHandlePlacement = kittyHandler._handlePlacement.bind(kittyHandler);
+    kittyHandler._handlePlacement = (cmd) => {
+      if (cmd.id !== undefined && virtualPlacementIds.has(cmd.id)) {
+        cmd.cursorMovement = 1;
+      }
+      return originalHandlePlacement(cmd);
+    };
+    const originalHandleTransmitDisplay = kittyHandler._handleTransmitDisplay.bind(kittyHandler);
+    kittyHandler._handleTransmitDisplay = (cmd, bytes, decodeError) => {
+      if (cmd.id !== undefined && virtualPlacementIds.has(cmd.id)) {
+        cmd.cursorMovement = 1;
+      }
+      return originalHandleTransmitDisplay(cmd, bytes, decodeError);
+    };
     // Let Ctrl+K, Ctrl+F, and Escape (when overlays are open) propagate to the document
     term.attachCustomKeyEventHandler((e) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'f')) return false;
@@ -349,8 +406,11 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       clearTimeout(roTimer);
       initRo?.disconnect();
       observer.disconnect();
-      kittyStorage.deleteById = originalDeleteById;
-      placementOnlyDeletes.clear();
+      kittyHandler._streamPayload = originalStreamPayload;
+      kittyHandler._handleDelete = originalHandleDelete;
+      kittyHandler._handlePlacement = originalHandlePlacement;
+      kittyHandler._handleTransmitDisplay = originalHandleTransmitDisplay;
+      virtualPlacementIds.clear();
       term.dispose();
       termRef.current = null;
       fitRef.current = null;
