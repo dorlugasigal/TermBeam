@@ -3,7 +3,8 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { CanvasAddon } from '@xterm/addon-canvas';
+import { WebglAddon } from '@xterm/addon-webgl';
+import { ImageAddon } from '@xterm/addon-image';
 import { useThemeStore } from '@/stores/themeStore';
 import { useUIStore } from '@/stores/uiStore';
 import { getTerminalTheme } from '@/themes/terminalThemes';
@@ -125,10 +126,25 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     const fitAddonInstance = new FitAddon();
     const search = new SearchAddon();
     const webLinks = new WebLinksAddon();
+    const images = new ImageAddon({
+      enableSizeReports: true,
+      pixelLimit: 8_388_608,
+      storageLimit: 32,
+      showPlaceholder: true,
+      sixelSupport: true,
+      sixelScrolling: true,
+      sixelPaletteLimit: 256,
+      sixelSizeLimit: 16_777_216,
+      iipSupport: true,
+      iipSizeLimit: 16_777_216,
+      kittySupport: true,
+      kittySizeLimit: 16_777_216,
+    });
 
     term.loadAddon(fitAddonInstance);
     term.loadAddon(search);
     term.loadAddon(webLinks);
+    term.loadAddon(images);
 
     // Let Ctrl+K, Ctrl+F, and Escape (when overlays are open) propagate to the document
     term.attachCustomKeyEventHandler((e) => {
@@ -160,19 +176,18 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       }
       // Remove after xterm's internal async init completes
       setTimeout(() => window.removeEventListener('error', suppressXtermError), 50);
-      // GPU-accelerated canvas renderer for sharper text.
+      // GPU-accelerated WebGL renderer for sharper text.
       // Skip on small touchscreen devices — the DOM renderer is flicker-free
       // and fast enough for mobile-sized terminals (fewer cells to render).
-      // The CanvasAddon's 2D canvas clear→redraw cycle causes visible flicker
-      // on mobile GPUs during rapid output (e.g. TUI apps redrawing).
+      // GPU canvas redraws can flicker on mobile during rapid TUI updates.
       const isMobileDevice =
         ('ontouchstart' in window || navigator.maxTouchPoints > 0) && window.innerWidth < 768;
       if (!navigator.webdriver && !isMobileDevice) {
         try {
-          const canvas = new CanvasAddon();
-          term.loadAddon(canvas);
+          const webgl = new WebglAddon();
+          term.loadAddon(webgl);
         } catch {
-          // Canvas not supported — DOM renderer fallback (default)
+          // WebGL not supported — DOM renderer fallback (default)
         }
       }
       try {

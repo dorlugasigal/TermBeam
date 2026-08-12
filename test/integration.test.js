@@ -327,6 +327,11 @@ describe('Integration', () => {
       assert.strictEqual(res.headers['x-frame-options'], 'DENY');
       assert.strictEqual(res.headers['referrer-policy'], 'no-referrer');
       assert.strictEqual(res.headers['cache-control'], 'no-store');
+      assert.match(
+        res.headers['content-security-policy'],
+        /script-src[^;]*'wasm-unsafe-eval'/,
+        'CSP should allow WebAssembly for terminal image decoders',
+      );
     });
 
     it('PWA assets should have cacheable headers for Safari iOS', async () => {

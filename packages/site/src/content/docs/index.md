@@ -40,6 +40,7 @@ Built for developers who need quick remote terminal access without the hassle of
 - **Command completion notifications** — browser alerts when commands finish in background tabs
 - **38 color themes** (dark, light, monokai, nord, dracula…) with adjustable font size
 - **Port preview** — reverse-proxy a local web server through TermBeam
+- **Inline terminal images** — renders Kitty graphics, Sixel, and iTerm image output from modern CLI tools
 - **Share & refresh** actions for easy link sharing and PWA cache updates
 
 ### Secure by Default

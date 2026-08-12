@@ -161,11 +161,12 @@ Smart version detection with two paths: npm installs use the `package.json` vers
 
 ### Frontend — React SPA
 
-The frontend is a React 19 single-page application built with Vite and TypeScript, located in `src/frontend/`. It builds to `public/`, which Express serves as the static directory. Key dependencies include `@xterm/xterm` (npm package, not CDN), Zustand for state management, Radix UI for dialogs, `@dnd-kit` for drag-and-drop, and Sonner for toast notifications.
+The frontend is a React 19 single-page application built with Vite and TypeScript, located in `src/frontend/`. It builds to `public/`, which Express serves as the static directory. Key dependencies include a synchronized, pinned xterm.js beta package set (required for Kitty graphics support), the xterm image addon for Kitty graphics, Sixel, and iTerm inline images, Zustand for state management, Radix UI for dialogs, `@dnd-kit` for drag-and-drop, and Sonner for toast notifications. Production builds use Terser because the default esbuild minifier currently miscompiles an xterm.js beta mode-query handler.
 
 The terminal page includes several client-side features:
 
 - **Terminal search** — <kbd>Ctrl+F</kbd> / <kbd>Cmd+F</kbd> opens a search bar overlay powered by the xterm.js `SearchAddon`. Supports regex matching with next/previous navigation.
+- **Inline terminal images** — the xterm.js `ImageAddon` decodes Kitty graphics (including Unicode placeholders), Sixel, and iTerm image protocol output. Per-terminal pixel, decoded-image storage, protocol payload, and Sixel palette limits bound browser memory use.
 - **Command completion notifications** — uses the browser Notification API to alert when a command finishes in a background tab. Toggled via a bell icon; preference stored in `localStorage` (`termbeam-notifications`).
 - **Push notifications** — native push notifications via the Web Push API, delivered even when the browser tab is closed. The service worker (`sw.ts`) handles push events and uses the Badge API to show unread counts. Push subscription lifecycle (subscribe, unsubscribe, VAPID key mismatch detection) is managed by `services/pushSubscription.ts`.
 - **Git changes view** — `GitChanges/`, `DiffViewer/`, and `BlameGutter/` components in the CodeViewer directory provide a full git integration UI: staged/unstaged diffs with syntax highlighting, per-line blame annotations, and commit history browsing.

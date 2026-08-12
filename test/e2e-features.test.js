@@ -87,6 +87,15 @@ async function runCommand(page, cmd) {
   await page.keyboard.press('Enter');
 }
 
+async function writeTerminalCommand(page, cmd) {
+  const textarea = page
+    .locator('[data-testid="terminal-pane"][data-visible="true"] .xterm-helper-textarea')
+    .first();
+  await textarea.focus();
+  await page.keyboard.insertText(cmd);
+  await page.keyboard.press('Enter');
+}
+
 async function openPaletteAndClick(page, actionLabel) {
   await page.click('[data-testid="palette-trigger"]');
   await expect(page.locator('[data-testid="palette-panel"][data-open="true"]')).toBeVisible({
@@ -106,6 +115,48 @@ async function openThemePicker(page) {
     timeout: 3_000,
   });
 }
+
+test.describe('Inline terminal images', () => {
+  test('renders iTerm inline image output', async ({ page }) => {
+    await openTerminalWithNewSession(page, `Images_${Date.now()}`);
+
+    const png =
+      'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAHklEQVR4AYTIsQkAAADCsOL/P+sqLha6RAb3YvoQAAAA///DVnJmAAAABklEQVQDANvLCAFlE5bJAAAAAElFTkSuQmCC';
+    await writeTerminalCommand(
+      page,
+      `printf '\\033]1337;File=inline=1;size=105;width=4;height=2:${png}\\007'`,
+    );
+
+    const imageLayer = page.locator(
+      '[data-testid="terminal-pane"][data-visible="true"] canvas[class^="xterm-image-layer-"]',
+    );
+    await expect(imageLayer).toHaveCount(1, { timeout: 5_000 });
+    await expect
+      .poll(() => imageLayer.evaluate((canvas) => canvas.width > 0 && canvas.height > 0))
+      .toBe(true);
+  });
+
+  test('renders Kitty Unicode-placeholder image output', async ({ page }) => {
+    await openTerminalWithNewSession(page, `KittyImages_${Date.now()}`);
+
+    const png =
+      'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAHklEQVR4AYTIsQkAAADCsOL/P+sqLha6RAb3YvoQAAAA///DVnJmAAAABklEQVQDANvLCAFlE5bJAAAAAElFTkSuQmCC';
+    const command =
+      `node -e "const E=String.fromCharCode(27),T=String.fromCharCode(27,92),` +
+      `p='${png}',c=(x)=>String.fromCodePoint(0x10eeee,0x305,x);` +
+      `process.stdout.write(E+'_Ga=T,U=1,i=1,c=2,r=1,f=100,q=2;'+p+T+` +
+      `E+'[38;2;0;0;1m'+c(0x305)+c(0x30d)+E+'[39m')"`;
+    await writeTerminalCommand(page, command);
+
+    const imageLayer = page.locator(
+      '[data-testid="terminal-pane"][data-visible="true"] canvas[class^="xterm-image-layer-"]',
+    );
+    await expect(imageLayer).toHaveCount(1, { timeout: 5_000 });
+    await expect
+      .poll(() => imageLayer.evaluate((canvas) => canvas.width > 0 && canvas.height > 0))
+      .toBe(true);
+  });
+});
 
 // ─── 1. New Session Modal — Hub Page ────────────────────────────────────────
 
