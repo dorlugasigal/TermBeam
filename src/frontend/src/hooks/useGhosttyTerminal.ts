@@ -152,6 +152,17 @@ export function useGhosttyTerminal(options: UseXTermOptions = {}): UseXTermRetur
     };
   }, [enabled]);
 
+  useEffect(() => {
+    if (!enabled || !termRef.current) return;
+    termRef.current.options.theme = getTerminalTheme(themeId);
+  }, [enabled, themeId]);
+
+  useEffect(() => {
+    if (!enabled || !termRef.current) return;
+    termRef.current.options.fontSize = fontSize;
+    fit();
+  }, [enabled, fontSize, fit]);
+
   return {
     terminalRef,
     terminal,
