@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useXTerm } from '@/hooks/useXTerm';
+import { useGhosttyTerminal } from '@/hooks/useGhosttyTerminal';
 import { useTerminalSocket } from '@/hooks/useTerminalSocket';
 import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
 import { useSessionStore } from '@/stores/sessionStore';
@@ -43,16 +44,14 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   const lastTouchFocusAtRef = useRef(0);
   const TOUCH_FOCUS_GUARD_MS = 700;
   const isTouchDeviceRef = useRef(
-    typeof window !== 'undefined' &&
-      ('ontouchstart' in window || navigator.maxTouchPoints > 0),
+    typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0),
   );
   // True when on a touch device and the user-gesture focus happened recently —
   // any programmatic .focus() during this window risks dismissing iOS's soft
   // keyboard mid-animation.
   const inTouchFocusWindow = useCallback(
     () =>
-      isTouchDeviceRef.current &&
-      Date.now() - lastTouchFocusAtRef.current < TOUCH_FOCUS_GUARD_MS,
+      isTouchDeviceRef.current && Date.now() - lastTouchFocusAtRef.current < TOUCH_FOCUS_GUARD_MS,
     [],
   );
 
@@ -95,12 +94,24 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     }
   }, []);
 
-  const { terminalRef, terminal, fitAddon, searchAddon, fit } = useXTerm({
+  const terminalEngine =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('terminal-engine') === 'ghostty'
+      ? 'ghostty'
+      : 'xterm';
+  const terminalOptions = {
     fontSize,
     onData: handleData,
     onResize: handleResize,
     onSelectionChange: handleSelectionChange,
+  };
+  const xterm = useXTerm({ ...terminalOptions, enabled: terminalEngine === 'xterm' });
+  const ghostty = useGhosttyTerminal({
+    ...terminalOptions,
+    enabled: terminalEngine === 'ghostty',
   });
+  const { terminalRef, terminal, fitAddon, searchAddon, fit } =
+    terminalEngine === 'ghostty' ? ghostty : xterm;
 
   const { send, sendResize, connected, reconnecting, reconnect } = useTerminalSocket({
     sessionId,
@@ -475,7 +486,8 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
       scrollThrottleRef.current = setTimeout(() => {
         scrollThrottleRef.current = null;
         const buf = terminal.buffer.active;
-        const atBottom = buf.viewportY >= buf.baseY;
+        const atBottom =
+          terminalEngine === 'ghostty' ? buf.viewportY <= 0 : buf.viewportY >= buf.baseY;
         wasAtBottomRef.current = atBottom;
         setShowScrollBtn(!atBottom);
       }, 100);
@@ -498,7 +510,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
       autoScrollRafRef.current = requestAnimationFrame(() => {
         autoScrollRafRef.current = null;
         const buf = terminal.buffer.active;
-        if (buf.viewportY < buf.baseY) {
+        if (terminalEngine === 'ghostty' ? buf.viewportY > 0 : buf.viewportY < buf.baseY) {
           programmaticScrollRef.current = true;
           terminal.scrollToBottom();
           programmaticScrollRef.current = false;
@@ -829,14 +841,12 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
       ref={paneRef}
       className={styles.pane}
       data-testid="terminal-pane"
+      data-terminal-engine={terminalEngine}
       onClick={handlePaneClick}
       {...((visible ?? active) ? { 'data-visible': 'true' } : {})}
     >
       {/* Terminal container */}
-      <div
-        ref={terminalRef}
-        className={styles.terminalContainer}
-      />
+      <div ref={terminalRef} className={styles.terminalContainer} />
 
       {showScrollBtn && (
         <button

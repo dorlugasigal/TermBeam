@@ -163,6 +163,8 @@ Smart version detection with two paths: npm installs use the `package.json` vers
 
 The frontend is a React 19 single-page application built with Vite and TypeScript, located in `src/frontend/`. It builds to `public/`, which Express serves as the static directory. Key dependencies include a synchronized, pinned xterm.js beta package set (required for Kitty graphics support), the xterm image addon for Kitty graphics, Sixel, and iTerm inline images, Zustand for state management, Radix UI for dialogs, `@dnd-kit` for drag-and-drop, and Sonner for toast notifications. Production builds use Terser because the default esbuild minifier currently miscompiles an xterm.js beta mode-query handler.
 
+xterm.js remains the default terminal engine. An experimental Ghostty-Web engine can be selected with the `terminal-engine=ghostty` URL query parameter. It shares the existing WebSocket, resize, selection, and mobile-input integration, while its JavaScript and WebAssembly are loaded in a separate on-demand chunk. Ghostty-Web does not currently expose terminal search or Kitty graphics rendering, so those features remain xterm-only.
+
 The terminal page includes several client-side features:
 
 - **Terminal search** — <kbd>Ctrl+F</kbd> / <kbd>Cmd+F</kbd> opens a search bar overlay powered by the xterm.js `SearchAddon`. Supports regex matching with next/previous navigation.

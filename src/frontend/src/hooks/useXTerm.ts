@@ -12,6 +12,7 @@ import nerdFontUrl from '@/assets/JetBrainsMonoNerdFont-Regular.ttf?url';
 import '@xterm/xterm/css/xterm.css';
 
 export interface UseXTermOptions {
+  enabled?: boolean;
   fontSize?: number;
   onData?: (data: string) => void;
   onResize?: (cols: number, rows: number) => void;
@@ -49,7 +50,7 @@ interface KittyStorageCompatibility {
 }
 
 export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
-  const { fontSize = 14, onData, onResize, onSelectionChange } = options;
+  const { enabled = true, fontSize = 14, onData, onResize, onSelectionChange } = options;
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -124,6 +125,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
 
   // Create and mount terminal
   useEffect(() => {
+    if (!enabled) return;
     const container = terminalRef.current;
     if (!container) return;
 
@@ -358,7 +360,7 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       setSearchAddon(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [enabled]);
 
   // Window resize listener (covers cases ResizeObserver may miss)
   useEffect(() => {

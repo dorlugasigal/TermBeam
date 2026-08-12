@@ -8,6 +8,9 @@
  * Run:  npx playwright test test/e2e-features.test.js
  */
 const { test, expect } = require('@playwright/test');
+const { existsSync, unlinkSync } = require('fs');
+const { join } = require('path');
+const { tmpdir } = require('os');
 const { setupSharedServer, getBaseURL: getBaseURLForState, isWindows } = require('./e2e-helpers');
 
 // One TermBeam server per file, with sessions reset to "1 default session"
@@ -72,14 +75,21 @@ function getTerminalText(page) {
 }
 
 async function typeInTerminal(page, text) {
-  const textarea = page
-    .locator('[data-testid="terminal-pane"][data-visible="true"] .xterm-helper-textarea')
-    .first();
-  await textarea.focus();
-  for (const ch of text) {
-    await textarea.press(ch);
-    await page.waitForTimeout(30);
+  const pane = page.locator('[data-testid="terminal-pane"][data-visible="true"]').first();
+  const engine = await pane.getAttribute('data-terminal-engine');
+  if (engine === 'ghostty') {
+    const textarea = pane.locator('textarea[aria-label="Terminal input"]');
+    await textarea.focus();
+    await textarea.evaluate((element, value) => {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData('text/plain', value);
+      element.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, clipboardData }));
+    }, text);
+    return;
+  } else {
+    await pane.locator('.xterm-helper-textarea').focus();
   }
+  await page.keyboard.type(text, { delay: 30 });
 }
 
 async function runCommand(page, cmd) {
@@ -194,6 +204,58 @@ test.describe('Inline terminal images', () => {
     await writeTerminalCommand(page, replacePlacementCommand);
     await page.waitForTimeout(250);
     expect(await countRenderedImagePixels(imageLayer)).toBeLessThanOrEqual(freedImagePixels);
+  });
+});
+
+test.describe('Experimental Ghostty terminal', () => {
+  test('connects, accepts input, resizes, and selects text', async ({ page, context }) => {
+    const { id } = await createSessionViaAPI(`Ghostty_${Date.now()}`);
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], {
+      origin: new URL(getBaseURL()).origin,
+    });
+    await page.goto(`${getBaseURL()}/terminal?id=${id}&terminal-engine=ghostty`);
+
+    const pane = page.locator(
+      '[data-testid="terminal-pane"][data-terminal-engine="ghostty"][data-visible="true"]',
+    );
+    await expect(pane).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('[data-testid="status-dot"].connected')).toBeVisible({
+      timeout: 10_000,
+    });
+
+    const canvas = pane.locator('canvas');
+    await expect(canvas).toHaveCount(1, { timeout: 10_000 });
+    const initialSize = await canvas.evaluate((element) => ({
+      width: element.width,
+      height: element.height,
+    }));
+    expect(initialSize.width).toBeGreaterThan(0);
+    expect(initialSize.height).toBeGreaterThan(0);
+
+    const marker = join(tmpdir(), `termbeam-ghostty-${Date.now()}.txt`);
+    try {
+      await runCommand(page, `touch ${JSON.stringify(marker)}`);
+      await expect.poll(() => existsSync(marker), { timeout: 10_000 }).toBe(true);
+
+      await page.setViewportSize({ width: 390, height: 600 });
+      await expect
+        .poll(() => canvas.evaluate((element) => element.height))
+        .not.toBe(initialSize.height);
+
+      await canvas.click();
+      await expect(pane.locator('textarea[aria-label="Terminal input"]')).toBeFocused();
+
+      await runCommand(page, `printf '\\033[2J\\033[HGHOSTTY_SELECTION\\n'`);
+      await page.waitForTimeout(250);
+      const box = await canvas.boundingBox();
+      expect(box).not.toBeNull();
+      await page.mouse.dblclick(box.x + 80, box.y + 10);
+      await expect
+        .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+        .toContain('GHOSTTY_SELECTION');
+    } finally {
+      if (existsSync(marker)) unlinkSync(marker);
+    }
   });
 });
 

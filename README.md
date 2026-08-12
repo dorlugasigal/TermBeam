@@ -98,6 +98,11 @@ termbeam -i                     # interactive setup wizard
 
 TermBeam starts a lightweight web server that spawns a PTY (pseudo-terminal) with your shell, serves a mobile-optimized [xterm.js](https://xtermjs.org/) UI via Express, and bridges the two over WebSocket. Multiple clients can view the same session simultaneously, and sessions persist when all clients disconnect.
 
+An experimental [Ghostty-Web](https://github.com/coder/ghostty-web) renderer can be enabled by
+adding `?terminal-engine=ghostty` to a terminal URL. xterm.js remains the default because the
+experimental renderer does not yet support terminal search or inline image protocols. Its
+JavaScript and WebAssembly are loaded only when selected.
+
 ```mermaid
 flowchart LR
   A["Phone / Browser"] <-->|WebSocket| B["TermBeam Server"]
