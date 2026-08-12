@@ -96,7 +96,8 @@ async function writeTerminalCommand(page, cmd) {
   await page.keyboard.press('Enter');
 }
 
-function countRenderedImagePixels(imageLayer) {
+async function countRenderedImagePixels(imageLayer) {
+  if ((await imageLayer.count()) === 0) return 0;
   return imageLayer.evaluate((canvas) => {
     const context = canvas.getContext('2d');
     if (!context) return 0;
@@ -165,20 +166,34 @@ test.describe('Inline terminal images', () => {
     );
     await expect(imageLayer).toHaveCount(1, { timeout: 5_000 });
     await expect.poll(() => countRenderedImagePixels(imageLayer)).toBeGreaterThan(0);
+    const initialImagePixels = await countRenderedImagePixels(imageLayer);
 
     const deletePlacementCommand =
       `node -e "const E=String.fromCharCode(27),T=String.fromCharCode(27,92);` +
       `process.stdout.write(E+'_Ga=d,d=i,i=1,q=2'+T)"`;
     await writeTerminalCommand(page, deletePlacementCommand);
-    await expect(imageLayer).toHaveCount(0, { timeout: 5_000 });
+    await expect.poll(() => countRenderedImagePixels(imageLayer)).toBeLessThan(initialImagePixels);
+    const deletedPlacementPixels = await countRenderedImagePixels(imageLayer);
     await page.setViewportSize({ width: 390, height: 500 });
 
     const replacePlacementCommand =
       `node -e "const E=String.fromCharCode(27),T=String.fromCharCode(27,92);` +
       `process.stdout.write(E+'_Ga=p,U=1,i=1,c=2,r=1,q=2'+T)"`;
     await writeTerminalCommand(page, replacePlacementCommand);
-    await expect(imageLayer).toHaveCount(1, { timeout: 5_000 });
-    await expect.poll(() => countRenderedImagePixels(imageLayer)).toBeGreaterThan(0);
+    await expect
+      .poll(() => countRenderedImagePixels(imageLayer))
+      .toBeGreaterThan(deletedPlacementPixels);
+    const restoredImagePixels = await countRenderedImagePixels(imageLayer);
+
+    const freeImageCommand =
+      `node -e "const E=String.fromCharCode(27),T=String.fromCharCode(27,92);` +
+      `process.stdout.write(E+'_Ga=d,d=I,i=1,q=2'+T)"`;
+    await writeTerminalCommand(page, freeImageCommand);
+    await expect.poll(() => countRenderedImagePixels(imageLayer)).toBeLessThan(restoredImagePixels);
+    const freedImagePixels = await countRenderedImagePixels(imageLayer);
+    await writeTerminalCommand(page, replacePlacementCommand);
+    await page.waitForTimeout(250);
+    expect(await countRenderedImagePixels(imageLayer)).toBeLessThanOrEqual(freedImagePixels);
   });
 });
 

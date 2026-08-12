@@ -38,7 +38,15 @@ function kittyControlValue(data: string, key: string): string | undefined {
   return undefined;
 }
 
-const KITTY_RETAINED_DATA_LIMIT = 32 * 1024 * 1024;
+interface KittyStorageCompatibility {
+  _kittyIdToStorageId: Map<number, number>;
+  _storageIdToKittyId: Map<number, number>;
+  _storage: {
+    deleteImage: (storageId: number) => void;
+    render: (range: { start: number; end: number }) => void;
+  };
+  deleteById: (kittyId: number) => void;
+}
 
 export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
   const { fontSize = 14, onData, onResize, onSelectionChange } = options;
@@ -159,96 +167,34 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     term.loadAddon(images);
 
     // The xterm.js beta treats Kitty's placement-only d=i like d=I and frees
-    // the image bytes. Keep a bounded copy of transmissions so a later
-    // placement can restore the protocol-defined retained data.
-    const retainedKittyImages = new Map<string, { commands: string[]; size: number }>();
-    const deletedKittyPlacements = new Set<string>();
-    let retainedKittyBytes = 0;
-    let pendingKittyTransmission:
-      { id: string; commands: string[]; size: number } | undefined;
-    let replayingKittyImage = false;
-    const removeRetainedKittyImage = (id: string) => {
-      const retained = retainedKittyImages.get(id);
-      if (!retained) return;
-      retainedKittyBytes -= retained.size;
-      retainedKittyImages.delete(id);
-    };
-    const cacheKittyImage = (id: string, commands: string[]) => {
-      removeRetainedKittyImage(id);
-      const size = commands.reduce((total, command) => total + command.length, 0);
-      if (size > KITTY_RETAINED_DATA_LIMIT) return;
-      retainedKittyImages.set(id, { commands, size });
-      retainedKittyBytes += size;
-      while (retainedKittyBytes > KITTY_RETAINED_DATA_LIMIT) {
-        const oldestId = retainedKittyImages.keys().next().value;
-        if (!oldestId) break;
-        removeRetainedKittyImage(oldestId);
-        deletedKittyPlacements.delete(oldestId);
+    // the image bytes. Correct that operation at the storage boundary while
+    // retaining uppercase d=I behavior, which intentionally frees the data.
+    const kittyHandler = (
+      images as unknown as {
+        _handlers: Map<string, { _kittyStorage: KittyStorageCompatibility }>;
       }
+    )._handlers.get('kitty');
+    if (!kittyHandler) throw new Error('Kitty image handler failed to initialize');
+    const kittyStorage = kittyHandler._kittyStorage;
+    const originalDeleteById = kittyStorage.deleteById.bind(kittyStorage);
+    const placementOnlyDeletes = new Set<number>();
+    kittyStorage.deleteById = (kittyId) => {
+      if (!placementOnlyDeletes.delete(kittyId)) {
+        originalDeleteById(kittyId);
+        return;
+      }
+      const storageId = kittyStorage._kittyIdToStorageId.get(kittyId);
+      if (storageId === undefined) return;
+      kittyStorage._kittyIdToStorageId.delete(kittyId);
+      kittyStorage._storageIdToKittyId.delete(storageId);
+      kittyStorage._storage.deleteImage(storageId);
+      kittyStorage._storage.render({ start: 0, end: term.rows - 1 });
     };
-    const kittyCommand = (data: string) => `\x1b_G${data}\x1b\\`;
     term.parser.registerApcHandler({ final: 'G' }, (data) => {
-      if (replayingKittyImage) return false;
-
       const action = kittyControlValue(data, 'a');
       const imageId = kittyControlValue(data, 'i');
-      const moreChunks = kittyControlValue(data, 'm') === '1';
-
-      if ((action === 't' || action === 'T') && imageId) {
-        deletedKittyPlacements.delete(imageId);
-        if (moreChunks) {
-          pendingKittyTransmission =
-            data.length <= KITTY_RETAINED_DATA_LIMIT
-              ? { id: imageId, commands: [data], size: data.length }
-              : undefined;
-        } else {
-          pendingKittyTransmission = undefined;
-          cacheKittyImage(imageId, [data]);
-        }
-      } else if (pendingKittyTransmission && !action && !imageId) {
-        pendingKittyTransmission.size += data.length;
-        if (pendingKittyTransmission.size > KITTY_RETAINED_DATA_LIMIT) {
-          pendingKittyTransmission = undefined;
-          return false;
-        }
-        pendingKittyTransmission.commands.push(data);
-        if (!moreChunks) {
-          cacheKittyImage(pendingKittyTransmission.id, pendingKittyTransmission.commands);
-          pendingKittyTransmission = undefined;
-        }
-      } else if (action) {
-        pendingKittyTransmission = undefined;
-      }
-
-      if (action === 'd') {
-        const selector = kittyControlValue(data, 'd') ?? 'a';
-        if (selector === 'i' && imageId) {
-          deletedKittyPlacements.add(imageId);
-        } else if (selector === 'I' && imageId) {
-          removeRetainedKittyImage(imageId);
-          deletedKittyPlacements.delete(imageId);
-        } else if (selector === 'a') {
-          for (const id of retainedKittyImages.keys()) deletedKittyPlacements.add(id);
-        } else if (selector === 'A') {
-          retainedKittyImages.clear();
-          deletedKittyPlacements.clear();
-          retainedKittyBytes = 0;
-        }
-        return false;
-      }
-
-      if (action === 'p' && imageId && deletedKittyPlacements.has(imageId)) {
-        const retained = retainedKittyImages.get(imageId);
-        deletedKittyPlacements.delete(imageId);
-        if (retained) {
-          replayingKittyImage = true;
-          const commands = [...retained.commands, data].map(kittyCommand).join('');
-          term.write(commands, () => {
-            replayingKittyImage = false;
-            term.refresh(0, term.rows - 1);
-          });
-          return true;
-        }
+      if (action === 'd' && kittyControlValue(data, 'd') === 'i' && imageId) {
+        placementOnlyDeletes.add(Number(imageId));
       }
       return false;
     });
@@ -401,8 +347,8 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
       clearTimeout(roTimer);
       initRo?.disconnect();
       observer.disconnect();
-      retainedKittyImages.clear();
-      deletedKittyPlacements.clear();
+      kittyStorage.deleteById = originalDeleteById;
+      placementOnlyDeletes.clear();
       term.dispose();
       termRef.current = null;
       fitRef.current = null;
