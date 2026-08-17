@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.24.19] - 2026-08-17
+
+- fix(deps): remediate security scan findings (#298) (@github-actions[bot])
+- chore(deps): bump the all-npm group with 3 updates (#299) (@dependabot[bot])
+- chore(ci): bump the all-actions group across 1 directory with 4 updates (#300) (@dependabot[bot])
+
 ## [1.24.18] - 2026-08-11
 
 - fix(ci): remove redundant npx smoke probe (@dorlugasigal)
