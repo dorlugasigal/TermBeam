@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.24.20] - 2026-08-24
+
+- chore(deps): bump eslint from 10.8.1 to 10.9.0 in the all-npm group (#301) (@dependabot[bot])
+- chore(ci): bump the all-actions group across 1 directory with 4 updates (#302) (@dependabot[bot])
+
 ## [1.24.19] - 2026-08-17
 
 - fix(deps): remediate security scan findings (#298) (@github-actions[bot])
