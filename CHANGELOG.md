@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.24.21] - 2026-08-31
+
+- chore(deps): bump node from `4ebb5ac` to `c075312` in the all-docker group (#304) (@dependabot[bot])
+- chore(ci): bump the all-actions group across 1 directory with 4 updates (#306) (@dependabot[bot])
+
 ## [1.24.20] - 2026-08-24
 
 - chore(deps): bump eslint from 10.8.1 to 10.9.0 in the all-npm group (#301) (@dependabot[bot])
