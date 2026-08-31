@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.24.22] - 2026-08-31
+
+- chore(deps): bump the all-npm group across 1 directory with 2 updates (#305) (@dependabot[bot])
+
 ## [1.24.21] - 2026-08-31
 
 - chore(deps): bump node from `4ebb5ac` to `c075312` in the all-docker group (#304) (@dependabot[bot])
