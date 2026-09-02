@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.24.23] - 2026-09-02
+
+- fix(update): respect configured package registry (@dorlugasigal)
+- chore: remove browser test artifacts (@dorlugasigal)
+
 ## [1.24.22] - 2026-08-31
 
 - chore(deps): bump the all-npm group across 1 directory with 2 updates (#305) (@dependabot[bot])
