@@ -1,0 +1,37 @@
+- generic [ref=e2]:
+    - generic [ref=e3]:
+        - generic [ref=e5]: ✓ Updated to v1.24.22
+        - banner [ref=e8]:
+            - heading "TermBeam v1.24.22-dev+dirty" [level=1] [ref=e10]:
+                - img "TermBeam" [ref=e11]:
+                    - img [ref=e12]
+                - generic [ref=e21]: v1.24.22-dev+dirty
+            - button "Tools" [ref=e23] [cursor=pointer]:
+                - img [ref=e24]
+        - main [ref=e29]:
+            - generic [ref=e30]:
+                - searchbox "Search sessions" [ref=e32]
+                - button "Shell ▾" [ref=e35] [cursor=pointer]
+            - generic [ref=e37]:
+                - button "Delete session Projects" [ref=e38] [cursor=pointer]:
+                    - img [ref=e39]
+                    - text: Delete
+                - generic [ref=e41] [cursor=pointer]:
+                    - generic [ref=e42]:
+                        - generic [ref=e45]: Projects
+                        - generic [ref=e46]: PID 3764
+                    - generic [ref=e47]:
+                        - generic [ref=e48]:
+                            - img [ref=e49]
+                            - text: /Users/dorlugasigal/Projects
+                        - generic [ref=e51]:
+                            - img [ref=e52]
+                            - text: zsh
+                        - generic [ref=e54]:
+                            - img [ref=e55]
+                            - text: 11m ago
+        - generic [ref=e58]:
+            - button "New session" [ref=e59] [cursor=pointer]: + New Session
+            - button "Resume agent" [ref=e60] [cursor=pointer]: ↺ Resume Agent
+            - button "Open workspace" [ref=e61] [cursor=pointer]: Open Workspace
+    - region "Notifications alt+T"

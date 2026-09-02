@@ -408,7 +408,8 @@ describe('update-check', () => {
       const { detectInstallMethod } = require('../../src/utils/update-check');
       const result = detectInstallMethod();
       assert.equal(result.method, 'npx');
-      assert.ok(result.command.includes('npx'));
+      assert.equal(result.command, 'npx termbeam@latest');
+      assert.deepEqual(result.installArgs, ['termbeam@latest']);
       assert.equal(result.canAutoUpdate, false);
       assert.equal(result.restartStrategy, 'none');
     });
@@ -419,7 +420,8 @@ describe('update-check', () => {
       const { detectInstallMethod } = require('../../src/utils/update-check');
       const result = detectInstallMethod();
       assert.equal(result.method, 'yarn');
-      assert.ok(result.command.includes('yarn'));
+      assert.equal(result.command, 'yarn global add termbeam@latest');
+      assert.deepEqual(result.installArgs, ['global', 'add', 'termbeam@latest']);
       assert.equal(result.canAutoUpdate, true);
     });
 
@@ -429,7 +431,8 @@ describe('update-check', () => {
       const { detectInstallMethod } = require('../../src/utils/update-check');
       const result = detectInstallMethod();
       assert.equal(result.method, 'pnpm');
-      assert.ok(result.command.includes('pnpm'));
+      assert.equal(result.command, 'pnpm add -g termbeam@latest');
+      assert.deepEqual(result.installArgs, ['add', '-g', 'termbeam@latest']);
       assert.equal(result.canAutoUpdate, true);
     });
 
@@ -457,7 +460,7 @@ describe('update-check', () => {
         assert.equal(result.restartStrategy, 'none');
         if (result.method === 'source') {
           assert.ok(result.cwd, 'source method should include cwd');
-          assert.ok(result.command.includes('registry.npmjs.org'));
+          assert.equal(result.command, 'git pull && npm install && npm run build:frontend');
         }
       } finally {
         if (origPm2Home !== undefined) process.env.PM2_HOME = origPm2Home;
@@ -487,8 +490,14 @@ describe('update-check', () => {
         assert.equal(result.method, 'source');
         assert.equal(result.canAutoUpdate, true);
         assert.equal(result.restartStrategy, 'pm2');
-        assert.ok(result.command.includes('pm2 restart'), 'command should include pm2 restart');
-        assert.ok(result.command.includes('registry.npmjs.org'));
+        assert.equal(
+          result.command,
+          'git pull && npm install && npm run build:frontend && pm2 restart termbeam',
+        );
+        assert.deepEqual(result.installArgs, [
+          process.platform === 'win32' ? '/c' : '-c',
+          'git pull && npm install && npm run build:frontend',
+        ]);
         assert.ok(result.installCmd, 'should have installCmd for auto-update');
         assert.ok(result.installArgs, 'should have installArgs for auto-update');
         assert.ok(result.cwd, 'should include cwd for source install');
