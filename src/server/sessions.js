@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const path = require('path');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const log = require('../utils/logger');
 
 let pty;
@@ -54,14 +54,22 @@ function scheduleGitRefresh(sessionId, pid, originalCwd) {
   if (cached) cached._refreshing = true;
 
   // Use exec (async) for the lsof call to avoid blocking the event loop
-  const cmd =
+  const safePid = parseInt(pid, 10);
+  if (!Number.isInteger(safePid) || safePid <= 0) {
+    setImmediate(() => {
+      const git = getGitInfo(originalCwd);
+      _gitCache.set(sessionId, { cwd: originalCwd, git, ts: Date.now() });
+    });
+    return;
+  }
+  const [bin, args] =
     process.platform === 'darwin'
-      ? `lsof -a -p ${pid} -d cwd -Fn`
+      ? ['lsof', ['-a', '-p', String(safePid), '-d', 'cwd', '-Fn']]
       : process.platform === 'linux'
-        ? `readlink /proc/${pid}/cwd`
-        : null;
+        ? ['readlink', [`/proc/${safePid}/cwd`]]
+        : [null, null];
 
-  if (!cmd) {
+  if (!bin) {
     // Windows or unsupported — just refresh sync quickly
     setImmediate(() => {
       const git = getGitInfo(originalCwd);
@@ -70,7 +78,7 @@ function scheduleGitRefresh(sessionId, pid, originalCwd) {
     return;
   }
 
-  exec(cmd, { timeout: 2000 }, (err, stdout) => {
+  execFile(bin, args, { timeout: 2000 }, (err, stdout) => {
     if (err) log.debug(`Git cwd detection failed: ${err.message}`);
     let liveCwd = originalCwd;
     if (!err && stdout) {
@@ -367,12 +375,8 @@ class SessionManager {
         if (!this.sessions.has(id)) return;
         pollInFlight = true;
 
-        const { exec } = require('child_process');
-
-        exec(
-          `ps -ax -o pid=,ppid= | awk -v p=${shellPid} '$2 == p { print $1 }'`,
-          { timeout: 2000 },
-          (err, stdout) => {
+        const safeShellPid = String(parseInt(shellPid, 10));
+        execFile('ps', ['-ax', '-o', 'pid=,ppid='], { timeout: 2000 }, (err, stdout) => {
             pollInFlight = false;
             if (err) return;
             const currentChildren = new Set(
@@ -380,7 +384,9 @@ class SessionManager {
                 .trim()
                 .split('\n')
                 .filter(Boolean)
-                .map((s) => s.trim()),
+                .map((s) => s.trim().split(/\s+/))
+                .filter(([, ppid]) => ppid === safeShellPid)
+                .map(([pid]) => pid),
             );
             childCheckCount++;
 
@@ -463,7 +469,7 @@ class SessionManager {
       changes.push(`name=${fields.name}`);
     }
     if (changes.length > 0) {
-      log.debug(`Session ${id} updated: ${changes.join(', ')}`);
+      log.debug('Session updated: ' + changes.join(', '));
     }
     return true;
   }
