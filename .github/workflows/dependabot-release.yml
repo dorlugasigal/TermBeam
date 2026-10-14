@@ -4,9 +4,10 @@
 # debounce timer and starts a fresh 30-minute quiet window, so a run of grouped PRs
 # results in exactly ONE patch release covering all of them.
 #
-# Only Dependabot dependency merges trigger this. Your own feature/fix merges are
-# released manually via the publish workflow with a chosen bump — and while any of
-# them are still unreleased on main, this workflow does not release at all.
+# Only Dependabot dependency merges trigger this. Your own merges are released
+# manually via the publish workflow with a chosen bump; while main holds unreleased
+# work that needs more than a patch (a feature or breaking change), this workflow
+# does not release at all.
 name: Dependabot Auto Patch Release
 
 on:
@@ -76,21 +77,23 @@ jobs:
           # The release workflow uses its own token for the tag and version commit.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # A patch release is only for Dependabot's updates. If main also holds
-          # unreleased commits from anyone else (a feature or fix waiting for a
-          # release with its own bump), leave the release to the maintainer; it
-          # will ship these updates too.
+          # A patch release must not ship unreleased work that needs a bigger
+          # bump. If main holds a feature or breaking change from anyone other
+          # than Dependabot, leave the release to the maintainer; it will ship
+          # these updates too. Docs, CI and fix commits can go out in a patch.
           LAST_TAG=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
           # Check one exact commit and release only that commit (release.yml
           # refuses to run if main has moved on in the meantime).
           HEAD_SHA=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
-          OTHERS=$(gh api --paginate "repos/$GITHUB_REPOSITORY/compare/$LAST_TAG...$HEAD_SHA?per_page=100" --jq '
+          BLOCKERS=$(gh api --paginate "repos/$GITHUB_REPOSITORY/compare/$LAST_TAG...$HEAD_SHA?per_page=100" --jq '
             .commits[]
             | select((.author.login // "") as $a | $a != "dependabot[bot]" and $a != "github-actions[bot]")
-            | "\(.sha[0:7]) \(.commit.author.name): \(.commit.message | split("\n")[0])"')
-          if [ -n "$OTHERS" ]; then
-            echo "::notice::Skipping the automatic patch release: main has unreleased commits besides Dependabot's since $LAST_TAG."
-            echo "$OTHERS"
+            | (.commit.message | split("\n")[0]) as $subject
+            | select(($subject | test("^feat(\\([^)]*\\))?!?:|^[a-z]+(\\([^)]*\\))?!:")) or (.commit.message | test("BREAKING[ -]CHANGE")))
+            | "\(.sha[0:7]) \(.commit.author.name): \($subject)"')
+          if [ -n "$BLOCKERS" ]; then
+            echo "::notice::Skipping the automatic patch release: main has unreleased changes that need a minor or major release since $LAST_TAG."
+            echo "$BLOCKERS"
             exit 0
           fi
           echo "Quiet window elapsed. Dispatching patch release of $HEAD_SHA."
