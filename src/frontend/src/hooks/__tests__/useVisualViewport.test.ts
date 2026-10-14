@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
-import { act, renderHook } from '@testing-library/react';
+import { act, cleanup, renderHook } from '@testing-library/react';
 import { useVisualViewport } from '../useVisualViewport';
 
 type Listener = () => void;
@@ -25,6 +25,7 @@ const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve))
 const originalInnerHeight = window.innerHeight;
 
 afterEach(() => {
+  cleanup();
   Object.defineProperty(window, 'visualViewport', { value: undefined, configurable: true });
   Object.defineProperty(window, 'innerHeight', { value: originalInnerHeight, configurable: true });
 });

@@ -17,13 +17,28 @@ interface ModelSelectProps extends Omit<
  * system wheel. A value missing from the list (a retired model, or one the
  * list hasn't loaded yet) is still shown rather than silently swapped.
  */
-export function ModelSelect({ value, onChange, defaultLabel, ...props }: ModelSelectProps) {
-  const { models, status } = useCopilotModels();
+export function ModelSelect({
+  value,
+  onChange,
+  defaultLabel,
+  onFocus,
+  ...props
+}: ModelSelectProps) {
+  const { models, status, refresh } = useCopilotModels();
   const { auto, groups } = useMemo(() => groupModels(models), [models]);
   const listed = value === '' || models.some((m) => m.id === value);
 
   return (
-    <select {...props} value={value} onChange={(e) => onChange(e.target.value)}>
+    <select
+      {...props}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      // Opening the picker retries a failed load or refreshes a stale list.
+      onFocus={(e) => {
+        refresh();
+        onFocus?.(e);
+      }}
+    >
       {defaultLabel !== undefined ? (
         <option value="">{defaultLabel}</option>
       ) : (

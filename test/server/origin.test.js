@@ -16,6 +16,7 @@ const {
   createCsrfGuard,
   isLoopbackAddress,
   allowedAuthorities,
+  allowedOrigins,
 } = require('../../src/server/origin');
 const { createTermBeamServer } = require('../../src/server');
 
@@ -49,7 +50,7 @@ describe('origin.isLoopbackAddress', () => {
 });
 
 describe('origin.allowedAuthorities', () => {
-  it('collects Host, loopback-forwarded X-Forwarded-Host and the public URL (lowercase)', () => {
+  it('collects Host and loopback-forwarded X-Forwarded-Host (lowercase)', () => {
     const set = allowedAuthorities(
       req({
         headers: {
@@ -57,16 +58,12 @@ describe('origin.allowedAuthorities', () => {
           'x-forwarded-host': `${TUNNEL_HOST.toUpperCase()}, proxy.example`,
         },
       }),
-      'https://Public.Example:8443/terminal',
     );
-    assert.deepEqual([...set], ['localhost:3456', TUNNEL_HOST, 'public.example:8443']);
+    assert.deepEqual([...set], ['localhost:3456', TUNNEL_HOST]);
   });
 
-  it('takes the first value of repeated headers and ignores malformed public URLs', () => {
-    const set = allowedAuthorities(
-      req({ headers: { host: ['a.example:1', 'b.example:2'] } }),
-      'not a url',
-    );
+  it('takes the first value of repeated headers', () => {
+    const set = allowedAuthorities(req({ headers: { host: ['a.example:1', 'b.example:2'] } }));
     assert.deepEqual([...set], ['a.example:1']);
   });
 
@@ -78,6 +75,24 @@ describe('origin.allowedAuthorities', () => {
       }),
     );
     assert.deepEqual([...set], ['192.168.1.5:3456']);
+  });
+});
+
+describe('origin.allowedOrigins', () => {
+  it('normalizes configured public URLs to full origins and skips junk', () => {
+    const set = allowedOrigins([
+      'https://Public.Example:8443/terminal',
+      'https://term.example.com:443/',
+      'not a url',
+      null,
+      '',
+    ]);
+    assert.deepEqual([...set], ['https://public.example:8443', 'https://term.example.com']);
+  });
+
+  it('accepts a single URL or nothing', () => {
+    assert.deepEqual([...allowedOrigins('http://a.example')], ['http://a.example']);
+    assert.deepEqual([...allowedOrigins(undefined)], []);
   });
 });
 
@@ -137,6 +152,14 @@ describe('origin.checkOrigin', () => {
     assert.equal(checkOrigin(r).ok, false);
     assert.equal(checkOrigin(r, { publicUrl: `https://${TUNNEL_HOST}/` }).ok, true);
     assert.equal(checkOrigin(r, { publicUrl: 'https://other.devtunnels.ms' }).ok, false);
+  });
+
+  it('trusts a public URL only for its own scheme and port', () => {
+    const publicUrl = 'https://term.example.com:443';
+    const at = (origin) => checkOrigin(req({ headers: { host, origin } }), { publicUrl });
+    assert.equal(at('https://term.example.com').ok, true);
+    assert.deepEqual(at('http://term.example.com'), { ok: false, reason: 'mismatch' });
+    assert.deepEqual(at('https://term.example.com:8443'), { ok: false, reason: 'mismatch' });
   });
 
   it('treats a missing or explicit default port as the same origin (reverse proxies)', () => {

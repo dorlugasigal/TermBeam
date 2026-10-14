@@ -24,8 +24,12 @@ function firstHeader(value) {
   return value.split(',')[0].trim();
 }
 
-/** Authorities (host[:port], lowercase) that legitimately serve this UI. */
-function allowedAuthorities(req, publicUrl) {
+/**
+ * Authorities (host[:port], lowercase) the request says it was sent to: the
+ * Host header, plus X-Forwarded-Host when a loopback proxy (the DevTunnel
+ * host process) forwards it. No scheme is known for these.
+ */
+function allowedAuthorities(req) {
   const set = new Set();
   const host = firstHeader(req.headers && req.headers.host).toLowerCase();
   if (host) set.add(host);
@@ -34,10 +38,20 @@ function allowedAuthorities(req, publicUrl) {
     const fwd = firstHeader(req.headers && req.headers['x-forwarded-host']).toLowerCase();
     if (fwd) set.add(fwd);
   }
+  return set;
+}
+
+/**
+ * Full origins (scheme://host[:port]) of the configured public URLs (tunnel
+ * URL, --public-url). Compared as whole origins so `https://x` never also
+ * trusts `http://x`.
+ */
+function allowedOrigins(publicUrl) {
+  const set = new Set();
   for (const url of [].concat(publicUrl || [])) {
     if (!url) continue;
     try {
-      set.add(new URL(url).host.toLowerCase());
+      set.add(new URL(url).origin.toLowerCase());
     } catch {
       /* ignore malformed */
     }
@@ -87,8 +101,8 @@ function checkOrigin(req, { publicUrl } = {}) {
   if (url.protocol !== 'http:' && url.protocol !== 'https:')
     return { ok: false, reason: 'invalid' };
 
-  const allowed = allowedAuthorities(req, publicUrl);
-  for (const a of allowed) {
+  if (allowedOrigins(publicUrl).has(url.origin.toLowerCase())) return { ok: true };
+  for (const a of allowedAuthorities(req)) {
     if (matchesAuthority(a, url)) return { ok: true };
   }
   return { ok: false, reason: 'mismatch' };
@@ -130,4 +144,10 @@ function createCsrfGuard(getPublicUrl = () => null, { log } = {}) {
   };
 }
 
-module.exports = { checkOrigin, createCsrfGuard, isLoopbackAddress, allowedAuthorities };
+module.exports = {
+  checkOrigin,
+  createCsrfGuard,
+  isLoopbackAddress,
+  allowedAuthorities,
+  allowedOrigins,
+};

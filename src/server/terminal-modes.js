@@ -16,7 +16,9 @@
  * mutually exclusive and resetting any of them disables tracking. Of the
  * mouse encodings it supports only SGR (1006) and SGR-pixels (1016) — 1005
  * and 1015 are ignored — and resetting either supported encoding returns to
- * the default. A hard reset (RIS, ESC c) restores every power-on default.
+ * the default. A hard reset (RIS, ESC c) restores every power-on default; a
+ * soft reset (DECSTR, CSI ! p) restores the input flags below but, as in
+ * xterm.js, leaves mouse tracking and the alternate screen alone.
  */
 
 const MOUSE_PROTOCOLS = new Set([9, 1000, 1002, 1003]);
@@ -39,10 +41,10 @@ const FLAG_DEFAULTS = [
   [2004, false],
 ];
 
-// DECSET/DECRST (CSI ? Pm h|l), or RIS (ESC c) when group 1 is undefined.
-const MODE_RE = /\x1b(?:\[\?([0-9;]{1,64})([hl])|c)/g;
-// An escape sequence that may continue in the next chunk: ESC, ESC [, ESC [ ? 1 0 ...
-const PARTIAL_RE = /^\x1b(?:\[\??[0-9;]*)?$/;
+// DECSET/DECRST (CSI ? Pm h|l), RIS (ESC c) or DECSTR (CSI ! p).
+const MODE_RE = /\x1b(?:\[\?([0-9;]{1,64})([hl])|(c)|\[!p)/g;
+// An escape sequence that may continue in the next chunk: ESC, ESC [, ESC [ ? 1 0, ESC [ ! ...
+const PARTIAL_RE = /^\x1b(?:\[(?:\??[0-9;]*|!))?$/;
 const MAX_TAIL = 72;
 
 class TerminalModeTracker {
@@ -53,10 +55,15 @@ class TerminalModeTracker {
 
   /** Power-on state — also what a hard reset (RIS) returns the terminal to. */
   _reset() {
-    this.flags = new Map(FLAG_DEFAULTS);
+    this._softReset();
     this.mouseProtocol = 0;
     this.mouseEncoding = 0;
     this.altScreenMode = null; // '1049' | '1047' | '47' | null
+  }
+
+  /** DECSTR: xterm.js resets its DEC private modes and shows the cursor. */
+  _softReset() {
+    this.flags = new Map(FLAG_DEFAULTS);
   }
 
   get inAltScreen() {
@@ -71,8 +78,9 @@ class TerminalModeTracker {
     let lastEnd = 0;
     let m;
     while ((m = MODE_RE.exec(buf)) !== null) {
-      if (m[1] === undefined) this._reset();
-      else this._apply(m[1], m[2] === 'h');
+      if (m[1] !== undefined) this._apply(m[1], m[2] === 'h');
+      else if (m[3]) this._reset();
+      else this._softReset();
       lastEnd = MODE_RE.lastIndex;
     }
     const lastEsc = buf.lastIndexOf('\x1b');

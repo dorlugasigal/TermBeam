@@ -214,6 +214,35 @@ describe('TerminalModeTracker', () => {
     });
   });
 
+  describe('soft reset (DECSTR, CSI ! p)', () => {
+    const SET_ALL =
+      '\x1b[?1049h\x1b[?1003h\x1b[?1006h\x1b[?1h\x1b[?7l\x1b[?25l\x1b[?1004h\x1b[?2004h';
+
+    it('restores the input flags but keeps mouse tracking and the alt screen, like xterm.js', () => {
+      const t = track(SET_ALL + '\x1b[!p');
+      assert.deepEqual(
+        Object.fromEntries(t.flags),
+        Object.fromEntries(new TerminalModeTracker().flags),
+      );
+      assert.equal(t.mouseProtocol, 1003);
+      assert.equal(t.mouseEncoding, 1006);
+      assert.equal(t.altScreenMode, '1049');
+    });
+
+    it('applies in stream order and across chunk boundaries', () => {
+      for (const chunks of [
+        [SET_ALL + '\x1b[', '!p'],
+        [SET_ALL + '\x1b[!', 'p'],
+        [SET_ALL + '\x1b', '[!p'],
+      ]) {
+        const t = track(...chunks, '\x1b[?1h');
+        assert.equal(t.flags.get(25), true, JSON.stringify(chunks));
+        assert.equal(t.flags.get(2004), false);
+        assert.equal(t.flags.get(1), true, 'modes set after the soft reset still count');
+      }
+    });
+  });
+
   describe('flags and alt screen', () => {
     it('tracks DECCKM, DECAWM, DECTCEM, focus and bracketed paste', () => {
       const t = track('\x1b[?1h\x1b[?7l\x1b[?25l\x1b[?1004h\x1b[?2004h');

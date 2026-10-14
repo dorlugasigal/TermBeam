@@ -37,13 +37,34 @@ export const useCopilotModelsStore = create<CopilotModelsState>((set, get) => ({
   },
 }));
 
-/** Copilot's model list, loaded on first use and refreshed when stale. */
-export function useCopilotModels(enabled = true): { models: CopilotModel[]; status: Status } {
+/**
+ * Copilot's model list, loaded on first use. Long-lived pickers (the Copilot
+ * pane keeps one mounted) also re-check when the app regains focus or comes
+ * back online — `load()` only fetches when the list is missing or stale.
+ */
+export function useCopilotModels(enabled = true): {
+  models: CopilotModel[];
+  status: Status;
+  refresh: () => void;
+} {
   const models = useCopilotModelsStore((s) => s.models);
   const status = useCopilotModelsStore((s) => s.status);
   const load = useCopilotModelsStore((s) => s.load);
   useEffect(() => {
-    if (enabled) void load();
+    if (!enabled) return;
+    const refresh = () => void load();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    refresh();
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [enabled, load]);
-  return { models, status };
+  return { models, status, refresh: () => void load() };
 }

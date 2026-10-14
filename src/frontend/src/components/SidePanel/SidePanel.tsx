@@ -21,11 +21,7 @@ function getActivityLabel(ts: string | number | undefined): string {
 }
 
 function BreakableText({ text }: { text: string }) {
-  return (
-    <span className={styles.breakable}>
-      <Breakable text={text} />
-    </span>
-  );
+  return <Breakable text={text} className={styles.breakable} />;
 }
 
 function statusColor(session: ManagedSession): string {
