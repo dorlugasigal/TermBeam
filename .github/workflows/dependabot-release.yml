@@ -84,7 +84,7 @@ jobs:
           # Check one exact commit and release only that commit (release.yml
           # refuses to run if main has moved on in the meantime).
           HEAD_SHA=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
-          OTHERS=$(gh api "repos/$GITHUB_REPOSITORY/compare/$LAST_TAG...$HEAD_SHA" --jq '
+          OTHERS=$(gh api --paginate "repos/$GITHUB_REPOSITORY/compare/$LAST_TAG...$HEAD_SHA?per_page=100" --jq '
             .commits[]
             | select((.author.login // "") as $a | $a != "dependabot[bot]" and $a != "github-actions[bot]")
             | "\(.sha[0:7]) \(.commit.author.name): \(.commit.message | split("\n")[0])"')
