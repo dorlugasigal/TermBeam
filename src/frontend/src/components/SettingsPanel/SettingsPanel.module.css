@@ -1,9 +1,9 @@
 /* ──────────────────────────────────────────────────────────────────────
  * SettingsPanel — non-blocking preferences surface (no scrim).
  *
- * Mobile: top sheet (≤ 62dvh) sliding down from the top bar, so the
- * terminal + TouchBar stay visible below and changes (theme, font size,
- * keys, start-collapsed) can be watched live.
+ * Mobile: top sheet sliding down from the top bar and reaching the
+ * TouchBar, which stays visible so key edits (and start-collapsed) can be
+ * watched live. Where there is no TouchBar (hub) it takes the full height.
  * Desktop: 420px right drawer.
  * Sections are iOS-style grouped lists: a caption, then rows on a card.
  * ────────────────────────────────────────────────────────────────────── */
@@ -14,7 +14,12 @@
   left: 0;
   right: 0;
   top: 0;
-  max-height: min(62dvh, 680px);
+  /* Stop 8px above the TouchBar (and the keyboard it rides on); with no
+     TouchBar both variables are unset and the gap collapses to 0. */
+  max-height: calc(
+    100dvh - var(--keyboard-height, 0px) - var(--touchbar-height, 0px) -
+      min(var(--touchbar-height, 0px), 8px)
+  );
   display: flex;
   flex-direction: column;
   padding-top: var(--safe-top);
@@ -25,6 +30,21 @@
     0 1px 0 var(--edge),
     var(--shadow-pop);
   animation: global(tb-sheet-down) 440ms var(--ease-spring-soft) both;
+}
+
+/* Soft edge where the list runs out of view, so it reads as "more below"
+   rather than as clipped content. The body's bottom padding keeps the last
+   row clear of it. */
+.panel::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  border-radius: inherit;
+  background: linear-gradient(to bottom, transparent, var(--page));
+  pointer-events: none;
 }
 
 .panelClosing {
@@ -113,13 +133,27 @@
 .sectionNav {
   display: flex;
   gap: 4px;
-  padding: 0 14px 10px;
+  padding: 0 0 10px 14px;
   overflow-x: auto;
   flex-shrink: 0;
   scrollbar-width: none;
-  box-shadow: 0 1px 0 var(--hairline);
-  mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
-  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent);
+  /* Keep the auto-scrolled active chip out of the faded edges. */
+  scroll-padding-inline: 14px 28px;
+  mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 14px,
+    #000 calc(100% - 28px),
+    transparent
+  );
+}
+
+/* End spacer (with the 4px gap) so the last chip can scroll clear of the
+   fade; flex scrollers don't reliably honour end padding in WebKit. */
+.sectionNav::after {
+  content: '';
+  flex: 0 0 24px;
 }
 
 .sectionNav::-webkit-scrollbar {
@@ -165,7 +199,7 @@
   min-height: 0;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: max(18px, var(--safe-bottom));
+  padding-bottom: max(32px, env(safe-area-inset-bottom, 0px));
 }
 
 /* ── Grouped sections ──────────────────────────────────────────────── */
@@ -1106,6 +1140,11 @@
 
 .linkBtn:hover {
   text-decoration: underline;
+}
+
+/* A link standing on its own in a section lines up with the section titles. */
+.sectionLink {
+  margin-inline: 2px;
 }
 
 .empty {

@@ -192,6 +192,7 @@
 
 .muted,
 .empty {
+  margin: 0 6px;
   color: var(--ink-3);
   font-size: var(--fs-xs);
   line-height: var(--lh-normal);

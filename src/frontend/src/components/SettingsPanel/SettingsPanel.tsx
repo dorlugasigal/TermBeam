@@ -785,7 +785,7 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
           <section className={styles.section}>
             <button
               type="button"
-              className={styles.linkBtn}
+              className={`${styles.linkBtn} ${styles.sectionLink}`}
               onClick={() => {
                 if (confirm('Reset all preferences to defaults? This will sync to the server.')) {
                   Object.entries(PREF_DEFAULTS).forEach(([k, v]) => {
