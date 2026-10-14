@@ -89,7 +89,7 @@ jobs:
             .commits[]
             | select((.author.login // "") as $a | $a != "dependabot[bot]" and $a != "github-actions[bot]")
             | (.commit.message | split("\n")[0]) as $subject
-            | select(($subject | test("^feat(\\([^)]*\\))?!?:|^[a-z]+(\\([^)]*\\))?!:")) or (.commit.message | test("BREAKING[ -]CHANGE")))
+            | select(($subject | test("^feat(\\([^)]*\\))?!?:|^[a-z]+(\\([^)]*\\))?!:")) or (.commit.message | test("(^|\n)BREAKING[ -]CHANGE:")))
             | "\(.sha[0:7]) \(.commit.author.name): \($subject)"')
           if [ -n "$BLOCKERS" ]; then
             echo "::notice::Skipping the automatic patch release: main has unreleased changes that need a minor or major release since $LAST_TAG."
