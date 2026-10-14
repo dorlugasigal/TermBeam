@@ -127,6 +127,12 @@ export default function CopyOverlay() {
     primaryRef.current?.focus({ preventScroll: true });
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
+      // Another dialog stacked on top (e.g. the Unlock sheet after a session
+      // expires) owns the keyboard: leave its focus trap and Escape alone.
+      const active = document.activeElement;
+      const dialog = active?.closest('[role="dialog"], [role="alertdialog"]');
+      if (dialog && dialog !== overlay) return;
       if (e.key === 'Escape') {
         closeCopyOverlay();
         return;
@@ -138,7 +144,6 @@ export default function CopyOverlay() {
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       if (!first || !last) return;
-      const active = document.activeElement;
       if (!overlay.contains(active)) {
         e.preventDefault();
         first.focus();
