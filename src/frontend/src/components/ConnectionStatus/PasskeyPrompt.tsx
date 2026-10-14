@@ -135,7 +135,7 @@ export function PasskeyPrompt({ method, status, onDone }: PasskeyPromptProps) {
       <ul className={styles.benefits}>
         <li>
           <CheckGlyph />
-          The key never leaves this device — there is nothing to steal or phish.
+          Phishing-resistant: it only works for this TermBeam, which stores just a public key.
         </li>
         <li>
           <CheckGlyph />
