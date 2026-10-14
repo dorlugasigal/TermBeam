@@ -14,6 +14,7 @@ describe('CLI', () => {
     delete process.env.PTY_PASSWORD;
     delete process.env.PTY_CWD;
     delete process.env.PORT;
+    delete process.env.TERMBEAM_PUBLIC_URL;
   });
 
   afterEach(() => {
@@ -53,6 +54,53 @@ describe('CLI', () => {
     const { parseArgs } = require('../../src/cli');
     const config = parseArgs();
     assert.strictEqual(config.port, 8080);
+  });
+
+  it('should parse --public-url and keep only its origin', () => {
+    process.argv = ['node', 'termbeam', '--public-url', 'https://term.example.com/some/path'];
+    const { parseArgs } = require('../../src/cli');
+    assert.strictEqual(parseArgs().publicUrl, 'https://term.example.com');
+  });
+
+  it('should read TERMBEAM_PUBLIC_URL, and let --public-url= override it', () => {
+    process.env.TERMBEAM_PUBLIC_URL = 'https://env.example.com';
+    process.argv = ['node', 'termbeam'];
+    let { parseArgs } = require('../../src/cli');
+    assert.strictEqual(parseArgs().publicUrl, 'https://env.example.com');
+
+    delete require.cache[require.resolve('../../src/cli')];
+    process.argv = ['node', 'termbeam', '--public-url=https://flag.example.com:8443/'];
+    ({ parseArgs } = require('../../src/cli'));
+    assert.strictEqual(parseArgs().publicUrl, 'https://flag.example.com:8443');
+  });
+
+  it('--public-url that is not an http(s) URL should exit with error', () => {
+    const exitCalls = [];
+    const errors = [];
+    const origExit = process.exit;
+    const origError = console.error;
+    process.exit = (code) => exitCalls.push(code);
+    console.error = (msg) => errors.push(String(msg));
+    try {
+      for (const bad of ['ftp://term.example.com', 'not a url']) {
+        exitCalls.length = 0;
+        delete require.cache[require.resolve('../../src/cli')];
+        process.argv = ['node', 'termbeam', '--public-url', bad];
+        const { parseArgs } = require('../../src/cli');
+        parseArgs();
+        assert.ok(exitCalls.includes(1), `${bad} should exit(1)`);
+      }
+      assert.ok(errors.some((m) => m.includes('--public-url must be an http(s) URL')));
+    } finally {
+      process.exit = origExit;
+      console.error = origError;
+    }
+  });
+
+  it('should default publicUrl to null', () => {
+    process.argv = ['node', 'termbeam'];
+    const { parseArgs } = require('../../src/cli');
+    assert.strictEqual(parseArgs().publicUrl, null);
   });
 
   it('should parse --host flag', () => {

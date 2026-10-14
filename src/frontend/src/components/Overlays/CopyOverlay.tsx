@@ -132,7 +132,13 @@ export default function CopyOverlay() {
       : `Copy Text (${totalLines} lines)`;
 
   return (
-    <div className={styles.overlay} data-testid="select-overlay">
+    <div
+      className={styles.overlay}
+      data-testid="select-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Copy Text"
+    >
       <div className={styles.header}>
         <span className={styles.title}>{title}</span>
         <div className={styles.actions}>

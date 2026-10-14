@@ -25,12 +25,16 @@ Options:
   --password <pw>       Set access password (or TERMBEAM_PASSWORD env var)
   --generate-password   Auto-generate a secure password (default: auto)
   --no-password         Disable password authentication
+  --reset-auth          Sign out all remembered devices and remove all passkeys
   --tunnel              Create a devtunnel URL (default: on, private access)
   --no-tunnel           Disable tunnel (LAN-only mode)
   --persisted-tunnel    Create a reusable devtunnel URL (stable across restarts)
   --public              Allow public tunnel access (default: private, owner-only)
   --port <port>         Set port (default: 3456, or PORT env var)
   --host <addr>         Bind address (default: 127.0.0.1)
+  --public-url <url>    Address browsers use when behind your own reverse proxy
+                        (e.g. https://term.example.com); trusted for sign-in,
+                        passkeys and WebSockets (or TERMBEAM_PUBLIC_URL)
   --lan                 Bind to 0.0.0.0 (allow LAN access, default: localhost only)
   --log-level <level>   Set log verbosity: error, warn, info, debug (default: info)
   --force               Stop any existing server before starting a new one
@@ -62,6 +66,7 @@ Environment:
   TERMBEAM_PASSWORD     Access password
   TERMBEAM_CWD          Working directory
   TERMBEAM_LOG_LEVEL    Log level (default: info)
+  TERMBEAM_PUBLIC_URL   Public address behind a reverse proxy (see --public-url)
 `);
 }
 
@@ -283,6 +288,8 @@ function parseArgs() {
   let publicTunnel = false;
   let interactive = false;
   let force = false;
+  let resetAuth = false;
+  let publicUrl = process.env.TERMBEAM_PUBLIC_URL || null;
   let explicitPassword = !!password;
 
   const args = process.argv.slice(2);
@@ -339,6 +346,12 @@ function parseArgs() {
       logLevel = args[i].split('=')[1];
     } else if (args[i] === '--force') {
       force = true;
+    } else if (args[i] === '--reset-auth') {
+      resetAuth = true;
+    } else if (args[i] === '--public-url' && args[i + 1]) {
+      publicUrl = args[++i];
+    } else if (args[i].startsWith('--public-url=')) {
+      publicUrl = args[i].slice('--public-url='.length);
     } else if (args[i].startsWith('--')) {
       console.error(`Unknown flag: ${args[i]}\n`);
       printHelp();
@@ -362,6 +375,23 @@ function parseArgs() {
 
   // --no-tunnel disables the default tunnel
   if (noTunnel) useTunnel = false;
+
+  if (publicUrl) {
+    let parsed = null;
+    try {
+      parsed = new URL(publicUrl);
+    } catch {
+      /* reported below */
+    }
+    if (!parsed || (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')) {
+      log.error(`Invalid public URL: ${publicUrl}`);
+      console.error('Error: --public-url must be an http(s) URL, e.g. https://term.example.com\n');
+      process.exit(1);
+      publicUrl = null;
+    } else {
+      publicUrl = parsed.origin;
+    }
+  }
 
   // --public requires a tunnel
   if (publicTunnel && !useTunnel) {
@@ -406,6 +436,8 @@ function parseArgs() {
     logLevel,
     interactive,
     force,
+    resetAuth,
+    publicUrl,
   };
 
   log.debug(

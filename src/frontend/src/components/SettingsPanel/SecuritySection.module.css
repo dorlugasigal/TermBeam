@@ -1,0 +1,203 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.groupHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 6px;
+}
+
+.groupTitle {
+  font: 600 var(--fs-base) / 1.3 var(--font-ui);
+  color: var(--ink);
+}
+
+.groupHint {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  line-height: 1.45;
+}
+
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--card);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 8px 10px 14px;
+}
+
+.item + .item {
+  box-shadow: inset 0 1px 0 var(--hairline);
+}
+
+.itemGlyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+}
+
+.itemText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.itemName {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+  font: 550 var(--fs-md) / 1.3 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.itemMeta {
+  font: 450 var(--fs-xs) / 1.4 var(--font-ui);
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+.itemActions {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+.badge,
+.badgeAccent {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: var(--r-full);
+  font: 600 var(--fs-2xs) / 1.2 var(--font-ui);
+}
+
+.badge {
+  background: var(--fill-tonal);
+  color: var(--ink-2);
+}
+
+.badgeAccent {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.textBtn {
+  min-height: var(--hit);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font: 600 var(--fs-sm) / 1 var(--font-ui);
+  cursor: pointer;
+  transition:
+    color var(--dur-2) var(--ease-out),
+    background-color var(--dur-2) var(--ease-out);
+}
+
+.textBtn:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--surface-hover);
+}
+
+.textBtn:disabled {
+  opacity: 0.5;
+}
+
+.danger {
+  color: var(--err);
+}
+
+.danger:hover:not(:disabled) {
+  color: var(--err);
+  background: var(--err-soft);
+}
+
+/* "Add a passkey" reads as the last row of a list */
+.addBtn {
+  min-height: 50px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--accent-ink);
+  font: 600 var(--fs-md) / 1 var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+
+.addBtn:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--card), var(--ink) 4%);
+}
+
+.addBtn:disabled {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+.footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.secondaryBtn {
+  min-height: var(--hit);
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--fill-tonal);
+  color: var(--ink);
+  font: 600 var(--fs-sm) / 1 var(--font-ui);
+  cursor: pointer;
+  transition: background-color var(--dur-2) var(--ease-out);
+}
+
+.secondaryBtn:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--fill-tonal), var(--ink) 6%);
+}
+
+.dangerBtn {
+  background: var(--err-soft);
+  color: var(--err);
+}
+
+.dangerBtn:hover:not(:disabled) {
+  background: var(--err-soft);
+}
+
+.muted,
+.empty {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+}
+
+.error {
+  color: var(--err);
+  font-size: var(--fs-xs);
+}

@@ -95,12 +95,19 @@ export default function SearchBar() {
   if (!open) return null;
 
   return (
-    <div className={styles.searchBar} data-testid="search-bar" data-open="true">
+    <div
+      className={styles.searchBar}
+      data-testid="search-bar"
+      data-open="true"
+      role="search"
+      aria-label="Find in terminal"
+    >
       <input
         ref={inputRef}
         className={styles.input}
         type="text"
         placeholder="Search..."
+        aria-label="Search terminal"
         value={query}
         onChange={(e) => handleChange(e.target.value)}
         onKeyDown={handleKeyDown}
@@ -126,11 +133,12 @@ export default function SearchBar() {
         className={`${styles.btn} ${regex ? styles.btnActive : ''}`}
         onClick={() => setRegex((v) => !v)}
         title="Regex"
+        aria-pressed={regex}
       >
         .*
       </button>
       {hasResults !== null && (
-        <span className={styles.indicator}>
+        <span className={styles.indicator} role="status">
           {matchCount && matchCount.resultCount > 0
             ? `${matchCount.resultIndex + 1} of ${matchCount.resultCount}`
             : hasResults

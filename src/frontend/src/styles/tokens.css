@@ -1,0 +1,214 @@
+/*
+ * TermBeam design tokens (v2).
+ *
+ * Principles: calm by default, loud only when something is wrong. One
+ * typeface (Mona Sans, using its width axis for display sizes), JetBrains
+ * Mono only for machine data. Hierarchy comes from size/weight/color — not
+ * from boxes, borders or ALL-CAPS labels.
+ *
+ * Every color is DERIVED from the per-theme inputs in themes.css (--bg,
+ * --surface, --border, --text, --accent…) so all 38 themes — light,
+ * phosphor and neon — get coherent elevation, focus and status colors.
+ * Declared on `:root, [data-theme]` so any element carrying its own
+ * data-theme (theme previews) recomputes them locally.
+ *
+ * `data-tone` (light | dark) and `--on-accent` are set at runtime by
+ * services/themeContrast.ts from the computed theme colors.
+ */
+
+:root {
+  /* Type */
+  --font-ui:
+    'Mona Sans Variable', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: var(--font-ui);
+  --font-mono:
+    'JetBrains Mono Variable', 'TermBeam Nerd Symbols', ui-monospace, 'SF Mono', 'Cascadia Code',
+    Menlo, Consolas, monospace;
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-base: 15px;
+  --fs-lg: 17px;
+  --fs-xl: 22px;
+  --fs-2xl: 28px;
+  --lh-tight: 1.15;
+  --lh-snug: 1.3;
+  --lh-normal: 1.45;
+  /* Display text runs slightly expanded and tighter — Mona Sans' width axis */
+  --display-stretch: 108%;
+  --display-tracking: -0.018em;
+  --tracking-caps: 0.06em;
+
+  /* Space (4pt grid) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+
+  /* Shape */
+  --r-xs: 5px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-full: 999px;
+  --hit: 44px;
+  --control-h: 44px;
+  --control-h-lg: 50px;
+
+  /* Motion */
+  --dur-1: 100ms;
+  --dur-2: 180ms;
+  --dur-3: 260ms;
+  --dur-4: 420ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: var(--ease-out);
+  --ease-spring-soft: var(--ease-out);
+
+  /* Overwritten at runtime with the best-contrast ink for the theme accent */
+  --on-accent: #ffffff;
+}
+
+/* Critically-damped-ish springs (generated, ~1 overshoot) — fall back to ease-out */
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --ease-spring: linear(
+      0,
+      0.009,
+      0.035 2.1%,
+      0.141 4.4%,
+      0.281 6.7%,
+      0.723 12.9%,
+      0.938 16.7%,
+      1.017,
+      1.077 21.3%,
+      1.104 24%,
+      1.114 27%,
+      1.099 31%,
+      1.051 38.7%,
+      1.017 45.6%,
+      0.993 55.9%,
+      0.998 74%,
+      1
+    );
+    --ease-spring-soft: linear(
+      0,
+      0.012,
+      0.049 2.4%,
+      0.196 5.5%,
+      0.625 12.8%,
+      0.861 17.5%,
+      0.979 21.1%,
+      1.032 24.3%,
+      1.053 27.6%,
+      1.052 31.8%,
+      1.014 46.2%,
+      0.998 57.5%,
+      1
+    );
+  }
+}
+
+:root,
+[data-theme] {
+  /* Surfaces: 0 = page/terminal, 1 = grouped content, 2 = raised (sheets, panels), 3 = controls */
+  --surface-0: var(--bg);
+  --surface-1: var(--surface);
+  --surface-2: color-mix(in oklab, var(--surface) 95%, var(--text));
+  --surface-3: color-mix(in oklab, var(--surface) 89%, var(--text));
+  --surface-hover: color-mix(in oklab, var(--text) 5%, transparent);
+  --surface-press: color-mix(in oklab, var(--text) 9%, transparent);
+  --surface-glass: color-mix(in oklab, var(--surface) 82%, transparent);
+
+  /* Grouped-list surfaces: the page and the cards that sit on it */
+  --page: var(--surface-0);
+  --card: var(--surface-1);
+  --page-glass: color-mix(in oklab, var(--page) 82%, transparent);
+  --fill-tonal: var(--surface-3);
+  /* Lifted above a raised surface (segmented-control thumb, toggles) */
+  --raised: color-mix(in oklab, var(--surface-2), var(--text) 13%);
+
+  /* Lines */
+  --hairline: color-mix(in oklab, var(--border) 55%, transparent);
+  --edge: color-mix(in oklab, var(--border) 85%, transparent);
+  --edge-strong: var(--border-subtle);
+  /* 1px light catch on the top edge of raised dark surfaces */
+  --top-light: inset 0 1px 0 color-mix(in oklab, var(--text) 7%, transparent);
+
+  /* Ink */
+  --ink: var(--text);
+  --ink-2: var(--text-secondary);
+  --ink-3: var(--text-dim);
+
+  /* Accent */
+  --accent-soft: color-mix(in oklab, var(--accent) 14%, transparent);
+  --accent-line: color-mix(in oklab, var(--accent) 50%, var(--border));
+  --accent-ink: color-mix(in oklab, var(--accent) 80%, var(--text));
+
+  /* Signals — mixed toward ink so text stays legible on every theme */
+  --ok: color-mix(in oklab, var(--success) 85%, var(--text));
+  --warn: color-mix(in oklab, var(--warning, #e8ab3a) 85%, var(--text));
+  --err: color-mix(in oklab, var(--danger) 85%, var(--text));
+  --ok-soft: color-mix(in oklab, var(--success) 13%, transparent);
+  --warn-soft: color-mix(in oklab, var(--warning, #e8ab3a) 13%, transparent);
+  --err-soft: color-mix(in oklab, var(--danger) 13%, transparent);
+  --ok-line: color-mix(in oklab, var(--success) 45%, var(--border));
+  --warn-line: color-mix(in oklab, var(--warning, #e8ab3a) 45%, var(--border));
+  --err-line: color-mix(in oklab, var(--danger) 45%, var(--border));
+
+  /* TouchBar keys (themes may tune --key-* directly) */
+  --key-face: color-mix(in oklab, var(--key-bg, var(--surface)) 55%, var(--surface));
+  --key-face-mod: color-mix(in oklab, var(--key-special-bg, var(--surface)) 55%, var(--surface));
+
+  /* Focus, scrim, elevation */
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  --scrim: color-mix(in oklab, #000 46%, transparent);
+  --shadow-1: 0 1px 2px color-mix(in oklab, #000 18%, transparent);
+  --shadow-2:
+    0 1px 2px color-mix(in oklab, #000 16%, transparent),
+    0 6px 16px -6px color-mix(in oklab, #000 34%, transparent);
+  --shadow-pop:
+    0 1px 0 color-mix(in oklab, var(--text) 6%, transparent) inset,
+    0 24px 56px -16px color-mix(in oklab, #000 60%, transparent),
+    0 4px 14px -4px color-mix(in oklab, #000 30%, transparent);
+}
+
+/* Light themes: raised surfaces lift toward the page color instead of ink */
+[data-tone='light'] {
+  /* Paper cards on a tinted page, as in iOS grouped lists */
+  --page: var(--surface);
+  --card: var(--bg);
+  --page-glass: color-mix(in oklab, var(--page) 84%, transparent);
+  --fill-tonal: color-mix(in oklab, var(--text) 7%, transparent);
+  --raised: var(--bg);
+  --surface-2: var(--bg);
+  --surface-3: color-mix(in oklab, var(--surface) 70%, var(--bg));
+  --surface-hover: color-mix(in oklab, var(--text) 4%, transparent);
+  --surface-press: color-mix(in oklab, var(--text) 8%, transparent);
+  --surface-glass: color-mix(in oklab, var(--bg) 84%, transparent);
+  --hairline: color-mix(in oklab, var(--border) 80%, transparent);
+  --edge: var(--border);
+  --top-light: inset 0 1px 0 transparent;
+  --ok: color-mix(in oklab, var(--success) 80%, var(--text));
+  --warn: color-mix(in oklab, var(--warning, #d48806) 72%, var(--text));
+  --err: color-mix(in oklab, var(--danger) 88%, var(--text));
+  --scrim: color-mix(in oklab, #000 28%, transparent);
+  --shadow-2:
+    0 1px 2px color-mix(in oklab, #000 8%, transparent),
+    0 6px 16px -6px color-mix(in oklab, #000 16%, transparent);
+  --shadow-pop:
+    0 24px 56px -18px color-mix(in oklab, #000 26%, transparent),
+    0 4px 12px -4px color-mix(in oklab, #000 12%, transparent);
+  color-scheme: light;
+}
+
+[data-tone='dark'] {
+  color-scheme: dark;
+}

@@ -28,6 +28,8 @@ jobs:
       - run: npm ci
       - name: Build frontend
         run: cd src/frontend && npm ci && npm run build
+      - name: Frontend unit tests
+        run: cd src/frontend && npm test
       - run: npm test
 
   coverage:

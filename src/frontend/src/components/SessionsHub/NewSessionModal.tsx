@@ -1,6 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-
-import * as Dialog from '@radix-ui/react-dialog';
+import { useState, useEffect, useCallback, useRef, useId, useLayoutEffect } from 'react';
 import { toast } from 'sonner';
 import { createSession, fetchShells, fetchAgents } from '@/services/api';
 import type { ShellInfo, AgentInfo } from '@/services/api';
@@ -11,10 +9,17 @@ import { usePreferencesStore } from '@/stores/preferencesStore';
 import { FolderBrowser } from '@/components/FolderBrowser/FolderBrowser';
 import { AgentIcon } from '@/components/common/AgentIcon';
 import { CopilotLogo } from '@/components/common/CopilotLogo';
+import { Sheet } from '@/components/common/Sheet';
+import form from '@/styles/forms.module.css';
 import styles from './NewSessionModal.module.css';
 
 interface NewSessionModalProps {
-  onCreated: (id: string, type?: 'terminal' | 'copilot', ptySessionId?: string | null, model?: string) => void;
+  onCreated: (
+    id: string,
+    type?: 'terminal' | 'copilot',
+    ptySessionId?: string | null,
+    model?: string,
+  ) => void;
 }
 
 const COPILOT_MODELS = [
@@ -31,6 +36,18 @@ const COPILOT_MODELS = [
   { id: 'gpt-5-mini', label: 'GPT-5 Mini' },
   { id: 'gpt-4.1', label: 'GPT-4.1' },
 ];
+
+const DEFAULT_MODEL = 'claude-opus-4.6';
+
+/** Grow a textarea to fit its content (fallback for `field-sizing: content`). */
+function useAutoGrow(ref: React.RefObject<HTMLTextAreaElement | null>, value: string) {
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [ref, value]);
+}
 
 function folderName(dir: string): string {
   const parts = dir.replace(/[/\\]+$/, '').split(/[/\\]/);
@@ -62,7 +79,10 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   const [color, setColor] = useState<SessionColor>(SESSION_COLORS[0]);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   // Copilot-specific state
-  const [model, setModel] = useState('claude-opus-4.6');
+  const [model, setModel] = useState(DEFAULT_MODEL);
+  const ids = useId();
+  const cwdRef = useRef<HTMLTextAreaElement>(null);
+  useAutoGrow(cwdRef, cwd);
 
   const deriveNameFromCwd = useCallback(
     (dir: string, mode?: 'terminal' | 'copilot') => {
@@ -149,7 +169,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     setInitialCommand('');
     setColor(SESSION_COLORS[0]);
     setBrowsing(false);
-    setModel('claude-sonnet-4');
+    setModel(DEFAULT_MODEL);
     cwdTouchedRef.current = false;
     initialCommandTouchedRef.current = false;
   }
@@ -202,7 +222,12 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
       }
       closeNewSessionModal();
       resetForm();
-      onCreated(session.id, sessionMode, session.ptySessionId ?? null, sessionMode === 'copilot' ? model : undefined);
+      onCreated(
+        session.id,
+        sessionMode,
+        session.ptySessionId ?? null,
+        sessionMode === 'copilot' ? model : undefined,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create session');
     } finally {
@@ -238,234 +263,310 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     }
   }
 
+  const close = () => {
+    closeNewSessionModal();
+    resetForm();
+  };
+  const modeIndex = sessionMode === 'terminal' ? 0 : 1;
+
   return (
-    <Dialog.Root
+    <Sheet
       open={newSessionModalOpen}
       onOpenChange={(open) => {
-        if (!open) {
-          closeNewSessionModal();
-          resetForm();
-        }
+        if (!open) close();
       }}
+      title={browsing ? 'Choose a folder' : 'New session'}
+      testId="new-session-modal"
+      onOpenAutoFocus={(e) => e.preventDefault()}
+      bodyClassName={browsing ? styles.browserBody : undefined}
+      headerExtra={
+        !browsing && (
+          <div
+            className={form.segmented}
+            role="group"
+            aria-label="Session type"
+            style={{ ['--segment-index' as string]: modeIndex, ['--segments' as string]: 2 }}
+          >
+            <span className={form.segmentThumb} aria-hidden="true" />
+            <button
+              type="button"
+              className={form.segment}
+              aria-pressed={sessionMode === 'terminal'}
+              onClick={() => handleModeSwitch('terminal')}
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m5 7 5 5-5 5M12.5 17H19" />
+              </svg>
+              Terminal
+            </button>
+            <button
+              type="button"
+              className={form.segment}
+              aria-pressed={sessionMode === 'copilot'}
+              onClick={() => handleModeSwitch('copilot')}
+            >
+              <CopilotLogo size={14} /> Copilot
+            </button>
+          </div>
+        )
+      }
+      footer={
+        !browsing && (
+          <>
+            <button
+              type="button"
+              className={`${form.btn} ${form.tonal} ${form.grow}`}
+              data-testid="ns-cancel"
+              onClick={close}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form={`${ids}-form`}
+              className={`${form.btn} ${form.primary} ${form.grow}`}
+              disabled={submitting}
+              data-testid="ns-create"
+            >
+              {submitting
+                ? 'Creating…'
+                : sessionMode === 'copilot'
+                  ? 'Start Copilot session'
+                  : 'Create session'}
+            </button>
+          </>
+        )
+      }
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className={styles.overlay} />
-        <Dialog.Content
-          className={styles.content}
-          data-testid="new-session-modal"
-          onOpenAutoFocus={(e) => e.preventDefault()}
+      {browsing ? (
+        <FolderBrowser
+          currentDir={cwd || defaultFolder || '/'}
+          onSelect={(dir: string) => {
+            cwdTouchedRef.current = true;
+            setCwd(dir);
+            deriveNameFromCwd(dir);
+            setBrowsing(false);
+          }}
+          onCancel={() => setBrowsing(false)}
+        />
+      ) : (
+        <form
+          id={`${ids}-form`}
+          className={form.stack}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!submitting) void handleSubmit();
+          }}
         >
-          <Dialog.Title className={styles.title}>New Session</Dialog.Title>
-
-          {browsing ? (
-            <FolderBrowser
-              currentDir={cwd || defaultFolder || '/'}
-              onSelect={(dir: string) => {
-                cwdTouchedRef.current = true;
-                setCwd(dir);
-                deriveNameFromCwd(dir);
-                setBrowsing(false);
-              }}
-              onCancel={() => setBrowsing(false)}
-            />
-          ) : (
-            <div className={styles.form}>
-              {/* Session type tabs */}
-              <div className={styles.sessionTypeTabs}>
-                <button
-                  type="button"
-                  className={`${styles.sessionTypeTab} ${sessionMode === 'terminal' ? styles.sessionTypeTabActive : ''}`}
-                  onClick={() => handleModeSwitch('terminal')}
-                >
-                  &gt;_ Terminal
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.sessionTypeTab} ${sessionMode === 'copilot' ? styles.sessionTypeTabActive : ''}`}
-                  onClick={() => handleModeSwitch('copilot')}
-                >
-                  <CopilotLogo size={14} /> GitHub Copilot
-                </button>
-              </div>
-
-              {/* Working Directory — shared by both modes */}
-              <div className={styles.field}>
-                <label className={styles.label}>Working Directory</label>
-                <div className={styles.dirRow}>
-                  <input
-                    className={styles.input}
-                    type="text"
-                    placeholder={defaultFolder || '/'}
-                    value={cwd}
-                    onChange={(e) => {
-                      cwdTouchedRef.current = true;
-                      setCwd(e.target.value);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className={styles.browseBtn}
-                    onClick={() => setBrowsing(true)}
-                  >
-                    Browse
-                  </button>
-                </div>
-              </div>
-
-              {/* Name — shared by both modes */}
-              <div className={styles.field}>
-                <label className={styles.label}>Name</label>
-                <input
-                  className={styles.input}
-                  type="text"
-                  placeholder={
-                    sessionMode === 'copilot'
-                      ? `${folderName(cwd || '/')} · Copilot`
-                      : folderName(cwd || '/')
+          <div className={form.field}>
+            <label className={form.label} htmlFor={`${ids}-cwd`}>
+              Folder
+            </label>
+            <div className={form.inputRow}>
+              <textarea
+                ref={cwdRef}
+                id={`${ids}-cwd`}
+                className={`${form.textarea} ${form.mono}`}
+                rows={1}
+                placeholder={defaultFolder || '/'}
+                value={cwd}
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+                onChange={(e) => {
+                  cwdTouchedRef.current = true;
+                  setCwd(e.target.value.replace(/[\r\n]+/g, ''));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.currentTarget.form?.requestSubmit();
                   }
-                  value={name}
+                }}
+              />
+              <button
+                type="button"
+                className={`${form.btn} ${form.tonal} ${styles.browseBtn}`}
+                onClick={() => setBrowsing(true)}
+              >
+                Browse
+              </button>
+            </div>
+          </div>
+
+          <div className={sessionMode === 'terminal' ? form.row : form.field}>
+            <div className={form.field}>
+              <label className={form.label} htmlFor={`${ids}-name`}>
+                Name
+              </label>
+              <input
+                id={`${ids}-name`}
+                className={form.input}
+                type="text"
+                placeholder={
+                  sessionMode === 'copilot'
+                    ? `${folderName(cwd || '/')} · Copilot`
+                    : folderName(cwd || '/')
+                }
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setNameManuallyEdited(true);
+                }}
+                data-testid="ns-name"
+              />
+            </div>
+
+            {sessionMode === 'terminal' && (
+              <div className={form.field}>
+                <label className={form.label} htmlFor={`${ids}-shell`}>
+                  Shell
+                </label>
+                <select
+                  id={`${ids}-shell`}
+                  className={form.select}
+                  value={shell}
+                  onChange={(e) => setShell(e.target.value)}
+                  data-testid="ns-shell"
+                >
+                  {shells.map((s) => (
+                    <option key={s.path} value={s.cmd}>
+                      {s.name} — {s.path}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {sessionMode === 'terminal' && (
+            <>
+              <div className={form.field}>
+                <label className={form.label} htmlFor={`${ids}-cmd`}>
+                  Run on start <span className={form.optional}>Optional</span>
+                </label>
+                <input
+                  id={`${ids}-cmd`}
+                  className={`${form.input} ${form.mono}`}
+                  type="text"
+                  placeholder={defaultInitialCommand || 'npm run dev'}
+                  value={initialCommand}
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  autoCorrect="off"
                   onChange={(e) => {
-                    setName(e.target.value);
-                    setNameManuallyEdited(true);
+                    initialCommandTouchedRef.current = true;
+                    setInitialCommand(e.target.value);
                   }}
-                  data-testid="ns-name"
                 />
               </div>
 
-              {/* Terminal-specific fields */}
-              {sessionMode === 'terminal' && (
-                <>
-                  <div className={styles.field}>
-                    <label className={styles.label}>Shell</label>
-                    <select
-                      className={styles.select}
-                      value={shell}
-                      onChange={(e) => setShell(e.target.value)}
-                      data-testid="ns-shell"
-                    >
-                      {shells.map((s) => (
-                        <option key={s.path} value={s.cmd}>
-                          {s.name} ({s.path})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className={styles.field}>
-                    <label className={styles.label}>Initial command</label>
-                    <input
-                      className={styles.input}
-                      type="text"
-                      placeholder={defaultInitialCommand || 'e.g. npm run dev'}
-                      value={initialCommand}
-                      onChange={(e) => {
-                        initialCommandTouchedRef.current = true;
-                        setInitialCommand(e.target.value);
-                      }}
+              <div className={form.field} role="group" aria-labelledby={`${ids}-color`}>
+                <span className={form.label} id={`${ids}-color`}>
+                  Color
+                </span>
+                <div className={form.swatches}>
+                  {SESSION_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={form.swatch}
+                      style={{ ['--swatch' as string]: c }}
+                      aria-pressed={c === color}
+                      onClick={() => setColor(c)}
+                      aria-label={`Color ${c}`}
                     />
-                  </div>
+                  ))}
+                </div>
+              </div>
 
-                  <div className={styles.field}>
-                    <label className={styles.label}>Color</label>
-                    <div className={styles.colorPicker}>
-                      {SESSION_COLORS.map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          className={`${styles.colorDot} ${c === color ? styles.colorDotActive : ''}`}
-                          style={{ background: c }}
-                          onClick={() => setColor(c)}
-                          aria-label={`Color ${c}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {agents.length > 0 && (
-                    <div className={styles.field}>
-                      <label className={styles.label}>AI Agents</label>
-                      <div className={styles.agentGrid}>
-                        {agents.map((agent) => (
-                          <button
-                            key={agent.id}
-                            type="button"
-                            className={styles.agentCard}
-                            disabled={submitting}
-                            onClick={() => handleAgentLaunch(agent)}
-                          >
-                            <span className={styles.agentIcon}>
-                              {<AgentIcon agent={agent.icon || agent.id} size="md" />}
-                            </span>
-                            <span className={styles.agentName}>{agent.name}</span>
-                            {agent.version && (
-                              <span className={styles.agentVersion}>{agent.version}</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Copilot-specific fields */}
-              {sessionMode === 'copilot' && (
-                <div className={styles.field}>
-                  <label className={styles.label}>Model</label>
-                  <select
-                    className={styles.modelSelect}
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    data-testid="ns-model"
-                  >
-                    {COPILOT_MODELS.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.label}
-                      </option>
+              {agents.length > 0 && (
+                <div className={form.field} role="group" aria-labelledby={`${ids}-agents`}>
+                  <span className={form.label} id={`${ids}-agents`}>
+                    Or start an agent
+                  </span>
+                  <div className={styles.agentGrid}>
+                    {agents.map((agent) => (
+                      <button
+                        key={agent.id}
+                        type="button"
+                        className={styles.agentCard}
+                        disabled={submitting}
+                        onClick={() => handleAgentLaunch(agent)}
+                      >
+                        <span className={styles.agentIcon}>
+                          <AgentIcon agent={agent.icon || agent.id} size="md" />
+                        </span>
+                        <span className={styles.agentText}>
+                          <span className={styles.agentName}>{agent.name}</span>
+                          {agent.version && (
+                            <span className={styles.agentVersion}>{agent.version}</span>
+                          )}
+                        </span>
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
               )}
+            </>
+          )}
 
-              {/* Resume link */}
-              <button
-                type="button"
-                className={styles.resumeLink}
-                onClick={() => {
-                  closeNewSessionModal();
-                  useUIStore.getState().openResumeBrowser();
-                }}
+          {sessionMode === 'copilot' && (
+            <div className={form.field}>
+              <label className={form.label} htmlFor={`${ids}-model`}>
+                Model
+              </label>
+              <select
+                id={`${ids}-model`}
+                className={form.select}
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                data-testid="ns-model"
               >
-                Resume previous session →
-              </button>
-
-              {/* Actions */}
-              <div className={styles.actions}>
-                <button
-                  type="button"
-                  className={styles.cancelBtn}
-                  data-testid="ns-cancel"
-                  onClick={() => {
-                    closeNewSessionModal();
-                    resetForm();
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className={styles.submitBtn}
-                  disabled={submitting}
-                  data-testid="ns-create"
-                  onClick={handleSubmit}
-                >
-                  {sessionMode === 'copilot' ? 'Start Copilot Session' : 'Create'}
-                </button>
-              </div>
+                {COPILOT_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+
+          <button
+            type="button"
+            className={`${form.btn} ${form.quiet} ${styles.resumeLink}`}
+            onClick={() => {
+              closeNewSessionModal();
+              useUIStore.getState().openResumeBrowser();
+            }}
+          >
+            Resume an earlier agent session
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </button>
+        </form>
+      )}
+    </Sheet>
   );
 }

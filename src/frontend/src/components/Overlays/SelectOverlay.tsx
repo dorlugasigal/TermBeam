@@ -94,10 +94,16 @@ export default function SelectOverlay() {
       : `Copy Text (${totalLines} lines)`;
 
   return (
-    <div className={styles.selectOverlay} data-testid="select-overlay">
+    <div
+      className={styles.selectOverlay}
+      data-testid="select-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Copy Text"
+    >
       <div className={styles.selectHeader}>
-        <span style={{ color: 'var(--text, #ccc)', fontSize: 14, fontWeight: 600 }}>{title}</span>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <span className={styles.selectTitle}>{title}</span>
+        <div className={styles.actions}>
           <button className={styles.btnPrimary} onClick={handleCopy}>
             Copy
           </button>

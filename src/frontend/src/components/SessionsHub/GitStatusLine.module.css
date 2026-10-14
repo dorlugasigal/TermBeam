@@ -1,0 +1,56 @@
+.line {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0;
+  row-gap: 2px;
+  font: 450 var(--fs-sm) / 1.4 var(--font-ui);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.part {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28em;
+  white-space: nowrap;
+}
+
+/* Middle-dot separators that never start a wrapped line */
+.part + .part::before {
+  content: '·';
+  margin: 0 0.5em;
+  color: var(--ink-3);
+  opacity: 0.7;
+}
+
+.count {
+  font-weight: 600;
+}
+
+.part[data-tone='staged'] .count {
+  color: var(--ok);
+}
+
+.part[data-tone='modified'] .count {
+  color: var(--warn);
+}
+
+.part[data-tone='untracked'] .count {
+  color: var(--ink-2);
+}
+
+.part[data-tone='sync'] {
+  font-family: var(--font-mono);
+  font-size: 0.94em;
+  color: var(--ink-2);
+}
+
+.part[data-tone='clean'] {
+  align-items: center;
+}
+
+.check {
+  color: var(--ok);
+  flex: none;
+}

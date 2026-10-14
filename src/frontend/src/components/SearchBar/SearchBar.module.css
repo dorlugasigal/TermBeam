@@ -1,67 +1,91 @@
 .searchBar {
   position: absolute;
-  top: calc(40px + env(safe-area-inset-top, 0px));
-  right: 0;
-  z-index: 50;
-  display: flex;
+  top: var(--terminal-top, calc(44px + var(--safe-top)));
+  right: var(--sp-2);
+  z-index: 61;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(4, 44px);
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: var(--surface, #1e1e2e);
-  border-bottom: 1px solid var(--border, #333);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  animation: slide-down 0.15s ease;
+  gap: var(--sp-1);
+  width: min(560px, calc(100% - var(--sp-4)));
+  padding: var(--sp-2);
+  background: var(--surface-2);
+  border: 1px solid var(--edge);
+  border-top: 0;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  box-shadow: var(--shadow-pop);
+  touch-action: auto;
+  animation: global(tb-fade) var(--dur-2) var(--ease-out);
 }
 
 .input {
-  flex: 1;
   min-width: 0;
-  padding: 6px 10px;
-  border: 1px solid var(--border, #444);
-  border-radius: 4px;
-  background: var(--input-bg, #111);
-  color: var(--text, #ccc);
-  font-size: 13px;
-  outline: none;
-  font-family: inherit;
-}
-
-.input:focus {
-  border-color: var(--accent, #4a9eff);
+  width: 100%;
+  height: var(--hit);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-sm);
+  background: var(--surface-0);
+  color: var(--ink);
+  font-size: var(--fs-base);
+  font-family: var(--font-mono);
 }
 
 .btn {
-  background: none;
-  border: 1px solid var(--border, #444);
-  border-radius: 4px;
-  color: var(--text, #ccc);
-  cursor: pointer;
-  padding: 4px 8px;
-  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit);
+  height: var(--hit);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
   line-height: 1;
+  cursor: pointer;
+}
+
+.btn:last-child {
+  grid-column: 5;
+  grid-row: 1;
 }
 
 .btn:hover {
-  background: var(--border, #333);
+  background: var(--surface-hover);
+  color: var(--ink);
 }
 
 .btnActive {
-  background: var(--accent, #4a9eff);
-  color: #fff;
-  border-color: var(--accent, #4a9eff);
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-color: var(--accent-line);
 }
 
 .indicator {
-  font-size: 12px;
-  color: var(--text-muted, #666);
+  grid-column: 1 / -1;
+  grid-row: 2;
+  padding: 0 var(--sp-1) var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--ink-3);
   white-space: nowrap;
 }
 
-@keyframes slide-down {
-  from {
-    transform: translateY(-100%);
+@media (max-width: 640px) {
+  .searchBar {
+    right: 0;
+    width: 100%;
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
   }
-  to {
-    transform: translateY(0);
+}
+
+@media (pointer: coarse) {
+  .input {
+    font-size: max(var(--fs-base), var(--fs-lg));
   }
 }

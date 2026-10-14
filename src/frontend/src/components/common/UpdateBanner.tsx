@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { checkUpdate, triggerUpdate, getUpdateStatus, type UpdateState } from '@/services/api';
+import { useConnectionStore } from '@/stores/connectionStore';
 import styles from './UpdateBanner.module.css';
 
 const CopyIcon = () => (
@@ -48,6 +49,15 @@ type BannerState =
 
 export default function UpdateBanner() {
   const [state, setState] = useState<BannerState>({ kind: 'hidden' });
+
+  // Mirror an in-flight update into the connection store so the restart
+  // window reads as "Updating" instead of "Can't reach your computer".
+  useEffect(() => {
+    const { setUpdating } = useConnectionStore.getState();
+    if (state.kind === 'updating') setUpdating(state.phase);
+    else if (state.kind === 'restarting') setUpdating('Restarting with the new version');
+    else setUpdating(null);
+  }, [state]);
   const [dismissed, setDismissed] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
   // Persist the update command across state transitions so it's available in error states

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -198,31 +198,8 @@ export default function TouchBar() {
     return groups;
   }, [effectiveKeys]);
 
-  const rowCount = useMemo(() => {
-    let last = 1;
-    for (const r of [1, 2, 3] as const) {
-      if (rowGroups[r].length > 0) last = r;
-    }
-    return last;
-  }, [rowGroups]);
-
-  // Publish bar height as a CSS var so .terminalArea sizes itself
-  // dynamically. Height = handle padding (36) + N rows of 32 + (N-1) gaps
-  // of 4 + 8 bottom padding = 36 + 32N + 4(N-1) + 8 = 36N + 40
-  // For N=2: 112, for N=3: 148. Bottom padding bumped to 8px so the per-key
-  // box-shadow renders inside the bar instead of getting clipped against
-  // the iOS keyboard underneath.
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const root = document.documentElement;
-    const expandedH = 36 + rowCount * 32 + (rowCount - 1) * 4 + 8;
-    root.style.setProperty('--touchbar-height', collapsed ? '26px' : `${expandedH}px`);
-    return () => {
-      root.style.removeProperty('--touchbar-height');
-    };
-  }, [collapsed, rowCount]);
-  const activeSessionType = useSessionStore(
-    (s) => (s.activeId ? s.sessions.get(s.activeId)?.type : undefined),
+  const activeSessionType = useSessionStore((s) =>
+    s.activeId ? s.sessions.get(s.activeId)?.type : undefined,
   );
   const isAgentMode = activeSessionType === 'copilot';
   const showingAgentTerminal = useUIStore((s) => s.showingAgentTerminal);
@@ -235,6 +212,30 @@ export default function TouchBar() {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const micTouchStartY = useRef<number | null>(null);
   const { keyboardOpen, keyboardHeight } = useMobileKeyboard();
+  const barRef = useRef<HTMLDivElement>(null);
+  const isLandscapeTight =
+    typeof window !== 'undefined' &&
+    (window.matchMedia?.('(orientation: landscape) and (max-height: 500px)')?.matches ?? false);
+  const hidden = (keyboardOpen && isLandscapeTight) || (isAgentMode && !showingAgentTerminal);
+
+  // Measure the rendered deck, including safe areas and custom row layouts.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const bar = barRef.current;
+    if (hidden || !bar) {
+      root.style.setProperty('--touchbar-height', '0px');
+      return;
+    }
+    const measure = () =>
+      root.style.setProperty('--touchbar-height', `${bar.getBoundingClientRect().height}px`);
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    measure();
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty('--touchbar-height');
+    };
+  }, [hidden, collapsed, effectiveKeys, keyboardOpen]);
 
   const MIC_LOCK_SWIPE_THRESHOLD = 40;
 
@@ -314,6 +315,8 @@ export default function TouchBar() {
       repeatIntervalRef.current = null;
     }
   }, []);
+
+  useEffect(() => clearRepeat, [clearRepeat]);
 
   const resolveKeyData = useCallback(
     (def: KeyDef): string | null => {
@@ -467,7 +470,18 @@ export default function TouchBar() {
       if (ctrlActive) setCtrlActive(false);
       if (shiftActive) setShiftActive(false);
     },
-    [resolveKeyData, flash, ctrlActive, shiftActive, handleCopy, handlePaste, haptics],
+    [
+      resolveKeyData,
+      flash,
+      ctrlActive,
+      shiftActive,
+      handleCopy,
+      handlePaste,
+      haptics,
+      keyboardHeight,
+      setCtrlActive,
+      setShiftActive,
+    ],
   );
 
   const handleMouseDown = useCallback(
@@ -526,7 +540,7 @@ export default function TouchBar() {
 
       handlePress(def);
     },
-    [handlePress],
+    [handlePress, clearRepeat],
   );
 
   const getKeyClassName = (def: KeyDef): string => {
@@ -546,10 +560,10 @@ export default function TouchBar() {
     // `custom`, where user-supplied bg/color win via inline styles). For the
     // modifier-toggle highlight the .modifier class supplies the .active rule,
     // so attach it whenever a key carries a modifier regardless of its look.
-    if (def.type === undefined || def.type === 'plain') classes.push(styles.plain);
     if (def.type === 'accent') classes.push(styles.accent);
     if (def.type === 'danger') classes.push(styles.danger);
     if (def.modifier && def.type !== 'modifier') classes.push(styles.modifier);
+    if (ARROW_MAP[def.data] || def.data === '\r') classes.push(styles.glyph);
 
     if (isModActive) classes.push(styles.active);
     if (flashKey === def.label) classes.push(styles.flash);
@@ -574,7 +588,6 @@ export default function TouchBar() {
   // accidentally repainted by inline-style spread).
   const renderKey = (
     def: KeyDef & { size?: number; col?: number; bg?: string; color?: string },
-    index?: number,
   ) => {
     const hasCustom = !!(customKeys && customKeys.length > 0);
     // Use explicit grid placement when the key declares a col, so it lands
@@ -587,28 +600,31 @@ export default function TouchBar() {
         : undefined;
     const inlineStyle: React.CSSProperties = {
       ...(gridColumn ? { gridColumn } : {}),
-      ...(hasCustom && def.bg ? { background: def.bg } : {}),
-      ...(hasCustom && def.color ? { color: def.color } : {}),
+      ...(hasCustom && def.bg ? { ['--custom-key-bg' as string]: def.bg } : {}),
+      ...(hasCustom && def.color ? { ['--custom-key-ink' as string]: def.color } : {}),
     };
-    if (typeof index === 'number') {
-      (inlineStyle as Record<string, string | number>)['--key-i'] = index;
-    }
     const styleProp = Object.keys(inlineStyle).length > 0 ? inlineStyle : undefined;
     return (
       <button
         key={def.id ?? def.label}
-        className={`${getKeyClassName(def)} ${styles.keyAnimIn}`}
+        className={getKeyClassName(def)}
         style={styleProp}
         data-testid={getTestId(def)}
+        aria-pressed={
+          def.modifier === 'ctrl' ? ctrlActive : def.modifier === 'shift' ? shiftActive : undefined
+        }
         onClick={() => handlePress(def)}
-        onMouseDown={() => handleMouseDown(def)}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          handleMouseDown(def);
+        }}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onTouchStart={(e) => handleTouchStart(def, e)}
         onTouchEnd={(e) => handleTouchEnd(def, e)}
         onTouchCancel={handleMouseUp}
       >
-        {def.label}
+        <span className={styles.keyLabel}>{def.label}</span>
       </button>
     );
   };
@@ -619,102 +635,146 @@ export default function TouchBar() {
   // Adding extra height here previously caused a safe-area-sized gap between
   // the terminal bottom and the touchbar top.
 
-  // In tight landscape, hide the touchbar when the keyboard is open to
-  // maximize terminal space. The on-screen keyboard already provides keys.
-  const isLandscapeTight =
-    typeof window !== 'undefined' &&
-    (window.matchMedia?.('(orientation: landscape) and (max-height: 500px)')?.matches ?? false);
-
-  if (keyboardOpen && isLandscapeTight) return null;
+  if (hidden) return null;
 
   const micCol = micKey?.col ?? 8;
-  const micButton = SpeechRecognitionAPI ? (
-    <button
-      className={`${styles.keyBtn} ${styles.special} ${styles.micBtn} ${styles.keyAnimIn} ${isRecording ? styles.recording : ''} ${micLocked ? styles.micLocked : ''}`}
-      data-testid="mic-btn"
-      style={{ '--key-i': 14, gridColumn: `${micCol} / span 1` } as React.CSSProperties}
-      onMouseDown={(e) => {
-        e.preventDefault();
-        if (micLocked) {
-          forceStopMic();
-        } else {
-          startMic();
-        }
-      }}
-      onMouseUp={() => {
-        if (!micLocked) stopMic();
-      }}
-      onMouseLeave={() => {
-        if (!micLocked) stopMic();
-      }}
-      onTouchStart={(e) => {
-        e.preventDefault();
-        if (micLocked) {
-          forceStopMic();
-        } else {
-          micTouchStartY.current = e.touches[0]?.clientY ?? null;
-          startMic();
-        }
-      }}
-      onTouchMove={(e) => {
-        if (!isRecording || micLocked || micTouchStartY.current === null) return;
-        const currentY = e.touches[0]?.clientY;
-        if (currentY === undefined) return;
-        const dy = micTouchStartY.current - currentY;
-        if (dy > MIC_LOCK_SWIPE_THRESHOLD) {
-          setMicLocked(true);
+  const micButton =
+    SpeechRecognitionAPI && micKey ? (
+      <button
+        className={`${getKeyClassName(touchBarKeyToDef(micKey))} ${styles.micBtn} ${isRecording ? styles.recording : ''} ${micLocked ? styles.micLocked : ''}`}
+        data-testid="mic-btn"
+        aria-label={micKey?.label || 'Microphone'}
+        aria-pressed={isRecording}
+        title={isRecording ? 'Release to stop · swipe up to lock' : 'Hold to dictate'}
+        style={{
+          gridColumn: `${micCol} / span ${micKey?.size ?? 1}`,
+          ...(micKey?.bg ? { ['--custom-key-bg' as string]: micKey.bg } : {}),
+          ...(micKey?.color ? { ['--custom-key-ink' as string]: micKey.color } : {}),
+        }}
+        onClick={(e) => {
+          if (e.detail !== 0) return;
+          if (isRecording) forceStopMic();
+          else {
+            startMic();
+            setMicLocked(true);
+          }
+        }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          if (micLocked) {
+            forceStopMic();
+          } else {
+            startMic();
+          }
+        }}
+        onMouseUp={() => {
+          if (!micLocked) stopMic();
+        }}
+        onMouseLeave={() => {
+          if (!micLocked) stopMic();
+        }}
+        onTouchStart={(e) => {
+          e.preventDefault();
+          if (micLocked) {
+            forceStopMic();
+          } else {
+            micTouchStartY.current = e.touches[0]?.clientY ?? null;
+            startMic();
+          }
+        }}
+        onTouchMove={(e) => {
+          if (!isRecording || micLocked || micTouchStartY.current === null) return;
+          const currentY = e.touches[0]?.clientY;
+          if (currentY === undefined) return;
+          const dy = micTouchStartY.current - currentY;
+          if (dy > MIC_LOCK_SWIPE_THRESHOLD) {
+            setMicLocked(true);
+            micTouchStartY.current = null;
+          }
+        }}
+        onTouchEnd={(e) => {
+          e.preventDefault();
           micTouchStartY.current = null;
-        }
-      }}
-      onTouchEnd={(e) => {
-        e.preventDefault();
-        micTouchStartY.current = null;
-        if (!micLocked) stopMic();
-      }}
-      onTouchCancel={() => {
-        micTouchStartY.current = null;
-        if (!micLocked) stopMic();
-      }}
-    >
-      {micLocked ? (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        </svg>
-      ) : isRecording ? (
-        <>
-          <span className={styles.micDot} />
-          <svg className={styles.lockHint} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="18 15 12 9 6 15" />
+          if (!micLocked) stopMic();
+        }}
+        onTouchCancel={() => {
+          micTouchStartY.current = null;
+          if (!micLocked) stopMic();
+        }}
+      >
+        {micLocked ? (
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-        </>
-      ) : (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-          <line x1="12" y1="19" x2="12" y2="23" />
-          <line x1="8" y1="23" x2="16" y2="23" />
-        </svg>
-      )}
-    </button>
-  ) : null;
-
-  // Hide touchbar only for copilot CHAT mode (not when showing terminal)
-  if (isAgentMode && !showingAgentTerminal) return null;
+        ) : isRecording ? (
+          <>
+            <span className={styles.micDot} />
+            <svg
+              className={styles.lockHint}
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="18 15 12 9 6 15" />
+            </svg>
+          </>
+        ) : (
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <line x1="12" y1="19" x2="12" y2="23" />
+            <line x1="8" y1="23" x2="16" y2="23" />
+          </svg>
+        )}
+      </button>
+    ) : null;
 
   return (
-    <div className={styles.touchBarWrapper} data-collapsed={collapsed ? 'true' : 'false'}>
-      <div className={styles.touchBar}>
+    <div
+      className={styles.touchBarWrapper}
+      data-collapsed={collapsed ? 'true' : 'false'}
+      data-keyboard-open={keyboardOpen || undefined}
+    >
+      <div className={styles.touchBar} ref={barRef}>
         <button
           type="button"
           className={styles.collapseHandle}
           aria-label={collapsed ? 'Expand TouchBar' : 'Collapse TouchBar'}
           aria-expanded={!collapsed}
+          aria-controls="touchbar-keys"
           onMouseDown={(e) => e.preventDefault()}
           onTouchStart={(e) => e.preventDefault()}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            setCollapsed((value) => !value);
+          }}
           onClick={() => setCollapsed(!collapsed)}
         />
-        <div className={styles.rows} aria-hidden={collapsed}>
+        <div className={styles.rows} id="touchbar-keys" aria-hidden={collapsed} inert={collapsed}>
           {([1, 2, 3] as const).map((rowNum) => {
             if (rowGroups[rowNum].length === 0) return null;
             // Sort by `col` so DOM order matches visual column order.
@@ -722,18 +782,15 @@ export default function TouchBar() {
             // when DOM order is out of column order — see sortKeysByCol's
             // docstring and the matching customizer fix in commit ab68d5eb.
             const sortedKeys = sortKeysByCol(rowGroups[rowNum]);
-            const startIndex = (rowNum - 1) * 8;
             return (
               <div key={`row-${rowNum}`} className={styles.row}>
-                {sortedKeys.map((k, i) => {
+                {sortedKeys.map((k) => {
                   // Render the mic in its sorted-by-col position rather
                   // than always last, so DOM order is strictly L→R.
                   if (k.action === 'mic' && k.id === micKey?.id) {
-                    return (
-                      <React.Fragment key={k.id ?? 'mic'}>{micButton}</React.Fragment>
-                    );
+                    return <React.Fragment key={k.id ?? 'mic'}>{micButton}</React.Fragment>;
                   }
-                  return renderKey(touchBarKeyToDef(k), startIndex + i);
+                  return renderKey(touchBarKeyToDef(k));
                 })}
               </div>
             );

@@ -5,25 +5,37 @@
   justify-content: center;
   height: 100vh;
   height: 100dvh;
-  background: var(--bg);
-  color: var(--text);
-  /*
-   * The whole composition fades up gently after a beat so it feels like the
-   * app is "powering on" rather than snapping into place. The logo's own
-   * radar pulse continues forever after this entrance settles.
-   */
-  animation: splash-enter 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: 0.05s;
-  /* Reserve space for the status line so the logo stays centered when the
-     status changes between two states (avoids a vertical jump). */
-  padding-bottom: 80px;
+  padding: calc(var(--safe-top) + 24px) 24px calc(var(--safe-bottom) + 80px);
+  background: var(--surface-0);
+  color: var(--ink);
+  animation: global(tb-fade) var(--dur-3) var(--ease-out) both;
 }
 
 .stack {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 28px;
+  gap: 22px;
+  max-width: 420px;
+  text-align: center;
+}
+
+/* A thin carrier line under the wordmark — one pass of the beam */
+.carrier {
+  width: min(260px, 60vw);
+  height: 1px;
+  background: var(--hairline);
+  position: relative;
+  overflow: hidden;
+}
+
+.carrier::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--accent) 40%, transparent);
+  transform: translateX(-100%);
+  animation: splash-carrier 1.6s var(--ease-out) 0.35s infinite;
 }
 
 .statusBlock {
@@ -31,16 +43,20 @@
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  /* Independent fade so the status text appears after the logo has settled. */
-  animation: splash-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: 0.45s;
+  animation: global(tb-rise) var(--dur-3) var(--ease-out) 0.25s both;
 }
 
 .status {
-  font-size: 0.85rem;
+  font: 500 var(--fs-sm) / 1.2 var(--font-mono);
   letter-spacing: 0.02em;
-  color: var(--text-secondary, #888);
-  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color: var(--ink-2);
+}
+
+.detail {
+  max-width: 34ch;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
 }
 
 /*
@@ -50,7 +66,7 @@
 .dots {
   display: inline-flex;
   gap: 3px;
-  margin-left: 4px;
+  margin-left: 6px;
   vertical-align: middle;
 }
 
@@ -71,37 +87,29 @@
 }
 
 .action {
-  margin-top: 4px;
-  padding: 8px 22px;
+  min-height: var(--hit);
+  padding: 0 24px;
+  border-radius: var(--r-md);
   background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  color: var(--on-accent);
+  font: 600 var(--fs-md) / 1 var(--font-ui);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, #fff 18%, transparent);
   transition:
-    transform 0.1s ease-out,
-    opacity 0.15s;
+    background-color var(--dur-2) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
 }
 
 .action:hover {
-  opacity: 0.92;
+  background: var(--accent-hover);
 }
 
 .action:active {
-  transform: scale(0.97);
+  transform: translateY(1px);
 }
 
-@keyframes splash-enter {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.98);
-  }
+@keyframes splash-carrier {
   to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateX(100%);
   }
 }
 
@@ -116,9 +124,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .root,
-  .statusBlock {
-    animation-delay: 0s;
+  .carrier::after {
+    animation: none;
+    opacity: 0;
   }
   .dot {
     animation: none;

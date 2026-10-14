@@ -23,11 +23,20 @@ Use `termbeam --lan` or `termbeam --host 0.0.0.0` to bind to all interfaces so o
 
 ### WebSocket disconnects or "WebSocket error"
 
-WebSocket connections can drop due to network instability, especially on mobile networks.
+WebSocket connections can drop due to network instability, especially on mobile networks. TermBeam reconnects on its own and the connection pill in the top bar tells you what it is waiting for — tap it for details:
+
+| Pill           | Meaning                                                       | What to do                                |
+| -------------- | ------------------------------------------------------------- | ----------------------------------------- |
+| `42 ms`        | Live — the number is the round-trip time                      | —                                         |
+| `Retry · 3s`   | The link dropped; reconnecting with backoff                   | Wait, or tap **Retry now**                |
+| `Offline`      | Your phone has no network                                     | Reconnects automatically when it's back   |
+| `Host offline` | Your computer is asleep, offline, or its tunnel is restarting | Wake the computer; TermBeam keeps probing |
+| `Sign in`      | The Dev Tunnel's own Microsoft/GitHub sign-in expired         | Tap **Sign in again** (full-page sign-in) |
+| `Locked`       | Your TermBeam session expired or was signed out               | Unlock with your passkey or password      |
 
 - **Mobile data:** cellular connections are inherently less stable — try Wi-Fi if possible
-- **Tunnel timeout:** ephemeral tunnels may drop after periods of inactivity
-- **Persisted tunnels:** use `--persisted-tunnel` for more stable, long-lived connections
+- **Persisted tunnels:** use `--persisted-tunnel` for a stable URL (and passkeys that keep working) across restarts
+- While disconnected, typing shows **Input paused** — keystrokes are never queued and replayed later
 
 :::tip
 If you're frequently disconnecting over a tunnel, switch to `--persisted-tunnel` for a connection that survives brief network interruptions.
@@ -74,17 +83,22 @@ devtunnel user login
 - Check your DevTunnel login status: `devtunnel user show`
 - **Ephemeral tunnels** (the default) are deleted when TermBeam shuts down — the URL won't work after a restart
 - Use `--persisted-tunnel` for a stable URL that survives restarts
-- Persisted tunnel IDs are saved to `~/.termbeam/tunnel.json` and expire after 30 days
+- Persisted tunnel IDs are saved to `~/.termbeam/tunnel.json`; Dev Tunnels expire after 30 days **without use**, and TermBeam extends the expiration while it is running
 
-:::caution
-If a persisted tunnel stops working after ~30 days, delete `~/.termbeam/tunnel.json` and restart TermBeam to create a fresh tunnel.
+:::note
+If a tunnel expired anyway (for example, the computer was off for longer than the expiration), TermBeam re-creates it automatically, prints the **new URL and QR code** in its terminal, and saves the new id — no need to delete `tunnel.json`.
 :::
 
 ### Tunnel died overnight / after sleep
 
-If TermBeam is running as a long-lived service (`termbeam service`) and the tunnel stops working after a network interruption (laptop sleep, Wi-Fi drop, DHCP renewal, ISP DNS blip, etc.), the watchdog automatically enters a **network-wait** state once transient DNS / connectivity errors are detected. It probes the DevTunnel host every 60 seconds and reconnects as soon as the network is reachable again — no manual restart required.
+The tunnel watchdog recovers from these automatically — no manual restart required:
 
-You'll see `[WARN] Tunnel paused — waiting for network connectivity` in the logs followed by `[INFO] Network connectivity restored — resuming tunnel` when it recovers. If the logs instead show repeated `Tunnel restart returned no URL` with no final giveup, the watchdog is still cycling through its 10 restart attempts; wait a few minutes for it to settle into network-wait.
+- **Sleep / wake:** when the computer resumes, TermBeam notices the gap (`System resumed after ~Nm — checking tunnel`) and verifies the tunnel immediately, restarting `devtunnel host` if the relay connection did not survive.
+- **Network interruptions** (Wi-Fi drop, DHCP renewal, ISP DNS blip): the watchdog enters a **network-wait** state (`Tunnel paused — waiting for network connectivity`), probes the tunnel service every 30 seconds and resumes as soon as it's reachable (`Network connectivity restored — resuming tunnel`).
+- **Tunnel expired while asleep:** Dev Tunnels expire after a period without use (1 day for the default ephemeral tunnel). TermBeam first tries to extend it; if it is gone it creates a replacement and prints `Tunnel was re-created — new public URL: …` with a fresh QR code. Devices must use the new URL (and register a new passkey for it).
+- **Host login expired:** the watchdog pauses and asks you to run `devtunnel user login` on the computer, then reconnects by itself.
+
+On the phone, the connection pill shows `Host offline` while the computer is unreachable and switches back to a live latency readout when the tunnel returns.
 
 ### macOS: tunnel paused after a brew upgrade ("DevTunnel auth restored" loop)
 
@@ -128,14 +142,30 @@ The easiest way to connect is to scan the QR code from the terminal output. It i
 
 TermBeam uses cookie-based authentication by default.
 
-- **Browser clients:** visit `/login` first to get an auth cookie (httpOnly, 24h expiry)
+- **Browser clients:** sign in at `/login` to get an auth cookie (`HttpOnly`, `SameSite=Strict`, `Secure` over HTTPS). Remembered devices last 7 days without use and 30 days at most; without “Remember this device” the session lasts 2 hours idle / 12 hours at most and is never written to disk
 - **API clients:** use the `Authorization: Bearer <password>` header instead of cookies
-- **Expired session:** cookies expire after 24 hours — re-login to get a fresh cookie
+- **Expired or revoked session:** the app shows **Locked** and an unlock sheet — unlock with a passkey or the password; open terminals are kept
 
 ```bash
 # Example API request with Bearer auth
 curl -H "Authorization: Bearer YOUR_PASSWORD" http://localhost:3456/api/sessions
 ```
+
+### Passkey option missing
+
+Passkeys need a secure address and a registered passkey for that exact host:
+
+- Open TermBeam through its **HTTPS tunnel URL** or `http://localhost` — plain-HTTP LAN addresses (e.g. `http://192.168.1.5:3456`) can only use the password
+- After signing in with the password or QR code, accept **Add passkey** (or use Settings → Security → **Add a passkey for this device**)
+- Passkeys are tied to the host name: an ephemeral tunnel gets a new URL on every start, so use `--persisted-tunnel` if you want passkeys to keep working across restarts
+
+### "TermBeam doesn't recognise this address" when signing in
+
+TermBeam refused the request because the page's address doesn't match any address it knows it is served at — almost always a reverse proxy that rewrites the `Host` header (nginx does by default). The TermBeam log names the origin and `Host` it saw. Forward the original `Host` header (nginx: `proxy_set_header Host $host;`), send `X-Forwarded-Host`, or start TermBeam with `--public-url https://your.address` — see [Behind Your Own Reverse Proxy](../configuration/#behind-your-own-reverse-proxy).
+
+### Signed out after restarting TermBeam
+
+Remembered devices survive restarts only when the password stays the same. The default auto-generated password changes on every start, which signs everyone out (passkeys keep working). Set a fixed password with `--password` / `TERMBEAM_PASSWORD` (the background service does this for you) to stay signed in across restarts.
 
 ---
 

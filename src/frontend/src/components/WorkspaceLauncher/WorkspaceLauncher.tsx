@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { createSession } from '@/services/api';
-import { usePreferencesStore, type Workspace, type StartupSession } from '@/stores/preferencesStore';
+import {
+  usePreferencesStore,
+  type Workspace,
+  type StartupSession,
+} from '@/stores/preferencesStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import styles from './WorkspaceLauncher.module.css';
 
@@ -130,7 +134,7 @@ export default function WorkspaceLauncher({ open, onClose, onLaunched }: Props) 
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <div className={styles.titleBlock}>
-            <span className={styles.title}>Open Workspace</span>
+            <span className={styles.title}>Open workspace</span>
             {workspaces.length > 0 && (
               <span className={styles.subtitle}>
                 {workspaces.length} saved workspace{workspaces.length === 1 ? '' : 's'}
@@ -169,9 +173,7 @@ export default function WorkspaceLauncher({ open, onClose, onLaunched }: Props) 
                     >
                       <div className={styles.workspaceTitleRow}>
                         <span className={styles.workspaceName}>{ws.name}</span>
-                        {ws.default && (
-                          <span className={styles.defaultBadge}>auto-start</span>
-                        )}
+                        {ws.default && <span className={styles.defaultBadge}>auto-start</span>}
                       </div>
                       <div className={styles.workspaceMetaRow}>
                         <span className={styles.metaPill}>
@@ -215,9 +217,7 @@ export default function WorkspaceLauncher({ open, onClose, onLaunched }: Props) 
                             <>
                               Launch{' '}
                               {ws.sessions.length > 1 && (
-                                <span className={styles.launchCount}>
-                                  {ws.sessions.length}
-                                </span>
+                                <span className={styles.launchCount}>{ws.sessions.length}</span>
                               )}
                             </>
                           )}

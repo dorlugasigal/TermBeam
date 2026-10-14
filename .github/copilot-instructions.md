@@ -4,7 +4,7 @@
 
 ```bash
 npm test                              # run all tests (output buffered until done)
-node --test 'test/server/*.test.js' 'test/cli/*.test.js' 'test/utils/*.test.js' test/integration.test.js  # all tests with streaming output (preferred for dev/CI agents)
+node --test 'test/server/*.test.js' 'test/cli/*.test.js' 'test/utils/*.test.js' 'test/tunnel/*.test.js' test/integration.test.js  # all tests with streaming output (preferred for dev/CI agents)
 node --test test/server/auth.test.js  # run a single test file
 npm run test:coverage                 # tests + coverage (c8, 92% threshold)
 npm run lint                          # syntax-check with node --check
@@ -59,7 +59,10 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 
 - `index.js` — orchestrator: creates Express app + WebSocket server
 - `routes.js` — Express routes for API (`/api/sessions`, `/api/auth`) and pages (`/terminal`, `/login`)
-- `auth.js` — password auth, token cookies, rate limiting, login page
+- `auth.js` — password auth, device sessions (sliding/absolute expiry, revoke + `revoked` events), cookies, rate limiting, `/login?next=` redirects
+- `auth-store.js` — persisted `auth.json` (session token hashes, passkeys, password epoch); `auth-routes.js` — `/api/auth/*` (login, logout, devices, passkeys); `webauthn.js` + `cbor.js` — passkey verification
+- `origin.js` — origin/CSRF validation shared by HTTP and WebSocket (DevTunnel rewrites `Host` to localhost)
+- `terminal-modes.js` — tracks DEC private modes (alt screen, mouse tracking, bracketed paste…) so reconnect replays restore input state
 - `sessions.js` — `SessionManager` class wrapping `node-pty` lifecycle (create/list/delete/shutdown), sessions stored in a `Map`, clients tracked per session in a `Set`
 - `websocket.js` — handles WebSocket messages (`attach`, `input`, `resize`, `output`, `exit`)
 - `preview.js` — local preview proxy for forwarding requests to a port
@@ -82,7 +85,7 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 
 - `logger.js` — structured logger with levels (error/warn/info/debug)
 - `shells.js` — cross-platform shell detection
-- `git.js` — git metadata and status parsing
+- `git.js` — git metadata and status parsing. Use `getGitInfoAsync()` on any server path (session polling caches refresh with it) — the sync `getGitInfo()` blocks the event loop and every terminal's WebSocket. Status runs with `--no-optional-locks` so polling never takes `index.lock`, and porcelain output must never be trimmed (its leading space is meaningful).
 - `version.js` — detects version from package.json
 - `update-check.js` — npm update checking
 
@@ -90,9 +93,14 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 
 **UI surfaces (terminology — use these names consistently):**
 
+- **ConnectionPill / ConnectionSheet** (`src/frontend/src/components/ConnectionStatus/`) — the single connection-status system (top bar pill with RTT → sheet with explanation + action), backed by `stores/connectionStore.ts`. Also `UnlockSheet` (in-place re-auth when the session expires, terminals stay mounted) and `PasskeyPrompt` (offer to add a passkey after password/QR login).
+- **LoginPage** (`src/frontend/src/components/LoginPage/`) — the only login UI; the server serves the SPA at `/login`. `UnlockForm` is shared with `UnlockSheet`.
+
 - **SidePanel** (`src/frontend/src/components/SidePanel/`) — left slide-in containing the sessions picker. Triggered by the ☰ menu button.
-- **ToolsPanel** (`src/frontend/src/components/ToolsPanel/`, formerly `CommandPalette`) — right slide-in titled "Tools". Triggered by the ▦ button or `Cmd/Ctrl+K`. Sections: SESSION · FILES · VIEW · SHARE · AGENTS · SETTINGS · SYSTEM. The SETTINGS section contains a single "Settings…" row that opens the SettingsPanel.
-- **SettingsPanel** (`src/frontend/src/components/Settings/`) — non-blocking preferences surface. **Top sheet** on mobile (slides down from top so terminal + TouchBar stay visible below — toggles like "Start collapsed" and "Haptic feedback" can be observed live). **Right-side drawer (420 px)** on desktop with no backdrop dim. Reached from the ToolsPanel "Settings…" row or `Cmd/Ctrl+,`. Holds Appearance, Startup, TouchBar, Terminal, and Startup Workspace sections. Backed by `usePreferencesStore`, which syncs to the server via `GET`/`PUT /api/preferences`.
+- **ToolsPanel** (`src/frontend/src/components/ToolsPanel/`, formerly `CommandPalette`) — right slide-in titled "Tools". Triggered by the ▦ button or `Cmd/Ctrl+K`. Sections: Session · Files · View · Share · Agents · Settings · System. The Settings section contains a single "Settings…" row that opens the SettingsPanel.
+- **SessionsHub** (`src/frontend/src/components/SessionsHub/`) — the home screen. Sessions are grouped by git working tree (`utils/sessionDisplay.ts → groupSessions`, keyed by the server's `git.root`): the group header shows repo, full branch and working-tree status once; rows show name, activity, full path, shell and PID. Phones get a glass action dock and a search toggle in the bar; wide screens show title + inline actions.
+- **Sheet** (`src/frontend/src/components/common/Sheet.tsx`) — the one modal surface (Radix Dialog): bottom sheet with drag-to-dismiss on phones, centered dialog on wider screens, `layer="system"` for connection/re-auth sheets. Build new modals on it, with controls from `styles/forms.module.css`.
+- **SettingsPanel** (`src/frontend/src/components/SettingsPanel/`) — non-blocking preferences surface. **Top sheet** on mobile (slides down from top so terminal + TouchBar stay visible below — toggles like "Start collapsed" and "Haptic feedback" can be observed live). **Right-side drawer (420 px)** on desktop with no backdrop dim. Reached from the ToolsPanel "Settings…" row or `Cmd/Ctrl+,`. Holds Appearance, Feedback, Touch Bar, Defaults, Workspaces and **Security** (passkeys, signed-in devices, sign out / sign out everywhere) sections with a sticky jump-to-section nav. Backed by `usePreferencesStore`, which syncs to the server via `GET`/`PUT /api/preferences`.
 
 **WebSocket protocol:** JSON messages over `/ws`. Client sends `attach`, `input`, `resize`; server sends `output`, `attached`, `exit`, `error`. Auth is validated at WebSocket upgrade or first message.
 
@@ -108,6 +116,11 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 - **Minimal dependencies** — prefer built-in Node.js APIs over npm packages
 - **One responsibility per file** — modules organized in `src/server/`, `src/cli/`, `src/tunnel/`, `src/utils/`, each owning a single concern
 - **Prettier formatting** — single quotes, trailing commas, 100 char width, semicolons (`.prettierrc`)
+- **Design tokens** — frontend colors/spacing/type/motion come from `src/frontend/src/styles/tokens.css` (derived from each theme's variables with `color-mix`); never hard-code colors in component CSS. Use `--on-accent` for text on accent fills (computed per theme by `services/themeContrast.ts`). Grouped lists use `--page` (background) and `--card` (rows), controls use `--fill-tonal` / `--raised`; these flip for light themes, so don't substitute raw `--surface-*`.
+- **Type** — Mona Sans (`--font-ui`) everywhere, sentence case, no `text-transform: uppercase` labels; JetBrains Mono (`--font-mono`) only for machine text (paths, branches, PIDs, commands).
+- **Never truncate session metadata** — paths, branch names, repo names and git status are shown in full and wrap at separators (`<Breakable>` from `SessionsHub/SessionCard.tsx` inserts `<wbr>` after `/`); no ellipses, no collapsing.
+- **In-app navigation** — use `navigate()` / `spaLinkHandler` from `utils/navigation.ts` (not `window.location` or bare `<a href>`). Route changes run through `document.startViewTransition` in `App.tsx`; an element with `view-transition-name: tb-session-name` is the shared element between a hub row and the active terminal tab.
+- **CSS Modules + global keyframes** — inside `*.module.css`, animation names are localized; reference the shared keyframes from `styles/animations.css` as `animation: global(tb-rise) …`, otherwise the animation silently never runs (and Radix dialogs never unmount after closing). Exit animations must use a different keyframe name than the entrance (e.g. `tb-sheet-up-exit`), not `reverse`.
 - **Cross-platform support** — must work on Windows, macOS, and Linux. Coverage runs the full suite on Ubuntu/Node 22, and the unit job runs it on macOS/Node 24. Playwright runs the full E2E suite on Linux plus a tagged real-PTY smoke test on macOS and Windows.
 - **PTY session cleanup** — `pty.kill()` is async; the `onExit` callback removes the session from the Map
 - **Coverage exclusion** — `src/tunnel/` directory is excluded from coverage (requires external DevTunnel CLI)
@@ -120,7 +133,8 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 - `TERMBEAM_PASSWORD` / `PTY_PASSWORD` — access password
 - `TERMBEAM_CWD` / `PTY_CWD` — working directory
 - `TERMBEAM_LOG_LEVEL` — log level (default: info)
-- `TERMBEAM_CONFIG_DIR` — location for `connection.json` (default: `~/.termbeam/`)
+- `TERMBEAM_CONFIG_DIR` — location for `connection.json`, `auth.json`, `prefs.json` (default: `~/.termbeam/`)
+- `TERMBEAM_PUBLIC_URL` — public address when running behind your own reverse proxy (same as `--public-url`); trusted by the CSRF guard, WebSocket origin check and passkeys
 
 ## Documentation
 
@@ -178,12 +192,14 @@ CRF 0 is not supported by Remotion's H.264 encoder. Start with `--crf 18` for a 
 
 These are intentional design choices — not bugs:
 
-- **Cookie `secure` flag is off** — TermBeam runs over HTTP locally; TLS is handled at the tunnel proxy layer (DevTunnels). Setting `secure` would break cookie auth on LAN.
-- **Password compared in constant time** — `auth.safeCompare` SHA-256-hashes both sides and uses `crypto.timingSafeEqual` to prevent timing-based recovery. Rate limiting (5 attempts/min/IP) remains the primary brute-force defense.
+- **Cookie `Secure` flag follows the request** — `secure: !!req.secure`: set behind the HTTPS tunnel (the relay's `X-Forwarded-Proto` is trusted from loopback only), omitted on plain-HTTP localhost/LAN where forcing it would break cookie auth. Cookies are always `HttpOnly` and `SameSite=Strict`.
+- **Password compared in constant time** — `auth.safeCompare` copies both inputs into fixed-length zero-padded buffers and compares them with `crypto.timingSafeEqual` (plus a separate length check), so neither content nor length leaks through timing. Rate limiting (5 attempts/min/IP) remains the primary brute-force defense.
 - **Tunnel is on by default** — makes the tool useful out of the box (phone on cellular), but this means the terminal is internet-accessible. Password auto-generation compensates.
 - **Default bind is `127.0.0.1`** — localhost only by default. Use `--lan` or `--host 0.0.0.0` for LAN access.
 - **`--no-password` exists** — for trusted localhost-only scenarios. Never combine with tunnel.
 - **Session IDs are 128-bit random** (`crypto.randomBytes(16)`) — unguessable, but not secret (visible in URLs). Auth tokens protect access, not session IDs.
-- **WebSocket origin validation** — cross-origin connections are rejected (close code 1008) unless one side is localhost, preventing malicious websites from connecting to a local instance.
+- **Origin validation (WebSocket + API)** — the browser origin must match the `Host` header, the public tunnel URL, or `X-Forwarded-Host` from a loopback proxy; `Sec-Fetch-Site: same-site|cross-site` is refused. The old "one side is localhost" rule was removed: behind DevTunnels `Host` is always `localhost` and `devtunnels.ms` is not on the Public Suffix List, so another tunnel's page could open an authenticated socket.
+- **Device sessions** — tokens are persisted only as SHA-256 hashes in `auth.json` (0600), bound to a scrypt fingerprint of the password (password change ⇒ all remembered devices signed out). Remembered: 7-day idle / 30-day absolute; session-only: 2h / 12h, never on disk. Revocation closes open sockets with code `4401`.
+- **Passkeys** — WebAuthn with user verification required, attestation `none` (registration requires an existing session), RP ID = the exact host. They survive password changes until removed or `--reset-auth`.
 - **Security headers** — X-Frame-Options: DENY, CSP, no-store cache, nosniff, no-referrer on all responses.
 - **Shell path validation** — only shells detected by `src/utils/shells.js` are accepted; arbitrary paths are rejected.

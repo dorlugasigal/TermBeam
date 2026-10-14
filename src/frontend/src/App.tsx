@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useMinDuration } from '@/hooks/useMinDuration';
 import LoginPage from '@/components/LoginPage/LoginPage';
@@ -7,9 +8,16 @@ import { TerminalApp } from '@/components/TerminalApp/TerminalApp';
 import CodeViewer from '@/components/CodeViewer/CodeViewer';
 import { Splash } from '@/components/common/Splash';
 import splashStyles from '@/components/common/Splash.module.css';
+import { ConnectionSheet } from '@/components/ConnectionStatus/ConnectionSheet';
+import { UnlockSheet } from '@/components/ConnectionStatus/UnlockSheet';
+import { PasskeyPrompt } from '@/components/ConnectionStatus/PasskeyPrompt';
+import { installConnectionListeners } from '@/stores/connectionStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { THEMES } from '@/themes/terminalThemes';
+
+const SPLASH_SEEN_KEY = 'termbeam-splash-seen';
+const SPLASH_HOLD_MS = 950;
 
 function getPath() {
   return window.location.pathname;
@@ -18,6 +26,13 @@ function getPath() {
 function getCodeSessionId(): string | null {
   const match = window.location.pathname.match(/^\/code\/([^/]+)$/);
   return match?.[1] || null;
+}
+
+/** Same-origin, path-absolute redirect targets only (mirrors the server's safeNextPath). */
+function safeNext(next: string | null): string {
+  if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) return '/';
+  if (next === '/login' || next.startsWith('/login?')) return '/';
+  return next;
 }
 
 /** Normalize ?id= to ?session= so TerminalApp can read it */
@@ -37,7 +52,7 @@ function normalizeSessionParam() {
  * match the visible content of the current screen, so there's no visible
  * seam between our content and the OS chrome.
  *  - Terminal screen: surface (TouchBar bottom color)
- *  - Sessions hub / Code viewer: bg (page background)
+ *  - Everything else: bg (page background)
  */
 function useChromeColor(screen: 'terminal' | 'main') {
   const themeId = useThemeStore((s) => s.themeId);
@@ -50,89 +65,139 @@ function useChromeColor(screen: 'terminal' | 'main') {
   }, [screen, themeId]);
 }
 
-export default function App() {
-  const { authenticated, passwordRequired, login, loading } = useAuth();
-  const [path, setPath] = useState(getPath);
+/**
+ * The brand splash plays once per browser session (cold launch) when the
+ * "Splash screen" preference is on — never on every reload, and readiness is
+ * never delayed beyond the short hold.
+ */
+function useSplashHold(): boolean {
   const showSplash = usePreferencesStore((s) => s.prefs.showSplash);
-
-  /*
-   * Hold the splash screen for at least 1500ms on cold load so the
-   * per-letter Keynote-bloom animation (last letter starts at 0.55s,
-   * 0.85s duration = 1.40s end) plays through with a 100ms beat to read
-   * the settled wordmark. Without this gate, auth on localhost resolves
-   * in ~50ms and the user never sees the animation.
-   *
-   * When the user has opted out via Settings → Startup → "Show splash
-   * screen", `splashHoldMs` collapses to 0 so we skip straight through
-   * to the app shell.
-   */
-  const splashHoldMs = showSplash ? 1500 : 0;
-  const splashElapsed = useMinDuration(splashHoldMs);
-
-  // Hydrate user preferences from the server once we're authenticated. The
-  // store seeds itself synchronously from localStorage on import so the first
-  // paint already uses cached prefs; this fetch reconciles with the server.
-  useEffect(() => {
-    if (authenticated) {
-      void usePreferencesStore.getState().hydrate();
+  const [hold] = useState(() => {
+    if (!showSplash) return false;
+    try {
+      return !sessionStorage.getItem(SPLASH_SEEN_KEY);
+    } catch {
+      return true;
     }
-  }, [authenticated]);
+  });
+  const elapsed = useMinDuration(hold ? SPLASH_HOLD_MS : 0);
+  useEffect(() => {
+    if (!elapsed || !hold) return;
+    try {
+      sessionStorage.setItem(SPLASH_SEEN_KEY, '1');
+    } catch {
+      // storage unavailable
+    }
+  }, [elapsed, hold]);
+  return elapsed;
+}
 
-  // Workspace auto-start moved to the server (src/server/index.js): the
-  // server reads prefs and spawns workspace sessions ONCE on its own
-  // startup. This means deleting sessions client-side is sticky — the
-  // pages won't re-spawn them on refresh. The previous client-side
-  // implementation here would re-fire whenever the page reloaded, which
-  // was confusing UX (user deletes a session, refreshes, it returns).
+export default function App() {
+  const { phase, status, justSignedIn, clearJustSignedIn, onSignedIn, retry } = useAuth();
+  const [path, setPath] = useState(getPath);
+  const splashElapsed = useSplashHold();
+
+  useEffect(() => {
+    installConnectionListeners();
+  }, []);
+
+  // Hydrate user preferences from the server once we're signed in. The store
+  // seeds itself synchronously from localStorage on import so the first paint
+  // already uses cached prefs; this fetch reconciles with the server.
+  useEffect(() => {
+    if (phase === 'app') void usePreferencesStore.getState().hydrate();
+  }, [phase]);
+
+  // Signed in on /login → continue to where the user was going (?next=).
+  useEffect(() => {
+    if (phase !== 'app' || window.location.pathname !== '/login') return;
+    const next = safeNext(new URLSearchParams(window.location.search).get('next'));
+    window.history.replaceState(null, '', next);
+    setPath(getPath());
+  }, [phase]);
 
   useEffect(() => {
     normalizeSessionParam();
   }, [path]);
 
+  // Route changes morph between screens (View Transitions): the opened
+  // session's name travels from its hub row into the terminal tab and back.
+  const pathRef = useRef(path);
+  pathRef.current = path;
   useEffect(() => {
-    const onPopState = () => setPath(getPath());
+    const onPopState = () => {
+      const next = getPath();
+      const update = () => setPath(next);
+      const doc = document as Document & {
+        startViewTransition?: (cb: () => void) => { finished: Promise<void> };
+      };
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      if (!doc.startViewTransition || reduced || next === pathRef.current) {
+        update();
+        return;
+      }
+      const root = document.documentElement;
+      root.dataset.vt = next === '/terminal' ? 'forward' : 'back';
+      const transition = doc.startViewTransition(() => flushSync(update));
+      void transition.finished.finally(() => delete root.dataset.vt);
+    };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   const codeSessionId = getCodeSessionId();
-  const isTerminalScreen = path === '/terminal' && !codeSessionId;
+  const isTerminalScreen = phase === 'app' && path === '/terminal' && !codeSessionId;
   useChromeColor(isTerminalScreen ? 'terminal' : 'main');
 
-  // Still checking auth, OR auth done but we haven't yet hit the minimum
-  // splash duration. The status text changes once auth resolves so the
-  // splash feels like a real loading sequence instead of a fixed timer.
-  if (authenticated === null || (authenticated && !splashElapsed)) {
-    const status = authenticated ? 'Connected' : 'Establishing link';
-    return <Splash status={status} />;
+  if (phase === 'checking' || (phase === 'app' && !splashElapsed)) {
+    return <Splash status={phase === 'app' ? 'Link established' : 'Establishing link'} />;
   }
 
-  if (!authenticated) {
-    // No-password mode: server is unreachable — show reconnecting UI instead of login
-    if (!passwordRequired) {
-      return (
-        <Splash
-          size="md"
-          status="Reconnecting to server"
-          action={
-            <button onClick={() => window.location.reload()} className={splashStyles.action}>
-              Retry
-            </button>
-          }
-        />
-      );
-    }
-    return <LoginPage onLogin={login} loading={loading} />;
+  if (phase === 'tunnel-auth') {
+    return (
+      <Splash
+        size="md"
+        status="Tunnel sign-in expired"
+        detail="Dev Tunnels needs you to sign in again with the account that owns this tunnel."
+        action={
+          <button onClick={() => window.location.reload()} className={splashStyles.action}>
+            Sign in again
+          </button>
+        }
+      />
+    );
   }
 
-  // Authenticated — route by pathname
-  if (codeSessionId) {
-    return <CodeViewer sessionId={codeSessionId} />;
+  if (phase === 'unreachable') {
+    return (
+      <Splash
+        size="md"
+        status="Can't reach your computer"
+        detail="It may be asleep, offline, or its tunnel is restarting. Retrying automatically."
+        action={
+          <button onClick={retry} className={splashStyles.action}>
+            Retry now
+          </button>
+        }
+      />
+    );
   }
 
-  if (isTerminalScreen) {
-    return <TerminalApp />;
+  if (phase === 'login') {
+    return <LoginPage status={status} onSignedIn={onSignedIn} />;
   }
 
-  return <SessionsHub />;
+  let screen;
+  if (codeSessionId) screen = <CodeViewer sessionId={codeSessionId} />;
+  else if (isTerminalScreen) screen = <TerminalApp />;
+  else screen = <SessionsHub />;
+
+  return (
+    <>
+      {screen}
+      <ConnectionSheet />
+      <UnlockSheet />
+      <PasskeyPrompt method={justSignedIn} status={status} onDone={clearJustSignedIn} />
+    </>
+  );
 }

@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import {
   DndContext,
   closestCenter,
@@ -34,8 +35,67 @@ export function TabBar({ inline = false }: TabBarProps) {
   const dissolveDelete = useDissolveDelete();
 
   const [previewSession, setPreviewSession] = useState<string | null>(null);
+  const [focusedId, setFocusedId] = useState<string | null>(activeId);
   const previewAnchorRef = useRef<HTMLDivElement | null>(null);
   const tabScrollerRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLSpanElement>(null);
+  const indicatorPlaced = useRef(false);
+  const [dragging, setDragging] = useState(false);
+  const [edges, setEdges] = useState({ start: false, end: false });
+
+  // The active-tab surface is one element that slides between tabs, so a
+  // switch reads as motion from A to B rather than two tabs blinking.
+  useLayoutEffect(() => {
+    const scroller = tabScrollerRef.current;
+    const indicator = indicatorRef.current;
+    if (!scroller || !indicator) return;
+    const place = (animate: boolean) => {
+      const tab = scroller.querySelector<HTMLElement>('[role="tab"][data-active="true"]');
+      if (!tab) {
+        indicator.dataset.hidden = 'true';
+        return;
+      }
+      const x = tab.getBoundingClientRect().left - scroller.getBoundingClientRect().left;
+      if (!animate) indicator.style.transition = 'none';
+      indicator.style.transform = `translateX(${x + scroller.scrollLeft}px)`;
+      indicator.style.width = `${tab.offsetWidth}px`;
+      delete indicator.dataset.hidden;
+      if (!animate) {
+        void indicator.offsetWidth;
+        indicator.style.transition = '';
+      }
+    };
+    place(indicatorPlaced.current);
+    indicatorPlaced.current = true;
+    const observer = new ResizeObserver(() => place(false));
+    for (const tab of scroller.querySelectorAll('[role="tab"]')) observer.observe(tab);
+    return () => observer.disconnect();
+  }, [activeId, tabOrder, sessions.size, dragging]);
+
+  useEffect(() => {
+    const scroller = tabScrollerRef.current;
+    if (!scroller) return;
+    const measure = () =>
+      setEdges({
+        start: scroller.scrollLeft > 1,
+        end: scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 1,
+      });
+    const observer = new ResizeObserver(measure);
+    observer.observe(scroller);
+    for (const tab of scroller.children) observer.observe(tab);
+    scroller.addEventListener('scroll', measure, { passive: true });
+    measure();
+    return () => {
+      observer.disconnect();
+      scroller.removeEventListener('scroll', measure);
+    };
+  }, [tabOrder, sessions.size]);
+
+  useEffect(() => {
+    setFocusedId(activeId);
+    const tab = tabScrollerRef.current?.querySelector<HTMLElement>('[data-active="true"]');
+    tab?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -72,18 +132,63 @@ export function TabBar({ inline = false }: TabBarProps) {
 
   return (
     <div className={inline ? styles.tabBarInline : styles.tabBar}>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={() => setDragging(true)}
+        onDragCancel={() => setDragging(false)}
+        onDragEnd={(event) => {
+          setDragging(false);
+          handleDragEnd(event);
+        }}
+      >
         <SortableContext items={visibleTabOrder} strategy={horizontalListSortingStrategy}>
-          <div className={styles.tabScroller} ref={tabScrollerRef}>
+          <div
+            className={styles.tabScroller}
+            ref={tabScrollerRef}
+            role="tablist"
+            aria-label="Sessions"
+            data-fade-start={edges.start}
+            data-fade-end={edges.end}
+            data-dragging={dragging || undefined}
+            onKeyDown={(e) => {
+              if (!(e.target instanceof HTMLElement) || e.target.getAttribute('role') !== 'tab') {
+                return;
+              }
+              const index = visibleTabOrder.indexOf(
+                e.target.closest<HTMLElement>('[data-session-id]')?.dataset.sessionId ?? '',
+              );
+              const next =
+                e.key === 'ArrowRight'
+                  ? (index + 1) % visibleTabOrder.length
+                  : e.key === 'ArrowLeft'
+                    ? (index - 1 + visibleTabOrder.length) % visibleTabOrder.length
+                    : e.key === 'Home'
+                      ? 0
+                      : e.key === 'End'
+                        ? visibleTabOrder.length - 1
+                        : -1;
+              const id = visibleTabOrder[next];
+              if (!id) return;
+              e.preventDefault();
+              setFocusedId(id);
+              tabScrollerRef.current
+                ?.querySelector<HTMLElement>(`[data-session-id="${id}"] [role="tab"]`)
+                ?.focus();
+            }}
+          >
+            <span
+              ref={indicatorRef}
+              className={styles.indicator}
+              data-hidden="true"
+              aria-hidden="true"
+            />
             {orderedSessions.map((session) => (
-              <div
-                key={session.id}
-                className={styles.tabSlot}
-                data-session-id={session.id}
-              >
+              <div key={session.id} className={styles.tabSlot} data-session-id={session.id}>
                 <SortableTab
                   session={session}
                   isActive={session.id === activeId}
+                  tabIndex={session.id === (focusedId ?? activeId) ? 0 : -1}
                   isSplit={session.id === splitSecondId}
                   dissolving={dissolvingIds.has(session.id)}
                   onActivate={() => {
@@ -107,11 +212,13 @@ export function TabBar({ inline = false }: TabBarProps) {
                     );
                     void dissolveDelete(session.id, {
                       element: tabEl ?? null,
-                      color: session.color || '#6ec1e4',
+                      color:
+                        session.color ||
+                        getComputedStyle(document.documentElement).getPropertyValue('--accent'),
                       variant: 'tab',
                       apiDelete: () => deleteSession(session.id),
                       finalize: () => removeSession(session.id),
-                    });
+                    }).catch(() => toast.error('Failed to close session'));
                   }}
                   onMouseEnter={(e) => {
                     previewAnchorRef.current = e.currentTarget;
@@ -135,7 +242,19 @@ export function TabBar({ inline = false }: TabBarProps) {
           aria-label="New session"
           title="New session"
         >
-          + <span className={styles.addBtnLabel}>New</span>
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          <span className={styles.addBtnLabel}>New</span>
         </button>
       )}
     </div>

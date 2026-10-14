@@ -1,95 +1,168 @@
-.backdrop {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  background: var(--bg);
-  padding: 1rem;
-}
+/*
+ * Login: the brand rests in the open space; a self-contained unlock panel
+ * sits within thumb reach on phones and centered under the brand on desktop.
+ */
 
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 2.5rem 2rem;
-  width: 100%;
-  max-width: 360px;
+.page {
+  position: relative;
+  flex: 1;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-  animation: fade-in 0.3s ease;
+  padding: calc(var(--safe-top) + 8px) 20px max(20px, env(safe-area-inset-bottom, 0px));
+  background: var(--page);
+  color: var(--ink);
+  overflow-y: auto;
 }
 
-.logo {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text);
+.top {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  user-select: none;
+  justify-content: flex-end;
+  flex: none;
 }
 
-.logoIcon {
-  font-size: 1.75rem;
-}
-
-.form {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.input {
-  width: 100%;
-  padding: 0.65rem 0.85rem;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 0.95rem;
-  outline: none;
-  transition: border-color 0.15s;
-  box-sizing: border-box;
-}
-
-.input:focus {
-  border-color: var(--accent);
-}
-
-.button {
-  width: 100%;
-  padding: 0.65rem;
-  background: var(--accent);
-  color: var(--bg);
-  border: none;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 600;
+.iconBtn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-right: -6px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--ink-3);
   cursor: pointer;
   transition:
-    opacity 0.15s,
-    transform 0.1s;
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
 }
 
-.button:hover:not(:disabled) {
-  opacity: 0.9;
+.iconBtn:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
 }
 
-.button:active:not(:disabled) {
-  transform: scale(0.98);
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
 }
 
-.button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.brand {
+  flex: 1;
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  padding-bottom: 8px;
 }
 
-.error {
-  color: var(--danger);
-  font-size: 0.85rem;
-  text-align: center;
-  margin: 0;
+.brand .wordmark {
+  width: min(62vw, 240px);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  animation: global(tb-rise) 560ms var(--ease-out) 120ms both;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  font: 680 26px / 1.15 var(--font-display);
+  font-stretch: 110%;
+  letter-spacing: -0.024em;
+  color: var(--ink);
+}
+
+.host {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+  font-size: var(--fs-md);
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+.hostKind {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-2);
+  font-weight: 550;
+}
+
+.hostKind[data-secure] svg {
+  color: var(--ok);
+}
+
+.hostName {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+/* Signed in: the panel steps away before the app takes over */
+.page[data-leaving] .panel {
+  animation: leave var(--dur-3) var(--ease-in) forwards;
+}
+
+.page[data-leaving] .brand {
+  animation: brandLeave var(--dur-3) var(--ease-in) forwards;
+}
+
+@keyframes leave {
+  to {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes brandLeave {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+/* Desktop: one centered column, brand above the panel */
+@media (min-width: 720px) and (min-height: 560px) {
+  .main {
+    justify-content: center;
+    gap: 36px;
+    padding-bottom: 6vh;
+  }
+
+  .brand {
+    flex: none;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .brand .wordmark {
+    width: 210px;
+  }
+
+  .panel {
+    padding: 28px 28px 24px;
+    border-radius: 20px;
+    background: var(--card);
+    box-shadow:
+      0 0 0 1px var(--hairline),
+      var(--shadow-2);
+  }
+
+  .title {
+    font-size: 24px;
+  }
 }

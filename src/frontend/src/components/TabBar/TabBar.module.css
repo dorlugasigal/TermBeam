@@ -1,63 +1,60 @@
-.tabBar {
+.tabBar,
+.tabBarInline {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 0 8px;
-  height: 38px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  overflow: hidden;
+  gap: var(--sp-1);
+  min-width: 0;
+  height: 44px;
 }
 
-/*
- * Per-tab wrapper. Owns the mount entrance (pop-in) so the actual
- * SortableTab is free to take its inline transform from dnd-kit during
- * drags without colliding with our keyframe.
- */
-.tabSlot {
-  position: relative;
-  animation: pop-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+.tabBar {
+  padding: 0 var(--sp-2);
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--hairline);
+  flex-shrink: 0;
 }
 
 .tabBarInline {
   flex: 1;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  gap: 2px;
-  padding: 0 4px;
-  height: 100%;
 }
 
-.tabBarInline::-webkit-scrollbar {
-  display: none;
-}
-
-@media (max-width: 640px) {
-  .tabBar {
-    display: none;
-  }
-}
-
-@media (pointer: coarse) {
-  .addBtnLabel {
-    display: none;
-  }
+.tabSlot {
+  position: relative;
+  flex-shrink: 0;
+  animation: global(tb-fade) var(--dur-2) var(--ease-out);
 }
 
 .tabScroller {
+  --fade-start: 0px;
+  --fade-end: 0px;
+  position: relative;
   display: flex;
   align-items: center;
   gap: 2px;
+  height: 44px;
+  padding: 0 var(--sp-1);
   overflow-x: auto;
   overflow-y: hidden;
   flex: 1;
   min-width: 0;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    var(--ink) var(--fade-start),
+    var(--ink) calc(100% - var(--fade-end)),
+    transparent
+  );
+}
+
+.tabScroller[data-fade-start='true'] {
+  --fade-start: 12px;
+}
+
+.tabScroller[data-fade-end='true'] {
+  --fade-end: 12px;
 }
 
 .tabScroller::-webkit-scrollbar {
@@ -66,152 +63,210 @@
 
 .tab {
   position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  cursor: pointer;
+  flex-shrink: 0;
+  gap: 7px;
+  height: 32px;
+  padding: 0 4px 0 11px;
+  border-radius: 9px;
+  color: var(--ink-3);
+  font: 550 var(--fs-sm) / 1 var(--font-ui);
   white-space: nowrap;
   user-select: none;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-dim);
-  transition:
-    background 0.15s,
-    color 0.15s;
-  border-left: 3px solid transparent;
-  flex-shrink: 0;
-  height: 30px;
+  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: color var(--dur-2) var(--ease-out);
 }
 
-.tab:hover {
-  background: var(--border);
-  color: var(--text);
+/* Taller hit area than the visual */
+.tab::before {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
 }
 
-.tabActive {
-  color: var(--text);
-  font-weight: 600;
-  background: var(--bg);
+.tab > span {
+  position: relative;
 }
 
-/*
- * Signature "you're connected" beat. SortableTab flips this class on for one
- * frame after the WebSocket attaches, then removes it once the keyframe
- * completes — a single accent halo around the tab.
- */
-.tabFlash {
-  animation: accent-flash 0.32s cubic-bezier(0.16, 0.84, 0.44, 1) 1;
+@media (hover: hover) {
+  .tab:hover {
+    color: var(--ink-2);
+    background: var(--surface-hover);
+  }
+}
+
+.tabActive,
+.tabActive:hover {
+  color: var(--ink);
+  background: transparent;
+}
+
+/* While a tab is dragged the sliding surface steps aside */
+[data-dragging] .tabActive {
+  background: var(--fill-tonal);
 }
 
 .tabSplit {
-  background: rgba(0, 120, 212, 0.1);
-  color: var(--text);
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 
-.colorDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── Sliding active surface ────────────────────────────────────────── */
+
+.indicator {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 0;
+  height: 32px;
+  margin-top: -16px;
+  border-radius: 9px;
+  background: var(--fill-tonal);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  pointer-events: none;
+  transition:
+    transform 380ms var(--ease-spring-soft),
+    width 380ms var(--ease-spring-soft),
+    opacity var(--dur-2) var(--ease-out);
+}
+
+.indicator[data-hidden],
+[data-dragging] > .indicator {
+  opacity: 0;
+}
+
+/* ── Marks ─────────────────────────────────────────────────────────── */
+
+.dot {
+  width: 7px;
+  height: 7px;
   flex-shrink: 0;
+  border-radius: var(--r-full);
+  background: var(--session-color);
+  transition:
+    background-color var(--dur-3) var(--ease-out),
+    box-shadow var(--dur-3) var(--ease-out);
+}
+
+.dot[data-state='disconnected'] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--session-color);
+}
+
+.dot[data-state='exited'] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--err);
 }
 
 .copilotIcon {
-  color: #a855f6;
-  flex-shrink: 0;
-  line-height: 1;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
+  line-height: 1;
+  color: var(--session-color);
+}
+
+.copilotIcon[data-state='disconnected'] {
+  opacity: 0.45;
+}
+
+.copilotIcon[data-state='exited'] {
+  color: var(--err);
 }
 
 .tabName {
-  max-width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.tabActivity {
-  font-size: 10px;
-  color: var(--text-muted);
+.unreadDot {
+  width: 6px;
+  height: 6px;
   flex-shrink: 0;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  animation: global(tb-fade) var(--dur-3) var(--ease-out) both;
 }
 
 .closeBtn {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  font-size: 14px;
-  line-height: 1;
-  color: var(--text-muted);
-  cursor: pointer;
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
   padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-3);
+  opacity: 0;
+  cursor: pointer;
   transition:
-    background 0.15s,
-    color 0.15s;
+    opacity var(--dur-1) var(--ease-out),
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+
+.closeBtn::after {
+  content: '';
+  position: absolute;
+  inset: -8px -6px;
 }
 
 .tab:hover .closeBtn,
+.tab:focus-within .closeBtn,
 .tabActive .closeBtn {
-  display: flex;
+  opacity: 1;
 }
 
 .closeBtn:hover {
-  color: var(--danger);
-  background: transparent;
+  color: var(--err);
+  background: var(--err-soft);
 }
 
 .addBtn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 0 10px;
-  height: 28px;
-  border-radius: 6px;
-  font-size: 13px;
-  color: var(--text-dim);
   flex-shrink: 0;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-2);
+  font: 550 var(--fs-sm) / 1 var(--font-ui);
   white-space: nowrap;
+  cursor: pointer;
   transition:
-    background 0.15s,
-    color 0.15s;
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
 }
 
 .addBtn:hover {
-  background: var(--bg);
-  color: var(--text);
+  background: var(--surface-hover);
+  color: var(--ink);
 }
 
-.statusDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  margin-left: 4px;
-}
-
-.unreadDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  flex-shrink: 0;
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
+@media (pointer: coarse) {
+  .tab:not(.tabActive) .closeBtn {
+    display: none;
   }
-  50% {
-    opacity: 0.3;
+
+  .tab:not(.tabActive) {
+    padding-right: 11px;
+  }
+
+  .addBtnLabel {
+    display: none;
   }
 }

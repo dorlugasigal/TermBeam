@@ -247,10 +247,8 @@
 }
 
 .previewLabel {
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--text-dim);
 }
 
@@ -472,9 +470,7 @@
 }
 
 .comboSeqLabel {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 0.6rem;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
   font-weight: 600;
 }
@@ -494,9 +490,7 @@
   align-items: center;
   margin-left: 8px;
   padding: 2px 8px;
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: var(--fs-xs);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 999px;

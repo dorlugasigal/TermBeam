@@ -29,6 +29,8 @@ export interface Session {
     provider?: string;
     repoName?: string;
     status?: GitStatus;
+    /** Repository top-level directory (sessions sharing it share a working tree). */
+    root?: string | null;
   };
 }
 

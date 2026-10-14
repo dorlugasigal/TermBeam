@@ -1,4 +1,10 @@
-export type { Session, CreateSessionRequest, ManagedSession, SessionColor } from './session';
+export type {
+  Session,
+  CreateSessionRequest,
+  ManagedSession,
+  SessionColor,
+  GitStatus,
+} from './session';
 export { SESSION_COLORS } from './session';
 export type {
   WSClientMessage,

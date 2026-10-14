@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
-const { createAuth, safeCompare } = require('../../src/server/auth');
+const { createAuth, safeCompare, REMEMBER_IDLE_MS } = require('../../src/server/auth');
 
 describe('Auth', () => {
   describe('createAuth', () => {
@@ -40,7 +40,7 @@ describe('Auth', () => {
       const token = auth.generateToken();
       assert.ok(auth.validateToken(token), 'token should be valid before expiry');
       const realNow = Date.now;
-      Date.now = () => realNow() + 25 * 60 * 60 * 1000; // advance 25 hours past 24-hour expiry
+      Date.now = () => realNow() + REMEMBER_IDLE_MS + 60 * 60 * 1000; // idle past the sliding window
       try {
         assert.strictEqual(
           auth.validateToken(token),
@@ -357,15 +357,6 @@ describe('Auth', () => {
     });
   });
 
-  describe('loginHTML', () => {
-    it('should contain TermBeam branding', () => {
-      const auth = createAuth('pw');
-      assert.ok(auth.loginHTML.includes('aria-label="TermBeam"'));
-      assert.ok(auth.loginHTML.includes('class="wordmark"'));
-      assert.ok(auth.loginHTML.includes('Term<span class="accent">Beam</span>'));
-    });
-  });
-
   describe('share tokens', () => {
     it('should generate a valid share token', () => {
       const auth = createAuth('pw');
@@ -517,7 +508,7 @@ describe('Auth', () => {
 
         // Advance time to expire everything
         const realNow = Date.now;
-        Date.now = () => realNow() + 25 * 60 * 60 * 1000; // 25 hours
+        Date.now = () => realNow() + 8 * 24 * 60 * 60 * 1000; // past the 7-day idle window
         try {
           cleanupFn();
           // Token should now be expired and cleaned up

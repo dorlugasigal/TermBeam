@@ -169,34 +169,99 @@ describe('WebSocket', () => {
       assert.strictEqual(ws._closeReason, 'Origin not allowed');
     });
 
-    it('should allow connections when origin is localhost', () => {
-      const session = createMockSession('s1');
-      sessions._add(session);
-
+    // Security: "one side is localhost" used to be a blanket allow. Behind Dev
+    // Tunnels the Host header is ALWAYS localhost, so that rule let any other
+    // *.devtunnels.ms page (same-site → SameSite=Strict cookie attached) open
+    // an authenticated terminal socket. Origins must now match for real.
+    it('should reject a localhost origin when the server is reached at another host', () => {
       const ws = createMockWs();
       wss._simulateConnection(ws, {
         headers: { host: 'example.com:3000', origin: 'http://localhost:3000' },
       });
-      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
-
-      const attached = ws._sent.find((m) => m.type === 'attached');
-      assert.ok(attached);
-      assert.ok(!ws._closed);
+      assert.ok(ws._closed);
+      assert.strictEqual(ws._closeCode, 1008);
     });
 
-    it('should allow connections when host is localhost', () => {
-      const session = createMockSession('s1');
-      sessions._add(session);
-
+    it('should reject a foreign origin even when the Host header is localhost', () => {
       const ws = createMockWs();
       wss._simulateConnection(ws, {
         headers: { host: 'localhost:3000', origin: 'http://192.168.1.1:3000' },
       });
-      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+      assert.ok(ws._closed);
+      assert.strictEqual(ws._closeCode, 1008);
+    });
 
-      const attached = ws._sent.find((m) => m.type === 'attached');
-      assert.ok(attached);
+    it('should reject another dev tunnel page connecting through the relay', () => {
+      // Exactly what the relay forwards for a foreign tunnel page (captured live)
+      const ws = createMockWs();
+      wss._simulateConnection(ws, {
+        headers: {
+          host: 'localhost:3456',
+          origin: 'https://evil-1234.uks1.devtunnels.ms',
+          'x-forwarded-host': 'abcd1234-3456.uks1.devtunnels.ms',
+          'x-forwarded-proto': 'https',
+          'sec-fetch-site': 'same-site',
+        },
+        socket: { remoteAddress: '127.0.0.1' },
+      });
+      assert.ok(ws._closed);
+      assert.strictEqual(ws._closeCode, 1008);
+    });
+
+    it('should allow the tunnel own origin (relay rewrites it to localhost)', () => {
+      const session = createMockSession('s1');
+      sessions._add(session);
+      const ws = createMockWs();
+      wss._simulateConnection(ws, {
+        headers: {
+          host: 'localhost:3456',
+          origin: 'http://localhost:3456',
+          'x-forwarded-host': 'abcd1234-3456.uks1.devtunnels.ms',
+          'sec-fetch-site': 'same-origin',
+        },
+        socket: { remoteAddress: '127.0.0.1' },
+      });
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+      assert.ok(ws._sent.find((m) => m.type === 'attached'));
       assert.ok(!ws._closed);
+    });
+
+    it('should allow the public tunnel origin when the relay forwards it unchanged', () => {
+      const session = createMockSession('s1');
+      sessions._add(session);
+      const ws = createMockWs();
+      wss._simulateConnection(ws, {
+        headers: {
+          host: 'localhost:3456',
+          origin: 'https://abcd1234-3456.uks1.devtunnels.ms',
+          'x-forwarded-host': 'abcd1234-3456.uks1.devtunnels.ms',
+        },
+        socket: { remoteAddress: '127.0.0.1' },
+      });
+      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+      assert.ok(ws._sent.find((m) => m.type === 'attached'));
+    });
+
+    it('should ignore X-Forwarded-Host from non-loopback peers', () => {
+      const ws = createMockWs();
+      wss._simulateConnection(ws, {
+        headers: {
+          host: '192.168.1.5:3456',
+          origin: 'https://attacker.example',
+          'x-forwarded-host': 'attacker.example',
+        },
+        socket: { remoteAddress: '192.168.1.77' },
+      });
+      assert.ok(ws._closed);
+      assert.strictEqual(ws._closeCode, 1008);
+    });
+
+    it('should reject a different local port on the same host', () => {
+      const ws = createMockWs();
+      wss._simulateConnection(ws, {
+        headers: { host: 'localhost:3456', origin: 'http://localhost:8080' },
+      });
+      assert.ok(ws._closed);
     });
 
     it('should reject connections with invalid Origin URL', () => {

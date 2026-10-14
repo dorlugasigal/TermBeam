@@ -13,9 +13,15 @@ termbeam/
 │   ├── server/                  # HTTP/WS server core
 │   │   ├── index.js             # Main orchestrator
 │   │   ├── routes.js            # Express HTTP routes
-│   │   ├── auth.js              # Authentication & rate limiting
+│   │   ├── auth.js              # Sessions, cookies, middleware & rate limiting
+│   │   ├── auth-store.js        # Persisted remembered devices + passkeys (auth.json)
+│   │   ├── auth-routes.js       # /api/auth/* — login, logout, devices, passkeys
+│   │   ├── webauthn.js          # Passkey (WebAuthn) verification
+│   │   ├── cbor.js              # Minimal strict CBOR decoder (WebAuthn)
+│   │   ├── origin.js            # Origin / CSRF validation (HTTP + WebSocket)
 │   │   ├── websocket.js         # WebSocket connection handling
 │   │   ├── sessions.js          # PTY session management
+│   │   ├── terminal-modes.js    # Tracks DEC modes for faithful reconnect replay
 │   │   ├── preview.js           # Port preview reverse proxy
 │   │   ├── copilot-sdk.js       # GitHub Copilot SDK client
 │   │   └── push.js              # Web Push notification manager
@@ -43,13 +49,14 @@ termbeam/
 │       ├── src/
 │       │   ├── App.tsx          # Root component
 │       │   ├── main.tsx         # Entry point
-│       │   ├── components/      # UI components
-│       │   ├── hooks/           # Custom React hooks
+│       │   ├── components/      # UI components (common/Sheet.tsx is the shared modal)
+│       │   ├── hooks/           # Custom React hooks (useMediaQuery, useTerminalSocket, …)
 │       │   ├── services/        # API, WebSocket & push subscription clients
 │       │   ├── stores/          # Zustand state stores
-│       │   ├── styles/          # CSS stylesheets
+│       │   ├── styles/          # tokens.css (design tokens), forms.module.css, animations.css
 │       │   ├── themes/          # Terminal themes
 │       │   ├── types/           # TypeScript type definitions
+│       │   ├── utils/           # sessionDisplay (grouping/formatting), navigation (SPA routing)
 │       │   └── sw.ts            # Service worker (caching + push notifications)
 │       ├── package.json
 │       ├── vite.config.ts
@@ -82,7 +89,23 @@ Parses command-line arguments and environment variables. Returns a config object
 
 ### `server/auth.js` — Authentication
 
-Factory function `createAuth(password)` returns an object with middleware, token management, rate limiting, and the login page HTML.
+Factory function `createAuth(password, { configDir })` returns the auth middleware, device-session management (create / validate with a sliding idle timeout and absolute cap / list / revoke, emitting `revoked` events so open sockets are closed), passkey storage, one-time share tokens, cookie helpers and rate limiting. Unauthenticated page requests are redirected to `/login?next=…`; the login screen itself is the React SPA.
+
+### `server/auth-store.js` — Persisted Auth State
+
+Loads and atomically writes `<configDir>/auth.json` (mode `0600`): remembered sessions as SHA-256 token hashes, passkey public keys (JWK) with signature counters, the WebAuthn user handle, and a scrypt fingerprint of the password so a password change signs remembered devices out.
+
+### `server/auth-routes.js`, `server/webauthn.js`, `server/cbor.js` — Passkeys
+
+`auth-routes.js` registers `/api/auth/*` (password/QR login, status, logout, devices, passkey ceremonies with single-use 3-minute challenges). `webauthn.js` verifies registrations (attestation `none`, COSE → JWK) and assertions (signature over `authenticatorData ‖ SHA-256(clientDataJSON)`, origin, RP ID hash, user presence + verification, signature counter) using only Node's `crypto`; `cbor.js` is a bounded, strict CBOR decoder for attestation objects and COSE keys.
+
+### `server/origin.js` — Cross-Site Protection
+
+Shared origin validation for WebSockets and state-changing API requests. Behind Dev Tunnels the relay rewrites `Host` to `localhost`, so origins are matched against the `Host` header, the public tunnel URL and `X-Forwarded-Host` (trusted only from loopback), and `Sec-Fetch-Site: same-site|cross-site` is refused.
+
+### `server/terminal-modes.js` — Terminal Mode Tracker
+
+Parses PTY output for DEC private mode switches (alternate screen, mouse tracking protocol + encoding, application cursor keys, bracketed paste, focus reporting, cursor visibility, auto-wrap), handling sequences split across chunks. The replay sent on attach ends with a sequence that restores these modes, so a reconnecting client behaves like the original terminal even after the scrollback that contained the original switches has been trimmed.
 
 ### `server/sessions.js` — Session Manager
 
@@ -90,15 +113,15 @@ Factory function `createAuth(password)` returns an object with middleware, token
 
 ### `utils/git.js` — Git Repository Detection
 
-Detects git repository information for a given directory. Provides `getGitInfo(cwd)` which returns branch name, remote provider (GitHub, GitLab, Bitbucket, Azure DevOps), repository name, and working tree status (staged, modified, untracked counts plus ahead/behind tracking). Also exports `parseRemoteUrl()` and `parseStatus()` for URL parsing and status summarization. All git commands use a 3-second timeout to avoid hanging.
+Detects git repository information for a given directory. Provides `getGitInfoAsync(cwd)` (and a synchronous `getGitInfo(cwd)` for scripts) which returns branch name, remote provider (GitHub, GitLab, Bitbucket, Azure DevOps), repository name, repository root, and working tree status (staged, modified, untracked counts plus ahead/behind tracking). Server code uses the async version: the session list caches git info per session and refreshes it in the background, so git never blocks the event loop (and with it every terminal's WebSocket). Status runs with `--no-optional-locks` so background polling never holds `index.lock` while you commit. Also exports `getGitRoot()`, `parseRemoteUrl()` and `parseStatus()`. Git commands are time-limited so they can't hang.
 
 ### `server/routes.js` — HTTP Routes
 
-Registers all Express routes: login page (`GET /login`), auth API, session CRUD (including `PATCH` for updating session color/name), shell detection, directory browser, image upload, version endpoint. The `POST /api/sessions` endpoint validates `shell` against detected shells and `cwd` against the filesystem, and accepts optional `args`, `initialCommand`, `color`, `cols`, and `rows` parameters.
+Registers all Express routes: the SPA login page (`GET /login`, redirecting signed-in visitors to a validated `next`), the auth API (via `auth-routes.js`), session CRUD (including `PATCH` for updating session color/name), shell detection, directory browser, image upload, version endpoint. The `POST /api/sessions` endpoint validates `shell` against detected shells and `cwd` against the filesystem, and accepts optional `args`, `initialCommand`, `color`, `cols`, and `rows` parameters.
 
 ### `server/websocket.js` — WebSocket Handler
 
-Handles real-time communication: validates the Origin header to reject cross-origin connections, WebSocket-level authentication (password or token), session attachment, terminal I/O forwarding, and resize events. When multiple clients are connected to the same session, the PTY is resized to the minimum dimensions across active clients (active within the last 60 seconds). Idle clients are excluded from the size calculation so that a backgrounded phone tab does not constrain the terminal when resuming from a laptop. Sends keepalive pings every 15 seconds and terminates connections that do not reply with a pong.
+Handles real-time communication: validates the origin (see `origin.js`), WebSocket-level authentication (cookie session, token or password), periodic session re-validation and immediate close (code `4401`) when a device is signed out, application `ping`/`pong` for RTT, session attachment with a replay snapshot, terminal I/O forwarding, resize events, and `broadcast()` of `tunnel-status` / update progress to authenticated clients only. When multiple clients are connected to the same session, the PTY is resized to the minimum dimensions across active clients (active within the last 60 seconds). Idle clients are excluded from the size calculation so that a backgrounded phone tab does not constrain the terminal when resuming from a laptop. Sends keepalive pings every 15 seconds and terminates connections that do not reply with a pong.
 
 ### `server/push.js` — Push Notification Manager
 
@@ -118,16 +141,19 @@ Structured logger with configurable levels (`error`, `warn`, `info`, `debug`). U
 
 ### `tunnel/index.js` — DevTunnel
 
-Manages Azure DevTunnel lifecycle: login, create, host, cleanup. Includes a **watchdog** that keeps the tunnel connection reliable:
+Manages Azure DevTunnel lifecycle: login, create, host, cleanup. Includes a fully asynchronous **watchdog** (no `execFileSync` on any periodic path — previously a synchronous `devtunnel` call every 30 seconds froze all terminal I/O):
 
-- **Health check** — every 30 seconds, runs `devtunnel show` and parses the host connection count.
-- **Zombie detection** — if host connections drop to 0 for two consecutive checks (60s grace), the stale process is killed and a restart is initiated.
-- **Crash detection** — an `exit` handler on the child process triggers immediate restart if the process dies.
+- **Health check** — every 30 seconds, runs `devtunnel show <id> --json` and reads the host connection count.
+- **Zombie detection** — two consecutive failures (0 host connections, parse errors) kill the stale host process and schedule a restart.
+- **Crash detection** — the host process `exit` handler restarts immediately; output is classified so a "Tunnel not found" exit triggers recovery instead of endless restarts.
+- **Sleep / wake detection** — a 10-second timer that fires late reveals a suspended laptop; on resume the tunnel is checked at once and restarted after a single failure.
+- **Expired / deleted tunnel recovery** — Dev Tunnel expiration is a sliding inactivity window that a long sleep can exceed. The watchdog first runs `devtunnel update --expiration`, and if the tunnel is gone creates a replacement with the same settings (persisted id saved), then emits `recreated` and `url-changed` so the server prints the new URL + QR and notifies clients. Healthy tunnels have their expiration extended every 6 hours.
 - **Auto-restart** — exponential backoff (1s → 2s → 5s → 10s → 15s → 30s), up to 10 attempts before transitioning to network-wait.
-- **Auth-wait system** — detects auth token expiry (Microsoft limitation), enters an auth-wait mode, polls for re-authentication via device code flow, and auto-reconnects once a fresh token is obtained.
-- **Network-wait system** — detects DNS / connectivity errors (e.g. `ENOTFOUND`, `EAI_AGAIN`, `nodename nor servname`), enters a network-wait mode, probes the DevTunnel host via DNS every 60 seconds, and auto-reconnects once the network is reachable again. Network errors do not consume restart attempts, so transient outages (Wi-Fi sleep, DHCP renewal, ISP DNS blips) no longer cause a permanent giveup.
-- **Token lifetime monitoring** — tracks the remaining lifetime of the DevTunnel auth token and emits warnings when less than 1 hour remains, giving the frontend time to prompt the user.
-- **Event emitter** — exports `tunnelEvents` (EventEmitter) with events: `connected`, `disconnected`, `reconnecting`, `network-lost`, `network-restored`, `failed`. The server subscribes for logging.
+- **Auth-wait system** — detects host login expiry, pauses, polls (asynchronously) for `devtunnel user login`, and reconnects once a fresh token exists.
+- **Network-wait system** — detects DNS / connectivity errors (e.g. `ENOTFOUND`, `EAI_AGAIN`), probes the tunnel service via DNS every 30 seconds and reconnects once reachable. Network errors do not consume restart attempts.
+- **Relay monitoring** — `devtunnel host` output is watched for relay lost / restored lines.
+- **Token lifetime monitoring** — refreshed every 10 minutes into a cache (`getCachedLoginInfo()`) that `GET /api/tunnel/status` reads without spawning a process.
+- **Event emitter** — `tunnelEvents` emits `connected`, `disconnected`, `reconnecting`, `network-lost`, `network-restored`, `auth-expired`, `auth-restored`, `relay-lost`, `relay-restored`, `resumed`, `recreated`, `url-changed`, `failed`. The server mirrors them into `GET /api/tunnel/status` and a `tunnel-status` WebSocket broadcast.
 
 Also exports `getLoginInfo()` (returns current auth provider and token expiry) and `parseLoginInfo()` (parses raw `devtunnel` CLI output into structured login metadata).
 
@@ -162,6 +188,10 @@ Smart version detection with two paths: npm installs use the `package.json` vers
 ### Frontend — React SPA
 
 The frontend is a React 19 single-page application built with Vite and TypeScript, located in `src/frontend/`. It builds to `public/`, which Express serves as the static directory. Key dependencies include `@xterm/xterm` (npm package, not CDN), Zustand for state management, Radix UI for dialogs, `@dnd-kit` for drag-and-drop, and Sonner for toast notifications.
+
+**Connection & auth on the client.** `stores/connectionStore.ts` is the single authority for link state (`connecting`, `online`, `reconnecting`, `offline`, `host-unreachable`, `tunnel-auth`, `auth-expired`, `updating`). Sockets and pollers report facts; when the link drops the store diagnoses _why_ with `probeServer()` — a `fetch` of `/api/auth/status` with `redirect: 'manual'`, because an expired private-tunnel sign-in answers with a cross-origin 302 that a normal `fetch` reports as an opaque network error — and pauses sockets until reconnecting can succeed. The `ConnectionPill` (top bar), `ConnectionSheet`, in-place `UnlockSheet` (passkey or password, terminals stay mounted) and `PasskeyPrompt` render it. Design tokens live in `styles/tokens.css` and are derived from each theme's colors; `services/themeContrast.ts` sets `data-tone` and a contrast-safe `--on-accent` per theme.
+
+**Screens and navigation.** `App.tsx` routes between the login page, the sessions hub and the terminal from `location.pathname`; in-app links go through `utils/navigation.ts` (`navigate()` / `spaLinkHandler`) instead of full reloads, and each route change runs inside `document.startViewTransition` so screens cross-fade and the opened session's name morphs from its hub row into the terminal tab. The hub groups sessions by git working tree (`utils/sessionDisplay.ts`, keyed by the server's `git.root`) so a repo's branch and status appear once above its sessions, and shows paths, branches and status in full — wrapping, never truncated. Every modal is built on `components/common/Sheet.tsx` (bottom sheet with drag-to-dismiss on phones, centered dialog on desktop) with controls from `styles/forms.module.css`.
 
 The terminal page includes several client-side features:
 

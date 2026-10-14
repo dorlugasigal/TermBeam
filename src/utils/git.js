@@ -2,69 +2,114 @@ const { execSync } = require('child_process');
 const path = require('path');
 const log = require('./logger');
 
-function git(cmd, cwd) {
-  return execSync(`git ${cmd}`, { cwd, stdio: 'pipe', timeout: 3000, windowsHide: true })
-    .toString()
-    .trim();
+function git(cmd, cwd, { raw = false } = {}) {
+  const out = execSync(`git ${cmd}`, {
+    cwd,
+    stdio: 'pipe',
+    timeout: 3000,
+    windowsHide: true,
+  }).toString();
+  return raw ? out : out.trim();
 }
 
-function getGitInfo(cwd) {
-  try {
-    git('rev-parse --is-inside-work-tree', cwd);
-  } catch {
-    log.debug(`Not a git repository: ${cwd}`);
-    return null;
-  }
+/** Shape the session git summary from raw command outputs (null = failed). */
+function assembleGitInfo({ root, branch, shortSha, remoteUrl, counts, porcelain }) {
+  const result = { branch: null, repoName: null, provider: null, status: null, root };
 
-  const result = { branch: null, repoName: null, provider: null, status: null };
+  if (branch) result.branch = branch;
+  else if (shortSha) result.branch = `(${shortSha})`; // detached HEAD
 
-  try {
-    const branch = git('branch --show-current', cwd);
-    if (branch) {
-      result.branch = branch;
-    } else {
-      // Detached HEAD — use short SHA
-      result.branch = `(${git('rev-parse --short HEAD', cwd)})`;
-    }
-  } catch {
-    /* empty repo */
-  }
-
-  try {
-    const remoteUrl = git('remote get-url origin', cwd);
+  if (remoteUrl) {
     const parsed = parseRemoteUrl(remoteUrl);
     if (parsed) {
       result.repoName = parsed.repoName;
       result.provider = parsed.provider;
     }
-  } catch {
-    // No remote — use directory name
-    try {
-      const root = git('rev-parse --show-toplevel', cwd);
-      result.repoName = path.basename(root);
-    } catch {
-      /* ignore */
-    }
+  } else if (root) {
+    // No remote — use the directory name
+    result.repoName = path.basename(root);
   }
 
   let ahead = 0,
     behind = 0;
-  try {
-    const counts = git('rev-list --left-right --count HEAD...@{upstream}', cwd);
-    [ahead, behind] = counts.split(/\s+/).map(Number);
-  } catch {
-    /* no upstream configured */
-  }
+  if (counts) [ahead, behind] = counts.split(/\s+/).map(Number);
 
-  try {
-    const raw = git('status --porcelain', cwd);
-    result.status = parseStatus(raw, ahead, behind);
-  } catch {
-    /* ignore */
+  // Porcelain lines start with a meaningful space (" M file" = unstaged), so
+  // this output must never be trimmed.
+  if (porcelain !== null && porcelain !== undefined) {
+    result.status = parseStatus(porcelain, ahead, behind);
   }
-
-  log.debug(`Git info resolved for ${cwd}`);
   return result;
+}
+
+function parseRevParse(output) {
+  const [inside, top] = output.trim().split(/\r?\n/);
+  if (inside !== 'true') throw new Error('not inside a work tree');
+  return top || null;
+}
+
+function getGitInfo(cwd) {
+  let root;
+  try {
+    root = parseRevParse(git('rev-parse --is-inside-work-tree --show-toplevel', cwd));
+  } catch {
+    log.debug(`Not a git repository: ${cwd}`);
+    return null;
+  }
+
+  const attempt = (cmd, opts) => {
+    try {
+      return git(cmd, cwd, opts);
+    } catch {
+      return null;
+    }
+  };
+  const branch = attempt('branch --show-current');
+  const info = assembleGitInfo({
+    root,
+    branch,
+    shortSha: branch ? null : attempt('rev-parse --short HEAD'),
+    remoteUrl: attempt('remote get-url origin'),
+    counts: attempt('rev-list --left-right --count HEAD...@{upstream}'),
+    // --no-optional-locks: background polling must never take index.lock and
+    // make the user's own `git commit` fail.
+    porcelain: attempt('--no-optional-locks status --porcelain', { raw: true }),
+  });
+  log.debug(`Git info resolved for ${cwd}`);
+  return info;
+}
+
+/**
+ * Non-blocking getGitInfo() for background refreshes. The sync version stalls
+ * the event loop — and every terminal's WebSocket with it — for the duration
+ * of several git invocations; this one runs them in parallel off-thread.
+ */
+async function getGitInfoAsync(cwd) {
+  let root;
+  try {
+    root = parseRevParse(
+      await gitAsync(['rev-parse', '--is-inside-work-tree', '--show-toplevel'], cwd, {
+        timeout: 3000,
+      }),
+    );
+  } catch {
+    log.debug(`Not a git repository: ${cwd}`);
+    return null;
+  }
+
+  const attempt = (args, raw = false) =>
+    gitAsync(args, cwd, { timeout: 3000 }).then(
+      (out) => (raw ? out : out.trim()),
+      () => null,
+    );
+  const [branch, remoteUrl, counts, porcelain] = await Promise.all([
+    attempt(['branch', '--show-current']),
+    attempt(['remote', 'get-url', 'origin']),
+    attempt(['rev-list', '--left-right', '--count', 'HEAD...@{upstream}']),
+    attempt(['--no-optional-locks', 'status', '--porcelain'], true),
+  ]);
+  const shortSha = branch ? null : await attempt(['rev-parse', '--short', 'HEAD']);
+  return assembleGitInfo({ root, branch, shortSha, remoteUrl, counts, porcelain });
 }
 
 function parseRemoteUrl(url) {
@@ -197,7 +242,7 @@ async function getDetailedStatus(cwd) {
   };
 
   try {
-    const raw = await gitAsync(['status', '--porcelain=v1', '-b'], cwd);
+    const raw = await gitAsync(['--no-optional-locks', 'status', '--porcelain=v1', '-b'], cwd);
     const lines = raw.split('\n').filter(Boolean);
 
     for (const line of lines) {
@@ -493,6 +538,7 @@ async function getGitLog(cwd, options = {}) {
 
 module.exports = {
   getGitInfo,
+  getGitInfoAsync,
   parseRemoteUrl,
   parseStatus,
   getDetailedStatus,
