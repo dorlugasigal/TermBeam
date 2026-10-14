@@ -2,8 +2,10 @@ import { useMemo, type SelectHTMLAttributes } from 'react';
 import { useCopilotModels } from '@/stores/copilotModelsStore';
 import { groupModels } from '@/utils/copilotModels';
 
-interface ModelSelectProps
-  extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'value' | 'onChange' | 'children'> {
+interface ModelSelectProps extends Omit<
+  SelectHTMLAttributes<HTMLSelectElement>,
+  'value' | 'onChange' | 'children'
+> {
   value: string;
   onChange: (model: string) => void;
   /** Label for "" (let Copilot choose its default); omit to leave that choice out. */
