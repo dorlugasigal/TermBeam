@@ -2,6 +2,7 @@ import { toast } from 'sonner';
 import { useConnectionStore, type TunnelStatus } from '@/stores/connectionStore';
 import { describeLink } from './copy';
 import { useSecondsLeft } from './ConnectionPill';
+import { Breakable } from '@/components/common/Breakable';
 import { Sheet } from '@/components/common/Sheet';
 import form from '@/styles/forms.module.css';
 import styles from './Sheets.module.css';
@@ -17,7 +18,7 @@ function tunnelNote(t: TunnelStatus | null): TunnelNote | null {
   if (!t) return null;
   switch (t.state) {
     case 'connected':
-      return t.urlChanged && t.url
+      return t.urlChanged && t.url && /^https?:\/\//i.test(t.url)
         ? {
             title: 'Remote address changed',
             body: 'Your computer had to create a new tunnel. Other devices need the new link.',
@@ -157,13 +158,20 @@ export function ConnectionSheet() {
             <span className={styles.noteBody}>{note.body}</span>
             {note.command && <code className={styles.code}>{note.command}</code>}
             {note.url && (
-              <button
-                type="button"
-                className={`${form.btn} ${form.tonal} ${styles.noteAction}`}
-                onClick={() => copyLink(note.url!)}
-              >
-                Copy new link
-              </button>
+              <>
+                {/* Shown as a real link: tap to open the new address, or
+                    long-press / select it where the clipboard is unavailable. */}
+                <a className={styles.noteLink} href={note.url} rel="noreferrer">
+                  <Breakable text={note.url} />
+                </a>
+                <button
+                  type="button"
+                  className={`${form.btn} ${form.tonal} ${styles.noteAction}`}
+                  onClick={() => copyLink(note.url!)}
+                >
+                  Copy new link
+                </button>
+              </>
             )}
           </div>
         )}

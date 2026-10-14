@@ -33,19 +33,26 @@ const status = {
 };
 
 describe('tildePath', () => {
-  it('abbreviates macOS, Linux, root and Windows home directories', () => {
-    expect(tildePath('/Users/dor/Projects/termbeam')).toBe('~/Projects/termbeam');
-    expect(tildePath('/home/dor')).toBe('~');
-    expect(tildePath('/root/app')).toBe('~/app');
-    expect(tildePath('C:\\Users\\dor\\src')).toBe('~\\src');
+  it("abbreviates the server user's home on macOS, Linux, root and Windows", () => {
+    expect(tildePath('/Users/dor/Projects/termbeam', '/Users/dor')).toBe('~/Projects/termbeam');
+    expect(tildePath('/home/dor', '/home/dor')).toBe('~');
+    expect(tildePath('/root/app', '/root/')).toBe('~/app');
+    expect(tildePath('C:\\Users\\dor\\src', 'C:\\Users\\dor')).toBe('~\\src');
   });
 
-  it('leaves other paths and look-alike prefixes alone', () => {
-    expect(tildePath('/opt/app')).toBe('/opt/app');
-    expect(tildePath('/Usersx/dor')).toBe('/Usersx/dor');
-    expect(tildePath('/rootless/x')).toBe('/rootless/x');
-    expect(tildePath('')).toBe('');
-    expect(tildePath(null)).toBe('');
+  it("keeps other users' homes, shared folders and look-alike prefixes in full", () => {
+    expect(tildePath('/Users/Shared/project', '/Users/dor')).toBe('/Users/Shared/project');
+    expect(tildePath('/home/alice/app', '/home/bob')).toBe('/home/alice/app');
+    expect(tildePath('/Users/dorx/app', '/Users/dor')).toBe('/Users/dorx/app');
+    expect(tildePath('/opt/app', '/Users/dor')).toBe('/opt/app');
+  });
+
+  it('shortens nothing when the home is unknown', () => {
+    expect(tildePath('/Users/dor/Projects', undefined)).toBe('/Users/dor/Projects');
+    expect(tildePath('/home/dor', '')).toBe('/home/dor');
+    expect(tildePath('/x', '/')).toBe('/x');
+    expect(tildePath('', '/Users/dor')).toBe('');
+    expect(tildePath(null, '/Users/dor')).toBe('');
   });
 });
 

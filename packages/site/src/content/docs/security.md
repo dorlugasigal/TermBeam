@@ -170,7 +170,7 @@ After a password or QR sign-in, TermBeam offers to register a **passkey** so the
 
 ### Cross-Site Protection (WebSocket + API)
 
-- A browser origin must match an address TermBeam is actually reached at: the `Host` header, the public tunnel URL, the `--public-url` you configured, or `X-Forwarded-Host` when it comes from a loopback reverse proxy (the DevTunnel host process). A same-host origin on the default HTTPS/HTTP port is also accepted for TLS-terminating proxies.
+- A browser origin must match an address TermBeam is actually reached at — same host **and** same port: the `Host` header, the public tunnel URL, the `--public-url` you configured, or `X-Forwarded-Host` when it comes from a loopback reverse proxy (the DevTunnel host process). A `Host` without a port (or with the scheme's default port) matches the default port only; a page on another port of the same host is rejected, because cookies are shared across ports.
 - Blocked requests are logged with the origin and `Host` that were seen, plus how to fix a reverse-proxy setup (see [Behind Your Own Reverse Proxy](../configuration/#behind-your-own-reverse-proxy)).
 - WebSocket handshakes from any other origin are closed with code `1008`; state-changing API requests (`POST`/`PUT`/`PATCH`/`DELETE`) from another origin get `403`.
 - Requests a browser marks as `Sec-Fetch-Site: same-site` or `cross-site` are refused for every `/api/*` call and WebSocket.

@@ -51,6 +51,21 @@ function hostnameOf(authority) {
   return idx === -1 ? authority : authority.slice(0, idx);
 }
 
+const DEFAULT_PORTS = { 'http:': '80', 'https:': '443' };
+
+/**
+ * Same hostname and the same effective port. A Host header without a port
+ * (or with the scheme's default one) means the default port; a different
+ * port is a different origin even though cookies are shared across ports.
+ */
+function matchesAuthority(allowed, url) {
+  const hostname = hostnameOf(allowed);
+  if (hostname !== url.hostname.toLowerCase()) return false;
+  const defaultPort = DEFAULT_PORTS[url.protocol];
+  const allowedPort = allowed.slice(hostname.length + 1) || defaultPort;
+  return allowedPort === (url.port || defaultPort);
+}
+
 /**
  * @returns {{ ok: boolean, reason?: 'invalid' | 'mismatch' | 'cross-site' }}
  */
@@ -72,16 +87,9 @@ function checkOrigin(req, { publicUrl } = {}) {
   if (url.protocol !== 'http:' && url.protocol !== 'https:')
     return { ok: false, reason: 'invalid' };
 
-  const authority = url.host.toLowerCase();
   const allowed = allowedAuthorities(req, publicUrl);
-  if (allowed.has(authority)) return { ok: true };
-  // TLS-terminating reverse proxies often forward to the app's own port while
-  // the browser sits on the default port: same hostname, default port only.
-  if (url.port === '') {
-    const hostname = url.hostname.toLowerCase();
-    for (const a of allowed) {
-      if (hostnameOf(a) === hostname) return { ok: true };
-    }
+  for (const a of allowed) {
+    if (matchesAuthority(a, url)) return { ok: true };
   }
   return { ok: false, reason: 'mismatch' };
 }

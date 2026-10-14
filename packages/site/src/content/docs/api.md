@@ -175,6 +175,7 @@ List all active sessions.
     "createdAt": "2025-01-01T00:00:00.000Z",
     "color": "#4a9eff",
     "lastActivity": 1719849600000,
+    "home": "/home/user",
     "git": {
       "branch": "main",
       "repoName": "owner/repo",
@@ -199,6 +200,7 @@ List all active sessions.
 | `color`        | string      | Hex color assigned to the session                                                                            |
 | `lastActivity` | number      | Unix timestamp (ms) of the last PTY output                                                                   |
 | `cwd`          | string      | Live working directory of the shell process (updates when the user `cd`s)                                    |
+| `home`         | string      | Home directory of the user running TermBeam — clients show paths under it (and only it) as `~`               |
 | `git`          | object/null | Git repository info for the session's cwd, or `null` if not in a git repo                                    |
 | `git.branch`   | string      | Current branch name (or short SHA in detached HEAD)                                                          |
 | `git.root`     | string/null | Repository top-level directory; sessions with the same root share a working tree (the hub groups them)       |

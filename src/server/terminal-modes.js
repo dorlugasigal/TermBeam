@@ -13,12 +13,14 @@
  * as prompt-history navigation instead of scrolling its transcript.
  *
  * Semantics mirror xterm.js: mouse tracking protocols (9/1000/1002/1003) are
- * mutually exclusive and resetting any of them disables tracking; mouse
- * encodings (1005/1006/1015/1016) likewise.
+ * mutually exclusive and resetting any of them disables tracking. Of the
+ * mouse encodings it supports only SGR (1006) and SGR-pixels (1016) — 1005
+ * and 1015 are ignored — and resetting either supported encoding returns to
+ * the default. A hard reset (RIS, ESC c) restores every power-on default.
  */
 
 const MOUSE_PROTOCOLS = new Set([9, 1000, 1002, 1003]);
-const MOUSE_ENCODINGS = new Set([1005, 1006, 1015, 1016]);
+const MOUSE_ENCODINGS = new Set([1006, 1016]);
 const ALT_SCREEN_MODES = new Set([47, 1047, 1049]);
 
 // Simple on/off modes worth restoring, with their power-on defaults:
@@ -37,18 +39,24 @@ const FLAG_DEFAULTS = [
   [2004, false],
 ];
 
-const DECSET_RE = /\x1b\[\?([0-9;]{1,64})([hl])/g;
+// DECSET/DECRST (CSI ? Pm h|l), or RIS (ESC c) when group 1 is undefined.
+const MODE_RE = /\x1b(?:\[\?([0-9;]{1,64})([hl])|c)/g;
 // An escape sequence that may continue in the next chunk: ESC, ESC [, ESC [ ? 1 0 ...
 const PARTIAL_RE = /^\x1b(?:\[\??[0-9;]*)?$/;
 const MAX_TAIL = 72;
 
 class TerminalModeTracker {
   constructor() {
+    this._reset();
+    this._tail = '';
+  }
+
+  /** Power-on state — also what a hard reset (RIS) returns the terminal to. */
+  _reset() {
     this.flags = new Map(FLAG_DEFAULTS);
     this.mouseProtocol = 0;
     this.mouseEncoding = 0;
     this.altScreenMode = null; // '1049' | '1047' | '47' | null
-    this._tail = '';
   }
 
   get inAltScreen() {
@@ -59,12 +67,13 @@ class TerminalModeTracker {
   feed(data) {
     if (typeof data !== 'string' || data.length === 0) return;
     const buf = this._tail + data;
-    DECSET_RE.lastIndex = 0;
+    MODE_RE.lastIndex = 0;
     let lastEnd = 0;
     let m;
-    while ((m = DECSET_RE.exec(buf)) !== null) {
-      this._apply(m[1], m[2] === 'h');
-      lastEnd = DECSET_RE.lastIndex;
+    while ((m = MODE_RE.exec(buf)) !== null) {
+      if (m[1] === undefined) this._reset();
+      else this._apply(m[1], m[2] === 'h');
+      lastEnd = MODE_RE.lastIndex;
     }
     const lastEsc = buf.lastIndexOf('\x1b');
     if (lastEsc >= lastEnd && buf.length - lastEsc <= MAX_TAIL) {
@@ -82,8 +91,7 @@ class TerminalModeTracker {
       if (MOUSE_PROTOCOLS.has(mode)) {
         this.mouseProtocol = set ? mode : 0;
       } else if (MOUSE_ENCODINGS.has(mode)) {
-        if (set) this.mouseEncoding = mode;
-        else if (this.mouseEncoding === mode) this.mouseEncoding = 0;
+        this.mouseEncoding = set ? mode : 0;
       } else if (ALT_SCREEN_MODES.has(mode)) {
         this.altScreenMode = set ? String(mode) : null;
       } else if (this.flags.has(mode)) {

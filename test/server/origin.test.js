@@ -139,17 +139,40 @@ describe('origin.checkOrigin', () => {
     assert.equal(checkOrigin(r, { publicUrl: 'https://other.devtunnels.ms' }).ok, false);
   });
 
-  it('allows the same hostname on the default port (TLS-terminating reverse proxy)', () => {
+  it('treats a missing or explicit default port as the same origin (reverse proxies)', () => {
+    for (const [host, origin] of [
+      ['termbeam.example.com', 'https://termbeam.example.com'],
+      ['termbeam.example.com:443', 'https://termbeam.example.com'],
+      ['termbeam.example.com:80', 'http://termbeam.example.com'],
+      ['[::1]', 'http://[::1]'],
+    ]) {
+      assert.equal(checkOrigin(req({ headers: { host, origin } })).ok, true, `${host} ← ${origin}`);
+    }
+  });
+
+  it('rejects the same hostname on another port — cookies do not isolate ports', () => {
+    // A page on http://localhost (port 80) must not drive a TermBeam on :3456.
+    for (const [host, origin] of [
+      ['localhost:3456', 'http://localhost'],
+      ['termbeam.example.com:3456', 'https://termbeam.example.com'],
+      ['[::1]:3456', 'http://[::1]'],
+      ['termbeam.example.com:443', 'http://termbeam.example.com'],
+      ['termbeam.example.com', 'https://termbeam.example.com:8443'],
+    ]) {
+      assert.deepEqual(
+        checkOrigin(req({ headers: { host, origin } })),
+        { ok: false, reason: 'mismatch' },
+        `${host} ← ${origin}`,
+      );
+    }
+    // --public-url / X-Forwarded-Host is the explicit way to trust a proxied origin
     assert.equal(
       checkOrigin(
         req({
           headers: { host: 'termbeam.example.com:3456', origin: 'https://termbeam.example.com' },
         }),
+        { publicUrl: 'https://termbeam.example.com' },
       ).ok,
-      true,
-    );
-    assert.equal(
-      checkOrigin(req({ headers: { host: '[::1]:3456', origin: 'http://[::1]' } })).ok,
       true,
     );
   });

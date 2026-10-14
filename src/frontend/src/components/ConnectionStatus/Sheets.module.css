@@ -121,6 +121,20 @@
   font-size: var(--fs-md);
 }
 
+.noteLink {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--card);
+  color: var(--accent-ink);
+  font: 500 12.5px / 1.45 var(--font-mono);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
+}
+
 .reload {
   align-self: center;
 }

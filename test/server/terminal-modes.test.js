@@ -174,13 +174,43 @@ describe('TerminalModeTracker', () => {
       }
     });
 
-    it('an encoding reset only clears the matching encoding', () => {
-      const t = track('\x1b[?1006h', '\x1b[?1015l\x1b[?1005l\x1b[?1016l');
-      assert.equal(t.mouseEncoding, 1006);
+    it('tracks only the encodings xterm.js supports; resetting either clears it', () => {
+      const t = track('\x1b[?1006h', '\x1b[?1015h\x1b[?1005h');
+      assert.equal(t.mouseEncoding, 1006, '1005/1015 are ignored, as in xterm.js');
+      t.feed('\x1b[?1016h');
+      assert.equal(t.mouseEncoding, 1016, 'last supported encoding set wins');
       t.feed('\x1b[?1006l');
+      assert.equal(t.mouseEncoding, 0, '?1006l also ends SGR-pixels (xterm.js → DEFAULT)');
+      t.feed('\x1b[?1006h\x1b[?1016l');
+      assert.equal(t.mouseEncoding, 0, '?1016l also ends SGR');
+      t.feed('\x1b[?1016h\x1b[?1015l\x1b[?1005l');
+      assert.equal(t.mouseEncoding, 1016, 'resets of unsupported encodings are ignored');
+    });
+  });
+
+  describe('hard reset (RIS, ESC c)', () => {
+    it('returns every tracked mode to its power-on default, in stream order', () => {
+      const t = track(COPILOT_SESSION + '\x1b[?1h\x1b[?7l\x1bc\x1b[?2004h');
+      assert.equal(t.mouseProtocol, 0);
       assert.equal(t.mouseEncoding, 0);
-      t.feed('\x1b[?1005h\x1b[?1016h');
-      assert.equal(t.mouseEncoding, 1016, 'last encoding set wins');
+      assert.equal(t.inAltScreen, false);
+      assert.deepEqual(Object.fromEntries(t.flags), {
+        1: false,
+        7: true,
+        25: true,
+        1004: false,
+        2004: true, // set after the reset, so it still counts
+      });
+    });
+
+    it('recognises ESC and c split across chunks', () => {
+      const t = track('\x1b[?1003h\x1b[?1006h\x1b[?25l\x1b', 'c');
+      assert.deepEqual(snapshot(t), snapshot(new TerminalModeTracker()));
+    });
+
+    it('does not mistake CSI sequences ending in c (device attributes) for a reset', () => {
+      const t = track('\x1b[?1003h\x1b[c\x1b[>c\x1b[?1;2c\x1b[', 'c');
+      assert.equal(t.mouseProtocol, 1003);
     });
   });
 
@@ -231,14 +261,16 @@ describe('TerminalModeTracker', () => {
         '\x1b[?1000h\x1b[?1015h\x1b[?1h',
         '\x1b[?9h\x1b[?7l',
         '\x1b[?1002h\x1b[?1006h\x1b[?1006l',
+        '\x1b[?1003h\x1b[?1016h\x1b[?1006l',
         '\x1b[?1003h\x1b[?1003l\x1b[?25l',
+        COPILOT_SESSION + '\x1bc\x1b[?1000h',
         '',
       ];
       for (const scenario of scenarios) {
         const original = track(scenario);
         // A client left with stale modes by the replay, then fed the restore.
         // (Only states xterm.js can really be in: it ignores 1005/1015, and
-        // its ?1006l resets whichever encoding is active.)
+        // resetting 1006 or 1016 returns to the default encoding.)
         const stale = '\x1b[?1003h\x1b[?1006h\x1b[?1h\x1b[?2004h\x1b[?25l\x1b[?7l\x1b[?1004h';
         const client = track(stale, original.restoreSequence());
         const pick = (t) => ({

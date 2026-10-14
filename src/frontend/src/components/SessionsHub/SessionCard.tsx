@@ -181,7 +181,7 @@ export default function SessionCard({
           data-revealed={revealed || undefined}
           role="button"
           tabIndex={dissolving ? -1 : 0}
-          aria-label={`${session.name}, ${tildePath(session.cwd)}. ${ago.long}`}
+          aria-label={`${session.name}, ${tildePath(session.cwd, session.home)}. ${ago.long}`}
           onClick={() => {
             if (dissolving) return;
             if (revealed) {
@@ -232,7 +232,7 @@ export default function SessionCard({
           <div className={styles.details}>
             {session.cwd && (
               <div className={styles.path} title={session.cwd}>
-                <Breakable text={tildePath(session.cwd)} />
+                <Breakable text={tildePath(session.cwd, session.home)} />
               </div>
             )}
 

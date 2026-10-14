@@ -4168,6 +4168,9 @@ describe('Routes', () => {
       assert.ok('ptySessionId' in copilotSession, 'Should include ptySessionId field');
       assert.ok('model' in copilotSession, 'Should include model field');
       assert.strictEqual(copilotSession.shell, 'copilot-sdk');
+      for (const s of sessions) {
+        assert.strictEqual(s.home, os.homedir(), 'every session carries the server home');
+      }
       assert.strictEqual(copilotSession.ptySessionId, created.ptySessionId);
     });
 

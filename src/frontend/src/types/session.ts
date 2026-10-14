@@ -24,6 +24,8 @@ export interface Session {
   cols?: number;
   rows?: number;
   clients?: number;
+  /** Home directory of the user running TermBeam (paths under it show as `~`). */
+  home?: string;
   git?: {
     branch: string;
     provider?: string;

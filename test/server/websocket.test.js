@@ -147,15 +147,19 @@ describe('WebSocket', () => {
       const session = createMockSession('s1');
       sessions._add(session);
 
-      const ws = createMockWs();
-      wss._simulateConnection(ws, {
-        headers: { host: 'example.com:3000', origin: 'https://example.com' },
-      });
-      ws._simulateMessage({ type: 'attach', sessionId: 's1' });
+      for (const headers of [
+        { host: 'example.com:3000', origin: 'http://example.com:3000' },
+        // Reverse proxy forwarding Host without a port, browser on :443
+        { host: 'example.com', origin: 'https://example.com' },
+      ]) {
+        const ws = createMockWs();
+        wss._simulateConnection(ws, { headers });
+        ws._simulateMessage({ type: 'attach', sessionId: 's1' });
 
-      const attached = ws._sent.find((m) => m.type === 'attached');
-      assert.ok(attached);
-      assert.ok(!ws._closed);
+        const attached = ws._sent.find((m) => m.type === 'attached');
+        assert.ok(attached, JSON.stringify(headers));
+        assert.ok(!ws._closed);
+      }
     });
 
     it('should reject connections with mismatched Origin', () => {

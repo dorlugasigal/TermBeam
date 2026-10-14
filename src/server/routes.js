@@ -434,7 +434,10 @@ function setupRoutes(
       }),
     ];
 
-    res.json(all);
+    // Lets clients shorten paths under the server user's home to `~` without
+    // guessing which `/Users/<name>` or `/home/<name>` that is.
+    const home = os.homedir();
+    res.json(all.map((s) => ({ ...s, home })));
   });
 
   app.post('/api/sessions', apiRateLimit, auth.middleware, async (req, res) => {

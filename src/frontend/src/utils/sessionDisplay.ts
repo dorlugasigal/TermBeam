@@ -6,13 +6,18 @@ import type { GitStatus, Session } from '@/types';
  * of being truncated, because users scan it to tell sessions apart.
  */
 
-const HOME_RE = /^(\/Users\/[^/]+|\/home\/[^/]+|\/root|[A-Za-z]:\\Users\\[^\\]+)(?=$|[/\\])/;
-
-/** `/Users/me/src/app` → `~/src/app`. Leaves other paths untouched. */
-export function tildePath(p: string | null | undefined): string {
+/**
+ * `/Users/me/src/app` → `~/src/app`, but only for the server user's own home
+ * (`home`, from the API). Other users' homes and look-alikes such as
+ * `/Users/Shared` stay in full; without a known home nothing is shortened.
+ */
+export function tildePath(p: string | null | undefined, home?: string | null): string {
   if (!p) return '';
-  const m = HOME_RE.exec(p);
-  return m ? `~${p.slice(m[1]!.length)}` : p;
+  const h = (home || '').replace(/[/\\]+$/, '');
+  if (!h || !p.startsWith(h)) return p;
+  if (p.length === h.length) return '~';
+  const next = p.charAt(h.length);
+  return next === '/' || next === '\\' ? `~${p.slice(h.length)}` : p;
 }
 
 /** Split after every `/` or `\` so callers can put a soft break (<wbr>) there. */

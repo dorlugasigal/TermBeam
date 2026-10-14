@@ -21,11 +21,12 @@
 
   position: fixed;
   z-index: 501;
-  inset: 0;
+  /* --vv-*: the visible area (set while open) — keeps clear of the iOS keyboard */
+  inset: 0 0 var(--vv-bottom, 0px);
   margin: auto;
   width: min(calc(100vw - 32px), var(--sheet-w, 480px));
   height: fit-content;
-  max-height: min(86dvh, 760px);
+  max-height: min(86dvh, 760px, calc(var(--vv-height, 100dvh) - 24px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -68,9 +69,9 @@
   .sheet {
     --sheet-pad: 18px;
 
-    inset: auto 0 0;
+    inset: auto 0 var(--vv-bottom, 0px);
     width: 100%;
-    max-height: calc(100dvh - var(--safe-top) - 10px);
+    max-height: calc(min(100dvh, var(--vv-height, 100dvh)) - var(--safe-top) - 10px);
     border-radius: 22px 22px 0 0;
     box-shadow:
       0 -1px 0 var(--edge),
@@ -222,7 +223,9 @@
   flex: none;
   display: flex;
   gap: 10px;
-  padding: 12px var(--sheet-pad) max(16px, env(safe-area-inset-bottom, 0px));
+  /* No home-indicator padding while the keyboard covers that edge */
+  padding: 12px var(--sheet-pad)
+    max(16px, calc(env(safe-area-inset-bottom, 0px) - var(--vv-bottom, 0px)));
   box-shadow: 0 -1px 0 var(--hairline);
 }
 

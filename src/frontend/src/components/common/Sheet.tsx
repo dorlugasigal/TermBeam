@@ -1,6 +1,7 @@
-import { useRef, type ReactNode } from 'react';
+import { useRef, type CSSProperties, type ReactNode } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useVisualViewport } from '@/hooks/useVisualViewport';
 import styles from './Sheet.module.css';
 
 const SHEET_QUERY = '(max-width: 640px)';
@@ -67,6 +68,15 @@ export function Sheet({
   onOpenAutoFocus,
 }: SheetProps) {
   const isSheet = useMediaQuery(SHEET_QUERY);
+  // Portaled outside TerminalApp, so it can't use --keyboard-height: follow
+  // the visible area itself so forms (e.g. Unlock) stay above the keyboard.
+  const viewport = useVisualViewport(open);
+  const viewportVars = viewport
+    ? ({
+        '--vv-bottom': `${viewport.bottom}px`,
+        '--vv-height': `${viewport.height}px`,
+      } as CSSProperties)
+    : undefined;
   const contentRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{
@@ -145,6 +155,7 @@ export function Sheet({
         <Dialog.Content
           ref={contentRef}
           className={`${styles.sheet} ${styles[size]} ${layer === 'system' ? styles.systemLayer : ''} ${className ?? ''}`}
+          style={viewportVars}
           data-testid={testId}
           onOpenAutoFocus={onOpenAutoFocus}
           {...(description ? {} : { 'aria-describedby': undefined })}
