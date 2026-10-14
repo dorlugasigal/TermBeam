@@ -117,46 +117,83 @@ describe('processes', () => {
     const PS_OUTPUT = '    1     0\n   11    10\n   12    10\n   13    11\n  110     1\n';
 
     it('returns null for an invalid pid or on Windows', async () => {
-      const opts = { platform: 'linux', readFile: neverCalled, execFile: neverCalled };
+      const opts = {
+        platform: 'linux',
+        readdir: neverCalled,
+        readFile: neverCalled,
+        execFile: neverCalled,
+      };
       assert.strictEqual(await getChildPids('10 && reboot', opts), null);
       assert.strictEqual(await getChildPids(10, { ...opts, platform: 'win32' }), null);
     });
 
-    it('reads /proc/<pid>/task/<pid>/children on Linux', async () => {
+    const enoent = () => Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+
+    it("unions every thread's /proc children list on Linux", async () => {
       const seen = [];
-      const readFile = async (p) => {
-        seen.push(p);
-        return '11 12 ';
+      const readdir = async (dir) => {
+        seen.push(dir);
+        return ['10', '11', 'not-a-tid'];
       };
-      const pids = await getChildPids(10, { platform: 'linux', readFile, execFile: neverCalled });
-      assert.deepStrictEqual(pids, ['11', '12']);
-      assert.deepStrictEqual(seen, ['/proc/10/task/10/children']);
-      assert.deepStrictEqual(
-        await getChildPids(10, {
-          platform: 'linux',
-          readFile: async () => '',
-          execFile: neverCalled,
-        }),
-        [],
-      );
+      // The child spawned by thread 11 (not the main thread) must be found
+      const files = {
+        '/proc/10/task/10/children': '12 13 ',
+        '/proc/10/task/11/children': '14 12',
+      };
+      const readFile = async (file) => {
+        seen.push(file);
+        return files[file];
+      };
+      const opts = { platform: 'linux', readdir, readFile, execFile: neverCalled };
+      assert.deepStrictEqual(await getChildPids(10, opts), ['12', '13', '14']);
+      assert.deepStrictEqual(seen, [
+        '/proc/10/task',
+        '/proc/10/task/10/children',
+        '/proc/10/task/11/children',
+      ]);
     });
 
-    it('falls back to ps when the /proc children file is unavailable', async () => {
-      const readFile = async () => {
-        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    it('ignores a thread that exits mid-scan and reports no children as []', async () => {
+      const readdir = async () => ['10', '11'];
+      const readFile = async (file) => {
+        if (file.includes('/11/')) throw enoent();
+        return '';
       };
-      const { execFile, calls } = fakeExecFile(() => PS_OUTPUT);
-      assert.deepStrictEqual(await getChildPids(10, { platform: 'linux', readFile, execFile }), [
-        '11',
-        '12',
-      ]);
-      assert.strictEqual(calls[0].file, 'ps');
-      assert.deepStrictEqual(calls[0].args, ['-A', '-o', 'pid=,ppid=']);
+      const opts = { platform: 'linux', readdir, readFile, execFile: neverCalled };
+      assert.deepStrictEqual(await getChildPids(10, opts), []);
+    });
+
+    it('falls back to ps when no /proc children file can be read', async () => {
+      const ps = fakeExecFile(() => PS_OUTPUT);
+      const noChildrenFiles = {
+        readdir: async () => ['10', '11'],
+        readFile: async () => {
+          throw enoent();
+        },
+      };
+      assert.deepStrictEqual(
+        await getChildPids(10, { platform: 'linux', ...noChildrenFiles, execFile: ps.execFile }),
+        ['11', '12'],
+      );
+      assert.strictEqual(ps.calls[0].file, 'ps');
+      assert.deepStrictEqual(ps.calls[0].args, ['-A', '-o', 'pid=,ppid=']);
+
+      const noProc = {
+        readdir: async () => {
+          throw enoent();
+        },
+        readFile: neverCalled,
+      };
+      const ps2 = fakeExecFile(() => PS_OUTPUT);
+      assert.deepStrictEqual(
+        await getChildPids(10, { platform: 'linux', ...noProc, execFile: ps2.execFile }),
+        ['11', '12'],
+      );
     });
 
     it('uses ps directly on macOS and only keeps direct children', async () => {
       const { execFile } = fakeExecFile(() => PS_OUTPUT);
-      const opts = { platform: 'darwin', readFile: neverCalled, execFile };
+      const opts = { platform: 'darwin', readdir: neverCalled, readFile: neverCalled, execFile };
       assert.deepStrictEqual(await getChildPids(10, opts), ['11', '12']);
       assert.deepStrictEqual(await getChildPids('11', opts), ['13']);
       assert.deepStrictEqual(
@@ -188,6 +225,29 @@ describe('processes', () => {
         const pids = await getChildPids(process.pid);
         assert.ok(Array.isArray(pids));
         assert.ok(pids.every((pid) => /^\d+$/.test(pid)));
+      });
+
+      it('finds a child spawned from a worker thread, not just the main one', async () => {
+        const { Worker } = require('worker_threads');
+        const worker = new Worker(
+          `const { spawn } = require('child_process');
+           const { parentPort } = require('worker_threads');
+           const child = spawn('sleep', ['30']);
+           parentPort.postMessage(child.pid);
+           parentPort.once('message', () => { child.kill(); parentPort.close(); });`,
+          { eval: true },
+        );
+        const childPid = await new Promise((resolve, reject) => {
+          worker.once('message', resolve);
+          worker.once('error', reject);
+        });
+        try {
+          const pids = await getChildPids(process.pid);
+          assert.ok(pids.includes(String(childPid)), `${childPid} in ${JSON.stringify(pids)}`);
+        } finally {
+          worker.postMessage('stop');
+          await new Promise((resolve) => worker.once('exit', resolve));
+        }
       });
     },
   );

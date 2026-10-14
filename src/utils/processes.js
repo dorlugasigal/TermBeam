@@ -51,13 +51,15 @@ async function getProcessCwd(
 
 /**
  * PIDs (strings) of a process's direct children, or null when they can't be
- * listed. Linux reads /proc/<pid>/task/<pid>/children and falls back to ps
- * when that file isn't available; other platforms use ps.
+ * listed. Linux unions /proc/<pid>/task/<tid>/children over every thread (a
+ * multithreaded program such as pwsh can spawn from any of them) and falls
+ * back to ps when those files aren't available; other platforms use ps.
  */
 async function getChildPids(
   value,
   {
     platform = process.platform,
+    readdir = fs.promises.readdir,
     readFile = fs.promises.readFile,
     execFile = childProcess.execFile,
   } = {},
@@ -66,10 +68,16 @@ async function getChildPids(
   if (!pid || platform === 'win32') return null;
   if (platform === 'linux') {
     try {
-      const out = await readFile(`/proc/${pid}/task/${pid}/children`, 'utf8');
-      return out.split(/\s+/).filter(Boolean);
+      const tids = (await readdir(`/proc/${pid}/task`)).filter((tid) => /^\d+$/.test(tid));
+      // A thread may exit mid-scan; only when no thread could be read at all
+      // (e.g. no CONFIG_PROC_CHILDREN) is it worth asking ps instead.
+      const lists = await Promise.allSettled(
+        tids.map((tid) => readFile(`/proc/${pid}/task/${tid}/children`, 'utf8')),
+      );
+      const read = lists.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+      if (read.length > 0) return [...new Set(read.join(' ').split(/\s+/).filter(Boolean))];
     } catch {
-      // Kernel without CONFIG_PROC_CHILDREN — use ps below
+      // The process exited, or /proc is unavailable — use ps below
     }
   }
   try {
