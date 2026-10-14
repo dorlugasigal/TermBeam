@@ -114,7 +114,7 @@ Parses PTY output for DEC private mode switches (alternate screen, mouse trackin
 
 ### `utils/processes.js` — Process Lookups
 
-Reads a shell's live working directory and lists its direct child processes. PIDs are validated as positive integers and tools run via `execFile`, never through a shell. On Linux both lookups read `/proc` directly (falling back to `ps` for children when `/proc/<pid>/task/<pid>/children` isn't available), so they also work in slim containers without `procps`; macOS uses `lsof` and `ps`. Windows has no live lookup.
+Reads a shell's live working directory and lists its direct child processes. PIDs are validated as positive integers and tools run via `execFile`, never through a shell. On Linux both lookups read `/proc` directly (for children, every thread's list under `/proc/<pid>/task`, falling back to `ps` when those files aren't available), so they also work in slim containers without `procps`; macOS uses `lsof` and `ps`. Windows has no live lookup.
 
 ### `utils/git.js` — Git Repository Detection
 
