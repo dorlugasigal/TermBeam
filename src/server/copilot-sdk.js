@@ -373,7 +373,13 @@ class CopilotService {
   _trackModel(sessionId, event) {
     let model = null;
     if (event.type === 'session.model_change') model = event.data?.newModel;
-    else if (event.type === 'assistant.message' && !event.data?.parentToolCallId) {
+    else if (
+      event.type === 'assistant.message' &&
+      !event.agentId &&
+      !event.data?.parentToolCallId
+    ) {
+      // Main-agent replies only: sub-agents (event.agentId, or the older
+      // data.parentToolCallId) often run on a different model.
       model = event.data?.model;
     }
     const entry = this.sessions.get(sessionId);

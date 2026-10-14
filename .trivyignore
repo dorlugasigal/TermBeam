@@ -5,6 +5,6 @@
 # filesystem and Docker-image scans.
 #
 # Currently empty: the adm-zip advisories (CVE-2026-39244 and later) came from a copy
-# vendored inside `@github/copilot` <= 1.0.45. Since 1.0.97 that package is a thin
-# loader for per-platform binaries and ships no node_modules, so there is nothing left
-# to ignore.
+# vendored inside the `@github/copilot` CLI package. `@github/copilot-sdk` >= 1.0.19 no
+# longer depends on that package (it ships its runtime as `@github/copilot-sdk-<platform>`),
+# so there is nothing left to ignore.
