@@ -76,6 +76,20 @@
   --on-accent: #ffffff;
 }
 
+/* Phones (either orientation): one step up the type scale — UI text is read
+   at arm's length, and inputs must stay ≥ 16px so iOS doesn't zoom on focus. */
+@media (pointer: coarse) and (max-width: 932px) {
+  :root {
+    --fs-2xs: 12px;
+    --fs-xs: 13px;
+    --fs-sm: 14px;
+    --fs-md: 15px;
+    --fs-base: 16px;
+    --fs-lg: 18px;
+    --fs-xl: 24px;
+  }
+}
+
 /* Critically-damped-ish springs (generated, ~1 overshoot) — fall back to ease-out */
 @supports (transition-timing-function: linear(0, 1)) {
   :root {

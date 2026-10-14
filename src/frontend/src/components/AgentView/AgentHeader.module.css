@@ -4,9 +4,9 @@
   z-index: 100;
   display: flex;
   align-items: center;
-  height: calc(48px + env(safe-area-inset-top, 0px));
+  height: calc(48px + var(--safe-top));
   padding: 0 12px;
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: var(--safe-top);
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   gap: 8px;
@@ -127,9 +127,9 @@
 
 @media (max-width: 640px) {
   .header {
-    height: calc(40px + env(safe-area-inset-top, 0px));
+    height: calc(40px + var(--safe-top));
     padding: 0 6px;
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: var(--safe-top);
     gap: 4px;
   }
 

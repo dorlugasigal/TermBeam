@@ -85,6 +85,27 @@
   display: none;
 }
 
+/* Touch: keys sized for thumbs, labels readable at arm's length */
+@media (pointer: coarse) {
+  .row {
+    grid-template-rows: 40px;
+  }
+
+  /* Mona Sans' width axis keeps the larger labels inside narrow keys */
+  .keyBtn {
+    height: 40px;
+    padding: 0 1px;
+    font-size: var(--fs-md);
+    font-stretch: 88%;
+    letter-spacing: -0.005em;
+  }
+
+  .iconBtn,
+  .glyph {
+    font-size: 17px;
+  }
+}
+
 /* Wide screens: a keyboard-sized cluster, not a full-bleed stretch */
 @media (min-width: 900px) {
   .rows {

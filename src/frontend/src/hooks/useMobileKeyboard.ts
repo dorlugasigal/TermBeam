@@ -5,7 +5,17 @@ interface MobileKeyboardState {
   keyboardHeight: number;
 }
 
-const KEYBOARD_THRESHOLD = 50; // px shrink to consider keyboard open
+// Software keyboards are ≥ ~200px tall. Smaller shrinks are viewport chrome
+// changes (e.g. iOS 26 standalone web apps settling after launch) and must not
+// lift the TouchBar.
+const KEYBOARD_THRESHOLD = 120;
+
+/** A keyboard can only be up while something editable has focus. */
+function editableFocused(): boolean {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el) return false;
+  return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable;
+}
 
 export function useMobileKeyboard(): MobileKeyboardState {
   const [state, setState] = useState<MobileKeyboardState>({
@@ -60,6 +70,13 @@ export function useMobileKeyboard(): MobileKeyboardState {
       }
       if (rotating) return;
       const currentHeight = vv!.height;
+      // Nothing focused (no keyboard possible) or the viewport grew: this is
+      // the new no-keyboard height.
+      if (!editableFocused() || currentHeight > baseHeightRef.current) {
+        baseHeightRef.current = currentHeight;
+        setState({ keyboardOpen: false, keyboardHeight: 0 });
+        return;
+      }
       const diff = baseHeightRef.current - currentHeight;
       const isOpen = diff > KEYBOARD_THRESHOLD;
       setState({

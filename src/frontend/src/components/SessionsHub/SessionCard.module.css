@@ -290,3 +290,19 @@
     }
   }
 }
+
+@media (pointer: coarse) {
+  .path {
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  .name,
+  .time {
+    line-height: 22px;
+  }
+
+  .marker {
+    height: 22px;
+  }
+}

@@ -108,29 +108,60 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
     if (!open) setBrowsingFolder(false);
   }, [open]);
 
+  // While a chip-initiated smooth scroll runs, the spy holds the chosen chip.
+  const jumpLockUntil = useRef(0);
+  const navRef = useRef<HTMLElement>(null);
+
   const jumpTo = useCallback((id: string) => {
     setActiveSection(id);
+    jumpLockUntil.current = Date.now() + 700;
     const el = bodyRef.current?.querySelector<HTMLElement>(`[data-section="${id}"]`);
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
-  // Highlight the section currently scrolled into view.
+  // Highlight the section being read: the last one whose top has reached the
+  // top of the list (or the final one once scrolled to the bottom). Computed
+  // from positions on scroll — IntersectionObserver only reports sections whose
+  // visibility *changed*, which picked the wrong chip.
   useEffect(() => {
     const body = bodyRef.current;
-    if (!open || !body || typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        const id = visible?.target.getAttribute('data-section');
-        if (id) setActiveSection(id);
-      },
-      { root: body, rootMargin: '0px 0px -65% 0px', threshold: 0 },
-    );
-    body.querySelectorAll('[data-section]').forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
+    if (!open || !body) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      if (Date.now() < jumpLockUntil.current) return;
+      const sections = Array.from(body.querySelectorAll<HTMLElement>('[data-section]'));
+      if (sections.length === 0) return;
+      let current = sections[0]!;
+      if (body.scrollTop + body.clientHeight >= body.scrollHeight - 2) {
+        current = sections[sections.length - 1]!;
+      } else {
+        const top = body.getBoundingClientRect().top + 24;
+        for (const section of sections) {
+          if (section.getBoundingClientRect().top <= top) current = section;
+          else break;
+        }
+      }
+      const id = current.getAttribute('data-section');
+      if (id) setActiveSection(id);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    body.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      body.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(frame);
+    };
   }, [open, mounted, browsingFolder]);
+
+  // Keep the active chip in view as the spy moves along the nav.
+  useEffect(() => {
+    navRef.current
+      ?.querySelector<HTMLElement>('[aria-current="true"]')
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }, [activeSection]);
 
   // Esc to close
   useEffect(() => {
@@ -308,7 +339,7 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
       </div>
 
       {!browsingFolder && (
-        <nav className={styles.sectionNav} aria-label="Settings sections">
+        <nav ref={navRef} className={styles.sectionNav} aria-label="Settings sections">
           {SECTIONS.map((sec) => (
             <button
               key={sec.id}

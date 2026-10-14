@@ -392,6 +392,12 @@
   overflow-wrap: anywhere;
 }
 
+@media (pointer: coarse) {
+  .branch {
+    font-size: 13px;
+  }
+}
+
 .branch svg {
   flex: none;
   color: var(--ink-3);

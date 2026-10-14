@@ -15,6 +15,20 @@
   --safe-top: env(safe-area-inset-top, 0px);
 }
 
+/* iOS 26+ draws a Liquid Glass blur ramp about 38pt deep below the status bar
+   in home-screen web apps — system chrome that no meta tag or CSS disables.
+   Keep content out of it: headers grow by up to 2.5rem there, and their own
+   background fills the band. Scoped to iOS WebKit (touch-callout) with anchor
+   positioning (Safari 26+), standalone mode, and only when a top inset exists
+   (none in Safari tabs or landscape). */
+@supports (-webkit-touch-callout: none) and (anchor-name: --tb) {
+  @media (display-mode: standalone) {
+    :root {
+      --safe-top: calc(env(safe-area-inset-top, 0px) + min(env(safe-area-inset-top, 0px), 2.5rem));
+    }
+  }
+}
+
 /* Nerd Font symbols (powerline, devicons) for UI mono text such as copied
    terminal output. unicode-range keeps the font from downloading unless one
    of those glyphs is actually rendered. */
@@ -195,7 +209,7 @@ textarea:focus {
 }
 
 [data-sonner-toaster][data-y-position='top'] {
-  top: calc(env(safe-area-inset-top, 0px) + 52px) !important;
+  top: calc(var(--safe-top) + 52px) !important;
 }
 
 [data-sonner-toast] {

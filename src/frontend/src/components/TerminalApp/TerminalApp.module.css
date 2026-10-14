@@ -11,6 +11,12 @@
   touch-action: auto;
 }
 
+@media (pointer: coarse) {
+  .layout {
+    --terminal-top: calc(48px + var(--safe-top));
+  }
+}
+
 .topBar {
   position: relative;
   z-index: 60;
