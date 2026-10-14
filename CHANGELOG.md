@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.25.0] - 2026-10-14
+
+- chore(ci): bump the all-actions group across 1 directory with 11 updates (#321) (@dependabot[bot])
+- chore(deps): apply pending Dependabot updates and harden process lookups (#320) (@dorlugasigal)
+
 ## [1.24.24] - 2026-10-14
 
 - feat: redesigned UI, reliable tunnel reconnect and passkey sign-in (#318) (@dorlugasigal)
