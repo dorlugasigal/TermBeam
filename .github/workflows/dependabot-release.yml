@@ -81,7 +81,10 @@ jobs:
           # release with its own bump), leave the release to the maintainer; it
           # will ship these updates too.
           LAST_TAG=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
-          OTHERS=$(gh api "repos/$GITHUB_REPOSITORY/compare/$LAST_TAG...main" --jq '
+          # Check one exact commit and release only that commit (release.yml
+          # refuses to run if main has moved on in the meantime).
+          HEAD_SHA=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          OTHERS=$(gh api "repos/$GITHUB_REPOSITORY/compare/$LAST_TAG...$HEAD_SHA" --jq '
             .commits[]
             | select((.author.login // "") as $a | $a != "dependabot[bot]" and $a != "github-actions[bot]")
             | "\(.sha[0:7]) \(.commit.author.name): \(.commit.message | split("\n")[0])"')
@@ -90,5 +93,5 @@ jobs:
             echo "$OTHERS"
             exit 0
           fi
-          echo "Quiet window elapsed. Dispatching patch release."
-          gh workflow run release.yml -R "$GITHUB_REPOSITORY" -f bump=patch -f dry-run=false
+          echo "Quiet window elapsed. Dispatching patch release of $HEAD_SHA."
+          gh workflow run release.yml -R "$GITHUB_REPOSITORY" -f bump=patch -f dry-run=false -f expected-sha="$HEAD_SHA"
