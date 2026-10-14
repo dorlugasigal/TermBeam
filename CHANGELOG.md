@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.24.24] - 2026-10-14
+
+- feat: redesigned UI, reliable tunnel reconnect and passkey sign-in (#318) (@dorlugasigal)
+- chore(deps): bump the all-npm group across 1 directory with 10 updates (#315) (@dependabot[bot])
+
 ## [1.24.23] - 2026-09-02
 
 - fix(update): respect configured package registry (@dorlugasigal)
