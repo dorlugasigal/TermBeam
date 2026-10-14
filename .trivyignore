@@ -3,13 +3,8 @@
 # lockfile we control is fixed instead of ignored (see PR "remediate security scan
 # findings"). Trivy reads this file automatically from the repo root for both the
 # filesystem and Docker-image scans.
-
-# CVE-2026-39244 — adm-zip Denial of Service via a crafted ZIP file.
-# adm-zip 0.5.17 is vendored INSIDE the `@github/copilot` CLI, which is pulled into the
-# Docker image transitively by the `@github/copilot-sdk` production dependency. It lives
-# in `node_modules/@github/copilot/...`, is bundled by that package, and is therefore not
-# resolvable via npm `overrides` or a lockfile change in this repo — only an upstream
-# release of `@github/copilot` can ship the patched adm-zip 0.6.0. TermBeam does not
-# invoke adm-zip at runtime, so the DoS is not reachable in our usage. Re-check and remove
-# this line once `@github/copilot` / `@github/copilot-sdk` bundles adm-zip >= 0.6.0.
-CVE-2026-39244
+#
+# Currently empty: the adm-zip advisories (CVE-2026-39244 and later) came from a copy
+# vendored inside `@github/copilot` <= 1.0.45. Since 1.0.97 that package is a thin
+# loader for per-platform binaries and ships no node_modules, so there is nothing left
+# to ignore.
