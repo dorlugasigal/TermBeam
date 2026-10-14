@@ -39,6 +39,7 @@ termbeam/
 │   │   ├── logger.js            # Structured logger with levels
 │   │   ├── shells.js            # Shell detection (cross-platform)
 │   │   ├── git.js               # Git repo detection & status
+│   │   ├── processes.js         # Shell cwd & child-process lookup (no shell, validated PIDs)
 │   │   ├── version.js           # Smart version detection
 │   │   ├── update-check.js      # npm update checking & install method detection
 │   │   ├── update-executor.js   # In-app update engine (state machine, permissions)
@@ -109,7 +110,11 @@ Parses PTY output for DEC private mode switches (alternate screen, mouse trackin
 
 ### `server/sessions.js` — Session Manager
 
-`SessionManager` class wraps the PTY lifecycle. Handles spawning, tracking, listing, updating, and cleaning up terminal sessions. Each session has an auto-assigned color, tracks `lastActivity` timestamps, a `createdAt` timestamp, and supports live updates via the `update()` method. Sessions maintain a scrollback buffer with a high/low-water mark (trimmed back to ~500k characters when it grows beyond 1,000,000 characters) that is sent to newly connecting clients, and track a `clients` Set of active WebSocket connections. Supports an optional `initialCommand` that is written to the PTY shortly after spawn. The `list()` method detects the live working directory of the shell process (via `lsof` on macOS, `/proc` on Linux) and enriches each session with git repository information, using an async cache to avoid blocking the event loop. Includes a process-tree monitor that polls for child process exits every 2 seconds (via `ps` + `awk` to count descendant processes), enabling command-completion detection for push notifications.
+`SessionManager` class wraps the PTY lifecycle. Handles spawning, tracking, listing, updating, and cleaning up terminal sessions. Each session has an auto-assigned color, tracks `lastActivity` timestamps, a `createdAt` timestamp, and supports live updates via the `update()` method. Sessions maintain a scrollback buffer with a high/low-water mark (trimmed back to ~500k characters when it grows beyond 1,000,000 characters) that is sent to newly connecting clients, and track a `clients` Set of active WebSocket connections. Supports an optional `initialCommand` that is written to the PTY shortly after spawn. The `list()` method detects the live working directory of the shell process and enriches each session with git repository information, using an async cache to avoid blocking the event loop. Includes a process-tree monitor that polls the shell's direct children every 2 seconds, enabling command-completion detection for push notifications. Both lookups go through `utils/processes.js`.
+
+### `utils/processes.js` — Process Lookups
+
+Reads a shell's live working directory and lists its direct child processes. PIDs are validated as positive integers and tools run via `execFile`, never through a shell. On Linux both lookups read `/proc` directly (falling back to `ps` for children when `/proc/<pid>/task/<pid>/children` isn't available), so they also work in slim containers without `procps`; macOS uses `lsof` and `ps`. Windows has no live lookup.
 
 ### `utils/git.js` — Git Repository Detection
 

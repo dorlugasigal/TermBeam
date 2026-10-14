@@ -89,6 +89,7 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 - `version.js` — detects version from package.json
 - `update-check.js` — npm update checking
 - `copilot-models.js` — Copilot model-id validation and normalization of the SDK's model list. Never hard-code model ids or a default model: the picker lists `GET /api/copilot/models` (cached in `CopilotService.listModels()`), and an omitted model lets Copilot choose the account's default.
+- `processes.js` — a shell's live cwd and direct children. Never build shell command strings for process lookups: validate PIDs with `toPid()` and use `execFile`; Linux reads `/proc` so it works without `procps` (e.g. the Docker image).
 
 **Frontend:** React SPA in `src/frontend/` built with Vite + TypeScript. Builds to `public/` (gitignored build artifact). Uses xterm.js, Zustand for state, and Radix UI for accessible components. Components organized into: ToolsPanel (right slide-in, formerly CommandPalette), Settings (preferences drawer/sheet), FolderBrowser, LoginPage, Modals, Overlays, SearchBar, SessionsHub, SidePanel (left slide-in), TabBar, TerminalApp, TerminalPane, TouchBar, and common reusable components (TopBar, ThemePicker, UpdateBanner).
 

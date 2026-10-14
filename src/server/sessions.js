@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const path = require('path');
-const { exec } = require('child_process');
+const processes = require('../utils/processes');
 const log = require('../utils/logger');
 
 let pty;
@@ -66,33 +66,12 @@ function scheduleGitRefresh(sessionId, pid, originalCwd) {
         log.debug(`Git refresh complete for session ${sessionId} (cwd=${liveCwd})`);
       });
 
-  // Use exec (async) for the lsof call to avoid blocking the event loop
-  const cmd =
-    process.platform === 'darwin'
-      ? `lsof -a -p ${pid} -d cwd -Fn`
-      : process.platform === 'linux'
-        ? `readlink /proc/${pid}/cwd`
-        : null;
-
-  if (!cmd) {
-    // Windows or unsupported — no live cwd detection
-    finish(originalCwd);
-    return;
-  }
-
-  exec(cmd, { timeout: 2000 }, (err, stdout) => {
-    if (err) log.debug(`Git cwd detection failed: ${err.message}`);
-    let liveCwd = originalCwd;
-    if (!err && stdout) {
-      if (process.platform === 'darwin') {
-        const match = stdout.match(/\nn(.+)/);
-        if (match) liveCwd = match[1].trim();
-      } else {
-        liveCwd = stdout.trim();
-      }
-    }
-    finish(liveCwd);
-  });
+  // Follow the shell into whatever directory the user has cd'd to. Windows
+  // (and any failure) falls back to the directory the session started in.
+  processes
+    .getProcessCwd(pid)
+    .catch(() => null)
+    .then((liveCwd) => finish(liveCwd || originalCwd));
 }
 
 const SESSION_COLORS = [
@@ -353,21 +332,12 @@ class SessionManager {
         if (!this.sessions.has(id)) return;
         pollInFlight = true;
 
-        const { exec } = require('child_process');
-
-        exec(
-          `ps -ax -o pid=,ppid= | awk -v p=${shellPid} '$2 == p { print $1 }'`,
-          { timeout: 2000 },
-          (err, stdout) => {
+        processes
+          .getChildPids(shellPid)
+          .then((pids) => {
             pollInFlight = false;
-            if (err) return;
-            const currentChildren = new Set(
-              (stdout || '')
-                .trim()
-                .split('\n')
-                .filter(Boolean)
-                .map((s) => s.trim()),
-            );
+            if (!pids) return;
+            const currentChildren = new Set(pids);
             childCheckCount++;
 
             // Update the flag used by silence detection in onData
@@ -399,8 +369,11 @@ class SessionManager {
             }
 
             prevChildren = currentChildren;
-          },
-        );
+          })
+          .catch((err) => {
+            pollInFlight = false;
+            log.debug(`Child process check failed for session ${id}: ${err.message}`);
+          });
       };
 
       session._childMonitor = setInterval(checkChildren, POLL_INTERVAL);
