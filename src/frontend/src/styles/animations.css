@@ -155,15 +155,218 @@
 }
 
 /*
+ * CARRIER motion primitives (see styles/tokens.css for --dur-* / --ease-*).
+ * Compositor-only: transform + opacity.
+ */
+@keyframes tb-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes tb-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tb-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes tb-sheet-down {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes tb-drawer-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes tb-drawer-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes tb-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The contact line closing once the link is verified again. */
+@keyframes tb-contact-close {
+  from {
+    opacity: 0.35;
+    transform: scaleX(0.15);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+/* One pass of light along a hairline — the "beam" restore beat. */
+@keyframes tb-beam-sweep {
+  0% {
+    opacity: 1;
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+  55% {
+    opacity: 1;
+    transform: scaleX(1);
+    transform-origin: left center;
+  }
+  56% {
+    transform-origin: right center;
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: right center;
+  }
+}
+
+/* A carrier spark crossing the broken contact while retrying. */
+@keyframes tb-spark {
+  0% {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(4px);
+  }
+}
+
+/* Exit counterparts — distinct names so Radix Presence (and class toggles)
+   actually run them instead of skipping a same-name "reverse". */
+@keyframes tb-fade-exit {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes tb-sheet-up-exit {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes tb-sheet-down-exit {
+  to {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes tb-drawer-left-exit {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes tb-drawer-right-exit {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes tb-pop-exit {
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+
+/*
  * Reduced-motion safety net. Anything that opted into our keyframes above (or
  * common transition timings) collapses to a near-instant fade so the UI still
  * respects state changes without conveying motion.
  */
+/*
+ * Route transitions (App.tsx → document.startViewTransition). The screens
+ * cross-fade with a short rise; the opened session's name is a shared element
+ * that travels between its hub row and the terminal tab.
+ */
+::view-transition-old(root) {
+  animation: tb-vt-out 180ms var(--ease-in) both;
+}
+
+::view-transition-new(root) {
+  animation: tb-vt-in 380ms var(--ease-out) both;
+}
+
+html[data-vt='back']::view-transition-new(root) {
+  animation-name: tb-vt-in-back;
+}
+
+::view-transition-group(tb-session-name) {
+  z-index: 10;
+  animation-duration: 460ms;
+  animation-timing-function: var(--ease-spring-soft);
+}
+
+@keyframes tb-vt-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes tb-vt-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+}
+
+@keyframes tb-vt-in-back {
+  from {
+    opacity: 0;
+    transform: scale(1.015);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;

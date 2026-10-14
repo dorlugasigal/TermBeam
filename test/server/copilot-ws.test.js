@@ -119,7 +119,7 @@ function createMockCopilotService(overrides = {}) {
       }
       const id = overrides.sessionId || 'mock-sdk-session-1';
       sessionsMap.set(id, {
-        model: options.model || 'claude-opus-4.6',
+        model: options.model || null,
         listener: null,
         eventBuffer: [],
       });
@@ -133,7 +133,7 @@ function createMockCopilotService(overrides = {}) {
       }
       const id = overrides.resumeSessionId || 'mock-resumed-session-1';
       sessionsMap.set(id, {
-        model: options.model || 'claude-opus-4.6',
+        model: options.model || null,
         listener: null,
         eventBuffer: [],
         existingMessages: overrides.existingMessages || [],
@@ -215,8 +215,16 @@ describe('Copilot WebSocket handlers', () => {
       const created = ws._sent.find((m) => m.type === 'copilot.created');
       assert.ok(created, 'should receive copilot.created');
       assert.strictEqual(created.data.sessionId, 'mock-sdk-session-1');
+      assert.strictEqual(created.data.model, 'gpt-4o', 'reply reports the session model');
       assert.strictEqual(copilotService._calls.createSession.length, 1);
       assert.strictEqual(copilotService._calls.createSession[0].model, 'gpt-4o');
+    });
+
+    it('should report a null model when Copilot picked one the SDK did not name', async () => {
+      const ws = connectWs();
+      await ws._simulateMessage({ type: 'copilot.create' });
+      const created = ws._sent.find((m) => m.type === 'copilot.created');
+      assert.strictEqual(created.data.model, null);
     });
 
     it('should set a listener that forwards events to WebSocket', async () => {
@@ -574,6 +582,7 @@ describe('Copilot WebSocket handlers', () => {
       const created = ws._sent.find((m) => m.type === 'copilot.created');
       assert.ok(created, 'should receive copilot.created');
       assert.strictEqual(created.data.sessionId, 'mock-resumed-session-1');
+      assert.strictEqual(created.data.model, 'gpt-4o', 'reply reports the session model');
       assert.strictEqual(copilotService._calls.resumeSession.length, 1);
       assert.strictEqual(copilotService._calls.resumeSession[0].sdkSessionId, 'sdk-abc-123');
     });

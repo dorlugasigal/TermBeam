@@ -59,15 +59,28 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Dev-only: point the proxy at another TermBeam instance with
+    // TERMBEAM_DEV_TARGET=http://localhost:3999 npx vite
     proxy: {
-      '/api': 'http://localhost:3456',
+      // Keep the browser's Host header: TermBeam's CSRF guard compares it with
+      // Origin (Vite's string shorthand would rewrite it to the target).
+      '/api': {
+        target: process.env.TERMBEAM_DEV_TARGET || 'http://localhost:3456',
+        changeOrigin: false,
+      },
       '/ws': {
-        target: 'ws://localhost:3456',
+        target: (process.env.TERMBEAM_DEV_TARGET || 'http://localhost:3456').replace(/^http/, 'ws'),
         ws: true,
       },
     },
   },
+  test: {
+    setupFiles: ['./src/test/setup.ts'],
+  },
   build: {
+    // Never inline fonts as data: URIs — the server's CSP only allows
+    // font-src 'self', so tiny unicode-range subsets would be blocked.
+    assetsInlineLimit: (file: string) => (/\.(woff2?|ttf|otf)$/.test(file) ? false : undefined),
     outDir: '../../public',
     emptyOutDir: true,
     sourcemap: false,

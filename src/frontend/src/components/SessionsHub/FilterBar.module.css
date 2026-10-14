@@ -1,44 +1,110 @@
+/* Search + facet chips above the session groups (shown for longer lists). */
+
 .bar {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 8px 16px 12px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  margin: 2px 0 18px;
+  animation: global(tb-rise) var(--dur-3) var(--ease-out) both;
+}
+
+@media (min-width: 720px) {
+  .bar {
+    gap: 10px;
+    margin: -6px 0 26px;
+    animation: none;
+  }
 }
 
 .searchRow {
   display: flex;
-  gap: 8px;
   align-items: center;
+  gap: var(--sp-2);
+}
+
+.searchWrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.searchIcon {
+  position: absolute;
+  top: 50%;
+  left: 13px;
+  translate: 0 -50%;
+  color: var(--ink-3);
+  pointer-events: none;
 }
 
 .searchInput {
-  flex: 1;
-  min-height: 36px;
-  padding: 8px 12px;
-  font-size: 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface, #1e1e1e);
-  color: var(--text);
+  width: 100%;
+  height: 40px;
+  padding: 0 40px 0 40px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  color: var(--ink);
+  font: 450 var(--fs-base) / 1 var(--font-ui);
+  outline: none;
+  transition: box-shadow var(--dur-2) var(--ease-out);
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-.searchInput:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
+.searchInput::placeholder {
+  color: var(--ink-3);
+}
+
+.searchInput::-webkit-search-cancel-button {
+  display: none;
+}
+
+.searchInput:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px var(--accent-line),
+    0 0 0 3px var(--accent-soft);
+}
+
+.searchClearBtn {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.searchClearBtn:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
 }
 
 .clearBtn {
-  min-height: 36px;
-  padding: 6px 10px;
-  font-size: 12px;
-  color: var(--text-dim);
+  height: 42px;
+  padding: 0 10px;
+  flex: none;
+  border: 0;
+  border-radius: var(--r-md);
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  color: var(--accent-ink);
+  font: 600 var(--fs-md) / 1 var(--font-ui);
   cursor: pointer;
 }
+
+.clearBtn:hover {
+  background: var(--accent-soft);
+}
+
+/* ── Chips ─────────────────────────────────────────────────────────── */
 
 .chips {
   display: flex;
@@ -46,63 +112,135 @@
   gap: 6px;
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  min-height: 32px;
-  font-size: 12px;
-  color: var(--text);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.chipActive {
-  background: rgba(56, 139, 253, 0.25);
-  border-color: rgba(56, 139, 253, 0.7);
+.chips:empty {
+  display: none;
 }
 
 .chipGroup {
   position: relative;
 }
 
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px 0 12px;
+  max-width: 100%;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--edge);
+  color: var(--ink-2);
+  font: 500 var(--fs-sm) / 1 var(--font-ui);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out);
+}
+
+/* Toggle chips (no chevron) are symmetric */
+.chip:not(:has(svg)) {
+  padding: 0 12px;
+}
+
+.chip span {
+  overflow-wrap: anywhere;
+}
+
+.chip:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.chip[aria-expanded='true'] {
+  background: var(--surface-press);
+  color: var(--ink);
+}
+
+.chipActive,
+.chipActive:hover {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+  color: var(--accent-ink);
+}
+
+.chev {
+  flex: none;
+  opacity: 0.75;
+  transition: transform var(--dur-2) var(--ease-out);
+}
+
+.chip[aria-expanded='true'] .chev {
+  transform: rotate(180deg);
+}
+
+/* ── Menu ──────────────────────────────────────────────────────────── */
+
 .chipMenu {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
-  z-index: 30;
-  min-width: 180px;
-  max-height: 280px;
+  z-index: 40;
+  min-width: 200px;
+  max-width: min(340px, calc(100vw - 32px));
+  max-height: 320px;
   overflow-y: auto;
-  padding: 4px;
-  background: var(--surface, #252526);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  padding: 5px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  box-shadow:
+    0 0 0 1px var(--edge),
+    var(--shadow-pop);
+  transform-origin: top left;
+  animation: menuIn var(--dur-2) var(--ease-out) both;
+}
+
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .chipMenuItem {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   width: 100%;
-  padding: 8px 10px;
   min-height: 36px;
-  text-align: left;
-  font-size: 13px;
-  color: var(--text);
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--r-sm);
   background: transparent;
-  border: none;
-  border-radius: 6px;
+  color: var(--ink);
+  font: 450 var(--fs-md) / 1.35 var(--font-ui);
+  text-align: left;
   cursor: pointer;
 }
 
-.chipMenuItem:hover {
-  background: rgba(255, 255, 255, 0.06);
+.chipMenuItem span {
+  overflow-wrap: anywhere;
+}
+
+.chipMenuItem svg {
+  flex: none;
+  color: var(--accent-ink);
+}
+
+.chipMenuItem:hover,
+.chipMenuItem:focus-visible {
+  background: var(--surface-hover);
+  outline: none;
 }
 
 .chipMenuItemActive {
-  background: rgba(56, 139, 253, 0.25);
+  font-weight: 600;
 }

@@ -77,13 +77,13 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
             ✕
           </button>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div className={aboutStyles.body}>
+            <div className={aboutStyles.linksRow}>
               <a
                 href="https://github.com/dorlugasigal/TermBeam"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: 'var(--accent)', fontSize: '0.9rem' }}
+                className={aboutStyles.link}
               >
                 GitHub
               </a>
@@ -91,42 +91,37 @@ export function AboutModal({ open, onClose, version }: AboutModalProps) {
                 href="https://dorlugasigal.github.io/TermBeam/"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: 'var(--accent)', fontSize: '0.9rem' }}
+                className={aboutStyles.link}
               >
                 Docs
               </a>
             </div>
 
-            <div className={styles.actions} style={{ justifyContent: 'flex-start' }}>
+            <div className={aboutStyles.updateRow}>
               <button
                 type="button"
                 className={styles.openBtn}
                 onClick={handleCheckUpdate}
                 disabled={checking}
-                style={{ fontSize: '0.85rem' }}
               >
                 {checking ? 'Checking…' : 'Check for updates'}
               </button>
             </div>
 
-            {updateStatus && (
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                {updateStatus}
-              </div>
-            )}
+            {updateStatus && <div className={aboutStyles.updateStatus}>{updateStatus}</div>}
 
-            <div className={aboutStyles.changelogHeader}>What's new</div>
+            <div className={aboutStyles.changelogHeader}>What&apos;s new</div>
             {changelogState === 'loading' && (
               <div className={aboutStyles.changelogPlaceholder}>Loading release notes…</div>
             )}
             {changelogState === 'error' && (
               <div className={aboutStyles.changelogPlaceholder}>
-                Couldn't load release notes.{' '}
+                Couldn&apos;t load release notes.{' '}
                 <a
                   href="https://github.com/dorlugasigal/TermBeam/releases"
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ color: 'var(--accent)' }}
+                  className={aboutStyles.link}
                 >
                   View on GitHub
                 </a>

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import type { ManagedSession } from '@/stores/sessionStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useDissolveDelete } from '@/hooks/useDissolveDelete';
 import { fetchVersion, deleteSession } from '@/services/api';
 import { FileBrowser } from '@/components/FileBrowser/FileBrowser';
+import { Breakable } from '@/components/common/Breakable';
 import dissolveStyles from '@/components/common/Disintegrate.module.css';
 import styles from './SidePanel.module.css';
 
@@ -12,25 +14,20 @@ function getActivityLabel(ts: string | number | undefined): string {
   if (!ts) return '';
   const num = typeof ts === 'string' ? new Date(ts).getTime() : ts;
   const diff = (Date.now() - num) / 1000;
-  if (diff < 5) return '';
+  if (diff < 5) return 'just now';
   if (diff < 60) return `${Math.floor(diff)}s ago`;
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   return `${Math.floor(diff / 3600)}h ago`;
 }
 
-function truncatePath(cwd: string): string {
-  if (!cwd) return '';
-  const home = cwd.replace(/^\/(?:Users|home)\/[^/]+/, '~');
-  if (home.length <= 40) return home;
-  const parts = home.split('/');
-  if (parts.length <= 3) return home;
-  return parts[0] + '/…/' + parts.slice(-2).join('/');
+function BreakableText({ text }: { text: string }) {
+  return <Breakable text={text} className={styles.breakable} />;
 }
 
 function statusColor(session: ManagedSession): string {
-  if (session.exited) return 'var(--danger)';
-  if (session.connected) return 'var(--success)';
-  return 'var(--text-muted)';
+  if (session.exited) return 'var(--err)';
+  if (session.connected) return 'var(--ok)';
+  return 'var(--ink-3)';
 }
 
 function BranchIcon() {
@@ -69,39 +66,99 @@ export function SidePanel() {
   const [closing, setClosing] = useState(false);
   const [version, setVersion] = useState('');
   const [showFiles, setShowFiles] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const finishClose = useCallback(() => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = null;
+    setClosing(false);
+    closeSidePanel();
+  }, [closeSidePanel]);
 
   const animateClose = useCallback(() => {
+    if (closeTimer.current) return;
     setClosing(true);
     setShowFiles(false);
-    setTimeout(() => {
-      setClosing(false);
-      closeSidePanel();
-    }, 200);
-  }, [closeSidePanel]);
+    setConfirmId(null);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const duration = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--dur-2'),
+    );
+    if (reducedMotion) {
+      finishClose();
+      return;
+    }
+    closeTimer.current = setTimeout(finishClose, (duration || 160) + 80);
+  }, [finishClose]);
+
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!confirmId) return;
+    const timer = setTimeout(() => setConfirmId(null), 2500);
+    return () => clearTimeout(timer);
+  }, [confirmId]);
 
   useEffect(() => {
     if (!isOpen) return;
-    fetchVersion().then((v) => {
-      if (v) setVersion(v);
-    });
+    fetchVersion()
+      .then((v) => {
+        if (v) setVersion(v);
+      })
+      .catch(() => {});
   }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
+    const previous = document.activeElement;
+    const panel = panelRef.current;
+    panel?.querySelector<HTMLElement>('[aria-label="Close side panel"]')?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') animateClose();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        animateClose();
+      }
+      if (e.key === 'Tab') {
+        const controls = panel?.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), a[href], [tabindex="0"]',
+        );
+        if (!controls?.length) return;
+        const first = controls[0]!;
+        const last = controls[controls.length - 1]!;
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    panel?.addEventListener('keydown', onKey);
+    return () => {
+      panel?.removeEventListener('keydown', onKey);
+      if (
+        previous instanceof HTMLElement &&
+        (document.activeElement === document.body || panel?.contains(document.activeElement))
+      ) {
+        previous.focus({ preventScroll: true });
+      }
+    };
   }, [isOpen, animateClose]);
 
   if (!isOpen) return null;
 
   const orderedSessions = tabOrder
     .map((id) => sessions.get(id))
-    .filter((s): s is NonNullable<typeof s> => s != null);
+    .filter((s): s is NonNullable<typeof s> => s != null && !s.hidden);
 
   const activeSession = activeId ? sessions.get(activeId) : undefined;
 
@@ -113,21 +170,25 @@ export function SidePanel() {
   const handleClose = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (dissolvingIds.has(id)) return;
-    if (confirm('Close this session?')) {
-      if (id === activeId) {
-        const nextActive = tabOrder.find((tid) => tid !== id && sessions.has(tid));
-        if (nextActive) setActiveId(nextActive);
-      }
-      const session = sessions.get(id);
-      const rowEl = listRef.current?.querySelector<HTMLElement>(`[data-session-id="${id}"]`);
-      void dissolveDelete(id, {
-        element: rowEl ?? null,
-        color: session?.color || '#6ec1e4',
-        variant: 'tab',
-        apiDelete: () => deleteSession(id),
-        finalize: () => removeSession(id),
-      });
+    if (confirmId !== id) {
+      setConfirmId(id);
+      return;
     }
+    setConfirmId(null);
+    if (id === activeId) {
+      const nextActive = orderedSessions.find((session) => session.id !== id)?.id;
+      if (nextActive) setActiveId(nextActive);
+    }
+    const session = sessions.get(id);
+    const rowEl = listRef.current?.querySelector<HTMLElement>(`[data-session-id="${id}"]`);
+    void dissolveDelete(id, {
+      element: rowEl ?? null,
+      color:
+        session?.color || getComputedStyle(document.documentElement).getPropertyValue('--accent'),
+      variant: 'tab',
+      apiDelete: () => deleteSession(id),
+      finalize: () => removeSession(id),
+    }).catch(() => toast.error('Failed to close session'));
   };
 
   return (
@@ -143,7 +204,12 @@ export function SidePanel() {
         data-closing={closing}
         ref={panelRef}
         role="dialog"
+        aria-modal="true"
+        aria-label="Sessions"
         data-testid="side-panel"
+        onAnimationEnd={(e) => {
+          if (closing && e.target === e.currentTarget) finishClose();
+        }}
       >
         {/* Brand header */}
         <div className={styles.header}>
@@ -178,7 +244,9 @@ export function SidePanel() {
         ) : (
           <>
             {/* Section title */}
-            <div className={styles.sectionTitle}>Sessions</div>
+            <div className={styles.sectionTitle}>
+              Sessions <span>{orderedSessions.length}</span>
+            </div>
 
             {/* Session list */}
             <div ref={listRef} className={styles.list} data-testid="side-panel-list">
@@ -195,9 +263,10 @@ export function SidePanel() {
                     data-session-id={session.id}
                     aria-hidden={isDissolvingRow || undefined}
                     style={
-                      isDissolvingRow
-                        ? ({ ['--termbeam-fragment-ms' as string]: '280ms' } as React.CSSProperties)
-                        : undefined
+                      {
+                        '--session-color': session.color || 'var(--accent)',
+                        ...(isDissolvingRow ? { '--termbeam-fragment-ms': '280ms' } : {}),
+                      } as React.CSSProperties
                     }
                     onClick={() => {
                       if (isDissolvingRow) return;
@@ -207,34 +276,21 @@ export function SidePanel() {
                       if (isDissolvingRow) return;
                       if (e.button === 1) {
                         e.preventDefault();
-                        if (confirm('Close this session?')) {
-                          if (session.id === activeId) {
-                            const nextActive = tabOrder.find(
-                              (tid) => tid !== session.id && sessions.has(tid),
-                            );
-                            if (nextActive) setActiveId(nextActive);
-                          }
-                          const rowEl = listRef.current?.querySelector<HTMLElement>(
-                            `[data-session-id="${session.id}"]`,
-                          );
-                          void dissolveDelete(session.id, {
-                            element: rowEl ?? null,
-                            color: session.color || '#6ec1e4',
-                            variant: 'tab',
-                            apiDelete: () => deleteSession(session.id),
-                            finalize: () => removeSession(session.id),
-                          });
-                        }
+                        handleClose(e, session.id);
                       }
                     }}
                   >
-                    {/* Card header: combined color+status dot, name, close */}
+                    <button
+                      className={styles.cardActivate}
+                      aria-label={`Open ${session.name}`}
+                      aria-current={session.id === activeId ? 'true' : undefined}
+                      tabIndex={isDissolvingRow ? -1 : 0}
+                    />
                     <div className={styles.cardHeader}>
                       <span
                         className={styles.cardDot}
                         style={{
-                          backgroundColor: session.color,
-                          boxShadow: `0 0 0 2px var(--surface), 0 0 0 4px ${statusColor(session)}`,
+                          backgroundColor: statusColor(session),
                         }}
                         title={
                           session.exited
@@ -244,39 +300,58 @@ export function SidePanel() {
                               : 'Disconnected'
                         }
                       />
-                      <span className={styles.cardName}>{session.name}</span>
+                      <span className={styles.cardName}>
+                        <BreakableText text={session.name} />
+                      </span>
                       {session.id !== activeId && session.hasUnread && (
                         <span className={styles.unreadDot} />
                       )}
                       <button
-                        className={styles.cardClose}
+                        className={`${styles.cardClose} ${confirmId === session.id ? styles.cardCloseConfirm : ''}`}
                         onClick={(e) => handleClose(e, session.id)}
                         title="Close session"
+                        aria-label={
+                          confirmId === session.id
+                            ? `Confirm close ${session.name}`
+                            : `Close ${session.name}`
+                        }
                       >
-                        ×
+                        {confirmId === session.id ? 'Close?' : '×'}
                       </button>
                     </div>
 
                     {/* Meta: shell + cwd + activity */}
                     <div className={styles.cardMeta}>
-                      {session.shell}
-                      {session.cwd ? ` · ${truncatePath(session.cwd)}` : ''}
-                      {activity ? ` · ${activity}` : ''}
+                      <span className={styles.metaDetails}>
+                        <BreakableText text={session.shell} />
+                        {activity && <span>· {activity}</span>}
+                      </span>
+                      {session.cwd && <BreakableText text={session.cwd} />}
                     </div>
 
                     {/* Git info badges */}
                     {git && (
                       <div className={styles.cardGit}>
                         <span className={styles.gitBadge}>
-                          <BranchIcon /> {git.branch || 'detached'}
+                          <BranchIcon /> <BreakableText text={git.branch || 'detached'} />
                         </span>
-                        {git.provider && <span className={styles.gitBadge}>{git.provider}</span>}
-                        {git.repoName && <span className={styles.gitBadge}>{git.repoName}</span>}
+                        {git.provider && (
+                          <span className={styles.gitBadge}>
+                            <BreakableText text={git.provider} />
+                          </span>
+                        )}
+                        {git.repoName && (
+                          <span className={styles.gitBadge}>
+                            <BreakableText text={git.repoName} />
+                          </span>
+                        )}
                         {git.status && (
                           <span
                             className={`${styles.gitBadge} ${git.status.clean ? styles.gitClean : styles.gitDirty}`}
                           >
-                            {git.status.clean ? '✓ clean' : git.status.summary}
+                            <BreakableText
+                              text={git.status.clean ? '✓ clean' : git.status.summary}
+                            />
                           </span>
                         )}
                       </div>
@@ -296,7 +371,7 @@ export function SidePanel() {
                     animateClose();
                   }}
                 >
-                  + New Session
+                  <span>+ New Session</span>
                 </button>
                 <button
                   className={styles.footerBtnSecondary}

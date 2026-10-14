@@ -1,205 +1,122 @@
 .layout {
   --keyboard-height: 0px;
+  --terminal-top: calc(44px + var(--safe-top));
   position: relative;
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--surface-0);
+  color: var(--ink);
   overscroll-behavior: none;
-  touch-action: none;
+  touch-action: auto;
 }
 
-/* ── Top bar ── */
+@media (pointer: coarse) {
+  .layout {
+    --terminal-top: calc(48px + var(--safe-top));
+  }
+}
+
 .topBar {
-  height: calc(40px + env(safe-area-inset-top, 0px));
-  padding: 0 4px;
-  padding-top: env(safe-area-inset-top, 0px);
-  display: flex;
-  align-items: center;
-  background: linear-gradient(to bottom, var(--surface) 0%, var(--surface) 35%, var(--bg) 100%);
-  gap: 2px;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  position: relative;
   z-index: 60;
-}
-
-.left {
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  overflow: hidden;
+  gap: var(--sp-1);
+  height: var(--terminal-top);
+  padding: var(--safe-top) var(--sp-1) 0;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--hairline);
 }
 
+.left,
 .right {
   display: flex;
   align-items: center;
-  gap: 2px;
   flex-shrink: 0;
+  gap: var(--sp-1);
 }
 
 .barBtn {
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  text-decoration: none;
-  gap: 4px;
-  padding: 0;
   flex-shrink: 0;
-  transition:
-    background 0.15s,
-    color 0.15s;
+  width: var(--hit);
+  height: var(--hit);
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  text-decoration: none;
+  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-1) var(--ease-out);
 }
 
 .barBtn:hover {
-  background: var(--border);
-  color: var(--text);
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.barBtn:active {
+  background: var(--surface-press);
+  transform: translateY(1px);
 }
 
 .barBtnWithLabel {
   width: auto;
-  padding: 0 10px;
-  gap: 3px;
+  padding: 0 var(--sp-3);
+  gap: var(--sp-1);
 }
 
 .btnLabel {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
-}
-
-.stopBtn {
-  color: var(--danger);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.stopBtn:hover {
-  background: var(--danger);
-  color: #fff;
-}
-
-.stopBtn:active {
-  transform: scale(0.9);
 }
 
 .statusDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--danger);
-  flex-shrink: 0;
-  transition: background 0.3s;
-  display: inline-block;
+  background: var(--err);
 }
 
 .statusConnected {
-  background: var(--success);
-}
-
-.sessionName {
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--text);
-  max-width: 120px;
-}
-
-.statusText {
-  font-size: 11px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  flex-shrink: 0;
+  background: var(--ok);
 }
 
 .mobileOnly {
   display: none;
 }
 
-/* ── Connection lost banner ── */
-.connectionBanner {
-  position: fixed;
-  top: calc(40px + env(safe-area-inset-top, 0px));
-  left: 0;
-  right: 0;
-  z-index: 59;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 6px 16px;
-  background: var(--danger, #f14c4c);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.connectionBannerBtn {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: #fff;
-  border-radius: 4px;
-  padding: 2px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.connectionBannerBtn:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
 @media (max-width: 640px) {
   .desktopOnly {
-    display: none !important;
-  }
-  .mobileOnly {
-    display: flex !important;
-  }
-  .sessionName,
-  .statusText {
     display: none;
   }
-  .connectionBanner {
-    top: calc(32px + env(safe-area-inset-top, 0px));
+
+  .mobileOnly {
+    display: inline-flex;
+  }
+
+  .topBar,
+  .right {
+    gap: 0;
   }
 }
 
-/* ── Terminal area ── */
 .terminalArea {
   position: absolute;
-  top: calc(40px + env(safe-area-inset-top, 0px));
-  /* --touchbar-height is set live by TouchBar.tsx (108px expanded,
-   * 26px collapsed). Falls back to 108px if the var is missing. */
-  bottom: calc(var(--touchbar-height, 108px) + var(--keyboard-height, 0px));
+  top: var(--terminal-top);
+  bottom: calc(var(--touchbar-height, 100px) + var(--keyboard-height));
   left: 0;
   right: 0;
   display: flex;
   min-height: 0;
-  background: var(--bg);
-  transition: bottom 0.32s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* When the keyboard is open, the touchbar's home-indicator padding is
-   covered by the keyboard, so the terminal can sit directly on top of the
-   touchbar core (above the keyboard). */
-.layout[data-keyboard-open] .terminalArea {
-  bottom: calc(var(--touchbar-height, 108px) + var(--keyboard-height, 0px));
+  background: var(--surface-0);
+  touch-action: none;
 }
 
 .layout[data-hide-touchbar] .terminalArea {
-  bottom: var(--keyboard-height, 0px);
+  bottom: var(--keyboard-height);
 }
 
 .split {
@@ -210,17 +127,14 @@
   flex-direction: column;
 }
 
+/* Keep inactive terminals mounted so tab changes don't dismiss the keyboard. */
 .paneWrapper {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  /* Hidden: stacked behind active pane, invisible but still in DOM.
-     Using position:absolute + visibility:hidden instead of display:none
-     prevents mobile browsers from dismissing the on-screen keyboard
-     when switching tabs (display:none triggers blur → keyboard close). */
-  position: absolute;
-  inset: 0;
   visibility: hidden;
   pointer-events: none;
 }
@@ -233,107 +147,70 @@
   overscroll-behavior: none;
 }
 
-/* Focus indicator on the active pane in split view */
 .paneFocused {
   box-shadow: inset 0 0 0 2px var(--accent);
   z-index: 1;
 }
 
 .paneUnfocused {
-  opacity: 0.7;
-  transition: opacity 0.15s;
   cursor: pointer;
 }
 
-.paneUnfocused:hover {
-  opacity: 0.9;
-}
-
-/* Divider between split panes — vertical split (side-by-side) */
 .split:not(.splitHorizontal) .visible + .visible {
-  border-left: 2px solid var(--border);
+  border-left: 1px solid var(--edge);
 }
 
-/* Divider between split panes — horizontal split (stacked) */
 .splitHorizontal .visible + .visible {
-  border-top: 2px solid var(--border);
+  border-top: 1px solid var(--edge);
 }
 
-/* Landscape on short screens: compact bars so the terminal keeps usable height */
-@media (orientation: landscape) and (max-height: 500px) {
-  .topBar {
-    height: calc(32px + env(safe-area-inset-top, 0px));
-  }
-  .terminalArea {
-    top: calc(32px + env(safe-area-inset-top, 0px));
-    bottom: calc(var(--touchbar-height, 108px) + var(--keyboard-height, 0px));
-  }
-  .layout[data-keyboard-open] .terminalArea {
-    bottom: calc(var(--touchbar-height, 108px) + var(--keyboard-height, 0px));
-  }
-  .layout[data-hide-touchbar] .terminalArea {
-    bottom: var(--keyboard-height, 0px);
-  }
-}
-
-/* ── Download file browser overlay ── */
 .downloadOverlay {
   position: fixed;
   inset: 0;
+  bottom: var(--keyboard-height);
   z-index: 200;
-  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: downloadFadeIn 0.2s ease-out;
+  padding: var(--sp-4);
+  background: var(--scrim);
+  touch-action: auto;
+  animation: global(tb-fade) var(--dur-2) var(--ease-out);
 }
 
 .downloadPanel {
-  width: min(90vw, 420px);
-  max-height: 80vh;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   display: flex;
   flex-direction: column;
+  width: min(100%, 460px);
+  max-height: min(84dvh, 100%);
+  min-height: 0;
   overflow: hidden;
-  animation: downloadSlideUp 0.25s ease-out;
+  background: var(--surface-2);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-pop);
+  animation: global(tb-pop) var(--dur-3) var(--ease-out);
 }
 
-@keyframes downloadFadeIn {
-  from {
-    opacity: 0;
+@media (max-width: 640px) {
+  .downloadOverlay {
+    align-items: flex-end;
+    padding: var(--sp-3) 0 0;
   }
-  to {
-    opacity: 1;
+
+  .downloadPanel {
+    width: 100%;
+    max-height: min(88dvh, calc(100% - var(--safe-top)));
+    padding-bottom: var(--safe-bottom);
+    border-bottom: 0;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    animation-name: global(tb-sheet-up);
   }
 }
 
-@keyframes downloadSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ── Code viewer fullscreen overlay ── */
 .codeViewerOverlay {
   position: fixed;
   inset: 0;
   z-index: 300;
-  animation: codeViewerFadeIn 0.15s ease-out;
-}
-
-@keyframes codeViewerFadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  animation: global(tb-fade) var(--dur-2) var(--ease-out);
 }

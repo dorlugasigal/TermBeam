@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { spaLinkHandler } from '@/utils/navigation';
 import { toast } from 'sonner';
 import { useXTerm } from '@/hooks/useXTerm';
 import { useTerminalSocket } from '@/hooks/useTerminalSocket';
+import { useConnectionStore } from '@/stores/connectionStore';
 import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -31,7 +33,6 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
 
   const paneRef = useRef<HTMLDivElement>(null);
   const hadConnectedRef = useRef(false);
-  const [reconnectGraceExpired, setReconnectGraceExpired] = useState(false);
 
   // iOS soft-keyboard flicker guard: tracks when the user last performed a
   // touch gesture that focused the textarea. iOS takes ~200–500ms to fire
@@ -43,16 +44,14 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   const lastTouchFocusAtRef = useRef(0);
   const TOUCH_FOCUS_GUARD_MS = 700;
   const isTouchDeviceRef = useRef(
-    typeof window !== 'undefined' &&
-      ('ontouchstart' in window || navigator.maxTouchPoints > 0),
+    typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0),
   );
   // True when on a touch device and the user-gesture focus happened recently —
   // any programmatic .focus() during this window risks dismissing iOS's soft
   // keyboard mid-animation.
   const inTouchFocusWindow = useCallback(
     () =>
-      isTouchDeviceRef.current &&
-      Date.now() - lastTouchFocusAtRef.current < TOUCH_FOCUS_GUARD_MS,
+      isTouchDeviceRef.current && Date.now() - lastTouchFocusAtRef.current < TOUCH_FOCUS_GUARD_MS,
     [],
   );
 
@@ -102,7 +101,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     onSelectionChange: handleSelectionChange,
   });
 
-  const { send, sendResize, connected, reconnecting, reconnect } = useTerminalSocket({
+  const { send, sendResize, connected, inputBlockedAt } = useTerminalSocket({
     sessionId,
     terminal,
     onExit: handleExit,
@@ -272,18 +271,6 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   // Clear unread indicator when this pane becomes active
   const clearUnread = useSessionStore((s) => s.clearUnread);
 
-  // Two-phase reconnect: show subtle indicator first, escalate after grace period
-  const RECONNECT_GRACE_MS = 8000;
-  useEffect(() => {
-    if (connected) {
-      setReconnectGraceExpired(false);
-      return;
-    }
-    if (!hadConnectedRef.current) return;
-    const timer = setTimeout(() => setReconnectGraceExpired(true), RECONNECT_GRACE_MS);
-    return () => clearTimeout(timer);
-  }, [connected]);
-
   useEffect(() => {
     if (active) {
       clearUnread(sessionId);
@@ -341,7 +328,18 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
   const searchBarOpen = useUIStore((s) => s.searchBarOpen);
   const sidePanelOpen = useUIStore((s) => s.sidePanelOpen);
   const copyOverlayOpen = useUIStore((s) => s.copyOverlayOpen);
-  const anyOverlayOpen = toolsPanelOpen || searchBarOpen || sidePanelOpen || copyOverlayOpen;
+  const modalOpen = useUIStore(
+    (s) =>
+      s.settingsPanelOpen ||
+      s.uploadModalOpen ||
+      s.previewModalOpen ||
+      s.downloadModalOpen ||
+      s.markdownModalOpen ||
+      s.themePickerOpen ||
+      s.customKeysModalOpen,
+  );
+  const anyOverlayOpen =
+    toolsPanelOpen || searchBarOpen || sidePanelOpen || copyOverlayOpen || modalOpen;
   const prevOverlayRef = useRef(anyOverlayOpen);
 
   useEffect(() => {
@@ -793,12 +791,6 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     [terminal],
   );
 
-  const handleReconnect = useCallback(() => {
-    terminal?.clear();
-    terminal?.focus();
-    reconnect();
-  }, [terminal, reconnect]);
-
   const handlePaneClick = useCallback(() => {
     if (!active) setActiveId(sessionId);
     // On touch devices, if the user just tapped (touchend handler already
@@ -820,9 +812,20 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
     terminal?.textarea?.focus({ preventScroll: true });
   }, [terminal, active, sessionId, setActiveId, inTouchFocusWindow]);
 
-  const showReconnectOverlay = !connected && !exited && hadConnectedRef.current;
-  const showReconnectingIndicator = showReconnectOverlay && reconnecting && !reconnectGraceExpired;
-  const showDisconnectedOverlay = showReconnectOverlay && (!reconnecting || reconnectGraceExpired);
+  // Link down: the output stays readable; a small chip explains why typing
+  // does nothing and opens the connection details. Keystrokes are never
+  // queued for surprise execution later.
+  const linkKind = useConnectionStore((s) => s.kind);
+  const openLinkSheet = useConnectionStore((s) => s.openSheet);
+  const showLinkChip = !connected && !exited && hadConnectedRef.current;
+  const locked = linkKind === 'auth-expired';
+  const [nudge, setNudge] = useState(false);
+  useEffect(() => {
+    if (!inputBlockedAt) return;
+    setNudge(true);
+    const id = setTimeout(() => setNudge(false), 600);
+    return () => clearTimeout(id);
+  }, [inputBlockedAt]);
 
   return (
     <div
@@ -833,10 +836,7 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
       {...((visible ?? active) ? { 'data-visible': 'true' } : {})}
     >
       {/* Terminal container */}
-      <div
-        ref={terminalRef}
-        className={styles.terminalContainer}
-      />
+      <div ref={terminalRef} className={styles.terminalContainer} />
 
       {showScrollBtn && (
         <button
@@ -853,34 +853,38 @@ export function TerminalPane({ sessionId, active, visible, fontSize = 14 }: Term
         </button>
       )}
 
-      {showReconnectingIndicator && (
-        <div className={styles.reconnectingBar} data-testid="reconnecting-indicator">
-          <span className={styles.reconnectingDot} />
-          <span>Reconnecting…</span>
-        </div>
-      )}
-
       {showBootSequence && <BootSequence complete={firstByteSeen} />}
 
-      {showDisconnectedOverlay && (
-        <div className={styles.reconnectOverlay} data-testid="reconnect-overlay">
-          <div className={styles.reconnectContent}>
-            <span className={styles.reconnectMessage}>Session disconnected</span>
-            <div className={styles.reconnectActions}>
-              <a href="/" className={styles.reconnectBtn}>
-                Sessions
-              </a>
-              <button className={styles.reconnectBtn} onClick={handleReconnect}>
-                Reconnect
-              </button>
-            </div>
-          </div>
-        </div>
+      {showLinkChip && (
+        <button
+          type="button"
+          className={`${styles.linkChip} ${nudge ? styles.linkChipNudge : ''}`}
+          data-locked={locked || undefined}
+          data-testid="input-paused-chip"
+          onClick={(e) => {
+            e.stopPropagation();
+            openLinkSheet();
+          }}
+        >
+          <span className={styles.linkChipGlyph} aria-hidden="true">
+            <i />
+            <i />
+            <i />
+            <i />
+          </span>
+          {locked ? 'Locked — tap to unlock' : 'Input paused · reconnecting'}
+        </button>
       )}
 
       {exited && (
         <div className={styles.exitOverlay}>
-          <span className={styles.exitMessage}>Session ended</span>
+          <div className={styles.exitCard}>
+            <span className={styles.exitEyebrow}>Process exited</span>
+            <span className={styles.exitMessage}>Session ended</span>
+            <a href="/" className={styles.exitAction} onClick={spaLinkHandler}>
+              Back to sessions
+            </a>
+          </div>
         </div>
       )}
     </div>

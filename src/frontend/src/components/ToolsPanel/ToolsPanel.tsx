@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
@@ -370,6 +370,10 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
   const closeAction = useUIStore((s) => s.closeToolsPanel);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [aboutVersion, setAboutVersion] = useState('');
+  const [themeOpen, setThemeOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const panelRef = useRef<HTMLDivElement>(null);
+  const filterRef = useRef<HTMLInputElement>(null);
 
   // Render-while-closing pattern so the slide-out transition can play.
   // - `open` (store state) flips false immediately on close.
@@ -379,10 +383,14 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
   useEffect(() => {
     if (open) {
       setVisible(true);
-      requestAnimationFrame(() => setMounted(true));
+      setMounted(true);
     } else if (visible) {
       setMounted(false);
-      const t = setTimeout(() => setVisible(false), 220);
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const duration = parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--dur-2'),
+      );
+      const t = setTimeout(() => setVisible(false), reducedMotion ? 0 : (duration || 160) + 80);
       return () => clearTimeout(t);
     }
   }, [open, visible]);
@@ -399,9 +407,34 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
     [close],
   );
 
+  useEffect(() => {
+    if (!open || !visible) return;
+    setQuery('');
+    const previous = document.activeElement;
+    const panel = panelRef.current;
+    if (window.matchMedia('(pointer: fine)').matches && !navigator.maxTouchPoints) {
+      filterRef.current?.focus({ preventScroll: true });
+    } else {
+      panel
+        ?.querySelector<HTMLElement>('[aria-label="Close tools"]')
+        ?.focus({ preventScroll: true });
+    }
+    return () => {
+      if (
+        previous instanceof HTMLElement &&
+        (document.activeElement === document.body || panel?.contains(document.activeElement))
+      ) {
+        previous.focus({ preventScroll: true });
+      }
+    };
+  }, [open, visible]);
+
   if (!visible) {
     return (
-      <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} version={aboutVersion} />
+      <>
+        <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} version={aboutVersion} />
+        <ThemePicker open={themeOpen} onClose={() => setThemeOpen(false)} hideTrigger />
+      </>
     );
   }
 
@@ -466,7 +499,7 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
   const allSections: Section[] = [
     {
       id: 'session',
-      title: 'SESSION',
+      title: 'Session',
       actions: [
         {
           id: 'new-tab',
@@ -502,7 +535,7 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
     },
     {
       id: 'files',
-      title: 'FILES',
+      title: 'Files',
       actions: [
         {
           id: 'browse',
@@ -539,7 +572,7 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
     },
     {
       id: 'view',
-      title: 'VIEW',
+      title: 'View',
       actions: [
         {
           id: 'font-up',
@@ -597,7 +630,7 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
     },
     {
       id: 'share',
-      title: 'SHARE',
+      title: 'Share',
       actions: [
         {
           id: 'copy-link',
@@ -633,7 +666,7 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
     },
     {
       id: 'agents',
-      title: 'AGENTS',
+      title: 'Agents',
       actions: [
         {
           id: 'launch-agent',
@@ -651,7 +684,7 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
     },
     {
       id: 'settings',
-      title: 'SETTINGS',
+      title: 'Settings',
       actions: [
         {
           id: 'settings',
@@ -663,7 +696,7 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
     },
     {
       id: 'system',
-      title: 'SYSTEM',
+      title: 'System',
       actions: [
         {
           id: 'refresh',
@@ -718,18 +751,95 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
         })
     : allSections;
 
+  const words = query.trim().toLowerCase().split(/\s+/);
+  const filteredSections = sections
+    .filter((section) => section.id !== 'settings')
+    .map((section) => ({
+      ...section,
+      actions: section.actions.filter((action) =>
+        words.every((word) => `${section.title} ${action.label}`.toLowerCase().includes(word)),
+      ),
+    }))
+    .filter((section) => section.actions.length > 0);
+  const settingsAction = allSections.find((section) => section.id === 'settings')!.actions[0]!;
+
   return (
     <>
-      <div className={`${styles.backdrop} ${mounted ? styles.backdropOpen : ''}`} onClick={close} />
-      <div className={panelCls} data-testid="palette-panel" data-open="true">
+      <div
+        className={`${styles.backdrop} ${mounted ? styles.backdropOpen : ''}`}
+        onClick={close}
+        aria-hidden="true"
+      />
+      <div
+        className={panelCls}
+        ref={panelRef}
+        data-testid="palette-panel"
+        data-open={open ? 'true' : 'false'}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Tools"
+        inert={!open}
+        onAnimationEnd={(e) => {
+          if (!open && e.target === e.currentTarget) {
+            setVisible(false);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            close();
+          }
+          if (e.key === 'Tab') {
+            const controls = panelRef.current?.querySelectorAll<HTMLElement>(
+              'button:not(:disabled), input, a[href]',
+            );
+            if (!controls?.length) return;
+            const first = controls[0]!;
+            const last = controls[controls.length - 1]!;
+            if (e.shiftKey && document.activeElement === first) {
+              e.preventDefault();
+              last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+              e.preventDefault();
+              first.focus();
+            }
+          }
+        }}
+      >
         <div className={styles.header}>
           <span className={styles.title}>Tools</span>
-          <button className={styles.closeBtn} onClick={close}>
+          <button className={styles.closeBtn} onClick={close} aria-label="Close tools">
             ✕
           </button>
         </div>
+        <div className={styles.filter}>
+          <span className={styles.filterIcon} aria-hidden="true">
+            {iconSearch}
+          </span>
+          <input
+            ref={filterRef}
+            className={styles.filterInput}
+            type="search"
+            placeholder="Filter tools…"
+            aria-label="Filter tools"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && filteredSections[0]?.actions[0]) {
+                e.preventDefault();
+                filteredSections[0].actions[0].action();
+              }
+            }}
+          />
+        </div>
         <div className={styles.body}>
-          {sections.map((sec) => (
+          {filteredSections.length === 0 && (
+            <p className={styles.empty} role="status">
+              No tools match “{query}”.
+            </p>
+          )}
+          {filteredSections.map((sec) => (
             <div key={sec.id} className={styles.section}>
               <div className={styles.sectionTitle}>{sec.title}</div>
               {sec.actions.map((a) => (
@@ -739,20 +849,42 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
                   onClick={a.action}
                   data-testid="palette-action"
                 >
-                  {a.icon}
-                  {a.label}
+                  <span className={styles.actionIcon} aria-hidden="true">
+                    {a.icon}
+                  </span>
+                  <span>{a.label}</span>
                 </button>
               ))}
-              {sec.id === 'view' && (
-                <div className={styles.themePickerRow}>
-                  <ThemePicker onSelect={() => close()} />
-                </div>
-              )}
             </div>
           ))}
         </div>
+        <div className={styles.footer}>
+          <div className={styles.sectionTitle}>SETTINGS</div>
+          <button
+            className={styles.btn}
+            onClick={settingsAction.action}
+            data-testid="palette-action"
+          >
+            <span className={styles.actionIcon} aria-hidden="true">
+              {iconSettings}
+            </span>
+            <span>{settingsAction.label}</span>
+            <kbd className={styles.shortcut} aria-hidden="true">
+              ⌘ / Ctrl ,
+            </kbd>
+          </button>
+          <button
+            className={styles.btn}
+            onClick={() => run(() => setThemeOpen(true))}
+            data-testid="theme-trigger"
+          >
+            <span className={styles.themeIcon} aria-hidden="true" />
+            <span>Theme…</span>
+          </button>
+        </div>
       </div>
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} version={aboutVersion} />
+      <ThemePicker open={themeOpen} onClose={() => setThemeOpen(false)} hideTrigger />
     </>
   );
 }

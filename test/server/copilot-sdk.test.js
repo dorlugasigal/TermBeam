@@ -218,13 +218,78 @@ describe('CopilotService', () => {
       assert.ok(service.sessions.has(id));
     });
 
-    it('should use default model when none specified', async () => {
+    it('should let Copilot pick the model when none is specified', async () => {
+      let capturedConfig;
+      mockClient.createSession = async (config) => {
+        capturedConfig = config;
+        return createMockSession();
+      };
       const id = await service.createSession();
-      const entry = service.sessions.get(id);
-      assert.strictEqual(entry.model, 'claude-opus-4.6');
+      assert.ok(!('model' in capturedConfig), 'no model should be forced on the SDK');
+      // The mock session can't report its model
+      assert.strictEqual(service.sessions.get(id).model, null);
+    });
+
+    it('should record the model Copilot picked', async () => {
+      const session = createMockSession();
+      session.rpc = { model: { getCurrent: async () => ({ modelId: 'claude-sonnet-5' }) } };
+      mockClient.createSession = async () => session;
+      const id = await service.createSession();
+      assert.strictEqual(service.sessions.get(id).model, 'claude-sonnet-5');
+    });
+
+    it('should not ask the SDK for the model when one was requested', async () => {
+      let asked = false;
+      const session = createMockSession();
+      session.rpc = {
+        model: {
+          getCurrent: async () => {
+            asked = true;
+            return { modelId: 'other' };
+          },
+        },
+      };
+      mockClient.createSession = async () => session;
+      const id = await service.createSession({ model: 'gpt-5.5' });
+      assert.strictEqual(asked, false);
+      assert.strictEqual(service.sessions.get(id).model, 'gpt-5.5');
+    });
+
+    it('should ignore a failing or malformed current-model answer', async () => {
+      const failing = createMockSession();
+      failing.rpc = { model: { getCurrent: async () => Promise.reject(new Error('nope')) } };
+      mockClient.createSession = async () => failing;
+      const id1 = await service.createSession();
+      assert.strictEqual(service.sessions.get(id1).model, null);
+
+      const malformed = createMockSession();
+      malformed.rpc = { model: { getCurrent: async () => ({ modelId: 42 }) } };
+      mockClient.createSession = async () => malformed;
+      const id2 = await service.createSession();
+      assert.strictEqual(service.sessions.get(id2).model, null);
+    });
+
+    it('should reject a malformed model id before contacting the SDK', async () => {
+      let called = false;
+      mockClient.createSession = async () => {
+        called = true;
+        return createMockSession();
+      };
+      await assert.rejects(() => service.createSession({ model: 'not a model!' }), {
+        message: 'Invalid model id',
+      });
+      await assert.rejects(() => service.createSession({ model: { id: 'x' } }), {
+        message: 'Invalid model id',
+      });
+      assert.strictEqual(called, false);
     });
 
     it('should use provided options', async () => {
+      let capturedConfig;
+      mockClient.createSession = async (config) => {
+        capturedConfig = config;
+        return createMockSession();
+      };
       const id = await service.createSession({
         model: 'gpt-4',
         name: 'My Session',
@@ -232,6 +297,7 @@ describe('CopilotService', () => {
         ptySessionId: 'pty123',
       });
       const entry = service.sessions.get(id);
+      assert.strictEqual(capturedConfig.model, 'gpt-4');
       assert.strictEqual(entry.model, 'gpt-4');
       assert.strictEqual(entry.name, 'My Session');
       assert.strictEqual(entry.cwd, '/home/test');
@@ -302,6 +368,11 @@ describe('CopilotService', () => {
     });
 
     it('should use provided options', async () => {
+      let capturedConfig;
+      mockClient.resumeSession = async (_id, config) => {
+        capturedConfig = config;
+        return createMockSession();
+      };
       const id = await service.resumeSession('sdk-1', {
         name: 'Resumed',
         model: 'gpt-4',
@@ -309,10 +380,30 @@ describe('CopilotService', () => {
         ptySessionId: 'pty-1',
       });
       const entry = service.sessions.get(id);
+      assert.strictEqual(capturedConfig.model, 'gpt-4', 'a requested model is applied');
       assert.strictEqual(entry.name, 'Resumed');
       assert.strictEqual(entry.model, 'gpt-4');
       assert.strictEqual(entry.cwd, '/test');
       assert.strictEqual(entry.ptySessionId, 'pty-1');
+    });
+
+    it('should keep the model the session was running when none is requested', async () => {
+      let capturedConfig;
+      const session = createMockSession();
+      session.rpc = { model: { getCurrent: async () => ({ modelId: 'gpt-5.5' }) } };
+      mockClient.resumeSession = async (_id, config) => {
+        capturedConfig = config;
+        return session;
+      };
+      const id = await service.resumeSession('sdk-1');
+      assert.ok(!('model' in capturedConfig), 'resume must not switch the model');
+      assert.strictEqual(service.sessions.get(id).model, 'gpt-5.5');
+    });
+
+    it('should reject a malformed model id', async () => {
+      await assert.rejects(() => service.resumeSession('sdk-1', { model: 'gpt 5' }), {
+        message: 'Invalid model id',
+      });
     });
 
     it('should default name to "Resumed Session"', async () => {
@@ -553,6 +644,94 @@ describe('CopilotService', () => {
       assert.strictEqual(modelSet, 'gpt-4-turbo');
       assert.strictEqual(service.sessions.get(id).model, 'gpt-4-turbo');
     });
+
+    it('should reject a missing or malformed model id', async () => {
+      const id = await service.createSession({ model: 'old-model' });
+      for (const bad of [undefined, '', 'two words', 42]) {
+        await assert.rejects(() => service.setModel(id, bad), { message: 'Invalid model id' });
+      }
+      assert.strictEqual(service.sessions.get(id).model, 'old-model');
+    });
+  });
+
+  // ─── listModels ───────────────────────────────────────────────────────────
+
+  describe('listModels', () => {
+    const RAW = [
+      { id: 'auto', name: 'Auto' },
+      { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', policy: { state: 'enabled' } },
+      { id: 'gpt-5.5', name: 'GPT-5.5', policy: { state: 'unconfigured' } },
+      { id: 'grok-4.7', name: 'Grok 4.7', policy: { state: 'disabled' } },
+      { id: 'claude-sonnet-5', name: 'Duplicate' },
+      { id: 'no name' },
+      { name: 'No id' },
+      { id: 'mai-code-1.1-flash' },
+    ];
+
+    function useModels(raw = RAW) {
+      mockClient.calls = 0;
+      mockClient.modelsCache = ['sdk-cached'];
+      mockClient.listModels = async () => {
+        mockClient.calls++;
+        return typeof raw === 'function' ? raw(mockClient.calls) : raw;
+      };
+    }
+
+    it('should return usable models as { id, name } in SDK order', async () => {
+      useModels();
+      const models = await service.listModels();
+      assert.deepStrictEqual(models, [
+        { id: 'auto', name: 'Auto' },
+        { id: 'claude-sonnet-5', name: 'Claude Sonnet 5' },
+        { id: 'gpt-5.5', name: 'GPT-5.5' },
+        { id: 'mai-code-1.1-flash', name: 'mai-code-1.1-flash' },
+      ]);
+    });
+
+    it('should answer from cache while fresh and share one in-flight load', async () => {
+      useModels();
+      const [a, b] = await Promise.all([service.listModels(), service.listModels()]);
+      assert.strictEqual(a, b);
+      await service.listModels();
+      assert.strictEqual(mockClient.calls, 1);
+      assert.deepStrictEqual(mockClient.modelsCache, ['sdk-cached'], 'first load keeps SDK cache');
+    });
+
+    it('should serve the cached list and refresh it in the background once stale', async () => {
+      useModels((n) => (n === 1 ? [{ id: 'old-model' }] : [{ id: 'new-model' }]));
+      await service.listModels();
+      service._models.fetchedAt = 0; // expire
+      const stale = await service.listModels();
+      assert.deepStrictEqual(stale, [{ id: 'old-model', name: 'old-model' }]);
+      await service._modelsPromise;
+      // The SDK's own cache is dropped so the refresh really re-queries
+      assert.strictEqual(mockClient.modelsCache, null);
+      assert.deepStrictEqual(await service.listModels(), [{ id: 'new-model', name: 'new-model' }]);
+      assert.strictEqual(mockClient.calls, 2);
+    });
+
+    it('should keep the previous list when a refresh fails and retry later', async () => {
+      useModels((n) => {
+        if (n === 2) throw new Error('offline');
+        return [{ id: `model-${n}` }];
+      });
+      await service.listModels();
+      service._models.fetchedAt = 0;
+      await service.listModels();
+      await service._modelsPromise?.catch(() => {});
+      assert.deepStrictEqual(await service.listModels(), [{ id: 'model-1', name: 'model-1' }]);
+      // Backed off: not retried immediately, but due well before the full TTL
+      assert.strictEqual(mockClient.calls, 2);
+      assert.ok(Date.now() - service._models.fetchedAt < 30 * 60 * 1000);
+    });
+
+    it('should throw when the first load fails', async () => {
+      mockClient.listModels = async () => {
+        throw new Error('not signed in');
+      };
+      await assert.rejects(() => service.listModels(), { message: 'not signed in' });
+      assert.strictEqual(service._models, null);
+    });
   });
 
   // ─── abortSession ─────────────────────────────────────────────────────────
@@ -721,7 +900,7 @@ describe('CopilotService', () => {
 
       const list = service.listSessionsDetailed();
       assert.strictEqual(list[0].name, 'Copilot Session');
-      assert.strictEqual(list[0].model, 'claude-opus-4.6');
+      assert.strictEqual(list[0].model, null, 'an unknown model is reported as null');
       assert.ok(list[0].cwd); // falls back to process.cwd()
       assert.ok(list[0].createdAt); // falls back to new Date()
     });
@@ -1035,6 +1214,59 @@ describe('CopilotService', () => {
   });
 
   // ─── Event forwarding integration ─────────────────────────────────────────
+
+  describe('model tracking', () => {
+    async function liveSession(options) {
+      const mockSession = createMockSession();
+      mockClient.createSession = async () => mockSession;
+      mockClient.resumeSession = async () => mockSession;
+      const id = options?.resume
+        ? await service.resumeSession('sdk-1')
+        : await service.createSession(options);
+      const received = [];
+      service.setListener(id, (evt) => received.push(evt));
+      return { id, mockSession, received };
+    }
+
+    it('should pick up the model Copilot resolved on the first reply', async () => {
+      const { id, mockSession, received } = await liveSession();
+      assert.strictEqual(service.sessions.get(id).model, null);
+      mockSession._emit({
+        type: 'assistant.message',
+        data: { content: 'Hi', model: 'claude-sonnet-5' },
+      });
+      assert.strictEqual(service.sessions.get(id).model, 'claude-sonnet-5');
+      assert.deepStrictEqual(received[0], {
+        type: 'copilot.model_changed',
+        data: { model: 'claude-sonnet-5' },
+      });
+      assert.strictEqual(received[1].type, 'copilot.assistant_message');
+      // Not part of the replay history (copilot.created carries the model)
+      const history = service.sessions.get(id).messageHistory;
+      assert.ok(!history.some((e) => e.type === 'copilot.model_changed'));
+    });
+
+    it('should ignore subagent replies, unchanged models and junk', async () => {
+      const { id, mockSession, received } = await liveSession({ model: 'gpt-5.5' });
+      mockSession._emit({
+        type: 'assistant.message',
+        data: { content: 'sub', model: 'claude-haiku-5.5', parentToolCallId: 'tool-1' },
+      });
+      mockSession._emit({ type: 'assistant.message', data: { content: 'a', model: 'gpt-5.5' } });
+      mockSession._emit({ type: 'assistant.message', data: { content: 'b', model: 42 } });
+      mockSession._emit({ type: 'assistant.message', data: { content: 'c' } });
+      assert.strictEqual(service.sessions.get(id).model, 'gpt-5.5');
+      assert.ok(!received.some((e) => e.type === 'copilot.model_changed'));
+    });
+
+    it('should follow model switches made outside TermBeam', async () => {
+      const { id, mockSession, received } = await liveSession({ resume: true });
+      mockSession._emit({ type: 'session.model_change', data: { newModel: 'gpt-6-sol' } });
+      assert.strictEqual(service.sessions.get(id).model, 'gpt-6-sol');
+      assert.strictEqual(received[0].type, 'copilot.model_changed');
+      assert.strictEqual(received[0].data.model, 'gpt-6-sol');
+    });
+  });
 
   describe('event forwarding', () => {
     it('should forward mapped events to listener via session.on', async () => {
@@ -1647,6 +1879,23 @@ describe('CopilotService — _doStart timer cleanup (lines 138-140)', () => {
 
     await assert.rejects(() => service.ensureClient(), { message: 'start failure' });
     assert.strictEqual(service._authPollTimer, null);
+  });
+
+  it('should restart the auth URL watcher once a later start succeeds', async () => {
+    let fail = true;
+    mockClient.start = async () => {
+      if (fail) throw new Error('not signed in');
+    };
+    service._authPollTimer = setInterval(() => {}, 100000);
+    service._authUrlOffset = 42;
+
+    await assert.rejects(() => service.ensureClient(), { message: 'not signed in' });
+    assert.strictEqual(service._authPollTimer, null);
+
+    fail = false;
+    await service.ensureClient();
+    assert.ok(service._authPollTimer, 'watcher should be running again');
+    assert.strictEqual(service._authUrlOffset, 0, 'offset resets with the truncated file');
   });
 });
 

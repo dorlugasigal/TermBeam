@@ -12,6 +12,8 @@ export default function CopyOverlay() {
   const activeId = useSessionStore((s) => s.activeId);
   const sessions = useSessionStore((s) => s.sessions);
   const contentRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const primaryRef = useRef<HTMLButtonElement>(null);
 
   const totalLines = useMemo(() => {
     if (!open || !activeId) return 0;
@@ -108,21 +110,57 @@ export default function CopyOverlay() {
 
   const handleClose = useCallback(() => {
     closeCopyOverlay();
-    if (activeId) {
-      const ms = useSessionStore.getState().sessions.get(activeId);
-      ms?.term?.focus();
-    }
-  }, [closeCopyOverlay, activeId]);
+  }, [closeCopyOverlay]);
 
-  // Close on Escape key
+  // Modal behaviour: the rest of the terminal UI is inert while this is open,
+  // focus starts on the primary action and stays inside, and it returns to
+  // the terminal only after the background is interactive again (focusing an
+  // inert element silently fails).
   useEffect(() => {
     if (!open) return;
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+    const background = Array.from(overlay.parentElement?.children ?? []).filter(
+      (el): el is HTMLElement => el instanceof HTMLElement && el !== overlay && !el.inert,
+    );
+    for (const el of background) el.inert = true;
+    primaryRef.current?.focus({ preventScroll: true });
+
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose();
+      if (e.defaultPrevented) return;
+      // Another dialog stacked on top (e.g. the Unlock sheet after a session
+      // expires) owns the keyboard: leave its focus trap and Escape alone.
+      const active = document.activeElement;
+      const dialog = active?.closest('[role="dialog"], [role="alertdialog"]');
+      if (dialog && dialog !== overlay) return;
+      if (e.key === 'Escape') {
+        closeCopyOverlay();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const focusable = overlay.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), [tabindex="0"]',
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (!overlay.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey ? active === first : active === last) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      }
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, handleClose]);
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      for (const el of background) el.inert = false;
+      const { activeId: id, sessions: all } = useSessionStore.getState();
+      if (id) all.get(id)?.term?.focus();
+    };
+  }, [open, closeCopyOverlay]);
 
   if (!open) return null;
 
@@ -132,11 +170,18 @@ export default function CopyOverlay() {
       : `Copy Text (${totalLines} lines)`;
 
   return (
-    <div className={styles.overlay} data-testid="select-overlay">
+    <div
+      ref={overlayRef}
+      className={styles.overlay}
+      data-testid="select-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Copy Text"
+    >
       <div className={styles.header}>
         <span className={styles.title}>{title}</span>
         <div className={styles.actions}>
-          <button className={styles.btnPrimary} onClick={handleCopy}>
+          <button ref={primaryRef} className={styles.btnPrimary} onClick={handleCopy}>
             {hasSelection ? 'Copy Selection' : 'Copy All'}
           </button>
           <button className={styles.btnSecondary} onClick={handleClose} data-testid="select-close">
@@ -144,7 +189,13 @@ export default function CopyOverlay() {
           </button>
         </div>
       </div>
-      <div className={styles.content} ref={contentRef} data-testid="select-content">
+      <div
+        className={styles.content}
+        ref={contentRef}
+        data-testid="select-content"
+        tabIndex={0}
+        aria-label="Terminal text"
+      >
         {linesAbove > 0 && (
           <button className={styles.loadMoreBtn} onClick={handleLoadMore}>
             ▲ Load more ({linesAbove} lines above)

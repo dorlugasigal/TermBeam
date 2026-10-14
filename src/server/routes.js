@@ -7,9 +7,12 @@ const { detectShells } = require('../utils/shells');
 const { getAvailableAgents } = require('../utils/agents');
 const { getAgentSessions, getResumeCommand } = require('../utils/agent-sessions');
 const log = require('../utils/logger');
-const { getGitInfo } = require('../utils/git');
+const { getGitInfoAsync } = require('../utils/git');
+const { isValidModelId } = require('../utils/copilot-models');
 const rateLimit = require('express-rate-limit');
 const { setupPreferenceRoutes } = require('./preferences');
+const { setupAuthRoutes } = require('./auth-routes');
+const { safeNextPath } = require('./auth');
 
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 
@@ -50,28 +53,36 @@ function validateCwd(userCwd) {
   }
 }
 
+/** A requested Copilot model that isn't a model id (empty = let Copilot choose). */
+function isBadModel(model) {
+  return model !== undefined && model !== null && model !== '' && !isValidModelId(model);
+}
+
 const uploadedFiles = new Map(); // id -> filepath
 
-// Cache git info per cwd to avoid repeated git calls on each /api/sessions request
-const gitInfoCache = new Map(); // cwd -> { data, ts }
+// Cache git info per cwd to avoid repeated git calls on each /api/sessions
+// request. Refreshes run in the background (stale-while-revalidate) so the
+// event loop — and every terminal's WebSocket — never waits on git.
+const gitInfoCache = new Map(); // cwd -> { data, ts, refreshing }
 const GIT_CACHE_TTL = 10_000; // 10 seconds
 
 function getCachedGitInfo(cwd) {
   if (!cwd) return null;
   const cached = gitInfoCache.get(cwd);
   if (cached && Date.now() - cached.ts < GIT_CACHE_TTL) return cached.data;
-  try {
-    const data = getGitInfo(cwd);
-    gitInfoCache.set(cwd, { data, ts: Date.now() });
-    // Evict oldest entry when cache exceeds 100 entries
-    if (gitInfoCache.size > 100) {
-      const oldest = gitInfoCache.keys().next().value;
-      gitInfoCache.delete(oldest);
-    }
-    return data;
-  } catch {
-    return null;
+  if (!cached || !cached.refreshing) {
+    const entry = cached || { data: null, ts: 0 };
+    entry.refreshing = true;
+    gitInfoCache.set(cwd, entry);
+    getGitInfoAsync(cwd)
+      .catch(() => null)
+      .then((data) => {
+        gitInfoCache.set(cwd, { data, ts: Date.now() });
+        // Evict oldest entry when cache exceeds 100 entries
+        if (gitInfoCache.size > 100) gitInfoCache.delete(gitInfoCache.keys().next().value);
+      });
   }
+  return cached ? cached.data : null;
 }
 
 const IMAGE_SIGNATURES = [
@@ -138,29 +149,18 @@ function setupRoutes(
     setupPreferenceRoutes(app, { auth, configDir, apiRateLimit });
   }
 
-  // Login page
-  app.get('/login', (_req, res) => {
-    if (!auth.password) return res.redirect('/');
-    res.send(auth.loginHTML);
-  });
+  // Auth API: password / QR login, logout, remembered devices, passkeys
+  setupAuthRoutes(app, { auth, config, state });
 
-  // Auth API
-  app.post('/api/auth', auth.rateLimit, (req, res) => {
-    const { password } = req.body || {};
-    if (auth.safeCompare(password, auth.password)) {
-      const token = auth.generateToken();
-      res.cookie('pty_token', token, {
-        httpOnly: true,
-        sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000,
-        secure: req.secure,
-      });
-      log.info(`Auth: login success from ${req.ip}`);
-      res.json({ ok: true });
-    } else {
-      log.warn(`Auth: login failed from ${req.ip}`);
-      res.status(401).json({ error: 'wrong password' });
+  // Login page — the React SPA renders it (password + passkey unlock). Already
+  // signed-in visitors are bounced straight to where they were going.
+  app.get('/login', pageRateLimit, (req, res) => {
+    if (!auth.password) return res.redirect('/');
+    const token = req.cookies && req.cookies[auth.cookieName];
+    if (token && auth.validateToken(token)) {
+      return res.redirect(safeNextPath(req.query.next) || '/');
     }
+    res.sendFile('index.html', { root: PUBLIC_DIR });
   });
 
   // Version API — recomputes per request so dev source checkouts surface new
@@ -358,21 +358,26 @@ function setupRoutes(
   function autoLogin(req, res, next) {
     const { ott } = req.query;
     if (!ott || !auth.password) return next();
+    const cleanUrl = () => {
+      const params = new URLSearchParams(req.query);
+      params.delete('ott');
+      const qs = params.toString();
+      return (req.path === '/terminal' ? '/terminal' : '/') + (qs ? `?${qs}` : '');
+    };
     // Already authenticated (e.g. DevTunnel anti-phishing re-sent the request) — just redirect
-    if (req.cookies.pty_token && auth.validateToken(req.cookies.pty_token)) {
-      return res.redirect(req.path === '/terminal' ? '/terminal' : '/');
+    if (req.cookies[auth.cookieName] && auth.validateToken(req.cookies[auth.cookieName])) {
+      return res.redirect(cleanUrl());
     }
-    if (auth.validateShareToken(ott)) {
-      const token = auth.generateToken();
-      res.cookie('pty_token', token, {
-        httpOnly: true,
-        sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000,
-        secure: req.secure,
+    if (typeof ott === 'string' && auth.validateShareToken(ott)) {
+      const { token, session } = auth.createSession({
+        method: 'qr',
+        userAgent: String(req.headers['user-agent'] || ''),
+        ip: req.ip || '',
       });
+      auth.setSessionCookie(req, res, token, session);
       log.info(`Auth: share-token auto-login from ${req.ip}`);
       // Redirect to the same path without ?ott= to keep the URL clean
-      return res.redirect(req.path === '/terminal' ? '/terminal' : '/');
+      return res.redirect(cleanUrl());
     }
     log.warn(`Auth: invalid or expired share token from ${req.ip}`);
     next();
@@ -429,7 +434,10 @@ function setupRoutes(
       }),
     ];
 
-    res.json(all);
+    // Lets clients shorten paths under the server user's home to `~` without
+    // guessing which `/Users/<name>` or `/home/<name>` that is.
+    const home = os.homedir();
+    res.json(all.map((s) => ({ ...s, home })));
   });
 
   app.post('/api/sessions', apiRateLimit, auth.middleware, async (req, res) => {
@@ -483,6 +491,9 @@ function setupRoutes(
       if (!copilotService) {
         return res.status(400).json({ error: 'Copilot service is not available' });
       }
+      if (isBadModel(req.body.model)) {
+        return res.status(400).json({ error: 'model must be a Copilot model id' });
+      }
       // Validate cwd for copilot sessions
       if (cwd) {
         const validCwd = validateCwd(cwd);
@@ -518,6 +529,7 @@ function setupRoutes(
           id: sdkSessionId,
           type: 'copilot',
           ptySessionId,
+          model: copilotService.sessions.get(sdkSessionId)?.model ?? null,
           url: `/terminal?id=${sdkSessionId}`,
         });
       } catch (err) {
@@ -1407,11 +1419,17 @@ function setupRoutes(
   // --- Copilot SDK session creation ---
   if (copilotService) {
     app.post('/api/copilot/sdk/sessions', apiRateLimit, auth.middleware, async (req, res) => {
+      if (isBadModel(req.body.model)) {
+        return res.status(400).json({ error: 'model must be a Copilot model id' });
+      }
       try {
         const sessionId = await copilotService.createSession({
           model: req.body.model,
         });
-        res.status(201).json({ sessionId });
+        res.status(201).json({
+          sessionId,
+          model: copilotService.sessions.get(sessionId)?.model ?? null,
+        });
       } catch (err) {
         res.status(500).json({ error: err.message });
       }
@@ -1422,6 +1440,9 @@ function setupRoutes(
       apiRateLimit,
       auth.middleware,
       async (req, res) => {
+        if (isBadModel(req.body.model)) {
+          return res.status(400).json({ error: 'model must be a Copilot model id' });
+        }
         // Validate cwd for resume endpoint
         if (req.body.cwd) {
           const validCwd = validateCwd(req.body.cwd);
@@ -1453,7 +1474,12 @@ function setupRoutes(
             ptySessionId,
             cwd: sessionCwd,
           });
-          res.status(201).json({ id: sessionId, type: 'copilot', ptySessionId });
+          res.status(201).json({
+            id: sessionId,
+            type: 'copilot',
+            ptySessionId,
+            model: copilotService.sessions.get(sessionId)?.model ?? null,
+          });
         } catch (err) {
           // Clean up companion PTY if SDK session resume failed
           if (ptySessionId) {
@@ -1478,6 +1504,19 @@ function setupRoutes(
       }
     });
   }
+
+  // Models the signed-in Copilot account can use. `available: false` means
+  // the Copilot SDK isn't installed; an empty list with `error` means it
+  // couldn't be reached — clients then offer only "Copilot default".
+  app.get('/api/copilot/models', apiRateLimit, auth.middleware, async (_req, res) => {
+    if (!copilotService) return res.json({ available: false, models: [] });
+    try {
+      const models = await copilotService.listModels();
+      res.json({ available: true, models });
+    } catch {
+      res.json({ available: true, models: [], error: 'Could not load models from Copilot' });
+    }
+  });
 
   app.get('/api/copilot/active', apiRateLimit, auth.middleware, async (_req, res) => {
     try {

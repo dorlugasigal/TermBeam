@@ -3,6 +3,8 @@ import type { FileTreeNode } from '@/stores/codeViewerStore';
 
 const BASE = '';
 const DEFAULT_TIMEOUT = 10_000;
+// Copilot calls may cold-start the Copilot CLI and the user's MCP servers.
+const COPILOT_TIMEOUT = 45_000;
 
 /** Fetch with an AbortController timeout to avoid hanging on stale tunnels. */
 function fetchWithTimeout(
@@ -30,16 +32,25 @@ export async function fetchSessions(): Promise<Session[]> {
   return handleResponse<Session[]>(res);
 }
 
+export interface CreatedSession {
+  id: string;
+  url: string;
+  ptySessionId?: string | null;
+  /** Copilot sessions: the model in use (null if Copilot didn't say). */
+  model?: string | null;
+}
+
 export async function createSession(
   req: CreateSessionRequest & { cols?: number; rows?: number },
-): Promise<{ id: string; url: string; ptySessionId?: string | null }> {
+): Promise<CreatedSession> {
   const res = await fetchWithTimeout(`${BASE}/api/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
     credentials: 'same-origin',
+    timeout: req.type === 'copilot' ? COPILOT_TIMEOUT : DEFAULT_TIMEOUT,
   });
-  return handleResponse<{ id: string; url: string; ptySessionId?: string | null }>(res);
+  return handleResponse<CreatedSession>(res);
 }
 
 export async function deleteSession(id: string): Promise<void> {
@@ -139,14 +150,36 @@ export async function getResumeCommand(agent: string, id: string): Promise<{ com
 export async function resumeCopilotSdkSession(
   sdkSessionId: string,
   options?: { name?: string; model?: string; cwd?: string },
-): Promise<{ id: string; type: string; ptySessionId?: string | null }> {
+): Promise<{ id: string; type: string; ptySessionId?: string | null; model?: string | null }> {
   const res = await fetchWithTimeout(`${BASE}/api/copilot/sdk/sessions/${sdkSessionId}/resume`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(options || {}),
     credentials: 'same-origin',
+    timeout: COPILOT_TIMEOUT,
   });
-  return handleResponse<{ id: string; type: string; ptySessionId?: string | null }>(res);
+  return handleResponse<{
+    id: string;
+    type: string;
+    ptySessionId?: string | null;
+    model?: string | null;
+  }>(res);
+}
+
+export interface CopilotModel {
+  id: string;
+  name: string;
+}
+
+/** Models the server's Copilot account can use (empty when Copilot is unavailable). */
+export async function fetchCopilotModels(): Promise<CopilotModel[]> {
+  const res = await fetchWithTimeout(`${BASE}/api/copilot/models`, {
+    credentials: 'same-origin',
+    timeout: COPILOT_TIMEOUT,
+  });
+  const data = await handleResponse<{ models?: CopilotModel[]; error?: string }>(res);
+  if (data.error) throw new Error(data.error);
+  return Array.isArray(data.models) ? data.models : [];
 }
 
 export interface BrowseDirsResponse {
@@ -163,11 +196,7 @@ export async function browseDirectory(
   // Default behavior: treat `dir` as a directory to list (trailing slash appended).
   // With prefixFilter=true, pass through as-is so the backend treats the last
   // path segment as a name prefix to filter by.
-  const q = options?.prefixFilter
-    ? dir
-    : dir.endsWith('/') || dir.endsWith('\\')
-      ? dir
-      : dir + '/';
+  const q = options?.prefixFilter ? dir : dir.endsWith('/') || dir.endsWith('\\') ? dir : dir + '/';
   const res = await fetchWithTimeout(`${BASE}/api/dirs?q=${encodeURIComponent(q)}`, {
     credentials: 'same-origin',
   });
@@ -236,30 +265,80 @@ export function uploadImage(
   return xhrUpload(`${BASE}/api/upload`, blob, { 'Content-Type': contentType }, onProgress);
 }
 
+export type ProbeResult = 'ok' | 'auth-expired' | 'tunnel-auth' | 'host-unreachable' | 'offline';
+
+export interface AuthStatus {
+  passwordRequired: boolean;
+  authenticated: boolean;
+  passkeys: { enabled: boolean; registered: boolean };
+  session?: { method: string; createdAt: number } | null;
+}
+
+/**
+ * Classify why the server can't be used, without following redirects.
+ *
+ * Verified against a private Dev Tunnel: an expired relay sign-in answers
+ * every request with a 302 to global.rel.tunnels.api.visualstudio.com, which
+ * a normal fetch turns into an opaque CORS TypeError ("offline"). With
+ * redirect:'manual' it surfaces as type 'opaqueredirect'. A sleeping host
+ * makes the relay hold the request ~60s before an empty 404, hence the
+ * short timeout.
+ */
+export async function probeServer(timeout = 8000): Promise<ProbeResult> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'offline';
+  try {
+    const res = await fetchWithTimeout(
+      `${BASE}/api/auth/status?origin=${encodeURIComponent(window.location.origin)}`,
+      { credentials: 'same-origin', redirect: 'manual', cache: 'no-store', timeout },
+    );
+    if (res.type === 'opaqueredirect') return 'tunnel-auth';
+    const wwwAuth = res.headers.get('www-authenticate') || '';
+    if (res.status === 401 && /tunnel/i.test(wwwAuth)) return 'tunnel-auth';
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      if (res.status === 429) return 'ok';
+      if (!res.ok) return 'host-unreachable';
+      const data = (await res.json()) as Partial<AuthStatus>;
+      return data.authenticated === false ? 'auth-expired' : 'ok';
+    }
+    // An HTML page served in place of our JSON is the tunnel's own sign-in /
+    // interstitial; anything else (relay 404/502 while the host is away) means
+    // the computer isn't reachable.
+    if (res.ok && ct.includes('text/html')) return 'tunnel-auth';
+    return 'host-unreachable';
+  } catch {
+    return typeof navigator !== 'undefined' && navigator.onLine === false
+      ? 'offline'
+      : 'host-unreachable';
+  }
+}
+
+export async function fetchAuthStatus(): Promise<AuthStatus | null> {
+  try {
+    const res = await fetchWithTimeout(
+      `${BASE}/api/auth/status?origin=${encodeURIComponent(window.location.origin)}`,
+      { credentials: 'same-origin', redirect: 'manual', cache: 'no-store' },
+    );
+    if (res.type === 'opaqueredirect') return null;
+    const ct = res.headers.get('content-type') || '';
+    if (!res.ok || !ct.includes('application/json')) return null;
+    return (await res.json()) as AuthStatus;
+  } catch {
+    return null;
+  }
+}
+
 export async function checkAuth(): Promise<{
   authenticated: boolean;
   serverReachable: boolean;
   tunnelAuthRequired: boolean;
 }> {
-  try {
-    const res = await fetchWithTimeout(`${BASE}/api/sessions`, { credentials: 'same-origin' });
-    if (res.status === 401)
-      return { authenticated: false, serverReachable: true, tunnelAuthRequired: false };
-    if (res.status === 429)
-      return { authenticated: false, serverReachable: true, tunnelAuthRequired: false };
-    // Validate response is JSON — DevTunnel auth expiry can return 200 with HTML
-    const ct = res.headers.get('content-type') || '';
-    if (!ct.includes('application/json')) {
-      // Got a response, but it's not JSON — a proxy/tunnel (e.g. DevTunnel) is
-      // intercepting requests with its own auth page. A page reload (full browser
-      // navigation) is needed so the browser can handle the auth redirect interactively.
-      return { authenticated: false, serverReachable: false, tunnelAuthRequired: true };
-    }
-    return { authenticated: true, serverReachable: true, tunnelAuthRequired: false };
-  } catch {
-    // Network error — server truly unreachable (offline, DNS failure, etc.)
-    return { authenticated: false, serverReachable: false, tunnelAuthRequired: false };
-  }
+  const result = await probeServer();
+  return {
+    authenticated: result === 'ok',
+    serverReachable: result === 'ok' || result === 'auth-expired',
+    tunnelAuthRequired: result === 'tunnel-auth',
+  };
 }
 
 export async function getConfig(): Promise<{ passwordRequired: boolean }> {
@@ -276,22 +355,154 @@ export async function getConfig(): Promise<{ passwordRequired: boolean }> {
   }
 }
 
-export async function login(password: string): Promise<{ ok: boolean }> {
-  const res = await fetchWithTimeout(`${BASE}/api/auth`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password }),
-    credentials: 'same-origin',
-  });
-  if (res.status === 429) {
-    throw new Error('Too many attempts. Try again later.');
+export class LoginError extends Error {
+  constructor(
+    message: string,
+    public readonly kind: 'wrong-password' | 'rate-limited' | 'tunnel-auth' | 'network' | 'server',
+    public readonly retryAfterSeconds: number | null = null,
+  ) {
+    super(message);
+    this.name = 'LoginError';
   }
-  return handleResponse<{ ok: boolean }>(res);
+}
+
+async function postAuth(path: string, body: unknown): Promise<{ ok: boolean }> {
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(`${BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
+      redirect: 'manual',
+    });
+  } catch {
+    throw new LoginError("Can't reach your computer right now.", 'network');
+  }
+  if (res.type === 'opaqueredirect' || /tunnel/i.test(res.headers.get('www-authenticate') || '')) {
+    throw new LoginError('The tunnel sign-in expired — sign in again first.', 'tunnel-auth');
+  }
+  if (res.status === 429) {
+    const retry = Number(res.headers.get('retry-after')) || null;
+    throw new LoginError('Too many attempts. Wait a minute and try again.', 'rate-limited', retry);
+  }
+  let data: { ok?: boolean; error?: string; reason?: string } = {};
+  try {
+    data = await res.json();
+  } catch {
+    // non-JSON
+  }
+  if (res.status === 401) throw new LoginError('Incorrect password', 'wrong-password');
+  if (res.status === 403 && data.reason) {
+    // The server's CSRF guard didn't recognise this address — usually a
+    // reverse proxy that rewrites Host. The server log says how to fix it.
+    throw new LoginError(
+      `TermBeam doesn't recognise ${window.location.host} as its own address. If you reach it through a proxy, see the TermBeam log on your computer.`,
+      'server',
+    );
+  }
+  if (!res.ok) throw new LoginError(data.error || `Sign-in failed (${res.status})`, 'server');
+  return { ok: !!data.ok };
+}
+
+export function login(password: string, remember = true): Promise<{ ok: boolean }> {
+  return postAuth('/api/auth', { password, remember });
+}
+
+export function loginWithOneTimeToken(ott: string): Promise<{ ok: boolean }> {
+  return postAuth('/api/auth', { ott });
 }
 
 export async function logout(): Promise<void> {
-  // Auth cookie is httpOnly — we can't clear it client-side.
-  // Redirect to login page; server will reject subsequent requests without a valid token.
+  await fetchWithTimeout(`${BASE}/api/auth/logout`, {
+    method: 'POST',
+    credentials: 'same-origin',
+  }).catch(() => undefined);
+}
+
+export interface AuthDevice {
+  id: string;
+  device: string;
+  method: string;
+  remember: boolean;
+  ip: string | null;
+  createdAt: number;
+  lastSeenAt: number;
+  expiresAt: number;
+  current: boolean;
+}
+
+export interface PasskeyInfo {
+  id: string;
+  name: string;
+  rpId: string;
+  createdAt: number;
+  lastUsedAt: number | null;
+  synced: boolean;
+}
+
+export async function fetchAuthDevices(): Promise<AuthDevice[]> {
+  const res = await fetchWithTimeout(`${BASE}/api/auth/sessions`, { credentials: 'same-origin' });
+  return (await handleResponse<{ sessions: AuthDevice[] }>(res)).sessions;
+}
+
+export async function revokeAuthDevice(id: string): Promise<void> {
+  const res = await fetchWithTimeout(`${BASE}/api/auth/sessions/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+  });
+  await handleResponse<{ ok: boolean }>(res);
+}
+
+export async function revokeOtherDevices(): Promise<number> {
+  const res = await fetchWithTimeout(`${BASE}/api/auth/sessions/revoke-others`, {
+    method: 'POST',
+    credentials: 'same-origin',
+  });
+  return (await handleResponse<{ revoked: number }>(res)).revoked;
+}
+
+export async function fetchPasskeys(): Promise<PasskeyInfo[]> {
+  const res = await fetchWithTimeout(`${BASE}/api/auth/passkeys`, { credentials: 'same-origin' });
+  return (await handleResponse<{ passkeys: PasskeyInfo[] }>(res)).passkeys;
+}
+
+export async function renamePasskey(id: string, name: string): Promise<void> {
+  const res = await fetchWithTimeout(`${BASE}/api/auth/passkeys/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+    credentials: 'same-origin',
+  });
+  await handleResponse<{ ok: boolean }>(res);
+}
+
+export async function deletePasskey(id: string): Promise<void> {
+  const res = await fetchWithTimeout(`${BASE}/api/auth/passkeys/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+  });
+  await handleResponse<{ ok: boolean }>(res);
+}
+
+export async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetchWithTimeout(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    credentials: 'same-origin',
+  });
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const data = (await res.json()) as { error?: string };
+      if (data.error) message = data.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+  return res.json() as Promise<T>;
 }
 
 export async function checkUpdate(force = false): Promise<{

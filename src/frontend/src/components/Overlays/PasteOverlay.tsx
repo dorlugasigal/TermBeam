@@ -19,10 +19,15 @@ export default function PasteOverlay({ open, onClose }: PasteOverlayProps) {
       return;
     }
 
-    // Try clipboard API first
+    if (!navigator.clipboard?.readText) {
+      setShowManual(true);
+      return;
+    }
+    let cancelled = false;
     navigator.clipboard
       .readText()
       .then((clipText) => {
+        if (cancelled) return;
         if (clipText) {
           const { sessions, activeId } = useSessionStore.getState();
           if (activeId) {
@@ -37,13 +42,17 @@ export default function PasteOverlay({ open, onClose }: PasteOverlayProps) {
       })
       .catch(() => {
         // Clipboard access denied — show manual fallback
-        setShowManual(true);
+        if (!cancelled) setShowManual(true);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [open, onClose]);
 
   useEffect(() => {
     if (showManual) {
-      setTimeout(() => textareaRef.current?.focus(), 50);
+      const frame = requestAnimationFrame(() => textareaRef.current?.focus());
+      return () => cancelAnimationFrame(frame);
     }
   }, [showManual]);
 
@@ -72,7 +81,13 @@ export default function PasteOverlay({ open, onClose }: PasteOverlayProps) {
 
   return (
     <div className={styles.overlay} onClick={onClose} data-testid="paste-overlay">
-      <div className={styles.card} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={styles.card}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Paste your text here"
+      >
         <h3 className={styles.heading}>Paste your text here</h3>
         <textarea
           ref={textareaRef}
@@ -81,6 +96,7 @@ export default function PasteOverlay({ open, onClose }: PasteOverlayProps) {
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Paste content…"
+          aria-label="Paste content"
           data-testid="paste-input"
         />
         <div className={styles.actions}>

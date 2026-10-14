@@ -1,0 +1,237 @@
+/*
+ * Shared modal surface. Phones: bottom sheet with a grabber (drag to dismiss).
+ * Wider screens: centered dialog. Exit keyframes declare only their end state
+ * so they continue from wherever the surface is (e.g. mid-drag).
+ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: var(--scrim);
+  animation: scrimIn var(--dur-3) var(--ease-out) both;
+}
+
+.overlay[data-state='closed'] {
+  animation: scrimOut var(--dur-2) var(--ease-in) forwards;
+}
+
+.sheet {
+  --sheet-pad: 20px;
+
+  position: fixed;
+  z-index: 501;
+  /* --vv-*: the visible area (set while open) — keeps clear of the iOS keyboard */
+  inset: 0 0 var(--vv-bottom, 0px);
+  margin: auto;
+  width: min(calc(100vw - 32px), var(--sheet-w, 480px));
+  height: fit-content;
+  max-height: min(86dvh, 760px, calc(var(--vv-height, 100dvh) - 24px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-2);
+  color: var(--ink);
+  border-radius: 18px;
+  box-shadow:
+    0 0 0 1px var(--edge),
+    var(--top-light),
+    var(--shadow-pop);
+  outline: none;
+  animation: dialogIn 380ms var(--ease-spring-soft) both;
+}
+
+.sheet[data-state='closed'] {
+  animation: dialogOut var(--dur-2) var(--ease-in) forwards;
+}
+
+.overlay.systemLayer {
+  z-index: 900;
+}
+
+.sheet.systemLayer {
+  z-index: 901;
+}
+
+.sm {
+  --sheet-w: 400px;
+}
+
+.md {
+  --sheet-w: 480px;
+}
+
+.lg {
+  --sheet-w: 640px;
+}
+
+@media (max-width: 640px) {
+  .sheet {
+    --sheet-pad: 18px;
+
+    inset: auto 0 var(--vv-bottom, 0px);
+    width: 100%;
+    max-height: calc(min(100dvh, var(--vv-height, 100dvh)) - var(--safe-top) - 10px);
+    border-radius: 22px 22px 0 0;
+    box-shadow:
+      0 -1px 0 var(--edge),
+      var(--top-light),
+      var(--shadow-pop);
+    animation: sheetIn 460ms var(--ease-spring-soft) both;
+  }
+
+  .sheet[data-state='closed'] {
+    animation: sheetOut 260ms var(--ease-in) forwards;
+  }
+}
+
+@keyframes scrimIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes scrimOut {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialogIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+
+@keyframes dialogOut {
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+
+@keyframes sheetIn {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes sheetOut {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* ── Header ────────────────────────────────────────────────────────── */
+
+.head {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px var(--sheet-pad) 14px;
+}
+
+.head[data-draggable] {
+  padding-top: 8px;
+  touch-action: none;
+  cursor: grab;
+}
+
+.grabber {
+  display: none;
+  align-self: center;
+  width: 36px;
+  height: 5px;
+  margin-bottom: 2px;
+  border-radius: var(--r-full);
+  background: var(--edge-strong);
+}
+
+.head[data-draggable] .grabber {
+  display: block;
+}
+
+.headRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+}
+
+.title {
+  font: 650 var(--fs-lg) / 1.25 var(--font-display);
+  font-stretch: 106%;
+  letter-spacing: -0.014em;
+  color: var(--ink);
+}
+
+.description {
+  margin-top: -6px;
+  font-size: var(--fs-md);
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+
+.close {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-right: -4px;
+  flex: none;
+  border: 0;
+  border-radius: var(--r-full);
+  background: var(--fill-tonal);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+
+.close::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+}
+
+.close:hover {
+  color: var(--ink);
+  background: color-mix(in oklab, var(--fill-tonal), var(--ink) 8%);
+}
+
+.close:active {
+  transform: scale(0.92);
+}
+
+/* ── Body / footer ─────────────────────────────────────────────────── */
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px var(--sheet-pad) 18px;
+}
+
+.footer {
+  flex: none;
+  display: flex;
+  gap: 10px;
+  /* No home-indicator padding while the keyboard covers that edge */
+  padding: 12px var(--sheet-pad)
+    max(16px, calc(env(safe-area-inset-bottom, 0px) - var(--vv-bottom, 0px)));
+  box-shadow: 0 -1px 0 var(--hairline);
+}
+
+@media (min-width: 641px) {
+  .footer {
+    justify-content: flex-end;
+    padding-bottom: 16px;
+  }
+}

@@ -12,13 +12,15 @@ const { parseArgs } = require('../cli');
 const { createAuth } = require('./auth');
 const { SessionManager } = require('./sessions');
 const { setupRoutes, cleanupUploadedFiles } = require('./routes');
-const { setupWebSocket } = require('./websocket');
+const { setupWebSocket, broadcast } = require('./websocket');
+const { createCsrfGuard } = require('./origin');
 const {
   startTunnel,
   cleanupTunnel,
   findDevtunnel,
   tunnelEvents,
   getLoginInfo,
+  getCachedLoginInfo,
 } = require('../tunnel');
 const { createPreviewProxy } = require('./preview');
 const { writeConnectionConfig, removeConnectionConfig } = require('../cli/resume');
@@ -57,12 +59,16 @@ function createTermBeamServer(overrides = {}) {
   const config = overrides.config || parseArgs();
   const log = require('../utils/logger');
   if (config.logLevel) log.setLevel(config.logLevel);
-  const auth = createAuth(config.password);
+  const configDir =
+    config.configDir || process.env.TERMBEAM_CONFIG_DIR || path.join(os.homedir(), '.termbeam');
+  const auth = createAuth(config.password, { configDir });
+  if (config.resetAuth) {
+    auth.resetAll();
+    log.info('Auth: --reset-auth — signed out all devices and removed all passkeys');
+  }
   const sessions = new SessionManager();
 
   // Push notification manager
-  const configDir =
-    config.configDir || process.env.TERMBEAM_CONFIG_DIR || path.join(os.homedir(), '.termbeam');
   const pushManager = new PushManager(configDir);
   pushManager.init().catch((err) => {
     log.warn(`Push notification init failed: ${err.message}`);
@@ -73,7 +79,7 @@ function createTermBeamServer(overrides = {}) {
         title: 'Command finished',
         body: `Session: ${sessionName}`,
         tag: `termbeam-cmd-${sessionId}-${Date.now()}`,
-        url: `/terminal`,
+        url: `/terminal?session=${encodeURIComponent(sessionId)}`,
         type: 'command-complete',
         sessionId,
       })
@@ -104,6 +110,15 @@ function createTermBeamServer(overrides = {}) {
     next();
   });
 
+  // Addresses browsers may legitimately use besides the Host header: the
+  // tunnel URL (set once the tunnel is up) and an operator's --public-url.
+  // Read lazily — `state` is created below and the tunnel URL can change.
+  const trustedUrls = () => [state.publicUrl, config.publicUrl].filter(Boolean);
+
+  // Reject cross-site API calls / foreign-origin writes (see origin.js for why
+  // SameSite cookies are not enough behind Dev Tunnels).
+  app.use(createCsrfGuard(trustedUrls, { log }));
+
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 1 * 1024 * 1024 });
 
@@ -115,10 +130,19 @@ function createTermBeamServer(overrides = {}) {
     log.info('Copilot SDK not available — agent features disabled');
   }
 
-  const state = { shareBaseUrl: null, updateInfo: null, wss, tunnelStatus: null, getLoginInfo };
+  const state = {
+    shareBaseUrl: null,
+    publicUrl: null,
+    updateInfo: null,
+    wss,
+    tunnelStatus: null,
+    // Cached + refreshed by the tunnel watchdog — never spawns devtunnel on
+    // the request path.
+    getLoginInfo: getCachedLoginInfo,
+  };
   app.use('/preview', auth.middleware, createPreviewProxy());
   setupRoutes(app, { auth, sessions, config, state, pushManager, copilotService, configDir });
-  setupWebSocket(wss, { auth, sessions, copilotService });
+  setupWebSocket(wss, { auth, sessions, copilotService, getPublicUrl: trustedUrls });
 
   // --- Lifecycle ---
   let shuttingDown = false;
@@ -359,31 +383,72 @@ function createTermBeamServer(overrides = {}) {
 
         let publicUrl = null;
         if (config.useTunnel) {
-          // Wire up tunnel events BEFORE starting (startTunnel emits during setup)
+          // Wire up tunnel events BEFORE starting (startTunnel emits during setup).
+          // Every transition is mirrored into state.tunnelStatus (GET
+          // /api/tunnel/status) and pushed to signed-in clients that can still
+          // reach us (LAN / localhost) so they can explain what's happening.
+          const setTunnelStatus = (status) => {
+            state.tunnelStatus = { ...status, since: Date.now() };
+            broadcast(wss, { type: 'tunnel-status', ...state.tunnelStatus });
+          };
           tunnelEvents.removeAllListeners();
           tunnelEvents.on('disconnected', () => {
             log.warn('Tunnel disconnected — watchdog will attempt to reconnect');
-            state.tunnelStatus = { state: 'disconnected' };
+            setTunnelStatus({ state: 'disconnected' });
           });
           tunnelEvents.on('auth-expired', () => {
             log.warn('Tunnel auth expired — run "devtunnel user login" on host to restore');
-            state.tunnelStatus = { state: 'auth-expired' };
+            setTunnelStatus({ state: 'auth-expired' });
           });
           tunnelEvents.on('auth-restored', () => {
             log.info('Tunnel auth restored — resuming reconnection');
+            setTunnelStatus({ state: 'reconnecting' });
+          });
+          tunnelEvents.on('network-lost', () => {
+            setTunnelStatus({ state: 'waiting-network' });
+          });
+          tunnelEvents.on('relay-lost', () => {
+            setTunnelStatus({ state: 'reconnecting' });
+          });
+          tunnelEvents.on('relay-restored', () => {
+            setTunnelStatus({ state: 'connected', url: state.publicUrl });
+          });
+          tunnelEvents.on('resumed', ({ sleptMs }) => {
+            log.info(`Host resumed from sleep (${Math.round(sleptMs / 1000)}s) — verifying tunnel`);
           });
           tunnelEvents.on('reconnecting', ({ attempt, delay }) => {
             log.info(`Tunnel reconnecting (attempt ${attempt}, backoff ${delay}ms)`);
+            setTunnelStatus({ state: 'reconnecting', attempt, delay });
           });
           tunnelEvents.on('connected', ({ url }) => {
             log.info(`Tunnel connected: ${url}`);
-            state.tunnelStatus = { state: 'connected' };
+            setTunnelStatus({ state: 'connected', url });
+          });
+          tunnelEvents.on('url-changed', ({ url, previousUrl }) => {
+            state.publicUrl = url;
+            state.shareBaseUrl = url;
+            log.warn(`Tunnel URL changed: ${previousUrl || '(none)'} → ${url}`);
+            console.log('');
+            console.log(`  ⚠️  Tunnel was re-created — new public URL: ${bl}${url}${rs}`);
+            if (config.password) {
+              QRCode.toString(`${url}?ott=${auth.generateShareToken()}`, {
+                type: 'terminal',
+                small: true,
+              })
+                .then((qr) => {
+                  console.log(qr);
+                  console.log('  Scan the new QR code to reconnect your devices.');
+                  console.log('');
+                })
+                .catch(() => {});
+            }
+            setTunnelStatus({ state: 'connected', url, urlChanged: true });
           });
           tunnelEvents.on('failed', ({ attempts }) => {
             log.error(
               `Tunnel watchdog gave up after ${attempts} attempts — tunnel URL is unreachable`,
             );
-            state.tunnelStatus = { state: 'failed' };
+            setTunnelStatus({ state: 'failed' });
           });
 
           const tunnel = await startTunnel(actualPort, {
@@ -392,6 +457,7 @@ function createTermBeamServer(overrides = {}) {
           });
           if (tunnel) {
             publicUrl = tunnel.url;
+            state.publicUrl = publicUrl;
             state.shareBaseUrl = publicUrl;
           } else {
             // Check if failure is due to missing auth
@@ -414,6 +480,22 @@ function createTermBeamServer(overrides = {}) {
           console.log(`  Session:  (workspace auto-launches on connect)`);
         }
         console.log(`  Auth:     ${config.password ? `${gn}🔒 password${rs}` : '🔓 none'}`);
+        if (config.password) {
+          const rememberedDevices = auth.listSessions().filter((s) => s.remember).length;
+          const passkeyCount = auth.listPasskeys().length;
+          if (rememberedDevices || passkeyCount) {
+            const parts = [];
+            if (rememberedDevices) {
+              parts.push(
+                `${rememberedDevices} remembered device${rememberedDevices === 1 ? '' : 's'}`,
+              );
+            }
+            if (passkeyCount) parts.push(`${passkeyCount} passkey${passkeyCount === 1 ? '' : 's'}`);
+            console.log(
+              `  Devices:  ${parts.join(' · ')} ${_dm}(Settings → Security, or --reset-auth)${rs}`,
+            );
+          }
+        }
         if (isLanReachable) {
           console.log(`  Bind:     ${config.host} (LAN accessible)`);
         } else {

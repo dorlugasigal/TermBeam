@@ -31,45 +31,45 @@
   stroke-dasharray: 100;
   stroke-dashoffset: 100;
   animation:
-    letter-draw 0.6s cubic-bezier(0.65, 0, 0.35, 1) both,
-    letter-fill 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
+    letter-draw 0.42s cubic-bezier(0.65, 0, 0.35, 1) both,
+    letter-fill 0.2s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .animated .accent {
   stroke: var(--accent);
   animation:
-    letter-draw 0.6s cubic-bezier(0.65, 0, 0.35, 1) both,
-    letter-fill-accent 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
+    letter-draw 0.42s cubic-bezier(0.65, 0, 0.35, 1) both,
+    letter-fill-accent 0.2s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 /*
  * Two-stage delays per letter: `<draw-delay>, <fill-delay>` where
- * fill-delay = draw-delay + 0.6s (so fill kicks in right when draw ends).
- * The pattern is intentionally non-monotonic.
+ * fill-delay = draw-delay + 0.42s (so fill kicks in right when draw ends).
+ * The pattern is intentionally non-monotonic. Whole reveal ≈ 0.9s.
  */
 .animated .letter:nth-child(1) {
-  animation-delay: 0s, 0.6s;
+  animation-delay: 0s, 0.42s;
 }
 .animated .letter:nth-child(2) {
-  animation-delay: 0.18s, 0.78s;
+  animation-delay: 0.1s, 0.52s;
 }
 .animated .letter:nth-child(3) {
-  animation-delay: 0.06s, 0.66s;
+  animation-delay: 0.03s, 0.45s;
 }
 .animated .letter:nth-child(4) {
-  animation-delay: 0.3s, 0.9s;
+  animation-delay: 0.16s, 0.58s;
 }
 .animated .letter:nth-child(5) {
-  animation-delay: 0.12s, 0.72s;
+  animation-delay: 0.06s, 0.48s;
 }
 .animated .letter:nth-child(6) {
-  animation-delay: 0.42s, 1.02s;
+  animation-delay: 0.22s, 0.64s;
 }
 .animated .letter:nth-child(7) {
-  animation-delay: 0.22s, 0.82s;
+  animation-delay: 0.12s, 0.54s;
 }
 .animated .letter:nth-child(8) {
-  animation-delay: 0.55s, 1.15s;
+  animation-delay: 0.28s, 0.7s;
 }
 
 /* Static mode: render the final filled state immediately. Used in the

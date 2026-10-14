@@ -69,6 +69,17 @@ describe('preferences sanitize()', () => {
     assert.ok(s.defaultInitialCommand.length <= 1024);
   });
 
+  it('keeps a valid copilotModel and falls back to "" (Copilot default) otherwise', () => {
+    assert.strictEqual(getDefaults().copilotModel, '');
+    assert.strictEqual(
+      sanitize({ copilotModel: 'claude-sonnet-5' }).copilotModel,
+      'claude-sonnet-5',
+    );
+    for (const bad of ['', 'two words', 42, null, { id: 'gpt' }, 'x'.repeat(200)]) {
+      assert.strictEqual(sanitize({ copilotModel: bad }).copilotModel, '', String(bad));
+    }
+  });
+
   it('sanitizes touchBarKeys list, capping length and validating shape', () => {
     const keys = [];
     for (let i = 0; i < 100; i++) keys.push({ id: `k${i}`, label: 'L', send: '\u001b' });

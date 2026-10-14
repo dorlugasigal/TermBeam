@@ -69,123 +69,139 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--overlay-bg, rgba(0, 0, 0, 0.6));
+  padding: 16px;
+  background: color-mix(in oklab, var(--bg) 62%, transparent);
   z-index: 5;
+  animation: global(tb-fade) var(--dur-2) var(--ease-out) both;
 }
 
-.exitMessage {
-  color: var(--text-secondary);
-  font-size: 1.1rem;
-  padding: 1rem 2rem;
-  background: var(--surface);
-  border-radius: 8px;
-  border: 1px solid var(--border);
-}
-
-/* ── Reconnecting indicator (subtle bar during auto-reconnect) ── */
-.reconnectingBar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  z-index: 5;
-  animation: slideDown 0.2s ease;
-}
-
-@keyframes slideDown {
-  from {
-    transform: translateY(-100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
-.reconnectingDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text-secondary);
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.3;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-/* ── Reconnect overlay ── */
-.reconnectOverlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--overlay-bg, rgba(0, 0, 0, 0.6));
-  z-index: 5;
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.reconnectContent {
+.exitCard {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 1.5rem 2rem;
-  background: var(--surface);
-  border-radius: 12px;
-  border: 1px solid var(--border);
+  gap: 8px;
+  padding: 18px 22px 16px;
+  min-width: 220px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--edge);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-pop);
+  animation: global(tb-pop) var(--dur-3) var(--ease-out) both;
 }
 
-.reconnectMessage {
-  color: var(--text-secondary);
-  font-size: 1.1rem;
+.exitEyebrow {
+  font: 600 var(--fs-2xs) / 1 var(--font-display);
+  color: var(--ink-3);
 }
 
-.reconnectActions {
-  display: flex;
-  gap: 0.75rem;
+.exitMessage {
+  font: 600 var(--fs-lg) / 1.2 var(--font-display);
+  color: var(--ink);
 }
 
-.reconnectBtn {
-  padding: 0.5rem 1.25rem;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 0.9rem;
-  cursor: pointer;
-  text-decoration: none;
-  transition:
-    background 0.15s,
-    border-color 0.15s;
+.exitAction {
+  margin-top: 6px;
+  min-height: var(--hit);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 18px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--edge);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  transition: background-color var(--dur-2) var(--ease-out);
 }
 
-.reconnectBtn:hover {
-  background: var(--border);
+.exitAction:hover {
+  background: var(--surface-hover);
+}
+
+/* ── Link down: non-blocking "input paused" chip (details live in the
+   ConnectionSheet; output stays readable and scrollable) ── */
+.linkChip {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--warn-line);
+  background: color-mix(in oklab, var(--surface-2) 88%, var(--warn));
+  color: var(--ink);
+  font: 500 var(--fs-xs) / 1 var(--font-ui);
+  box-shadow: var(--shadow-pop);
+  animation: global(tb-rise) var(--dur-2) var(--ease-out) both;
+}
+
+.linkChip::after {
+  content: '';
+  position: absolute;
+  inset: -6px -2px;
+}
+
+.linkChip[data-locked] {
+  border-color: var(--accent-line);
+  background: color-mix(in oklab, var(--surface-2) 86%, var(--accent));
+}
+
+.linkChipNudge {
+  animation: chip-nudge 360ms var(--ease-out);
+}
+
+.linkChipGlyph {
+  display: inline-flex;
+  align-items: center;
+  width: 18px;
+}
+
+.linkChipGlyph i {
+  display: block;
+  background: var(--warn);
+}
+
+.linkChip[data-locked] .linkChipGlyph i {
+  background: var(--accent);
+}
+
+.linkChipGlyph i:nth-child(1),
+.linkChipGlyph i:nth-child(4) {
+  flex: none;
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+}
+
+.linkChipGlyph i:nth-child(2),
+.linkChipGlyph i:nth-child(3) {
+  flex: 1;
+  height: 2px;
+  transform: scaleX(0.4);
+}
+
+.linkChipGlyph i:nth-child(2) {
+  transform-origin: left center;
+}
+
+.linkChipGlyph i:nth-child(3) {
+  transform-origin: right center;
+}
+
+@keyframes chip-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
 }
 
 /* ── Agent chat toggle button ── */

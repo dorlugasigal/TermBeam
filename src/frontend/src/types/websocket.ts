@@ -16,7 +16,12 @@ export interface WSResizeMessage {
   rows: number;
 }
 
-export type WSClientMessage = WSAttachMessage | WSInputMessage | WSResizeMessage;
+export interface WSPingMessage {
+  type: 'ping';
+  t?: number;
+}
+
+export type WSClientMessage = WSAttachMessage | WSInputMessage | WSResizeMessage | WSPingMessage;
 
 export interface WSOutputMessage {
   type: 'output';
@@ -46,6 +51,13 @@ export interface WSExitMessage {
 export interface WSErrorMessage {
   type: 'error';
   message: string;
+  /** 'unauthorized' when the session expired or was signed out (socket closes with 4401). */
+  code?: 'unauthorized';
+}
+
+export interface WSPongMessage {
+  type: 'pong';
+  t: number | null;
 }
 
 export interface WSUpdateProgressMessage {
@@ -68,9 +80,12 @@ export interface WSNotificationMessage {
 
 export interface WSTunnelStatusMessage {
   type: 'tunnel-status';
-  state: 'connected' | 'disconnected' | 'expiring' | 'auth-expired' | 'reconnecting' | 'failed';
-  expiresIn?: number;
-  provider?: string;
+  state:
+    'connected' | 'disconnected' | 'reconnecting' | 'waiting-network' | 'auth-expired' | 'failed';
+  url?: string;
+  urlChanged?: boolean;
+  attempt?: number;
+  since?: number;
 }
 
 export type WSServerMessage =
@@ -79,6 +94,7 @@ export type WSServerMessage =
   | WSAttachedMessage
   | WSExitMessage
   | WSErrorMessage
+  | WSPongMessage
   | WSUpdateProgressMessage
   | WSNotificationMessage
   | WSTunnelStatusMessage;

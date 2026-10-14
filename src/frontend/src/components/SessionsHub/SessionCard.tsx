@@ -1,8 +1,10 @@
 import { useRef, useCallback, useEffect } from 'react';
 import type { Session } from '@/types';
+import { Breakable } from '@/components/common/Breakable';
 import { CopilotLogo } from '@/components/common/CopilotLogo';
+import { shellLabel } from '@/utils/sessionFilter';
+import { activityAgo, tildePath } from '@/utils/sessionDisplay';
 import styles from './SessionCard.module.css';
-
 import dissolveStyles from '@/components/common/Disintegrate.module.css';
 
 interface SessionCardProps {
@@ -11,97 +13,32 @@ interface SessionCardProps {
   onDelete: (id: string) => void;
   revealedId: string | null;
   onRevealChange: (id: string | null) => void;
-  /**
-   * Position of the card within the list. Drives the staggered mount
-   * entrance so cards cascade in instead of appearing all at once.
-   */
+  /** Position in the list — drives the first-load stagger. */
   index?: number;
-  /**
-   * When true, the card is part of the post-load "magical arrival" — uses
-   * a richer, slightly slower stagger so the freshly-fetched list cascades
-   * in with more presence than ordinary mounts.
-   */
-  arriving?: boolean;
-  /**
-   * When true, the card is playing the disintegrate (Thanos-snap)
-   * animation prior to being removed. Disables interaction and applies
-   * the dust effect via a CSS modifier class.
-   */
+  /** Playing the delete animation; interaction is disabled. */
   dissolving?: boolean;
-}
-
-function formatActivity(lastActivity: string | number): string {
-  if (!lastActivity) return 'just now';
-  const ts = typeof lastActivity === 'number' ? lastActivity : new Date(lastActivity).getTime();
-  if (isNaN(ts)) return 'just now';
-  const diff = Date.now() - ts;
-  if (diff < 10_000) return 'just now';
-  if (diff < 60_000) return `${Math.floor(diff / 1000)}s ago`;
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  return new Date(ts).toLocaleDateString();
+  /** This row's name morphs into the terminal tab on navigation. */
+  morph?: boolean;
 }
 
 const SWIPE_THRESHOLD = 50;
-const REVEAL_WIDTH = 80;
-
-const FolderIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-  </svg>
-);
-
-const ShellIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <polyline points="4 17 10 11 4 5" />
-    <line x1="12" y1="19" x2="20" y2="19" />
-  </svg>
-);
-
-const ClockIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <circle cx="12" cy="12" r="10" />
-    <polyline points="12 6 12 12 16 14" />
-  </svg>
-);
-
-const GitBranchIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <line x1="6" y1="3" x2="6" y2="15" />
-    <circle cx="18" cy="6" r="3" />
-    <circle cx="6" cy="18" r="3" />
-    <path d="M18 9a9 9 0 0 1-9 9" />
-  </svg>
-);
+const REVEAL_WIDTH = 84;
 
 const TrashIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
   </svg>
 );
-
-const GitHubIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
-  </svg>
-);
-
-const GitLabIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 0 1-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 0 1 4.82 2a.43.43 0 0 1 .58 0 .42.42 0 0 1 .11.18l2.44 7.49h8.1l2.44-7.51A.42.42 0 0 1 18.6 2a.43.43 0 0 1 .58 0 .42.42 0 0 1 .11.18l2.44 7.51L23 13.45a.84.84 0 0 1-.35.94z" />
-  </svg>
-);
-
-function getProviderIcon(provider?: string) {
-  if (!provider) return null;
-  const lower = provider.toLowerCase();
-  if (lower.includes('github')) return <GitHubIcon />;
-  if (lower.includes('gitlab')) return <GitLabIcon />;
-  return null;
-}
-
-const CopilotIcon = () => <CopilotLogo size={12} />;
 
 export default function SessionCard({
   session,
@@ -110,29 +47,24 @@ export default function SessionCard({
   revealedId,
   onRevealChange,
   index = 0,
-  arriving = false,
   dissolving = false,
+  morph = false,
 }: SessionCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
-  const currentX = useRef(0);
   const isSwiping = useRef(false);
   const revealed = revealedId === session.id;
 
   const snapTo = useCallback((position: number) => {
     const el = cardRef.current;
     if (!el) return;
-    el.style.transition = 'transform 0.25s ease';
-    el.style.transform = `translateX(${position}px)`;
-    currentX.current = position;
+    el.style.transition = 'transform 280ms var(--ease-out)';
+    el.style.transform = position ? `translateX(${position}px)` : '';
   }, []);
 
-  // Snap back when another card is revealed
   useEffect(() => {
-    if (!revealed) {
-      snapTo(0);
-    }
+    if (!revealed) snapTo(0);
   }, [revealed, snapTo]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -141,11 +73,7 @@ export default function SessionCard({
     touchStartX.current = touch.clientX;
     touchStartY.current = touch.clientY;
     isSwiping.current = false;
-
-    const el = cardRef.current;
-    if (el) {
-      el.style.transition = 'none';
-    }
+    if (cardRef.current) cardRef.current.style.transition = 'none';
   }, []);
 
   const handleTouchMove = useCallback(
@@ -154,28 +82,17 @@ export default function SessionCard({
       if (!touch) return;
       const dx = touch.clientX - touchStartX.current;
       const dy = touch.clientY - touchStartY.current;
-
-      // Determine direction on first significant move
       if (!isSwiping.current && Math.abs(dx) > 5) {
-        // If vertical scrolling dominates, bail out
         if (Math.abs(dy) > Math.abs(dx)) return;
         isSwiping.current = true;
       }
-
-      if (!isSwiping.current) return;
-
-      const el = cardRef.current;
-      if (!el) return;
-
-      // Calculate offset relative to current snap position
+      if (!isSwiping.current || !cardRef.current) return;
       const base = revealed ? -REVEAL_WIDTH : 0;
-      let newX = base + dx;
-
-      // Clamp: don't go past reveal width or past 0
-      newX = Math.max(newX, -REVEAL_WIDTH);
-      newX = Math.min(newX, 0);
-
-      el.style.transform = `translateX(${newX}px)`;
+      // Rubber-band past the action width instead of a hard stop
+      let x = base + dx;
+      if (x < -REVEAL_WIDTH) x = -REVEAL_WIDTH + (x + REVEAL_WIDTH) * 0.25;
+      x = Math.min(x, 0);
+      cardRef.current.style.transform = `translateX(${x}px)`;
     },
     [revealed],
   );
@@ -183,30 +100,22 @@ export default function SessionCard({
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
       if (!isSwiping.current) return;
-      e.preventDefault(); // prevent click after swipe
-
+      e.preventDefault(); // no click after a swipe
       const touch = e.changedTouches[0];
       if (!touch) return;
       const dx = touch.clientX - touchStartX.current;
-      const base = revealed ? -REVEAL_WIDTH : 0;
-      const finalX = base + dx;
-
       if (revealed) {
-        // If swiped right enough, snap back closed
         if (dx > SWIPE_THRESHOLD) {
           onRevealChange(null);
           snapTo(0);
         } else {
           snapTo(-REVEAL_WIDTH);
         }
+      } else if (dx < -SWIPE_THRESHOLD) {
+        onRevealChange(session.id);
+        snapTo(-REVEAL_WIDTH);
       } else {
-        // If swiped left enough, reveal delete button
-        if (finalX < -SWIPE_THRESHOLD) {
-          onRevealChange(session.id);
-          snapTo(-REVEAL_WIDTH);
-        } else {
-          snapTo(0);
-        }
+        snapTo(0);
       }
     },
     [revealed, session.id, onRevealChange, snapTo],
@@ -221,105 +130,132 @@ export default function SessionCard({
     [session.id, onDelete, onRevealChange],
   );
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (dissolving || e.target !== e.currentTarget) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onSelect(session.id);
+      }
+    },
+    [dissolving, onSelect, session.id],
+  );
+
   const isCopilot = session.type === 'copilot';
-  const shellName = session.shell.split('/').pop() ?? session.shell;
-  const color = isCopilot ? '#a855f6' : (session.color ?? 'var(--success)');
-  const git = session.git;
-  const isClean = git?.status?.clean === true;
+  const color = session.color ?? (isCopilot ? 'var(--accent)' : 'var(--ok)');
+  const ago = activityAgo(session.lastActivity);
+  const activityTs =
+    typeof session.lastActivity === 'number'
+      ? session.lastActivity
+      : Date.parse(session.lastActivity ?? '');
+  const viewers = session.clients ?? 0;
 
   return (
     <div
-      className={`${styles.wrapper} ${dissolving ? dissolveStyles.dissolving : ''}`}
-      style={{ ['--stagger-i' as string]: Math.min(index, 8) }}
+      className={styles.slot}
       data-session-id={session.id}
-      data-arriving={arriving || undefined}
-      aria-hidden={dissolving || undefined}
+      data-dissolving={dissolving || undefined}
+      style={{ ['--stagger-i' as string]: Math.min(index, 8) }}
+      role="listitem"
     >
-      <button
-        className={styles.deleteBackground}
-        onClick={handleDeleteClick}
-        aria-label={`Delete session ${session.name}`}
-        type="button"
-        disabled={dissolving}
-      >
-        <TrashIcon />
-        Delete
-      </button>
       <div
-        ref={cardRef}
-        className={styles.card}
-        data-testid="session-card"
-        onClick={() => {
-          if (dissolving) return;
-          onSelect(session.id);
-        }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        className={`${styles.wrapper} ${dissolving ? dissolveStyles.dissolving : ''}`}
+        aria-hidden={dissolving || undefined}
       >
-        {/* Top row: dot + name + PID/Copilot label */}
-        <div className={styles.topRow}>
-          <div className={styles.nameGroup}>
-            {isCopilot ? (
-              <CopilotIcon />
-            ) : (
-              <span className={styles.colorDot} style={{ background: color }} />
-            )}
-            <span className={styles.name} data-testid="session-name">
+        <button
+          className={styles.swipeAction}
+          onClick={handleDeleteClick}
+          aria-label={`Delete session ${session.name}`}
+          type="button"
+          tabIndex={revealed ? 0 : -1}
+          disabled={dissolving}
+        >
+          <TrashIcon />
+          <span>Delete</span>
+        </button>
+        <div
+          ref={cardRef}
+          className={styles.row}
+          style={{ ['--session-color' as string]: color }}
+          data-testid="session-card"
+          data-revealed={revealed || undefined}
+          role="button"
+          tabIndex={dissolving ? -1 : 0}
+          aria-label={`${session.name}, ${tildePath(session.cwd, session.home)}. ${ago.long}`}
+          onClick={() => {
+            if (dissolving) return;
+            if (revealed) {
+              onRevealChange(null);
+              return;
+            }
+            onSelect(session.id);
+          }}
+          onKeyDown={handleKeyDown}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <span className={styles.marker} data-recent={ago.recent || undefined} aria-hidden="true">
+            {isCopilot ? <CopilotLogo size={13} /> : <i className={styles.dot} />}
+          </span>
+
+          <div className={styles.head}>
+            <span
+              className={styles.name}
+              data-testid="session-name"
+              style={morph ? { viewTransitionName: 'tb-session-name' } : undefined}
+            >
               {session.name}
             </span>
+            <time
+              className={styles.time}
+              data-recent={ago.recent || undefined}
+              dateTime={
+                Number.isFinite(activityTs) ? new Date(activityTs).toISOString() : undefined
+              }
+              title={ago.long}
+            >
+              {ago.short}
+            </time>
+            <button
+              type="button"
+              className={styles.hoverDelete}
+              onClick={handleDeleteClick}
+              aria-label={`Delete session ${session.name}`}
+              title="Delete session"
+              disabled={dissolving}
+            >
+              <TrashIcon />
+            </button>
           </div>
-          {isCopilot ? (
-            <span className={styles.pidBadge} data-testid="session-type-badge">
-              {session.model ?? 'Copilot'}
-            </span>
-          ) : (
-            <span className={styles.pidBadge} data-testid="session-pid">
-              PID {session.pid}
-            </span>
-          )}
-        </div>
 
-        {/* Details row */}
-        <div className={styles.detailsRow}>
-          <span className={styles.detailItem}>
-            <FolderIcon /> {session.cwd}
-          </span>
-          {isCopilot ? (
-            <span className={styles.detailItem} data-testid="session-shell">
-              <CopilotIcon /> Copilot
-            </span>
-          ) : (
-            <span className={styles.detailItem} data-testid="session-shell">
-              <ShellIcon /> {shellName}
-            </span>
-          )}
-          <span className={styles.detailItem}>
-            <ClockIcon /> {formatActivity(session.lastActivity)}
-          </span>
-        </div>
+          <div className={styles.details}>
+            {session.cwd && (
+              <div className={styles.path} title={session.cwd}>
+                <Breakable text={tildePath(session.cwd, session.home)} />
+              </div>
+            )}
 
-        {/* Git info */}
-        {git && (
-          <div className={styles.gitRow}>
-            <span className={styles.gitBadge}>
-              <GitBranchIcon /> {git.branch}
-            </span>
-            {git.provider && (
-              <span className={styles.gitBadge}>
-                {getProviderIcon(git.provider)} {git.provider}
-              </span>
-            )}
-            {git.repoName && <span className={styles.gitBadge}>{git.repoName}</span>}
-            {git.status != null && (
-              <span
-                className={`${styles.gitBadge} ${isClean ? styles.statusClean : styles.statusDirty}`}
-              >
-                {isClean ? '✓ clean' : git.status.summary}
-              </span>
-            )}
+            <div className={styles.meta}>
+              {isCopilot ? (
+                <>
+                  <span data-testid="session-shell">Copilot</span>
+                  {session.model && <span data-testid="session-type-badge">{session.model}</span>}
+                </>
+              ) : (
+                <>
+                  <span data-testid="session-shell">{shellLabel(session) || session.shell}</span>
+                  <span data-testid="session-pid">pid {session.pid}</span>
+                </>
+              )}
+              {viewers > 0 && (
+                <span className={styles.viewers}>
+                  {viewers} {viewers === 1 ? 'viewer' : 'viewers'}
+                </span>
+              )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

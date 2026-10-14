@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { fetchSessions, checkAuth, clearServiceWorkerCaches } from '@/services/api';
+import { fetchSessions, clearServiceWorkerCaches } from '@/services/api';
+import { useConnectionStore } from '@/stores/connectionStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
+import { navigate, spaLinkHandler } from '@/utils/navigation';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { useMobileKeyboard } from '@/hooks/useMobileKeyboard';
 import { TerminalPane } from '@/components/TerminalPane/TerminalPane';
 import { CopilotPane } from '@/components/CopilotPane/CopilotPane';
 import { TabBar } from '@/components/TabBar/TabBar';
+import { ConnectionPill, BeamLine } from '@/components/ConnectionStatus/ConnectionPill';
 import TouchBar from '@/components/TouchBar/TouchBar';
 import SearchBar from '@/components/SearchBar/SearchBar';
 import ToolsPanel from '@/components/ToolsPanel/ToolsPanel';
@@ -27,7 +30,6 @@ import type { Session } from '@/types';
 import styles from './TerminalApp.module.css';
 
 const POLL_INTERVAL = 3000;
-const MAX_CONSECUTIVE_FAILURES = 5;
 
 function getSessionIdFromUrl(): string | null {
   const params = new URLSearchParams(window.location.search);
@@ -66,21 +68,25 @@ export function TerminalApp() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const initializedRef = useRef(false);
   const pollFailuresRef = useRef(0);
-  const [connectionLost, setConnectionLost] = useState(false);
+  const [sessionsLoaded, setSessionsLoaded] = useState(false);
 
   useWakeLock();
 
   // Navigate back to sessions hub when all sessions are removed
   useEffect(() => {
-    if (initializedRef.current && sessions.size === 0) {
-      window.history.pushState(null, '', '/');
-      window.dispatchEvent(new PopStateEvent('popstate'));
+    if (sessionsLoaded && sessions.size === 0) {
+      navigate('/');
     }
-  }, [sessions.size]);
+  }, [sessions.size, sessionsLoaded]);
 
   const { keyboardOpen, keyboardHeight } = useMobileKeyboard();
 
-  async function handleNewSessionCreated(id: string, type?: 'terminal' | 'copilot', ptySessionId?: string | null, model?: string) {
+  async function handleNewSessionCreated(
+    id: string,
+    type?: 'terminal' | 'copilot',
+    ptySessionId?: string | null,
+    model?: string,
+  ) {
     // Add a placeholder immediately so the pane mounts right away
     const store = useSessionStore.getState();
     const isCopilot = type === 'copilot';
@@ -95,7 +101,7 @@ export function TerminalApp() {
         shell: '',
         pid: 0,
         cwd: '',
-        color: '#6ec1e4',
+        color: 'var(--accent)',
         createdAt: new Date().toISOString(),
         lastActivity: Date.now(),
         term: null,
@@ -118,7 +124,7 @@ export function TerminalApp() {
         shell: '',
         pid: 0,
         cwd: '',
-        color: isCopilot ? '#a855f6' : '#6ec1e4',
+        color: 'var(--accent)',
         createdAt: new Date().toISOString(),
         lastActivity: Date.now(),
         companionTermId: isCopilot && ptySessionId ? ptySessionId : undefined,
@@ -139,6 +145,7 @@ export function TerminalApp() {
     // Fetch real metadata in the background
     try {
       const list: Session[] = await fetchSessions();
+      useConnectionStore.getState().reportHttpSuccess();
       const newSession = list.find((s) => s.id === id);
       if (newSession) {
         useSessionStore.getState().updateSession(id, {
@@ -146,7 +153,7 @@ export function TerminalApp() {
           shell: newSession.shell,
           pid: newSession.pid,
           cwd: newSession.cwd,
-          color: newSession.color ?? '#6ec1e4',
+          color: newSession.color ?? 'var(--accent)',
           createdAt: newSession.createdAt,
           lastActivity: newSession.lastActivity,
           type: newSession.type,
@@ -155,6 +162,7 @@ export function TerminalApp() {
         toast.success(`Session "${newSession.name}" created`);
       }
     } catch {
+      useConnectionStore.getState().reportHttpFailure();
       // Polling will pick up metadata
     }
   }
@@ -167,6 +175,8 @@ export function TerminalApp() {
     async function init() {
       try {
         const list: Session[] = await fetchSessions();
+        useConnectionStore.getState().reportHttpSuccess();
+        setSessionsLoaded(true);
         const store = useSessionStore.getState();
         const urlSessionId = getSessionIdFromUrl();
         const serverIds = new Set(list.map((s) => s.id));
@@ -190,7 +200,7 @@ export function TerminalApp() {
           if (s.hidden) continue; // Skip hidden companion sessions
           if (!store.sessions.has(s.id)) {
             const isCopilot = s.type === 'copilot';
-            const ptySessionId = isCopilot ? (s as any).ptySessionId ?? undefined : undefined;
+            const ptySessionId = isCopilot ? ((s as any).ptySessionId ?? undefined) : undefined;
 
             // Register the companion PTY as a hidden session so that
             // CopilotPane's embedded TerminalPane can updateSession() on it
@@ -204,7 +214,7 @@ export function TerminalApp() {
                 shell: '',
                 pid: 0,
                 cwd: s.cwd ?? '',
-                color: '#6ec1e4',
+                color: 'var(--accent)',
                 createdAt: s.createdAt,
                 lastActivity: s.lastActivity,
                 term: null,
@@ -225,7 +235,7 @@ export function TerminalApp() {
               shell: s.shell,
               pid: s.pid,
               cwd: s.cwd,
-              color: s.color ?? '#6ec1e4',
+              color: s.color ?? 'var(--accent)',
               createdAt: s.createdAt,
               lastActivity: s.lastActivity,
               type: s.type,
@@ -255,13 +265,7 @@ export function TerminalApp() {
           window.location.replace('/');
         }
       } catch {
-        checkAuth()
-          .then(({ authenticated, serverReachable }) => {
-            if (!authenticated && serverReachable) window.location.replace('/login');
-          })
-          .catch(() => {
-            // Network error — don't redirect, polling will retry
-          });
+        useConnectionStore.getState().reportHttpFailure();
       }
     }
 
@@ -273,9 +277,10 @@ export function TerminalApp() {
     pollRef.current = setInterval(async () => {
       try {
         const list: Session[] = await fetchSessions();
+        useConnectionStore.getState().reportHttpSuccess();
+        setSessionsLoaded(true);
         if (pollFailuresRef.current > 0) clearServiceWorkerCaches();
         pollFailuresRef.current = 0;
-        setConnectionLost(false);
         const store = useSessionStore.getState();
         const serverIds = new Set(list.map((s) => s.id));
 
@@ -285,7 +290,7 @@ export function TerminalApp() {
           const existing = store.sessions.get(s.id);
           if (!existing) {
             const isCopilot = s.type === 'copilot';
-            const ptySessionId = isCopilot ? (s as any).ptySessionId ?? undefined : undefined;
+            const ptySessionId = isCopilot ? ((s as any).ptySessionId ?? undefined) : undefined;
 
             // Register the companion PTY as a hidden session so that
             // CopilotPane's embedded TerminalPane can updateSession() on it
@@ -299,7 +304,7 @@ export function TerminalApp() {
                 shell: '',
                 pid: 0,
                 cwd: s.cwd ?? '',
-                color: '#6ec1e4',
+                color: 'var(--accent)',
                 createdAt: s.createdAt,
                 lastActivity: s.lastActivity,
                 term: null,
@@ -320,7 +325,7 @@ export function TerminalApp() {
               shell: s.shell,
               pid: s.pid,
               cwd: s.cwd,
-              color: s.color ?? '#6ec1e4',
+              color: s.color ?? 'var(--accent)',
               createdAt: s.createdAt,
               lastActivity: s.lastActivity,
               type: s.type,
@@ -364,16 +369,7 @@ export function TerminalApp() {
         }
       } catch {
         pollFailuresRef.current++;
-        if (pollFailuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
-          setConnectionLost(true);
-          checkAuth()
-            .then(({ authenticated, serverReachable }) => {
-              if (!authenticated && serverReachable) window.location.replace('/login');
-            })
-            .catch(() => {
-              // Network error — keep showing connection lost banner
-            });
-        }
+        useConnectionStore.getState().reportHttpFailure();
       }
     }, POLL_INTERVAL);
     return () => {
@@ -509,6 +505,7 @@ export function TerminalApp() {
             className={`${styles.barBtn} ${styles.desktopOnly}`}
             aria-label="Back"
             title="Back to sessions"
+            onClick={spaLinkHandler}
           >
             <svg
               width="18"
@@ -526,13 +523,13 @@ export function TerminalApp() {
           {activeSession && (
             <>
               <span
-                className={`${styles.statusDot} ${activeSession.connected ? styles.statusConnected : ''} ${activeSession.connected ? 'connected' : 'disconnected'}`}
+                className={`sr-only ${styles.statusDot} ${activeSession.connected ? styles.statusConnected : ''} ${activeSession.connected ? 'connected' : 'disconnected'}`}
                 data-testid="status-dot"
               />
-              <span className={styles.sessionName} data-testid="session-name-display">
+              <span className="sr-only" data-testid="session-name-display">
                 {activeSession.name}
               </span>
-              {statusText && <span className={styles.statusText}>{statusText}</span>}
+              {statusText && <span className="sr-only">{statusText}</span>}
             </>
           )}
         </div>
@@ -540,6 +537,7 @@ export function TerminalApp() {
         <TabBar inline />
 
         <div className={styles.right}>
+          <ConnectionPill />
           <button
             className={`${styles.barBtn} ${styles.barBtnWithLabel} ${styles.desktopOnly}`}
             data-testid="tab-new-btn"
@@ -590,17 +588,8 @@ export function TerminalApp() {
             </svg>
           </button>
         </div>
+        <BeamLine />
       </div>
-
-      {/* ── Connection lost banner ── */}
-      {connectionLost && (
-        <div className={styles.connectionBanner} data-testid="connection-banner">
-          <span>Connection lost — reconnecting…</span>
-          <button onClick={() => window.location.reload()} className={styles.connectionBannerBtn}>
-            Reload
-          </button>
-        </div>
-      )}
 
       {/* ── Search bar ── */}
       <SearchBar />
@@ -617,6 +606,9 @@ export function TerminalApp() {
           return (
             <div
               key={id}
+              id={`terminal-${id}`}
+              role="tabpanel"
+              aria-labelledby={`tab-${id}`}
               className={`${styles.paneWrapper} ${isVisible ? styles.visible : ''} ${isSplit && isVisible && isActive ? styles.paneFocused : ''} ${isSplit && isVisible && !isActive ? styles.paneUnfocused : ''}`}
               onClick={() => {
                 if (!isActive) setActiveId(id);
@@ -656,7 +648,13 @@ export function TerminalApp() {
       {/* ── Download file browser overlay ── */}
       {showDownload && activePtyId && activeSession?.cwd && (
         <div className={styles.downloadOverlay} onClick={closeDownloadModal}>
-          <div className={styles.downloadPanel} onClick={(e) => e.stopPropagation()}>
+          <div
+            className={styles.downloadPanel}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Download file"
+            onClick={(e) => e.stopPropagation()}
+          >
             <FileBrowser
               sessionId={activePtyId}
               rootDir={activeSession.cwd}
@@ -669,7 +667,13 @@ export function TerminalApp() {
       {/* ── Markdown browser overlay ── */}
       {showMarkdown && activePtyId && activeSession?.cwd && (
         <div className={styles.downloadOverlay} onClick={closeMarkdownModal}>
-          <div className={styles.downloadPanel} onClick={(e) => e.stopPropagation()}>
+          <div
+            className={styles.downloadPanel}
+            role="dialog"
+            aria-modal="true"
+            aria-label="View markdown"
+            onClick={(e) => e.stopPropagation()}
+          >
             <MarkdownBrowser
               sessionId={activePtyId}
               rootDir={activeSession.cwd}

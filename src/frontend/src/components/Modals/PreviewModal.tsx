@@ -73,9 +73,7 @@ export function PreviewModal() {
               autoFocus
               data-testid="preview-port-input"
             />
-            {hint && (
-              <div style={{ fontSize: '0.8rem', color: 'var(--accent)', marginTop: 4 }}>{hint}</div>
-            )}
+            {hint && <div className={styles.hint}>{hint}</div>}
 
             <div className={styles.actions}>
               <button type="button" className={styles.cancelBtn} onClick={handleClose}>

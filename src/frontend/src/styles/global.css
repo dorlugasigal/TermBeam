@@ -7,12 +7,36 @@
 }
 
 :root {
-  /* Bottom safe zone for iOS home-indicator. Default 0; useSafeArea()
-     populates this with the cached env(safe-area-inset-bottom) value so
-     the iOS PWA rotation bug (env() returning 0 post-rotation) can't
-     collapse it. */
+  /* Bottom safe zone stays 0: env(safe-area-inset-bottom) reads 0 after a
+     rotation in iOS PWAs, so bottom bars sit flush and reserve their own
+     space instead. The top inset is safe to read — at worst it's 0 too —
+     and keeps headers clear of the status bar in standalone mode. */
   --safe-bottom: 0px;
-  --safe-top: 0px;
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+/* iOS 26+ draws a Liquid Glass blur ramp about 38pt deep below the status bar
+   in home-screen web apps — system chrome that no meta tag or CSS disables.
+   Keep content out of it: headers grow by up to 2.5rem there, and their own
+   background fills the band. Scoped to iOS WebKit (touch-callout) with anchor
+   positioning (Safari 26+), standalone mode, and only when a top inset exists
+   (none in Safari tabs or landscape). */
+@supports (-webkit-touch-callout: none) and (anchor-name: --tb) {
+  @media (display-mode: standalone) {
+    :root {
+      --safe-top: calc(env(safe-area-inset-top, 0px) + min(env(safe-area-inset-top, 0px), 2.5rem));
+    }
+  }
+}
+
+/* Nerd Font symbols (powerline, devicons) for UI mono text such as copied
+   terminal output. unicode-range keeps the font from downloading unless one
+   of those glyphs is actually rendered. */
+@font-face {
+  font-family: 'TermBeam Nerd Symbols';
+  src: url('../assets/JetBrainsMonoNerdFont-Regular.ttf') format('truetype');
+  font-display: swap;
+  unicode-range: U+23FB-23FE, U+2665, U+26A1, U+2B58, U+E000-F8FF, U+F0000-FFFFD;
 }
 
 html,
@@ -21,8 +45,10 @@ body {
   height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+  letter-spacing: -0.003em;
   /* Use --bg so any pixels outside our managed regions (iOS home-indicator
      area, overscroll bounce, the strip below the TouchBar when the keyboard
      is open) blend with the dark iOS chrome below. */
@@ -31,9 +57,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
   transition:
-    background 0.3s,
-    color 0.3s;
+    background-color var(--dur-3) var(--ease-out),
+    color var(--dur-3) var(--ease-out);
 }
 
 #root {
@@ -54,17 +81,48 @@ button {
   background: none;
   color: inherit;
   font-size: inherit;
-  transition: transform 0.08s ease-out;
+  transition: transform var(--dur-1) var(--ease-out);
 }
 
 /*
- * Universal micro-press feedback. Component styles win on specificity if they
- * define their own :active rule (e.g. LoginPage button), so this only kicks
- * in for unstyled defaults — exactly what we want for all the small icon
- * buttons sprinkled across panels.
+ * Universal micro-press feedback for unstyled buttons. Component styles win
+ * on specificity when they define their own :active rule.
  */
 button:active {
-  transform: scale(0.97);
+  transform: translateY(1px);
+}
+
+button:disabled {
+  cursor: default;
+}
+
+/* Keyboard focus is always visible; pointer focus never shows a ring. */
+:where(a, button, summary, [role='button'], [role='tab'], [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Fields show focus with their own accent border + soft ring (see below). */
+:where(input, select, textarea):focus-visible {
+  outline: none;
+}
+
+:where(a, button, input, select, textarea, [role='button'], [role='tab']):focus:not(
+    :focus-visible
+  ) {
+  outline: none;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }
 
 /*
@@ -75,8 +133,8 @@ button:active {
 .spinner {
   width: 22px;
   height: 22px;
-  border: 2px solid var(--border, #444);
-  border-top-color: var(--accent, #4a9eff);
+  border: 2px solid var(--edge);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -87,17 +145,39 @@ textarea {
   font-family: inherit;
   font-size: inherit;
   color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: var(--surface-0);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-md);
   padding: 8px 12px;
   outline: none;
+  transition:
+    border-color var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink-3);
 }
 
 input:focus,
 select:focus,
 textarea:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* iOS zooms the page when focusing inputs under 16px. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 32%, transparent);
 }
 
 ::-webkit-scrollbar {
@@ -110,19 +190,45 @@ textarea:focus {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--edge);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-subtle);
+  background: var(--edge-strong);
 }
 
-/* Ensure toast notifications render above all overlays and below PWA status bar */
+/* Toasts: themed instrument labels, below the safe area + top bar */
 [data-sonner-toaster] {
   z-index: 9999 !important;
+  --normal-bg: var(--surface-2);
+  --normal-border: var(--edge);
+  --normal-text: var(--ink);
+  --border-radius: var(--r-md);
+  font-family: var(--font-ui) !important;
 }
 
 [data-sonner-toaster][data-y-position='top'] {
-  top: env(safe-area-inset-top, 0px) !important;
+  top: calc(var(--safe-top) + 52px) !important;
+}
+
+[data-sonner-toast] {
+  box-shadow: var(--shadow-pop) !important;
+  font-size: var(--fs-sm) !important;
+}
+
+[data-sonner-toast][data-type='success'] [data-icon] {
+  color: var(--ok);
+}
+
+[data-sonner-toast][data-type='error'] [data-icon] {
+  color: var(--err);
+}
+
+[data-sonner-toast][data-type='warning'] [data-icon] {
+  color: var(--warn);
+}
+
+[data-sonner-toast][data-type='info'] [data-icon] {
+  color: var(--accent);
 }

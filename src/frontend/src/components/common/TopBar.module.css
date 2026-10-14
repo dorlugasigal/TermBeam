@@ -4,17 +4,17 @@
   z-index: 100;
   display: flex;
   align-items: center;
-  height: 44px;
-  padding: 0 12px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  gap: 8px;
+  height: calc(44px + var(--safe-top));
+  padding: var(--safe-top) var(--sp-3) 0;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--hairline);
+  gap: var(--sp-2);
 }
 
 .left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   flex-shrink: 0;
 }
 
@@ -29,57 +29,66 @@
 .right {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   flex-shrink: 0;
 }
 
 .menuBtn {
   display: none;
-  background: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--hit);
+  height: var(--hit);
+  background: transparent;
   border: none;
-  color: var(--text);
+  color: var(--ink);
   cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
-  font-size: 1.2rem;
+  padding: 0;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-lg);
   line-height: 1;
+  transition: background-color var(--dur-2) var(--ease-out);
 }
 
 .menuBtn:hover {
-  background: var(--bg);
+  background: var(--surface-hover);
 }
 
 .backBtn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  background: none;
+  gap: var(--sp-1);
+  min-height: 36px;
+  background: transparent;
   border: none;
-  color: var(--text-secondary);
+  color: var(--ink-2);
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.85rem;
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  font-weight: 500;
   text-decoration: none;
-  transition: color 150ms;
+  transition:
+    color var(--dur-2) var(--ease-out),
+    background-color var(--dur-2) var(--ease-out);
 }
 
 .backBtn:hover {
-  color: var(--text);
-  background: var(--bg);
+  color: var(--ink);
+  background: var(--surface-hover);
 }
 
 .logo {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-md);
+  color: var(--ink);
   white-space: nowrap;
 }
 
-/* Mobile: show hamburger, hide back button */
 @media (max-width: 640px) {
   .menuBtn {
-    display: flex;
+    display: inline-flex;
   }
 
   .backBtn {
@@ -87,13 +96,12 @@
   }
 }
 
-/* Desktop: hide hamburger, show back button */
 @media (min-width: 641px) {
   .menuBtn {
     display: none;
   }
 
   .backBtn {
-    display: flex;
+    display: inline-flex;
   }
 }

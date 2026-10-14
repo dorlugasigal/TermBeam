@@ -1,6 +1,10 @@
-const { describe, it } = require('node:test');
+const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { parseRemoteUrl, parseStatus, getGitInfo } = require('../../src/utils/git');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { execFileSync } = require('child_process');
+const { parseRemoteUrl, parseStatus, getGitInfo, getGitInfoAsync } = require('../../src/utils/git');
 
 describe('parseRemoteUrl', () => {
   it('parses GitHub HTTPS URL', () => {
@@ -134,5 +138,69 @@ describe('getGitInfo', () => {
   it('returns null for non-existent directory', () => {
     const info = getGitInfo('/nonexistent/path/that/does/not/exist');
     assert.equal(info, null);
+  });
+});
+
+describe('git info against a scratch repository', () => {
+  let repo;
+  const run = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+
+  before(() => {
+    repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'tb-git-info-')));
+    run('init', '-q', '-b', 'feature/very-long-branch-name');
+    run('config', 'user.email', 'test@example.com');
+    run('config', 'user.name', 'Test');
+    run('config', 'commit.gpgsign', 'false');
+    for (const f of ['a.txt', 'b.txt']) fs.writeFileSync(path.join(repo, f), 'one\n');
+    run('add', '.');
+    run('commit', '-q', '-m', 'init');
+    // Unstaged edit to the file porcelain lists first (" M a.txt"), plus an untracked file
+    fs.writeFileSync(path.join(repo, 'a.txt'), 'two\n');
+    fs.writeFileSync(path.join(repo, 'new.txt'), 'x\n');
+    fs.mkdirSync(path.join(repo, 'sub'));
+  });
+
+  after(() => fs.rmSync(repo, { recursive: true, force: true }));
+
+  it('counts an unstaged first-line change as modified, not staged', () => {
+    const { status } = getGitInfo(repo);
+    assert.equal(status.staged, 0);
+    assert.equal(status.modified, 1);
+    assert.equal(status.untracked, 1);
+    assert.equal(status.summary, '1 modified, 1 untracked');
+  });
+
+  it('reports the repository root, full branch and folder name without a remote', () => {
+    const info = getGitInfo(path.join(repo, 'sub'));
+    assert.equal(path.resolve(info.root), path.resolve(repo));
+    assert.equal(info.branch, 'feature/very-long-branch-name');
+    assert.equal(info.repoName, path.basename(repo));
+    assert.equal(info.provider, null);
+  });
+
+  it('getGitInfoAsync matches the synchronous result', async () => {
+    assert.deepEqual(
+      await getGitInfoAsync(path.join(repo, 'sub')),
+      getGitInfo(path.join(repo, 'sub')),
+    );
+  });
+
+  it('getGitInfoAsync returns null outside a work tree', async () => {
+    assert.equal(await getGitInfoAsync(os.tmpdir()), null);
+    assert.equal(await getGitInfoAsync(path.join(repo, '.git')), null);
+    assert.equal(await getGitInfoAsync('/nonexistent/path/that/does/not/exist'), null);
+  });
+
+  it('labels a detached HEAD with its short SHA', async () => {
+    const sha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: repo })
+      .toString()
+      .trim();
+    run('checkout', '-q', '--detach');
+    try {
+      assert.equal((await getGitInfoAsync(repo)).branch, `(${sha})`);
+      assert.equal(getGitInfo(repo).branch, `(${sha})`);
+    } finally {
+      run('checkout', '-q', 'feature/very-long-branch-name');
+    }
   });
 });

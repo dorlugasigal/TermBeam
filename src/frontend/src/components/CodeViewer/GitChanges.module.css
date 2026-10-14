@@ -17,10 +17,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 6px 12px;
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
   color: var(--text-dim, #888);
   background: var(--surface, #252526);
   cursor: default;

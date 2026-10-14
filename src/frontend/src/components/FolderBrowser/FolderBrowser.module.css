@@ -4,46 +4,46 @@
   min-height: 0;
   flex: 1;
   overflow: hidden;
+  gap: var(--sp-2);
 }
 
 .pathInput {
   width: 100%;
+  height: var(--hit);
   box-sizing: border-box;
-  padding: 0.55rem 0.7rem;
-  font-size: 0.9rem;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  margin-bottom: 0.4rem;
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-    monospace;
-  /* Larger tap target on touch devices */
-  min-height: 2.5rem;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-base);
+  background: var(--surface-0);
+  color: var(--ink);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-md);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
 }
 
 .pathInput:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .pathInput::placeholder {
-  color: var(--text-muted);
+  color: var(--ink-3);
 }
 
 .breadcrumb {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.15rem;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  padding: 0.4rem 0.6rem;
-  background: var(--bg);
-  border-radius: 6px;
-  border: 1px solid var(--border-subtle);
-  min-height: 2rem;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  padding: 6px var(--sp-3);
+  background: var(--surface-1);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--hairline);
+  min-height: 36px;
   flex-shrink: 0;
 }
 
@@ -52,18 +52,19 @@
   border: none;
   color: var(--accent);
   cursor: pointer;
-  padding: 0.1rem 0.2rem;
-  border-radius: 3px;
-  font-size: 0.8rem;
-  transition: background 0.1s;
+  padding: 2px 4px;
+  border-radius: var(--r-xs);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  transition: background-color var(--dur-1) var(--ease-out);
 }
 
 .breadcrumbSegment:hover {
-  background: var(--surface);
+  background: var(--surface-hover);
 }
 
 .breadcrumbSep {
-  color: var(--text-muted);
+  color: var(--ink-3);
   user-select: none;
 }
 
@@ -75,36 +76,37 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 0.25rem;
-  background: var(--bg);
-  border-radius: 8px;
-  border: 1px solid var(--border-subtle);
-  margin: 0.5rem 0;
+  padding: var(--sp-1);
+  background: var(--surface-0);
+  border-radius: var(--r-md);
+  border: 1px solid var(--hairline);
 }
 
 .entry {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.6rem;
-  border-radius: 6px;
+  gap: var(--sp-2);
+  min-height: 40px;
+  padding: 6px var(--sp-3);
+  border-radius: var(--r-sm);
   border: none;
   background: transparent;
-  color: var(--text);
-  font-size: 0.82rem;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
   cursor: pointer;
   text-align: left;
   width: 100%;
-  transition: background 0.1s;
+  transition: background-color var(--dur-1) var(--ease-out);
 }
 
 .entry:hover {
-  background: var(--surface);
+  background: var(--surface-hover);
 }
 
 .entryIcon {
   flex-shrink: 0;
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
 }
 
 .entryName {
@@ -114,7 +116,7 @@
 }
 
 .fileEntry {
-  color: var(--text-dim);
+  color: var(--ink-3);
   cursor: default;
 }
 
@@ -124,63 +126,70 @@
 
 .actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--sp-2);
   justify-content: flex-end;
   flex-shrink: 0;
-  padding-top: 0.5rem;
+  padding-top: var(--sp-2);
 }
 
 .selectBtn {
-  padding: 0.45rem 1rem;
+  height: var(--hit);
+  padding: 0 var(--sp-4);
   background: var(--accent);
-  color: var(--bg);
-  border: none;
-  border-radius: 8px;
-  font-size: 0.85rem;
+  color: var(--on-accent);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition:
+    filter var(--dur-2) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
 }
 
-.selectBtn:hover {
-  opacity: 0.9;
+.selectBtn:hover:not(:disabled) {
+  filter: brightness(1.06);
 }
 
 .selectBtn:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 .cancelBtn {
-  padding: 0.45rem 1rem;
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 0.85rem;
+  height: var(--hit);
+  padding: 0 var(--sp-4);
+  background: var(--surface-1);
+  color: var(--ink-2);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  font-weight: 600;
   cursor: pointer;
   transition:
-    border-color 0.15s,
-    color 0.15s;
+    border-color var(--dur-2) var(--ease-out),
+    color var(--dur-2) var(--ease-out),
+    background-color var(--dur-2) var(--ease-out);
 }
 
 .cancelBtn:hover {
-  border-color: var(--text-secondary);
-  color: var(--text);
+  border-color: var(--edge-strong);
+  color: var(--ink);
+  background: var(--surface-hover);
 }
 
 .loading {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
-  color: var(--text-dim);
-  font-size: 0.85rem;
+  padding: var(--sp-6);
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
 }
 
 .error {
-  color: var(--danger);
-  font-size: 0.82rem;
+  color: var(--err);
+  font-size: var(--fs-sm);
   text-align: center;
-  padding: 1rem;
+  padding: var(--sp-4);
 }

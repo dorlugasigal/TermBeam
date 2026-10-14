@@ -1,154 +1,136 @@
-import { useState, useEffect, useCallback } from 'react';
-import { checkAuth, getConfig, login as apiLogin, logout as apiLogout } from '@/services/api';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  fetchAuthStatus,
+  probeServer,
+  loginWithOneTimeToken,
+  type AuthStatus,
+} from '@/services/api';
 
-interface UseAuthReturn {
-  authenticated: boolean | null;
-  passwordRequired: boolean;
-  login: (password: string) => Promise<boolean>;
-  logout: () => Promise<void>;
-  loading: boolean;
+/**
+ * App-level auth gate. Only decides what to show on (re)load:
+ *   checking → splash · login → LoginPage · app → the app
+ *   tunnel-auth → Dev Tunnel sign-in expired · unreachable → can't reach host
+ *
+ * Losing auth *while the app is mounted* is NOT handled here — the
+ * connection store opens the in-place unlock sheet so open terminals,
+ * tabs and drafts survive.
+ */
+export type AuthPhase = 'checking' | 'login' | 'app' | 'tunnel-auth' | 'unreachable';
+
+const TUNNEL_RELOAD_KEY = 'termbeam-tunnel-reload';
+const TUNNEL_RELOAD_COOLDOWN_MS = 60_000;
+const FRESH_SIGN_IN_MS = 2 * 60_000;
+const UNREACHABLE_RETRY_MS = 5_000;
+
+export interface UseAuthReturn {
+  phase: AuthPhase;
+  status: AuthStatus | null;
+  /** Method of a sign-in that just happened (drives the passkey offer). */
+  justSignedIn: string | null;
+  clearJustSignedIn: () => void;
+  onSignedIn: (method: string) => void;
+  retry: () => void;
 }
 
 export function useAuth(): UseAuthReturn {
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
-  const [passwordRequired, setPasswordRequired] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState<AuthPhase>('checking');
+  const [status, setStatus] = useState<AuthStatus | null>(null);
+  const [justSignedIn, setJustSignedIn] = useState<string | null>(null);
+  const checkingRef = useRef(false);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function init() {
-      // Check for one-time-token in URL first
+  const check = useCallback(async () => {
+    if (checkingRef.current) return;
+    checkingRef.current = true;
+    try {
+      // A one-time token normally gets consumed by the server on navigation;
+      // this path only runs when the page shell came from somewhere else.
       const params = new URLSearchParams(window.location.search);
       const ott = params.get('ott');
-
       if (ott) {
         params.delete('ott');
         const search = params.toString();
-        const newUrl =
-          window.location.pathname + (search ? `?${search}` : '') + window.location.hash;
-        window.history.replaceState(null, '', newUrl);
-
+        window.history.replaceState(
+          null,
+          '',
+          window.location.pathname + (search ? `?${search}` : '') + window.location.hash,
+        );
         try {
-          const res = await fetch('/api/auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: ott }),
-          });
-          if (!cancelled && res.ok) {
-            const data = (await res.json()) as { ok: boolean };
-            if (data.ok) {
-              setAuthenticated(true);
-              return;
-            }
-          }
+          await loginWithOneTimeToken(ott);
+          setJustSignedIn('qr');
         } catch {
-          // Fall through to normal auth check
+          // expired/used link — fall through to the normal check
         }
       }
 
-      // Primary check: can we reach the server and are we authenticated?
-      const { authenticated: isAuth, serverReachable, tunnelAuthRequired } = await checkAuth();
-      if (cancelled) return;
-
-      if (isAuth) {
-        sessionStorage.removeItem('termbeam-tunnel-reload');
-        setAuthenticated(true);
+      const st = await fetchAuthStatus();
+      if (st) {
+        setStatus(st);
+        sessionStorage.removeItem(TUNNEL_RELOAD_KEY);
+        if (st.authenticated) {
+          const session = st.session;
+          if (
+            session &&
+            session.method !== 'passkey' &&
+            Date.now() - session.createdAt < FRESH_SIGN_IN_MS
+          ) {
+            setJustSignedIn((m) => m ?? session.method);
+          }
+          setPhase('app');
+        } else {
+          setPhase('login');
+        }
         return;
       }
 
-      // Not authenticated — but is a password even required?
-      // If server is reachable and returned 401, password is required.
-      // If server is unreachable (tunnel stale, network down), check /api/config.
-      if (serverReachable) {
-        // Server responded with 401 — password is required
-        setPasswordRequired(true);
-        setAuthenticated(false);
-        return;
-      }
-
-      // A proxy/tunnel (e.g. DevTunnel) intercepted the request with an auth page.
-      // Reload the page so the browser handles the auth redirect interactively
-      // (fetch can't show interactive login pages — only navigation can).
-      // Guard with sessionStorage to prevent infinite reload loops (30s cooldown).
-      if (tunnelAuthRequired) {
-        const RELOAD_KEY = 'termbeam-tunnel-reload';
-        const lastReload = parseInt(sessionStorage.getItem(RELOAD_KEY) || '0', 10);
-        if (Date.now() - lastReload > 30_000) {
-          sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+      const probe = await probeServer();
+      if (probe === 'tunnel-auth') {
+        // Only a top-level navigation lets Dev Tunnels run its sign-in flow.
+        // Do it automatically once; after that, ask (avoids reload loops).
+        const last = Number(sessionStorage.getItem(TUNNEL_RELOAD_KEY) || 0);
+        if (Date.now() - last > TUNNEL_RELOAD_COOLDOWN_MS) {
+          sessionStorage.setItem(TUNNEL_RELOAD_KEY, String(Date.now()));
           window.location.reload();
           return;
         }
-        // Already reloaded recently — fall through to show login as fallback
-        sessionStorage.removeItem(RELOAD_KEY);
-      }
-
-      // Server unreachable — check if password is configured.
-      // /api/config has no auth middleware, so it works even without a token.
-      const config = await getConfig();
-      if (cancelled) return;
-      setPasswordRequired(config.passwordRequired);
-
-      if (!config.passwordRequired) {
-        // No password mode + server unreachable (tunnel flaky) — grant access.
-        // The terminal/sessions hub will show its own connection banner.
-        setAuthenticated(true);
-      } else {
-        setAuthenticated(false);
-      }
-    }
-
-    init();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Re-check auth when returning from background (e.g. mobile tab switch after hours idle).
-  useEffect(() => {
-    function handleVisibility() {
-      if (document.hidden) return;
-
-      if (!passwordRequired) {
-        // No-password mode: never flip to unauthenticated — the terminal handles
-        // connection issues with its own reconnect banner.
+        setPhase('tunnel-auth');
         return;
       }
-
-      // Password mode: if we were authenticated and now we're not, show login
-      if (authenticated !== true) return;
-      checkAuth()
-        .then(({ authenticated: isAuth, serverReachable }) => {
-          // Only treat as auth loss if the server explicitly returned 401.
-          // Network timeouts (serverReachable=false) should not flip auth state.
-          if (!isAuth && serverReachable) setAuthenticated(false);
-        })
-        .catch(() => {
-          // Network error — don't change auth state
-        });
-    }
-
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [authenticated, passwordRequired]);
-
-  const login = useCallback(async (password: string): Promise<boolean> => {
-    setLoading(true);
-    try {
-      const { ok } = await apiLogin(password);
-      setAuthenticated(ok);
-      return ok;
-    } catch (err) {
-      throw err;
+      if (probe === 'auth-expired') setPhase('login');
+      else if (probe === 'ok') setPhase('app');
+      else setPhase('unreachable');
     } finally {
-      setLoading(false);
+      checkingRef.current = false;
     }
   }, []);
 
-  const logout = useCallback(async () => {
-    await apiLogout();
-    setAuthenticated(false);
+  useEffect(() => {
+    void check();
+  }, [check]);
+
+  // While the host is unreachable keep trying, and jump on network/foreground changes.
+  useEffect(() => {
+    if (phase !== 'unreachable') return;
+    const id = setInterval(() => void check(), UNREACHABLE_RETRY_MS);
+    const kick = () => {
+      if (!document.hidden) void check();
+    };
+    window.addEventListener('online', kick);
+    document.addEventListener('visibilitychange', kick);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('online', kick);
+      document.removeEventListener('visibilitychange', kick);
+    };
+  }, [phase, check]);
+
+  const onSignedIn = useCallback((method: string) => {
+    if (method !== 'passkey') setJustSignedIn(method);
+    setPhase('app');
+    void fetchAuthStatus().then((st) => st && setStatus(st));
   }, []);
 
-  return { authenticated, passwordRequired, login, logout, loading };
+  const clearJustSignedIn = useCallback(() => setJustSignedIn(null), []);
+  const retry = useCallback(() => void check(), [check]);
+
+  return { phase, status, justSignedIn, clearJustSignedIn, onSignedIn, retry };
 }

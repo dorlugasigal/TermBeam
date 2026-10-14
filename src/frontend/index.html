@@ -16,8 +16,13 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>TermBeam</title>
     <script>
-      const t = localStorage.getItem('termbeam-theme');
-      if (t) document.documentElement.setAttribute('data-theme', t);
+      // Paint the saved theme before the app loads (no flash of the default).
+      // termbeam-prefs is the live store; termbeam-theme is the pre-migration key.
+      try {
+        var prefs = JSON.parse(localStorage.getItem('termbeam-prefs') || 'null');
+        var t = (prefs && prefs.themeId) || localStorage.getItem('termbeam-theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
     </script>
   </head>
   <body>

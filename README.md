@@ -59,8 +59,9 @@ termbeam -i                     # interactive setup wizard
 
 - **No SSH client needed** — just open a browser on any device
 - **Touch-optimized key bar** with arrows, Tab, Ctrl, Esc, copy, paste, and more
-- **Swipe scrolling**, pinch zoom, and text selection overlay for copy-paste
+- **Swipe scrolling**, pinch zoom, and text selection overlay for copy-paste — full-screen apps like Copilot CLI keep mouse-wheel scrolling after reconnects
 - **iPhone PWA safe-area support** for a native-app feel
+- **Honest connection status** — one live pill with round-trip latency that explains _why_ when something's wrong (offline, computer asleep, tunnel sign-in expired, session locked) and fixes it in place
 
 ### Multi-Session
 
@@ -82,16 +83,18 @@ termbeam -i                     # interactive setup wizard
 - **Push notifications** — get native push notifications on your phone when commands complete, even when the app is in the background. Uses Web Push API with VAPID authentication
 - **In-app updates** — auto-update from the UI for npm/yarn/pnpm global installs, with copy-command fallback for other methods
 - **Completion notifications** — browser alerts when background commands finish
-- **30 color themes** with adjustable font size
+- **38 color themes** (dark, light and neon) with adjustable font size
 - **Port preview** — reverse-proxy a local web server through TermBeam
 - **Image paste** from clipboard
 
 ### Secure by Default
 
 - **Auto-generated password** with rate limiting and httpOnly cookies
+- **Passkeys** — after the first login, unlock with Face ID / Touch ID / fingerprint instead of typing the password
+- **Remembered devices** — sliding sessions that survive restarts (when the password is unchanged), listed and revocable in Settings → Security
 - **QR code auto-login** with single-use share tokens (5-min expiry)
-- **DevTunnel integration** for secure remote access — ephemeral or persisted URLs
-- **Security headers** (X-Frame-Options, CSP, nosniff) on all responses; only detected shells allowed
+- **DevTunnel integration** for secure remote access — ephemeral or persisted URLs, with a watchdog that survives sleep/wake and re-creates expired tunnels
+- **Cross-site protection** for the API and WebSocket, security headers (X-Frame-Options, CSP, nosniff) on app responses; only detected shells allowed
 
 ## How It Works
 
@@ -117,8 +120,10 @@ flowchart LR
 | `--port <port>`       | Server port                                     | `3456`         |
 | `--host <addr>`       | Bind address                                    | `127.0.0.1`    |
 | `--lan`               | Bind to all interfaces (LAN access)             | Off            |
+| `--public-url <url>`  | Your address when behind your own reverse proxy | —              |
 | `--public`            | Allow public tunnel access (no Microsoft login) | Off            |
 | `-i, --interactive`   | Interactive setup wizard                        | Off            |
+| `--reset-auth`        | Sign out all devices and remove all passkeys    | Off            |
 | `--log-level <level>` | Log verbosity (error/warn/info/debug)           | `info`         |
 
 For all flags, subcommands, and environment variables, see the [Configuration docs](https://dorlugasigal.github.io/TermBeam/configuration/).
@@ -143,7 +148,7 @@ For systemd, launchd, and Windows Task Scheduler setup, see the [Running in Back
 
 ## Security
 
-TermBeam auto-generates a password and creates a secure tunnel by default, binding to `127.0.0.1` (localhost only). Auth uses httpOnly cookies with 24-hour expiry, login is rate-limited to 5 attempts per minute, QR codes contain single-use share tokens (5-min expiry), and security headers (X-Frame-Options, CSP, nosniff) are set on all responses.
+TermBeam auto-generates a password and creates a secure tunnel by default, binding to `127.0.0.1` (localhost only). Each sign-in is a revocable device session in an `HttpOnly`, `SameSite=Strict` cookie (remembered devices: 7 days without use, 30 days max, stored only as hashes; without “Remember this device”: 2 hours idle, 12 hours max, never written to disk), passkeys give phishing-resistant one-tap unlock, login is rate-limited to 5 attempts per minute, QR codes contain single-use share tokens (5-min expiry), cross-site API and WebSocket requests are rejected, and security headers (X-Frame-Options, CSP, nosniff) are set on app responses (the `/preview` proxy passes the previewed app's own headers through). `termbeam --reset-auth` signs out every device and removes every passkey.
 
 For the full threat model and safety checklist, see [SECURITY.md](SECURITY.md). For detailed security documentation, see the [Security Guide](https://dorlugasigal.github.io/TermBeam/security/).
 

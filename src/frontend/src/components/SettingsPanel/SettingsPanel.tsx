@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
+import SecuritySection from './SecuritySection';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import {
@@ -9,6 +10,7 @@ import {
 } from '@/stores/preferencesStore';
 import { THEMES } from '@/themes/terminalThemes';
 import { FolderBrowser } from '@/components/FolderBrowser/FolderBrowser';
+import { Breakable } from '@/components/common/Breakable';
 import styles from './SettingsPanel.module.css';
 
 const FONT_MIN = 8;
@@ -58,6 +60,15 @@ interface SettingsPanelProps {
   inHub?: boolean;
 }
 
+const SECTIONS = [
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'feedback', label: 'Feedback' },
+  { id: 'touchbar', label: 'TouchBar' },
+  { id: 'defaults', label: 'Defaults' },
+  { id: 'workspaces', label: 'Workspaces' },
+  { id: 'security', label: 'Security' },
+] as const;
+
 export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}) {
   const open = useUIStore((s) => s.settingsPanelOpen);
   const close = useUIStore((s) => s.closeSettingsPanel);
@@ -68,11 +79,8 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
   const sessions = useSessionStore((s) => s.sessions);
 
   const panelRef = useRef<HTMLDivElement | null>(null);
-  // FIX #1: dragOffset tracks JS-controlled position after first drag.
-  // When null, panel is CSS-centered. When set, panel uses inline transform.
-  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const dragStartRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const [activeSection, setActiveSection] = useState<string>('appearance');
 
   // FIX #3: browsing folder state
   const [browsingFolder, setBrowsingFolder] = useState(false);
@@ -95,69 +103,65 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reset drag offset when closed
+  // Reset sub-views when closed
   useEffect(() => {
-    if (!open) {
-      setDragOffset(null);
-      setBrowsingFolder(false);
-    }
+    if (!open) setBrowsingFolder(false);
   }, [open]);
 
-  const clamp = useCallback((x: number, y: number) => {
-    const el = panelRef.current;
-    if (!el) return { x, y };
-    const r = el.getBoundingClientRect();
-    const maxX = window.innerWidth - r.width - 8;
-    const maxY = window.innerHeight - 40; // keep 40px header visible at bottom
-    return {
-      x: Math.min(Math.max(8, x), Math.max(8, maxX)),
-      y: Math.min(Math.max(8, y), Math.max(8, maxY)),
-    };
+  // While a chip-initiated smooth scroll runs, the spy holds the chosen chip.
+  const jumpLockUntil = useRef(0);
+  const navRef = useRef<HTMLElement>(null);
+
+  const jumpTo = useCallback((id: string) => {
+    setActiveSection(id);
+    jumpLockUntil.current = Date.now() + 700;
+    const el = bodyRef.current?.querySelector<HTMLElement>(`[data-section="${id}"]`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
-  const onHeaderPointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (e.button !== undefined && e.button !== 0) return;
-      const el = panelRef.current;
-      if (!el) return;
-
-      if (dragOffset == null) {
-        // First drag: capture current rect and switch from CSS-center to JS-controlled
-        const r = el.getBoundingClientRect();
-        const newOffset = { x: r.left, y: r.top };
-        setDragOffset(newOffset);
-        dragStartRef.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+  // Highlight the section being read: the last one whose top has reached the
+  // top of the list (or the final one once scrolled to the bottom). Computed
+  // from positions on scroll — IntersectionObserver only reports sections whose
+  // visibility *changed*, which picked the wrong chip.
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!open || !body) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      if (Date.now() < jumpLockUntil.current) return;
+      const sections = Array.from(body.querySelectorAll<HTMLElement>('[data-section]'));
+      if (sections.length === 0) return;
+      let current = sections[0]!;
+      if (body.scrollTop + body.clientHeight >= body.scrollHeight - 2) {
+        current = sections[sections.length - 1]!;
       } else {
-        dragStartRef.current = { dx: e.clientX - dragOffset.x, dy: e.clientY - dragOffset.y };
+        const top = body.getBoundingClientRect().top + 24;
+        for (const section of sections) {
+          if (section.getBoundingClientRect().top <= top) current = section;
+          else break;
+        }
       }
+      const id = current.getAttribute('data-section');
+      if (id) setActiveSection(id);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    body.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      body.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, [open, mounted, browsingFolder]);
 
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      setDragging(true);
-    },
-    [dragOffset],
-  );
-
-  const onHeaderPointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!dragging || dragOffset == null) return;
-      const next = clamp(e.clientX - dragStartRef.current.dx, e.clientY - dragStartRef.current.dy);
-      setDragOffset(next);
-    },
-    [dragging, dragOffset, clamp],
-  );
-
-  const onHeaderPointerUp = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!dragging) return;
-      try {
-        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch {
-        // ignore
-      }
-      setDragging(false);
-    },
-    [dragging],
-  );
+  // Keep the active chip in view as the spy moves along the nav.
+  useEffect(() => {
+    navRef.current
+      ?.querySelector<HTMLElement>('[aria-current="true"]')
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }, [activeSection]);
 
   // Esc to close
   useEffect(() => {
@@ -196,8 +200,7 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
           id: s.id,
           name: s.name,
           kind: (s.type === 'copilot' || s.type === 'agent' ? 'agent' : 'shell') as
-            | 'shell'
-            | 'agent',
+            'shell' | 'agent',
           cwd: s.cwd || '',
           initialCommand: s.initialCommand || '',
           agentId: s.type === 'copilot' || s.type === 'agent' ? s.model : undefined,
@@ -305,47 +308,55 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
 
   if (!mounted) return null;
 
-  // FIX #1: panel style conditional on dragOffset
-  const panelStyle: React.CSSProperties = dragOffset
-    ? { transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`, top: 0, left: 0 }
-    : {}; // CSS class handles centering
-
   return (
     <div
       ref={panelRef}
-      className={`${styles.panel} ${dragging ? styles.dragging : ''} ${!dragOffset ? styles.panelCentered : ''} ${closing ? styles.panelClosing : ''}`}
-      style={panelStyle}
+      className={`${styles.panel} ${closing ? styles.panelClosing : ''}`}
       role="dialog"
       aria-label="Settings"
       aria-modal="false"
+      data-testid="settings-panel"
     >
-      <div
-        className={styles.header}
-        onPointerDown={onHeaderPointerDown}
-        onPointerMove={onHeaderPointerMove}
-        onPointerUp={onHeaderPointerUp}
-        onPointerCancel={onHeaderPointerUp}
-      >
-        <span className={styles.handle}>
-          <span className={styles.handleDots} aria-hidden>
-            ⋮⋮
-          </span>
+      <div className={styles.header}>
+        <span className={styles.heading}>
           <span className={styles.title}>Settings</span>
         </span>
         <button
           type="button"
           className={styles.closeBtn}
           onClick={close}
-          onPointerDown={(e) => e.stopPropagation()}
           aria-label="Close settings"
         >
-          ✕
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M6.5 6.5l11 11M17.5 6.5l-11 11"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+            />
+          </svg>
         </button>
       </div>
 
+      {!browsingFolder && (
+        <nav ref={navRef} className={styles.sectionNav} aria-label="Settings sections">
+          {SECTIONS.map((sec) => (
+            <button
+              key={sec.id}
+              type="button"
+              className={`${styles.sectionChip} ${activeSection === sec.id ? styles.sectionChipActive : ''}`}
+              aria-current={activeSection === sec.id ? 'true' : undefined}
+              onClick={() => jumpTo(sec.id)}
+            >
+              {sec.label}
+            </button>
+          ))}
+        </nav>
+      )}
+
       {browsingFolder ? (
         /* FIX #3: folder browser mode */
-        <div className={styles.body}>
+        <div className={styles.body} ref={bodyRef}>
           <FolderBrowser
             currentDir={prefs.defaultFolder || '/'}
             onSelect={(dir) => {
@@ -356,9 +367,9 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
           />
         </div>
       ) : (
-        <div className={styles.body}>
+        <div className={styles.body} ref={bodyRef}>
           {/* ── Appearance ───────────────────────────────────────── */}
-          <section className={styles.section}>
+          <section className={styles.section} data-section="appearance">
             <h3 className={styles.sectionTitle}>Appearance</h3>
 
             <div className={styles.row}>
@@ -410,8 +421,8 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
           </section>
 
           {/* ── Notifications ────────────────────────────────────── */}
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Notifications & Feedback</h3>
+          <section className={styles.section} data-section="feedback">
+            <h3 className={styles.sectionTitle}>Notifications and feedback</h3>
 
             <div className={styles.row}>
               <span className={styles.rowLabel}>
@@ -468,8 +479,8 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
           </section>
 
           {/* ── Touch Bar ─────────────────────────────────────────── */}
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Touch Bar</h3>
+          <section className={styles.section} data-section="touchbar">
+            <h3 className={styles.sectionTitle}>TouchBar</h3>
 
             <div className={styles.row}>
               <span className={styles.rowLabel}>
@@ -487,14 +498,14 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
 
             <div className={styles.row}>
               <span className={styles.rowLabel}>
-                Touchbar layout
+                Layout
                 <span className={styles.rowHint}>
                   {usingCustomKeys
                     ? `${customKeys.length} custom key${customKeys.length === 1 ? '' : 's'}`
                     : 'Built-in defaults'}
                 </span>
               </span>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div className={styles.rowActions}>
                 {usingCustomKeys && (
                   <button type="button" className={styles.linkBtn} onClick={resetCustomKeys}>
                     Reset to defaults
@@ -508,33 +519,23 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
           </section>
 
           {/* ── Defaults ─────────────────────────────────────────── */}
-          <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>New Session Defaults</h3>
+          <section className={styles.section} data-section="defaults">
+            <h3 className={styles.sectionTitle}>New session defaults</h3>
 
-            {/* FIX #3: default folder with browse button */}
-            <div>
-              <span className={styles.rowLabel}>Default folder</span>
-              <div className={styles.folderRow}>
-                <span className={styles.folderPath}>
-                  {prefs.defaultFolder ? (
-                    prefs.defaultFolder.length > 40 ? (
-                      <>
-                        {prefs.defaultFolder.slice(0, 18)}…{prefs.defaultFolder.slice(-18)}
-                      </>
-                    ) : (
-                      prefs.defaultFolder
-                    )
-                  ) : (
-                    <em className={styles.folderPlaceholder}>Current working directory</em>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  className={styles.browseBtn}
-                  onClick={() => setBrowsingFolder(true)}
-                >
-                  Browse…
-                </button>
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>
+                Folder
+                {prefs.defaultFolder ? (
+                  <span className={styles.folderPath} title={prefs.defaultFolder}>
+                    <Breakable text={prefs.defaultFolder} />
+                  </span>
+                ) : (
+                  <span className={`${styles.rowHint} ${styles.folderPlaceholder}`}>
+                    The folder TermBeam was started in
+                  </span>
+                )}
+              </span>
+              <div className={styles.rowActions}>
                 {prefs.defaultFolder && (
                   <button
                     type="button"
@@ -542,27 +543,39 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
                     onClick={() => setPreference('defaultFolder', '')}
                     aria-label="Clear default folder"
                   >
-                    ✕
+                    Clear
                   </button>
                 )}
+                <button
+                  type="button"
+                  className={styles.browseBtn}
+                  onClick={() => setBrowsingFolder(true)}
+                >
+                  Browse…
+                </button>
               </div>
             </div>
 
-            <div style={{ marginTop: 10 }}>
-              <span className={styles.rowLabel}>Default initial command</span>
+            <label className={`${styles.row} ${styles.rowStack}`}>
+              <span className={styles.rowLabel}>
+                Run on start
+                <span className={styles.rowHint}>Typed into every new terminal session</span>
+              </span>
               <input
                 className={styles.keyInput}
                 type="text"
-                style={{ width: '100%', marginTop: 6 }}
                 value={prefs.defaultInitialCommand}
-                placeholder="e.g. npm run dev"
+                placeholder="npm run dev"
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
                 onChange={(e) => setPreference('defaultInitialCommand', e.target.value)}
               />
-            </div>
+            </label>
           </section>
 
           {/* ── Workspaces ────────────────────────────────────────── */}
-          <section className={styles.section}>
+          <section className={styles.section} data-section="workspaces">
             <h3 className={styles.sectionTitle}>Workspaces</h3>
 
             {(() => {
@@ -762,11 +775,17 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
             })()}
           </section>
 
+          {/* ── Security ─────────────────────────────────────────── */}
+          <section className={styles.section} data-section="security">
+            <h3 className={styles.sectionTitle}>Security</h3>
+            <SecuritySection />
+          </section>
+
           {/* Reset all */}
           <section className={styles.section}>
             <button
               type="button"
-              className={styles.linkBtn}
+              className={`${styles.linkBtn} ${styles.sectionLink}`}
               onClick={() => {
                 if (confirm('Reset all preferences to defaults? This will sync to the server.')) {
                   Object.entries(PREF_DEFAULTS).forEach(([k, v]) => {

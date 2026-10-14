@@ -67,9 +67,9 @@ Or start directly with defaults:
      Password: xK9mP2vL8nQ4wR7j
    ```
 
-3. **On your phone:** Scan the QR code or open the Public URL
-4. **Enter the password** shown in the terminal output
-5. You're connected! 🎉
+3. **On your phone:** Scan the QR code (it signs you in automatically) or open the Public URL and **enter the password** shown in the terminal output
+4. **Optional — add a passkey:** after signing in, TermBeam offers **Unlock with a passkey next time**. Accept it and future unlocks are a single Face ID / Touch ID / fingerprint confirmation instead of typing the password
+5. You're connected! 🎉 The pill in the top bar shows the live round-trip time; if the link drops it explains why and reconnects on its own
 
 ## Creating Sessions
 

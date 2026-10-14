@@ -22,7 +22,7 @@ TermBeam exposes a REST API and WebSocket interface.
 
 ## REST API
 
-All API endpoints (except `/login`, `/api/auth`, `/api/version`, and `/api/config`) require authentication via cookie or Bearer token.
+All API endpoints (except `/login`, `/api/auth`, `/api/auth/status`, `/api/auth/passkeys/login/options`, `/api/auth/passkeys/login`, `/api/version`, and `/api/config`) require authentication via cookie or Bearer token.
 
 <!-- prettier-ignore -->
 :::note
@@ -41,13 +41,25 @@ Returned when the `Authorization: Bearer` token does not match the server passwo
 
 #### `POST /api/auth`
 
-Authenticate and receive a session token.
+Sign in with the password or a one-time QR/share token and receive a session cookie.
 
 **Request:**
 
 ```json
-{ "password": "your-password" }
+{ "password": "your-password", "remember": true }
 ```
+
+or, for a one-time token from the QR code / share link:
+
+```json
+{ "ott": "one-time-token", "remember": true }
+```
+
+| Field      | Type    | Description                                                                                              |
+| ---------- | ------- | -------------------------------------------------------------------------------------------------------- |
+| `password` | string  | The access password                                                                                      |
+| `ott`      | string  | A one-time share token (5-minute, single use)                                                            |
+| `remember` | boolean | Default `true`: 7-day sliding / 30-day max session saved to disk. `false`: 2-hour / 12-hour, memory only |
 
 **Response (200):**
 
@@ -55,7 +67,7 @@ Authenticate and receive a session token.
 { "ok": true }
 ```
 
-Sets an httpOnly cookie `pty_token`.
+Sets an httpOnly, `SameSite=Strict` cookie `pty_token` (with `Max-Age` when remembered, a browser-session cookie otherwise).
 
 **Response (401):**
 
@@ -68,6 +80,78 @@ Sets an httpOnly cookie `pty_token`.
 ```json
 { "error": "Too many attempts. Try again later." }
 ```
+
+#### `GET /api/auth/status`
+
+Public. Tells the login screen what is possible from this address. Pass the page origin so passkey availability can be checked against the host you are using.
+
+`GET /api/auth/status?origin=https%3A%2F%2Fabcd-3456.euw.devtunnels.ms`
+
+```json
+{
+  "passwordRequired": true,
+  "authenticated": false,
+  "passkeys": { "enabled": true, "registered": true },
+  "session": null
+}
+```
+
+`passkeys.enabled` is `true` only for secure origins (HTTPS or `http://localhost`) that match the host TermBeam is reached at. `session` (`{ method, createdAt }`) is present when the cookie is valid.
+
+#### `POST /api/auth/logout`
+
+Signs the current device out (revokes its session) and clears the cookie.
+
+#### `GET /api/auth/sessions`
+
+Lists signed-in devices.
+
+```json
+{
+  "sessions": [
+    {
+      "id": "Xk2…",
+      "device": "iPhone · Safari",
+      "method": "passkey",
+      "remember": true,
+      "ip": "203.0.113.7",
+      "createdAt": 1760000000000,
+      "lastSeenAt": 1760000500000,
+      "expiresAt": 1760600000000,
+      "current": true
+    }
+  ]
+}
+```
+
+#### `DELETE /api/auth/sessions/:id`
+
+Signs one device out. Its open WebSockets are closed immediately with code `4401`.
+
+#### `POST /api/auth/sessions/revoke-others`
+
+Signs out every device except the current one. Returns `{ "ok": true, "revoked": 3 }`.
+
+#### Passkeys (WebAuthn)
+
+Passkey endpoints are available on secure origins only (the HTTPS tunnel URL or `http://localhost`) and are rate-limited to 30 requests per minute per IP. Options and credentials use base64url JSON.
+
+| Endpoint                                   | Auth     | Description                                                                                                                            |
+| ------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/auth/passkeys/register/options` | Cookie   | Body `{ origin }` (the page's `location.origin`). Returns `{ publicKey }` creation options (challenge valid for 3 minutes, single use) |
+| `POST /api/auth/passkeys/register`         | Cookie   | `{ credential, name? }` — verifies and stores the passkey                                                                              |
+| `POST /api/auth/passkeys/login/options`    | Public   | Body `{ origin }`. Returns `{ publicKey }` request options, or `404` when no passkey exists for the host                               |
+| `POST /api/auth/passkeys/login`            | Public   | `{ credential, remember? }` — verifies the assertion and sets the session cookie                                                       |
+| `GET /api/auth/passkeys`                   | Required | `{ passkeys: [{ id, name, rpId, createdAt, lastUsedAt, synced }] }`                                                                    |
+| `PATCH /api/auth/passkeys/:id`             | Required | `{ name }` — rename                                                                                                                    |
+| `DELETE /api/auth/passkeys/:id`            | Required | Remove a passkey and sign out the devices that used it                                                                                 |
+
+<!-- prettier-ignore -->
+:::note[Cross-site requests]
+State-changing requests whose `Origin` does not match the address TermBeam is reached at are rejected with `403 { "error": "Cross-site request blocked", "reason": "mismatch" | "invalid" | "cross-site" }`, as is any `/api/*` request a browser marks `Sec-Fetch-Site: same-site` or `cross-site`.
+
+The passkey options endpoints take the page origin in the body because the Dev Tunnels relay rewrites a same-origin `Origin` header to `http://localhost:<port>`. The claimed origin must name a host TermBeam is actually reached at (`Host`, tunnel URL, `--public-url`, or `X-Forwarded-Host` from a loopback proxy), and the browser signs the real origin into the credential, which is verified on registration and sign-in.
+:::
 
 ---
 
@@ -91,10 +175,12 @@ List all active sessions.
     "createdAt": "2025-01-01T00:00:00.000Z",
     "color": "#4a9eff",
     "lastActivity": 1719849600000,
+    "home": "/home/user",
     "git": {
       "branch": "main",
       "repoName": "owner/repo",
       "provider": "GitHub",
+      "root": "/Users/me/src/repo",
       "status": {
         "clean": false,
         "modified": 1,
@@ -114,8 +200,10 @@ List all active sessions.
 | `color`        | string      | Hex color assigned to the session                                                                            |
 | `lastActivity` | number      | Unix timestamp (ms) of the last PTY output                                                                   |
 | `cwd`          | string      | Live working directory of the shell process (updates when the user `cd`s)                                    |
+| `home`         | string      | Home directory of the user running TermBeam — clients show paths under it (and only it) as `~`               |
 | `git`          | object/null | Git repository info for the session's cwd, or `null` if not in a git repo                                    |
 | `git.branch`   | string      | Current branch name (or short SHA in detached HEAD)                                                          |
+| `git.root`     | string/null | Repository top-level directory; sessions with the same root share a working tree (the hub groups them)       |
 | `git.repoName` | string/null | Remote repository name (e.g. `owner/repo`)                                                                   |
 | `git.provider` | string/null | Hosting provider: `GitHub`, `GitLab`, `Bitbucket`, `Azure DevOps`, or host                                   |
 | `git.status`   | object      | Working tree status with `clean`, `modified`, `staged`, `untracked`, `ahead`, `behind`, and `summary` fields |
@@ -142,6 +230,8 @@ Create a new session.
 All fields are optional. If `initialCommand` is provided, it will be sent to the shell after startup (capped at 8192 characters — longer values are rejected with `400 initialCommand too long`). If `color` is omitted, a color is assigned automatically from a built-in palette. The optional `cols` and `rows` fields set the initial terminal size (defaults to 120×30 if omitted).
 
 The `shell` field is validated against the list of detected shells (see `GET /api/shells`). The `cwd` field must be an absolute path to an existing directory.
+
+**Copilot sessions:** send `"type": "copilot"` to start a GitHub Copilot session (via the Copilot SDK) with a hidden companion terminal. The optional `model` is a Copilot model id from [`GET /api/copilot/models`](#list-copilot-models); omit it to let Copilot use the account's current default. The response then also includes `ptySessionId` and `model` — the model in use, or `null` until Copilot resolves its default on the first reply. A malformed `model` returns `400 model must be a Copilot model id`.
 
 **Response (201):**
 
@@ -1007,16 +1097,21 @@ Returns the current tunnel connection state, provider, and token lifetime.
 ```json
 {
   "state": "connected",
+  "url": "https://abcd1234-3456.euw.devtunnels.ms",
+  "since": 1760000000000,
   "provider": "microsoft",
   "tokenLifetimeSeconds": 3200
 }
 ```
 
-| Field                  | Type        | Description                                                                                |
-| ---------------------- | ----------- | ------------------------------------------------------------------------------------------ |
-| `state`                | string      | Tunnel state: `connected`, `disconnected`, `expiring`, `auth-expired`, or `unknown`        |
-| `provider`             | string/null | Auth provider used for the tunnel: `microsoft`, `github`, or `null` if no tunnel is active |
-| `tokenLifetimeSeconds` | number/null | Seconds remaining on the current auth token, or `null` if unavailable                      |
+| Field                  | Type        | Description                                                                                                        |
+| ---------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| `state`                | string      | `connected`, `disconnected`, `reconnecting`, `waiting-network`, `auth-expired`, `failed`, or `unknown` (no tunnel) |
+| `url`                  | string      | Current public URL (present when connected)                                                                        |
+| `urlChanged`           | boolean     | `true` after the tunnel had to be re-created and the public URL changed                                            |
+| `since`                | number      | When the state last changed (ms)                                                                                   |
+| `provider`             | string/null | Host login provider: `microsoft`, `github`, or `null` — read from a cache refreshed by the watchdog (never blocks) |
+| `tokenLifetimeSeconds` | number/null | Seconds remaining on the host's tunnel login token, or `null` if unavailable                                       |
 
 ---
 
@@ -1096,6 +1191,29 @@ Returns AI coding agents detected in the server's PATH.
 ```
 
 Results are cached for 60 seconds. If both `copilot` and `gh copilot` are available, only the standalone `copilot` is returned.
+
+### List Copilot Models
+
+```
+GET /api/copilot/models
+```
+
+Returns the models the server's signed-in Copilot account can use, straight from the Copilot SDK — so newly released models appear, and retired ones disappear, without a TermBeam update. Models disabled by the account's policy are left out. The list is cached for 30 minutes; after that the cached copy is returned immediately while a fresh one loads in the background. The first call may take a few seconds while the Copilot CLI starts.
+
+**Response:**
+
+```json
+{
+  "available": true,
+  "models": [
+    { "id": "auto", "name": "Auto" },
+    { "id": "claude-sonnet-5", "name": "Claude Sonnet 5" },
+    { "id": "gpt-5.5", "name": "GPT-5.5" }
+  ]
+}
+```
+
+`available` is `false` (with an empty list) when the Copilot SDK isn't installed. If Copilot can't be reached, the response is `{ "available": true, "models": [], "error": "Could not load models from Copilot" }` — clients should then offer only Copilot's default.
 
 ### List Past Agent Sessions
 
@@ -1179,10 +1297,20 @@ or with an existing token:
 **Auth Failure:**
 
 ```json
-{ "type": "error", "message": "Unauthorized" }
+{ "type": "error", "code": "unauthorized", "message": "Unauthorized" }
 ```
 
-The connection is closed after sending this message. Sending any non-auth message before authenticating also results in this error and connection closure.
+Handshakes from a browser origin TermBeam doesn't recognise (see [Cross-site protection](#authentication)) are closed with code **`1008`** (`Origin not allowed` / `Invalid origin`) before any message is exchanged.
+
+After an auth failure the connection is closed with code **`4401`**. Sending any non-auth message before authenticating has the same result. The same message (`"Session expired"` / `"Signed out"`) and close code are used when a cookie-authenticated socket's session expires or is revoked while it is open — clients should stop reconnecting and ask the user to unlock.
+
+#### Keepalive
+
+```json
+{ "type": "ping", "t": 1760000000000 }
+```
+
+Answered with `{ "type": "pong", "t": 1760000000000 }` (the same `t`), which clients use to measure round-trip time and to detect dead ("zombie") sockets. The server additionally sends protocol-level pings every 15 seconds.
 
 #### Attach to Session
 
@@ -1190,7 +1318,7 @@ The connection is closed after sending this message. Sending any non-auth messag
 { "type": "attach", "sessionId": "a1b2c3d4" }
 ```
 
-After a successful attach, the server sends a single `replay` message containing the session's sanitized scrollback buffer (up to ~1,000,000 characters; trimmed back to ~500,000 when it grows beyond that), followed by the `attached` confirmation. Clients should treat `replay` as an authoritative state snapshot and reset their terminal before applying it — this prevents duplicated content on reconnect when the terminal UI is preserved across socket lifecycles.
+After a successful attach, when the session has buffered output, the server sends a single `replay` message containing the session's sanitized scrollback buffer (up to ~1,000,000 characters; trimmed back to ~500,000 when it grows beyond that), followed by the `attached` confirmation. Clients should treat `replay` as an authoritative state snapshot and reset their terminal before applying it — this prevents duplicated content on reconnect when the terminal UI is preserved across socket lifecycles.
 
 #### Send Input
 
@@ -1216,7 +1344,7 @@ The server validates resize dimensions: `cols` must be between 1–500 and `rows
 
 #### Replay Snapshot
 
-Sent on attach. Contains sanitized scrollback (and an alt-screen re-entry sequence when the session is currently in alt-screen). Clients should drop pending writes, reset their terminal, and write this payload — do not append it on top of preserved terminal content.
+Sent on attach. Contains sanitized scrollback, an alt-screen re-entry sequence when the session is currently in alt-screen, and finally the terminal **input modes** the running program has enabled (mouse tracking and encoding, application cursor keys, bracketed paste, focus reporting, cursor visibility, auto-wrap). The modes are tracked server-side as output flows, so they are restored even when the original escape sequences have been trimmed from the scrollback — otherwise full-screen apps such as GitHub Copilot CLI would receive arrow keys instead of mouse-wheel events after a reconnect. Clients should drop pending writes, reset their terminal, and write this payload — do not append it on top of preserved terminal content.
 
 ```json
 { "type": "replay", "data": "..." }
@@ -1280,22 +1408,25 @@ The `status` field follows the same values as `GET /api/update/status`. When `st
 
 #### Tunnel Status
 
-Broadcast when the tunnel connection state changes. Allows the frontend to show tunnel health and prompt for re-authentication when tokens expire.
+Broadcast to authenticated clients when the host's tunnel changes state (useful for LAN/localhost clients that can still reach the server while remote access is down).
 
 ```json
 {
   "type": "tunnel-status",
-  "state": "expiring",
-  "expiresIn": 1800,
-  "provider": "microsoft"
+  "state": "connected",
+  "url": "https://wxyz5678-3456.euw.devtunnels.ms",
+  "urlChanged": true,
+  "since": 1760000000000
 }
 ```
 
-| Field       | Type   | Description                                                                                        |
-| ----------- | ------ | -------------------------------------------------------------------------------------------------- |
-| `state`     | string | Tunnel state: `connected`, `disconnected`, `expiring`, `auth-expired`, `reconnecting`, or `failed` |
-| `expiresIn` | number | Seconds until the auth token expires (present when `state` is `expiring` or `connected`)           |
-| `provider`  | string | Auth provider: `microsoft` or `github` (present when a tunnel is active)                           |
+| Field        | Type    | Description                                                                                              |
+| ------------ | ------- | -------------------------------------------------------------------------------------------------------- |
+| `state`      | string  | `connected`, `disconnected`, `reconnecting`, `waiting-network`, `auth-expired` (host login), or `failed` |
+| `url`        | string  | Public URL (when connected)                                                                              |
+| `urlChanged` | boolean | The tunnel was re-created and the URL changed                                                            |
+| `attempt`    | number  | Restart attempt number (when `reconnecting`)                                                             |
+| `since`      | number  | When the state changed (ms)                                                                              |
 
 ---
 

@@ -1,375 +1,620 @@
-.page {
-  min-height: 100vh;
-  min-height: 100dvh;
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-}
-
-/* When UpdateBanner is visible, it already handles safe-area-inset-top,
-   so remove the duplicate inset from the header */
-.page:has([data-update-banner]) .header {
-  padding-top: 16px;
-}
-
-.header {
-  position: relative;
-  padding: calc(16px + env(safe-area-inset-top, 0px)) 14px 12px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.brand {
-  display: flex;
-  align-items: baseline;
-  min-width: 0;
-  flex: 1;
-}
-
-.title {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text);
-  margin: 0;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-.version {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-}
-
-.headerActions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.headerBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-dim);
-  cursor: pointer;
-  transition:
-    border-color 0.15s,
-    color 0.15s,
-    background 0.15s;
-  padding: 0;
-}
-
-.headerBtn:hover,
-.headerBtn:focus-visible {
-  border-color: var(--accent);
-  color: var(--text);
-  background: var(--bg-elevated, rgba(255, 255, 255, 0.04));
-  outline: none;
-}
-
-.content {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.sessionsList {
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  padding-bottom: calc(82px + var(--safe-bottom));
-  gap: 12px;
-}
-
 /*
- * During the post-load "fold-in" cascade, give the list a perspective so
- * each SessionCard's rotateX renders as real 3D depth instead of a flat
- * vertical squish. The attribute is removed once the cascade finishes, so
- * we don't pay any rendering cost in steady state.
+ * Sessions hub — a reading column of grouped lists. Hierarchy comes from type
+ * and spacing; the only fills are the list surfaces and the primary action.
+ * Phones get a glass action dock at the thumb; wider screens put the same
+ * buttons beside the title.
  */
-.sessionsList[data-arriving='true'] {
-  perspective: 1100px;
-  perspective-origin: 50% -10%;
+
+.page {
+  --hub-w: 760px;
+  --hub-pad: 16px;
+  --dock-h: 72px;
+
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  background: var(--page);
+  -webkit-overflow-scrolling: touch;
 }
 
-.emptyState {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 4rem 1rem;
-  color: var(--text-dim);
-  text-align: center;
+@media (min-width: 720px) {
+  .page {
+    --hub-pad: 32px;
+  }
 }
 
-.emptyIcon {
-  font-size: 2.5rem;
-  opacity: 0.5;
+/* ── Top bar ───────────────────────────────────────────────────────── */
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  padding-top: var(--safe-top);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  background: transparent;
+  transition:
+    background-color var(--dur-3) var(--ease-out),
+    box-shadow var(--dur-3) var(--ease-out);
 }
 
-.emptyText {
-  font-size: 0.95rem;
+.page:has([data-update-banner]) .bar {
+  padding-top: 0;
 }
 
-.emptyHint {
-  font-size: 0.82rem;
-  color: var(--text-muted);
+.page[data-scrolled] .bar {
+  background: var(--page-glass);
+  -webkit-backdrop-filter: saturate(1.5) blur(20px);
+  backdrop-filter: saturate(1.5) blur(20px);
+  box-shadow: 0 1px 0 var(--hairline);
 }
 
-.emptyHintButton {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 8px;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.emptyHintButton:hover,
-.emptyHintButton:focus-visible {
-  color: var(--text-primary);
-}
-
-/* ──────────────────────────────────────────────────────────────────
-   Empty-state Tip Card
-   Shown only when there are zero sessions. Designed to feel like a
-   helpful aside, not a banner — reads well on a phone in portrait.
-   ────────────────────────────────────────────────────────────────── */
-
-.tipCard {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-areas:
-    'icon body'
-    'nav  nav';
-  align-items: start;
-  gap: 12px;
-  margin-top: 1.5rem;
-  padding: 14px 16px 10px;
-  max-width: 340px;
-  width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  text-align: left;
-  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.02) inset;
-  /* Allow horizontal swipe gestures without the browser hijacking them. */
-  touch-action: pan-y;
-}
-
-.tipBadge {
-  position: absolute;
-  top: -9px;
-  left: 14px;
-  padding: 1px 8px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  background: var(--bg);
-  color: var(--accent, var(--text-dim));
-  border: 1px solid var(--border);
-  border-radius: 999px;
-}
-
-.tipIcon {
-  grid-area: icon;
-  font-size: 22px;
-  line-height: 1;
-  margin-top: 2px;
-}
-
-.tipBody {
-  grid-area: body;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.tipTitle {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.tipText {
-  font-size: 0.82rem;
-  line-height: 1.4;
-  color: var(--text-dim);
-}
-
-/* Carousel navigation: prev / counter / next, sized for a thumb. */
-.tipNav {
-  grid-area: nav;
+.barInner {
+  max-width: var(--hub-w);
+  height: 48px;
+  margin: 0 auto;
+  padding: 0 var(--hub-pad);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
+  gap: var(--sp-3);
 }
 
-.tipNavBtn {
-  appearance: none;
-  display: inline-flex;
+.bar .wordmark {
+  width: 92px;
+  flex: none;
+}
+
+@media (min-width: 720px) {
+  .barInner {
+    height: 52px;
+  }
+
+  .bar .wordmark {
+    width: 100px;
+  }
+}
+
+.barEnd {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 36px;
-  padding: 0;
+  gap: 2px;
+  margin-right: -8px;
+}
+
+.iconBtn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--r-md);
   background: transparent;
-  color: var(--text-dim);
-  border: 1px solid transparent;
-  border-radius: 8px;
+  color: var(--ink-2);
   cursor: pointer;
-  transition:
-    background 0.15s,
-    color 0.15s,
-    border-color 0.15s,
-    transform 0.1s;
   -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
 }
 
-.tipNavBtn:hover,
-.tipNavBtn:focus-visible {
-  color: var(--text);
-  background: var(--bg);
-  border-color: var(--border);
-  outline: none;
+.iconBtn:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
 }
 
-.tipNavBtn:active {
+.iconBtn:active {
+  background: var(--surface-press);
   transform: scale(0.94);
 }
 
-.tipCounter {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
-  user-select: none;
+.iconBtn[data-active] {
+  background: var(--surface-press);
+  color: var(--ink);
 }
 
-.hubFooter {
-  position: fixed;
-  bottom: var(--safe-bottom);
-  left: 0;
-  right: 0;
-  padding: 4px calc(16px + env(safe-area-inset-left, 0px)) 4px
-    calc(16px + env(safe-area-inset-right, 0px));
-  background: var(--bg);
+/* ── Column ────────────────────────────────────────────────────────── */
+
+.main {
+  max-width: var(--hub-w);
+  margin: 0 auto;
+  padding: 6px var(--hub-pad) calc(var(--dock-h) + 28px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(var(--hub-pad), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--hub-pad), env(safe-area-inset-right, 0px));
+}
+
+@media (min-width: 720px) {
+  .main {
+    padding-top: 20px;
+    padding-bottom: 56px;
+  }
+}
+
+/* Phones: the bar and list carry the page, so the title is for screen readers only */
+.titleRow {
   display: flex;
-  gap: 10px;
-  z-index: 50;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
 }
 
-.newSessionBtn {
-  flex: 1;
-  padding: 14px;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 120, 212, 0.3);
-  transition:
-    transform 0.15s,
-    opacity 0.15s;
-  text-align: center;
-}
-
-.newSessionBtn:hover {
-  opacity: 0.92;
-}
-
-.newSessionBtn:active {
-  transform: scale(0.98);
-}
-
-.resumeBtn {
-  padding: 14px 16px;
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    transform 0.15s,
-    border-color 0.15s;
-  text-align: center;
+.titleBlock {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
   white-space: nowrap;
 }
 
-.resumeBtn:hover {
-  border-color: var(--accent);
+@media (min-width: 720px) {
+  .titleRow {
+    padding: 8px 0 22px;
+  }
+
+  .titleBlock {
+    position: static;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
 }
 
-.resumeBtn:active {
-  transform: scale(0.98);
+.title {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 680;
+  font-stretch: 112%;
+  line-height: 1.1;
+  letter-spacing: -0.026em;
+  color: var(--ink);
+}
+
+.subtitle {
+  margin-top: 5px;
+  font-size: var(--fs-md);
+  line-height: 1.4;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 720px) {
+  .title {
+    font-size: 34px;
+  }
+}
+
+/* ── Actions: phone dock / inline toolbar ──────────────────────────── */
+
+.actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  display: flex;
+  gap: var(--sp-2);
+  padding: 10px max(16px, env(safe-area-inset-right, 0px))
+    max(10px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: var(--page-glass);
+  -webkit-backdrop-filter: saturate(1.5) blur(20px);
+  backdrop-filter: saturate(1.5) blur(20px);
+  box-shadow: 0 -1px 0 var(--hairline);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 18px;
+  flex: none;
+  border: 0;
+  border-radius: 13px;
+  font: 600 var(--fs-base) / 1 var(--font-ui);
+  letter-spacing: -0.006em;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--dur-1) var(--ease-out),
+    background-color var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn svg {
+  flex: none;
+}
+
+.btnPrimary {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, #fff 16%, transparent),
+    0 8px 20px -10px color-mix(in oklab, var(--accent) 75%, transparent);
+}
+
+.btnPrimary:hover {
+  background: color-mix(in oklab, var(--accent), #fff 8%);
+}
+
+.btnTonal {
+  background: var(--fill-tonal);
+  color: var(--ink);
+}
+
+.btnTonal:hover {
+  background: color-mix(in oklab, var(--fill-tonal), var(--ink) 6%);
+}
+
+.newBtn {
+  flex: 1;
+  order: -1;
 }
 
 .workspaceBtn {
-  padding: 14px 16px;
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
+  width: 46px;
+  padding: 0;
+}
+
+.labelLong {
+  display: none;
+}
+
+@media (min-width: 720px) {
+  .actions {
+    position: static;
+    flex: none;
+    gap: var(--sp-2);
+    padding: 0 0 4px;
+    background: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+  }
+
+  .btn {
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: var(--fs-md);
+  }
+
+  .newBtn {
+    flex: none;
+    order: 0;
+    padding: 0 16px 0 13px;
+  }
+
+  .workspaceBtn {
+    width: auto;
+    padding: 0 14px;
+  }
+
+  .labelShort {
+    display: none;
+  }
+
+  .labelLong {
+    display: inline;
+  }
+}
+
+/* ── Groups ────────────────────────────────────────────────────────── */
+
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.groupHead {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 4px 0 16px;
+}
+
+.repoRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 10px;
+}
+
+.repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font: 600 var(--fs-sm) / 1.4 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.repoRow > :last-child:not(.repo) {
+  font-size: var(--fs-xs);
+}
+
+@media (min-width: 720px) {
+  .groups {
+    gap: 24px;
+  }
+
+  .group {
+    gap: 9px;
+  }
+
+  .repo {
+    font-size: var(--fs-md);
+  }
+
+  .repoRow > :last-child:not(.repo) {
+    font-size: var(--fs-sm);
+  }
+}
+
+.repo svg {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.repoOwner {
+  font-weight: 450;
+  color: var(--ink-3);
+}
+
+.branch {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font: 500 12px / 1.45 var(--font-mono);
+  letter-spacing: -0.01em;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+@media (pointer: coarse) {
+  .branch {
+    font-size: 13px;
+  }
+}
+
+.branch svg {
+  flex: none;
+  color: var(--ink-3);
+  transform: translateY(2px);
+}
+
+.groupNone {
+  font: 500 var(--fs-sm) / 1.4 var(--font-ui);
+  color: var(--ink-3);
+}
+
+.list {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow:
+    0 0 0 1px var(--hairline),
+    var(--shadow-1);
+}
+
+/* First visit: headers settle with their group, rows cascade (SessionCard) */
+.groups[data-intro] .groupHead {
+  animation: global(tb-rise) 480ms var(--ease-out) both;
+  animation-delay: calc(var(--stagger-i, 0) * 40ms + 20ms);
+}
+
+/* ── Loading ───────────────────────────────────────────────────────── */
+
+.skeletonRow {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 17px 16px 17px 36px;
+}
+
+.skeletonRow + .skeletonRow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 36px;
+  right: 0;
+  height: 1px;
+  background: var(--hairline);
+}
+
+.skeletonRow i {
+  display: block;
+  height: 9px;
+  border-radius: 5px;
+  background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in oklab, var(--ink) 7%, transparent) 50%,
+      transparent 100%
+    )
+    var(--surface-3);
+  background-size: 220% 100%;
+  animation: shimmer 1.6s var(--ease-in-out) infinite;
+  animation-delay: calc(var(--i, 0) * 140ms);
+}
+
+.skeletonRow i:first-child {
+  height: 12px;
+  margin-bottom: 2px;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+
+/* ── Empty / error / no-match ──────────────────────────────────────── */
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 36px 8px 8px;
+  text-align: center;
+  animation: global(tb-fade) var(--dur-3) var(--ease-out) both;
+}
+
+.illustration {
+  margin-bottom: 22px;
+  color: var(--ink-3);
+}
+
+.beamTrack {
+  stroke: var(--edge);
+  stroke-dasharray: 1.5 5;
+}
+
+.beamPulse {
+  stroke: var(--accent);
+  stroke-dasharray: 16 140;
+  stroke-dashoffset: 16;
+  animation: beam 2.8s var(--ease-in-out) infinite;
+}
+
+@keyframes beam {
+  0%,
+  12% {
+    stroke-dashoffset: 16;
+  }
+  88%,
+  100% {
+    stroke-dashoffset: -58;
+  }
+}
+
+.stateTitle {
+  font: 650 var(--fs-lg) / 1.3 var(--font-display);
+  font-stretch: 106%;
+  letter-spacing: -0.014em;
+  color: var(--ink);
+}
+
+.stateText {
+  max-width: 36ch;
+  margin-bottom: 14px;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+.tip {
+  width: 100%;
+  max-width: 440px;
+  margin-top: 26px;
+  padding: 12px 16px 16px;
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--hairline);
+  text-align: left;
+  touch-action: pan-y;
+}
+
+.tipHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.tipLabel {
+  font: 600 var(--fs-xs) / 1 var(--font-ui);
+  color: var(--accent-ink);
+}
+
+.tipNav {
+  display: flex;
+  align-items: center;
+  margin-right: -10px;
+}
+
+.tipNavBtn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-3);
   cursor: pointer;
   transition:
-    transform 0.15s,
-    border-color 0.15s;
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+
+.tipNavBtn:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.tipCounter {
+  min-width: 46px;
+  font: 500 var(--fs-xs) / 1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
   text-align: center;
-  white-space: nowrap;
+  color: var(--ink-3);
 }
 
-.workspaceBtn:hover {
-  border-color: var(--accent);
+.tipBody {
+  display: grid;
+  gap: 3px;
+  animation: global(tb-fade) var(--dur-3) var(--ease-out) both;
 }
 
-.workspaceBtn:active {
-  transform: scale(0.98);
+.tipTitle {
+  font: 600 var(--fs-base) / 1.35 var(--font-ui);
+  color: var(--ink);
 }
 
-@media (max-width: 480px) {
-  .hubFooter {
-    flex-wrap: wrap;
-  }
-  .newSessionBtn {
-    flex: 1 0 100%;
-  }
-  .resumeBtn,
-  .workspaceBtn {
-    flex: 1 1 0;
-    font-size: 13px;
-    padding: 12px 8px;
-  }
+.tipText {
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+/* ── Footer ────────────────────────────────────────────────────────── */
+
+.footer {
+  margin-top: 32px;
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+.footer span {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
 }

@@ -17,8 +17,10 @@ description: All TermBeam CLI flags and options — ports, passwords, tunnels, s
 | `--port <port>`       | Server port (must be 1-65535)                                                                                 | `3456`         |
 | `--host <addr>`       | Bind address                                                                                                  | `127.0.0.1`    |
 | `--lan`               | Bind to all interfaces (LAN access)                                                                           | Off            |
+| `--public-url <url>`  | The address browsers use when TermBeam sits behind your own reverse proxy (e.g. `https://term.example.com`)   | —              |
 | `-i, --interactive`   | Interactive setup wizard — walks through password, port, access mode (tunnel type, visibility), and log level | Off            |
 | `--force`             | Stop any existing TermBeam server before starting a new one                                                   | Off            |
+| `--reset-auth`        | Sign out every remembered device and remove every registered passkey before starting                          | Off            |
 | `-h, --help`          | Show help                                                                                                     | —              |
 | `-v, --version`       | Show version                                                                                                  | —              |
 | `--log-level <level>` | Set log verbosity: `error`, `warn`, `info`, `debug`                                                           | `info`         |
@@ -31,7 +33,8 @@ description: All TermBeam CLI flags and options — ports, passwords, tunnels, s
 | `TERMBEAM_PASSWORD`   | Access password                                               | None              |
 | `TERMBEAM_CWD`        | Default working directory                                     | Current directory |
 | `TERMBEAM_LOG_LEVEL`  | Log level                                                     | `info`            |
-| `TERMBEAM_CONFIG_DIR` | Location for `connection.json` and other config files         | `~/.termbeam/`    |
+| `TERMBEAM_CONFIG_DIR` | Location for `connection.json`, `auth.json` and other config  | `~/.termbeam/`    |
+| `TERMBEAM_PUBLIC_URL` | Same as `--public-url` (the flag wins when both are set)      | None              |
 | `SHELL`               | Fallback shell on Unix (used only if auto-detection fails)    | `/bin/sh`         |
 | `COMSPEC`             | Fallback shell on Windows (used only if auto-detection fails) | `cmd.exe`         |
 
@@ -49,6 +52,15 @@ TermBeam auto-detects your current shell by inspecting the parent process tree. 
 :::tip[Legacy Variables]
 The environment variables `PTY_PASSWORD` and `PTY_CWD` are also supported as fallbacks for `TERMBEAM_PASSWORD` and `TERMBEAM_CWD` respectively.
 :::
+
+### Files in the config directory
+
+| File              | Contents                                                                                                                                                                                                                                     |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connection.json` | Port/host/password of the running server, for `termbeam resume` / `termbeam list`. Removed on shutdown.                                                                                                                                      |
+| `auth.json`       | Remembered device sessions (SHA-256 hashes only), passkey public keys, and a scrypt fingerprint of the password. Mode `0600`. Run `--reset-auth` (or delete it while TermBeam is stopped) to sign out every device and remove every passkey. |
+| `prefs.json`      | UI preferences synced from Settings.                                                                                                                                                                                                         |
+| `tunnel.json`     | The reusable tunnel id for `--persisted-tunnel` (always in `~/.termbeam`).                                                                                                                                                                   |
 
 ## Settings (UI)
 
@@ -219,6 +231,28 @@ Requirements:
 - Login is handled automatically — if not already logged in, TermBeam will attempt browser login first, then fall back to device code flow if the browser is unavailable (useful in WSL or headless environments)
 
 ---
+
+## Behind Your Own Reverse Proxy
+
+TermBeam rejects browser requests whose `Origin` doesn't match an address it is reached at (see [Security](../security/#cross-site-protection-websocket--api)). Proxies that keep the original `Host` header (Caddy's default, Tailscale Serve, cloudflared) work out of the box. If your proxy rewrites `Host` — nginx does by default — either forward it:
+
+```nginx
+location / {
+  proxy_pass http://127.0.0.1:3456;
+  proxy_set_header Host $host;
+  proxy_http_version 1.1;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+}
+```
+
+…or tell TermBeam the public address explicitly:
+
+```bash
+termbeam --no-tunnel --public-url https://term.example.com
+```
+
+The public URL is trusted for sign-in, passkeys and WebSockets in addition to the tunnel URL. When a request is blocked, the TermBeam log says which origin and `Host` it saw and how to fix it.
 
 ## See Also
 

@@ -81,12 +81,7 @@ function assignDefaultRows(keys: TouchBarKey[]): TouchBarKey[] {
       out.push({ ...k, row: Math.min(currentRow, MAX_ROWS), col: 8 });
       continue;
     }
-    if (
-      typeof k.row === 'number' &&
-      k.row >= 1 &&
-      k.row <= MAX_ROWS &&
-      typeof k.col === 'number'
-    ) {
+    if (typeof k.row === 'number' && k.row >= 1 && k.row <= MAX_ROWS && typeof k.col === 'number') {
       out.push(k);
       if (k.row > currentRow) {
         currentRow = k.row;
@@ -147,6 +142,8 @@ export interface Preferences {
   particleDissolve: boolean;
   defaultFolder: string;
   defaultInitialCommand: string;
+  /** Model for new Copilot sessions; '' lets Copilot pick the account default. */
+  copilotModel: string;
   touchBarCollapsed: boolean;
   /** null means "use built-in defaults" */
   touchBarKeys: TouchBarKey[] | null;
@@ -170,6 +167,7 @@ export const PREF_DEFAULTS: Preferences = Object.freeze({
   particleDissolve: true,
   defaultFolder: '',
   defaultInitialCommand: '',
+  copilotModel: '',
   touchBarCollapsed: false,
   touchBarKeys: null,
   startupWorkspace: { enabled: false, sessions: [] },
@@ -204,16 +202,16 @@ function normalize(input: unknown): Preferences {
   return {
     themeId: isValidThemeId(p.themeId) ? p.themeId : PREF_DEFAULTS.themeId,
     fontSize: clampFont(typeof p.fontSize === 'number' ? p.fontSize : PREF_DEFAULTS.fontSize),
-    notifications: typeof p.notifications === 'boolean' ? p.notifications : PREF_DEFAULTS.notifications,
+    notifications:
+      typeof p.notifications === 'boolean' ? p.notifications : PREF_DEFAULTS.notifications,
     haptics: typeof p.haptics === 'boolean' ? p.haptics : PREF_DEFAULTS.haptics,
     showSplash: typeof p.showSplash === 'boolean' ? p.showSplash : PREF_DEFAULTS.showSplash,
     particleDissolve:
-      typeof p.particleDissolve === 'boolean'
-        ? p.particleDissolve
-        : PREF_DEFAULTS.particleDissolve,
+      typeof p.particleDissolve === 'boolean' ? p.particleDissolve : PREF_DEFAULTS.particleDissolve,
     defaultFolder: typeof p.defaultFolder === 'string' ? p.defaultFolder : '',
     defaultInitialCommand:
       typeof p.defaultInitialCommand === 'string' ? p.defaultInitialCommand : '',
+    copilotModel: typeof p.copilotModel === 'string' ? p.copilotModel : '',
     touchBarCollapsed:
       typeof p.touchBarCollapsed === 'boolean'
         ? p.touchBarCollapsed
@@ -241,7 +239,10 @@ function readCache(): Preferences {
   } catch {
     // ignore — corrupt or unavailable
   }
-  return { ...PREF_DEFAULTS };
+  // No cache yet (first run after upgrade, or before sign-in): start from the
+  // legacy keys so screens shown before hydration — like the login page —
+  // already use the user's theme instead of the default.
+  return normalize({ ...PREF_DEFAULTS, ...(readLegacyAsSeed() ?? {}) });
 }
 
 function writeCache(prefs: Preferences): void {

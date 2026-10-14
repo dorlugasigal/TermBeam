@@ -1,4 +1,5 @@
 const log = require('../utils/logger');
+const { checkOrigin } = require('./origin');
 
 const ACTIVE_THRESHOLD = 60000; // 60 seconds
 
@@ -42,6 +43,14 @@ function buildReplayPayload(session) {
     const mode = session.altScreenMode || '1049';
     payload += `\x1b[?${mode}h`;
   }
+  // Re-apply input modes (mouse tracking, cursor keys, bracketed paste, …).
+  // The client resets its terminal before writing the replay, and on long
+  // sessions the app's original mode switches have been trimmed from the
+  // buffer — without this, wheel/touch scrolling in TUIs like Copilot CLI
+  // degrades into Up/Down arrow keys (prompt history) instead of scrolling.
+  if (session.modes && typeof session.modes.restoreSequence === 'function') {
+    payload += session.modes.restoreSequence();
+  }
   return payload;
 }
 
@@ -75,27 +84,87 @@ function recalcPtySize(session) {
   session.pty.resize(minCols, minRows);
 }
 
-function setupWebSocket(wss, { auth, sessions, copilotService }) {
+// Close code used when a socket's credentials are missing, expired or revoked.
+// The 4000-4999 range is reserved for applications; 4401 mirrors HTTP 401 so
+// the client knows to show the unlock sheet instead of retrying forever.
+const WS_CLOSE_UNAUTHORIZED = 4401;
+// How often an open socket re-checks its session (also slides its idle timer).
+const SESSION_RECHECK_MS = 30 * 1000;
+
+/** Send a JSON payload to every authenticated client. */
+function broadcast(wss, payload) {
+  if (!wss || !wss.clients) return;
+  const msg = typeof payload === 'string' ? payload : JSON.stringify(payload);
+  for (const client of wss.clients) {
+    if (client.readyState !== 1 || !client._tbAuthenticated) continue;
+    try {
+      client.send(msg);
+    } catch {
+      // client went away mid-broadcast
+    }
+  }
+}
+
+function setupWebSocket(wss, { auth, sessions, copilotService, getPublicUrl = () => null }) {
   const wsAuthAttempts = new Map(); // ip -> [timestamps]
   const WS_AUTH_WINDOW = 60 * 1000; // 1 minute
   const WS_MAX_AUTH_ATTEMPTS = 5;
+  const lookupSession =
+    typeof auth.getSession === 'function'
+      ? (token) => auth.getSession(token)
+      : (token) => (auth.validateToken(token) ? { id: null } : null);
+  const socketsBySession = new Map(); // auth session id -> Set<ws>
+
+  function trackSession(ws, sessionId) {
+    if (!sessionId) return;
+    ws._tbSessionId = sessionId;
+    let set = socketsBySession.get(sessionId);
+    if (!set) socketsBySession.set(sessionId, (set = new Set()));
+    set.add(ws);
+  }
+
+  function untrackSession(ws) {
+    const set = ws._tbSessionId && socketsBySession.get(ws._tbSessionId);
+    if (!set) return;
+    set.delete(ws);
+    if (set.size === 0) socketsBySession.delete(ws._tbSessionId);
+  }
+
+  function rejectUnauthorized(ws, message = 'Unauthorized') {
+    ws._tbAuthenticated = false;
+    try {
+      ws.send(JSON.stringify({ type: 'error', code: 'unauthorized', message }));
+    } catch {
+      // socket already gone
+    }
+    ws.close(WS_CLOSE_UNAUTHORIZED, 'Unauthorized');
+  }
+
+  // Signing a device out (Settings → Security, "sign out everywhere", passkey
+  // removal) must also drop its live terminals, not just future requests.
+  if (auth.events && typeof auth.events.on === 'function') {
+    auth.events.on('revoked', ({ ids }) => {
+      for (const id of ids || []) {
+        const set = socketsBySession.get(id);
+        if (!set) continue;
+        for (const ws of [...set]) rejectUnauthorized(ws, 'Signed out');
+        socketsBySession.delete(id);
+      }
+    });
+  }
 
   wss.on('connection', (ws, req) => {
-    const origin = req.headers.origin;
-    if (origin) {
-      try {
-        const originHost = new URL(origin).hostname;
-        const reqHost = (req.headers.host || '').split(':')[0];
-        if (originHost !== reqHost && originHost !== 'localhost' && reqHost !== 'localhost') {
-          log.warn(`WS: rejected cross-origin connection from ${origin}`);
-          ws.close(1008, 'Origin not allowed');
-          return;
-        }
-      } catch {
+    const originCheck = checkOrigin(req, { publicUrl: getPublicUrl() });
+    if (!originCheck.ok) {
+      const origin = req.headers.origin;
+      if (originCheck.reason === 'invalid') {
         log.warn(`WS: rejected invalid origin: ${origin}`);
         ws.close(1008, 'Invalid origin');
-        return;
+      } else {
+        log.warn(`WS: rejected cross-site connection from ${origin || '(no origin)'}`);
+        ws.close(1008, 'Origin not allowed');
       }
+      return;
     }
 
     const pingInterval = setInterval(() => {
@@ -117,18 +186,41 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
 
     let authenticated = !auth.password;
     let attached = null;
+    let sessionToken = null;
+    let checkedAt = Date.now();
 
     // Check cookie from upgrade request
     if (auth.password) {
       const cookies = auth.parseCookies(req.headers.cookie || '');
-      if (cookies.pty_token && auth.validateToken(cookies.pty_token)) {
+      const cookieToken = cookies[auth.cookieName || 'pty_token'];
+      const session = cookieToken ? lookupSession(cookieToken) : null;
+      if (session) {
         authenticated = true;
+        sessionToken = cookieToken;
+        trackSession(ws, session.id);
       }
     }
+    ws._tbAuthenticated = authenticated;
 
     ws.on('message', async (raw) => {
       try {
         const msg = JSON.parse(raw);
+
+        // rejectUnauthorized() (revocation, failed auth) clears this flag, but
+        // `ws` keeps delivering messages while the socket is CLOSING.
+        if (!ws._tbAuthenticated) authenticated = false;
+
+        // Re-validate session-backed sockets periodically: catches expiry and
+        // keeps the sliding idle timer alive while the terminal is in use.
+        if (authenticated && sessionToken && Date.now() - checkedAt > SESSION_RECHECK_MS) {
+          checkedAt = Date.now();
+          if (!lookupSession(sessionToken)) {
+            authenticated = false;
+            log.info('WS: session expired — closing socket');
+            rejectUnauthorized(ws, 'Session expired');
+            return;
+          }
+        }
 
         if (msg.type === 'auth') {
           const ip = req.socket.remoteAddress;
@@ -144,23 +236,36 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
             return;
           }
 
-          if (auth.safeCompare(msg.password, auth.password) || auth.validateToken(msg.token)) {
+          const tokenSession =
+            typeof msg.token === 'string' && msg.token ? lookupSession(msg.token) : null;
+          if (auth.safeCompare(msg.password, auth.password) || tokenSession) {
             authenticated = true;
+            ws._tbAuthenticated = true;
+            if (tokenSession) {
+              sessionToken = msg.token;
+              checkedAt = Date.now();
+              trackSession(ws, tokenSession.id);
+            }
             ws.send(JSON.stringify({ type: 'auth_ok' }));
             log.info('WS: auth success');
           } else {
             attempts.push(now);
             wsAuthAttempts.set(ip, attempts);
             log.warn('WS: auth failed');
-            ws.send(JSON.stringify({ type: 'error', message: 'Unauthorized' }));
-            ws.close();
+            rejectUnauthorized(ws);
           }
           return;
         }
 
         if (!authenticated) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Unauthorized' }));
-          ws.close();
+          rejectUnauthorized(ws);
+          return;
+        }
+
+        // Application-level keepalive: echo so clients can measure RTT and
+        // detect zombie sockets (the relay may keep a dead TCP leg "open").
+        if (msg.type === 'ping') {
+          ws.send(JSON.stringify({ type: 'pong', t: typeof msg.t === 'number' ? msg.t : null }));
           return;
         }
 
@@ -228,7 +333,7 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
           ws.send(
             JSON.stringify({
               type: 'copilot.created',
-              data: { sessionId: sid, model: entry?.model },
+              data: { sessionId: sid, model: entry?.model ?? null },
             }),
           );
           // Send existing message history for immediate replay on refresh/reconnect
@@ -250,7 +355,12 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
               },
               ws,
             );
-            ws.send(JSON.stringify({ type: 'copilot.created', data: { sessionId: sid } }));
+            ws.send(
+              JSON.stringify({
+                type: 'copilot.created',
+                data: { sessionId: sid, model: copilotService.sessions.get(sid)?.model ?? null },
+              }),
+            );
             return;
           }
           try {
@@ -269,7 +379,10 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
             ws.send(
               JSON.stringify({
                 type: 'copilot.created',
-                data: { sessionId: sdkSessionId },
+                data: {
+                  sessionId: sdkSessionId,
+                  model: copilotService.sessions.get(sdkSessionId)?.model ?? null,
+                },
               }),
             );
             ws._copilotSessionId = sdkSessionId;
@@ -304,9 +417,14 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
               ws,
             );
             ws._copilotSessionId = sessionId;
-            ws.send(JSON.stringify({ type: 'copilot.created', data: { sessionId } }));
             // Send existing messages for replay
             const entry = copilotService.sessions.get(sessionId);
+            ws.send(
+              JSON.stringify({
+                type: 'copilot.created',
+                data: { sessionId, model: entry?.model ?? null },
+              }),
+            );
             if (entry?.existingMessages?.length) {
               ws.send(
                 JSON.stringify({
@@ -490,6 +608,7 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
 
     ws.on('close', () => {
       clearInterval(pingInterval);
+      untrackSession(ws);
       if (copilotService && ws._copilotSessionId) {
         // Only clear the listener if this ws owns it — avoids clobbering another client's listener
         const entry = copilotService.sessions.get(ws._copilotSessionId);
@@ -512,4 +631,10 @@ function setupWebSocket(wss, { auth, sessions, copilotService }) {
   });
 }
 
-module.exports = { setupWebSocket, ACTIVE_THRESHOLD, sanitizeForReplay };
+module.exports = {
+  setupWebSocket,
+  broadcast,
+  ACTIVE_THRESHOLD,
+  WS_CLOSE_UNAUTHORIZED,
+  sanitizeForReplay,
+};

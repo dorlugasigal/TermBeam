@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { fetchAgentSessions, getResumeCommand, createSession, resumeCopilotSdkSession } from '@/services/api';
+import {
+  fetchAgentSessions,
+  getResumeCommand,
+  createSession,
+  resumeCopilotSdkSession,
+} from '@/services/api';
 import type { AgentSession } from '@/services/api';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
@@ -162,7 +167,10 @@ export default function ResumeBrowser() {
     setResuming(`${session.agent}-${session.id}`);
     setResumeChoice(null);
     try {
-      const created = await resumeCopilotSdkSession(session.id, { name, cwd: session.cwd || undefined });
+      const created = await resumeCopilotSdkSession(session.id, {
+        name,
+        cwd: session.cwd || undefined,
+      });
       const store = useSessionStore.getState();
 
       // Register companion PTY (hidden)
@@ -252,153 +260,168 @@ export default function ResumeBrowser() {
     <div className={styles.page}>
       {/* Header */}
       <div className={styles.header}>
-        <button
-          className={styles.backBtn}
-          onClick={closeResumeBrowser}
-          aria-label="Go back"
-          type="button"
-        >
-          ←
-        </button>
-        <h1 className={styles.title}>Resume Session</h1>
-      </div>
-
-      {/* Search */}
-      <div className={styles.searchWrap}>
-        <input
-          ref={inputRef}
-          className={styles.searchInput}
-          type="text"
-          placeholder="Search sessions..."
-          value={search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-        />
-        {search && (
+        <div className={styles.headerInner}>
           <button
-            className={styles.clearBtn}
-            aria-label="Clear search"
-            onClick={() => {
-              setSearch('');
-              loadSessions();
-            }}
+            className={styles.backBtn}
+            onClick={closeResumeBrowser}
+            aria-label="Go back"
+            type="button"
           >
-            ✕
+            ←
           </button>
-        )}
-      </div>
-
-      {/* Filter tabs */}
-      <div className={styles.tabs}>
-        <button
-          className={`${styles.tab} ${filter === 'all' ? styles.tabActive : ''}`}
-          onClick={() => setFilter('all')}
-        >
-          All ({sessions.length})
-        </button>
-        {copilotCount > 0 && (
-          <button
-            className={`${styles.tab} ${filter === 'copilot' ? styles.tabActive : ''}`}
-            onClick={() => setFilter('copilot')}
-          >
-            Copilot ({copilotCount})
-          </button>
-        )}
-        {claudeCount > 0 && (
-          <button
-            className={`${styles.tab} ${filter === 'claude' ? styles.tabActive : ''}`}
-            onClick={() => setFilter('claude')}
-          >
-            Claude ({claudeCount})
-          </button>
-        )}
-        {opencodeCount > 0 && (
-          <button
-            className={`${styles.tab} ${filter === 'opencode' ? styles.tabActive : ''}`}
-            onClick={() => setFilter('opencode')}
-          >
-            OpenCode ({opencodeCount})
-          </button>
-        )}
-      </div>
-
-      {/* Time range filter */}
-      <div className={styles.timeFilters}>
-        {(['all', 'today', 'week', 'month'] as const).map((range) => (
-          <button
-            key={range}
-            className={`${styles.timeChip} ${timeRange === range ? styles.timeChipActive : ''}`}
-            onClick={() => setTimeRange(range)}
-          >
-            {range === 'all'
-              ? 'All time'
-              : range === 'today'
-                ? 'Today'
-                : range === 'week'
-                  ? 'This week'
-                  : 'This month'}
-          </button>
-        ))}
-      </div>
-
-      {/* Folder filter */}
-      {folders.length > 1 && (
-        <div className={styles.folderFilter}>
-          <select
-            className={styles.folderSelect}
-            value={folderFilter}
-            onChange={(e) => setFolderFilter(e.target.value)}
-          >
-            <option value="all">All projects</option>
-            {folders.map((f) => (
-              <option key={f} value={f}>
-                {folderName(f)}
-              </option>
-            ))}
-          </select>
+          <h1 className={styles.title}>Resume session</h1>
         </div>
-      )}
-
-      {/* Result count */}
-      <div className={styles.resultCount}>
-        {filtered.length} session{filtered.length !== 1 ? 's' : ''}
       </div>
 
-      {/* Session list */}
-      <div className={styles.list}>
-        {loading ? (
-          <div className={styles.emptyState}>Loading sessions…</div>
-        ) : filtered.length === 0 ? (
-          <div className={styles.emptyState}>
-            {search ? `No sessions matching "${search}"` : 'No past agent sessions found'}
-          </div>
-        ) : (
-          filtered.map((session) => (
+      <div className={styles.bodyInner}>
+        {/* Search */}
+        <div className={styles.searchWrap}>
+          <input
+            ref={inputRef}
+            className={styles.searchInput}
+            type="text"
+            placeholder="Search sessions..."
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+          />
+          {search && (
             <button
-              key={`${session.agent}-${session.id}`}
-              className={styles.card}
-              disabled={resuming !== null}
-              onClick={() => handleResume(session)}
+              type="button"
+              className={styles.clearBtn}
+              aria-label="Clear search"
+              onClick={() => {
+                setSearch('');
+                loadSessions();
+              }}
             >
-              <div className={styles.cardTop}>
-                <span className={styles.cardIcon}>
-                  <AgentIcon agent={session.agentIcon} />
-                </span>
-                <span className={styles.cardSummary}>{session.summary || 'Untitled session'}</span>
-                {resuming === `${session.agent}-${session.id}` && (
-                  <span className={styles.spinner}>⟳</span>
-                )}
-              </div>
-              <div className={styles.cardMeta}>
-                {session.cwd && <span className={styles.metaItem}>{folderName(session.cwd)}</span>}
-                {session.branch && <span className={styles.metaItem}>{session.branch}</span>}
-                <span className={styles.metaItem}>{formatTimeAgo(session.updatedAt)}</span>
-                {session.turnCount > 0 && (
-                  <span className={styles.metaItem}>{session.turnCount} turns</span>
-                )}
-              </div>
+              ✕
             </button>
-          ))
+          )}
+        </div>
+
+        {/* Filter tabs */}
+        <div className={styles.tabs}>
+          <button
+            type="button"
+            className={`${styles.tab} ${filter === 'all' ? styles.tabActive : ''}`}
+            onClick={() => setFilter('all')}
+          >
+            All ({sessions.length})
+          </button>
+          {copilotCount > 0 && (
+            <button
+              type="button"
+              className={`${styles.tab} ${filter === 'copilot' ? styles.tabActive : ''}`}
+              onClick={() => setFilter('copilot')}
+            >
+              Copilot ({copilotCount})
+            </button>
+          )}
+          {claudeCount > 0 && (
+            <button
+              type="button"
+              className={`${styles.tab} ${filter === 'claude' ? styles.tabActive : ''}`}
+              onClick={() => setFilter('claude')}
+            >
+              Claude ({claudeCount})
+            </button>
+          )}
+          {opencodeCount > 0 && (
+            <button
+              type="button"
+              className={`${styles.tab} ${filter === 'opencode' ? styles.tabActive : ''}`}
+              onClick={() => setFilter('opencode')}
+            >
+              OpenCode ({opencodeCount})
+            </button>
+          )}
+        </div>
+
+        {/* Time range filter */}
+        <div className={styles.timeFilters}>
+          {(['all', 'today', 'week', 'month'] as const).map((range) => (
+            <button
+              key={range}
+              type="button"
+              className={`${styles.timeChip} ${timeRange === range ? styles.timeChipActive : ''}`}
+              onClick={() => setTimeRange(range)}
+            >
+              {range === 'all'
+                ? 'All time'
+                : range === 'today'
+                  ? 'Today'
+                  : range === 'week'
+                    ? 'This week'
+                    : 'This month'}
+            </button>
+          ))}
+        </div>
+
+        {/* Folder filter */}
+        {folders.length > 1 && (
+          <div className={styles.folderFilter}>
+            <select
+              className={styles.folderSelect}
+              value={folderFilter}
+              onChange={(e) => setFolderFilter(e.target.value)}
+            >
+              <option value="all">All projects</option>
+              {folders.map((f) => (
+                <option key={f} value={f}>
+                  {folderName(f)}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
+
+        {/* Result count */}
+        <div className={styles.resultCount}>
+          {filtered.length} session{filtered.length !== 1 ? 's' : ''}
+        </div>
+
+        {/* Session list */}
+        <div className={styles.list}>
+          {loading ? (
+            <div className={styles.emptyState}>Loading sessions…</div>
+          ) : filtered.length === 0 ? (
+            <div className={styles.emptyState}>
+              {search ? `No sessions matching "${search}"` : 'No past agent sessions found'}
+            </div>
+          ) : (
+            filtered.map((session) => (
+              <button
+                key={`${session.agent}-${session.id}`}
+                type="button"
+                className={styles.card}
+                disabled={resuming !== null}
+                onClick={() => handleResume(session)}
+              >
+                <div className={styles.cardTop}>
+                  <span className={styles.cardIcon}>
+                    <AgentIcon agent={session.agentIcon} />
+                  </span>
+                  <span className={styles.cardSummary}>
+                    {session.summary || 'Untitled session'}
+                  </span>
+                  {resuming === `${session.agent}-${session.id}` && (
+                    <span className={styles.spinner}>⟳</span>
+                  )}
+                </div>
+                <div className={styles.cardMeta}>
+                  {session.cwd && (
+                    <span className={styles.metaItem}>{folderName(session.cwd)}</span>
+                  )}
+                  {session.branch && <span className={styles.metaItem}>{session.branch}</span>}
+                  <span className={styles.metaItem}>{formatTimeAgo(session.updatedAt)}</span>
+                  {session.turnCount > 0 && (
+                    <span className={styles.metaItem}>{session.turnCount} turns</span>
+                  )}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Resume method choice for Copilot sessions */}
@@ -413,9 +436,7 @@ export default function ResumeBrowser() {
               <button
                 className={styles.choiceBtn}
                 disabled={resuming !== null}
-                onClick={() =>
-                  executeTerminalResume(resumeChoice.session, resumeChoice.name)
-                }
+                onClick={() => executeTerminalResume(resumeChoice.session, resumeChoice.name)}
               >
                 <span className={styles.choiceBtnIcon}>
                   <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
@@ -428,11 +449,11 @@ export default function ResumeBrowser() {
               <button
                 className={styles.choiceBtn}
                 disabled={resuming !== null}
-                onClick={() =>
-                  executeAgentUiResume(resumeChoice.session, resumeChoice.name)
-                }
+                onClick={() => executeAgentUiResume(resumeChoice.session, resumeChoice.name)}
               >
-                <span className={styles.choiceBtnIcon}><CopilotLogo size={18} /></span>
+                <span className={styles.choiceBtnIcon}>
+                  <CopilotLogo size={18} />
+                </span>
                 <span className={styles.choiceBtnLabel}>Agent UI</span>
                 <span className={styles.choiceBtnHint}>Copilot SDK interface</span>
               </button>

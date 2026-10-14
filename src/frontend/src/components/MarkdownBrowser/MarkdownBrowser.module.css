@@ -9,43 +9,44 @@
 .header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
+  gap: var(--sp-2);
+  min-height: 48px;
+  padding: var(--sp-1) var(--sp-3);
+  border-bottom: 1px solid var(--hairline);
   flex-shrink: 0;
 }
 
 .backBtn {
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ink-2);
+  width: var(--hit);
+  height: var(--hit);
+  margin-left: -6px;
+  border-radius: var(--r-md);
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: var(--fs-md);
   flex-shrink: 0;
   padding: 0;
   transition:
-    background 0.15s,
-    color 0.15s;
+    background-color var(--dur-2) var(--ease-out),
+    color var(--dur-2) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 
 .backBtn:hover {
-  background: var(--border);
-  color: var(--text);
+  background: var(--surface-hover);
+  color: var(--ink);
 }
 
 .headerTitle {
-  font-size: 11px;
+  font-family: var(--font-display);
+  font-size: var(--fs-xs);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-dim);
+  color: var(--ink-2);
   flex: 1;
 }
 
@@ -53,13 +54,14 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.15rem;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  padding: 6px 10px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  min-height: 1.8rem;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  padding: 6px var(--sp-3);
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--hairline);
+  min-height: 34px;
   flex-shrink: 0;
 }
 
@@ -68,19 +70,20 @@
   border: none;
   color: var(--accent);
   cursor: pointer;
-  padding: 0.1rem 0.2rem;
-  border-radius: 3px;
-  font-size: 0.75rem;
-  transition: background 0.1s;
+  padding: 2px 4px;
+  border-radius: var(--r-xs);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  transition: background-color var(--dur-1) var(--ease-out);
 }
 
 .breadcrumbSegment:hover {
-  background: var(--surface);
+  background: var(--surface-hover);
 }
 
 .breadcrumbCurrent {
   composes: breadcrumbSegment;
-  color: var(--text);
+  color: var(--ink);
   cursor: default;
 }
 
@@ -89,7 +92,7 @@
 }
 
 .breadcrumbSep {
-  color: var(--text-muted);
+  color: var(--ink-3);
   user-select: none;
 }
 
@@ -99,35 +102,37 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding: 4px;
+  gap: 2px;
+  padding: var(--sp-1);
   -webkit-overflow-scrolling: touch;
 }
 
 .entry {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 6px 8px;
-  border-radius: 6px;
+  gap: var(--sp-2);
+  min-height: var(--hit);
+  padding: 6px var(--sp-3);
+  border-radius: var(--r-sm);
   border: none;
   background: transparent;
-  color: var(--text);
-  font-size: 0.82rem;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
   cursor: pointer;
   text-align: left;
   width: 100%;
-  transition: background 0.1s;
+  transition: background-color var(--dur-1) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 
 .entry:hover {
-  background: var(--surface);
+  background: var(--surface-hover);
 }
 
 .entryIcon {
   flex-shrink: 0;
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
 }
 
 .entryName {
@@ -138,8 +143,9 @@
 }
 
 .entryMeta {
-  font-size: 0.7rem;
-  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--ink-3);
   flex-shrink: 0;
   white-space: nowrap;
 }
@@ -148,24 +154,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
-  color: var(--text-dim);
-  font-size: 0.85rem;
+  padding: var(--sp-6);
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
 }
 
 .error {
-  color: var(--danger);
-  font-size: 0.82rem;
+  color: var(--err);
+  font-size: var(--fs-sm);
   text-align: center;
-  padding: 1rem;
+  padding: var(--sp-4);
 }
 
 .empty {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  font-style: italic;
+  padding: var(--sp-6);
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
 }

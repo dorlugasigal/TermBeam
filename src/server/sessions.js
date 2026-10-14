@@ -22,7 +22,8 @@ try {
   }
   process.exit(1);
 }
-const { getGitInfo } = require('../utils/git');
+const { getGitInfoAsync } = require('../utils/git');
+const { TerminalModeTracker } = require('./terminal-modes');
 
 // Cache git info per session to avoid blocking the event loop on every list() call.
 // lsof + git commands take ~200-500ms and block WebSocket traffic, causing
@@ -48,10 +49,22 @@ function getCachedGitInfo(sessionId, pid, originalCwd) {
 
 function scheduleGitRefresh(sessionId, pid, originalCwd) {
   log.debug(`Scheduling git refresh for session ${sessionId}`);
-  // Mark as refreshing to prevent duplicate refreshes
+  // Mark as refreshing to prevent duplicate refreshes. A first refresh leaves
+  // a placeholder so concurrent list() calls don't each spawn one, and so a
+  // refresh that finishes after the session is removed can be dropped.
   const cached = _gitCache.get(sessionId);
   if (cached && cached._refreshing) return;
   if (cached) cached._refreshing = true;
+  else _gitCache.set(sessionId, { cwd: originalCwd, git: null, ts: 0, _refreshing: true });
+
+  const finish = (liveCwd) =>
+    getGitInfoAsync(liveCwd)
+      .catch(() => null)
+      .then((git) => {
+        if (!_gitCache.has(sessionId)) return;
+        _gitCache.set(sessionId, { cwd: liveCwd, git, ts: Date.now() });
+        log.debug(`Git refresh complete for session ${sessionId} (cwd=${liveCwd})`);
+      });
 
   // Use exec (async) for the lsof call to avoid blocking the event loop
   const cmd =
@@ -62,11 +75,8 @@ function scheduleGitRefresh(sessionId, pid, originalCwd) {
         : null;
 
   if (!cmd) {
-    // Windows or unsupported — just refresh sync quickly
-    setImmediate(() => {
-      const git = getGitInfo(originalCwd);
-      _gitCache.set(sessionId, { cwd: originalCwd, git, ts: Date.now() });
-    });
+    // Windows or unsupported — no live cwd detection
+    finish(originalCwd);
     return;
   }
 
@@ -81,9 +91,7 @@ function scheduleGitRefresh(sessionId, pid, originalCwd) {
         liveCwd = stdout.trim();
       }
     }
-    const git = getGitInfo(liveCwd);
-    _gitCache.set(sessionId, { cwd: liveCwd, git, ts: Date.now() });
-    log.debug(`Git refresh complete for session ${sessionId} (cwd=${liveCwd})`);
+    finish(liveCwd);
   });
 }
 
@@ -212,7 +220,7 @@ class SessionManager {
       scrollbackBuf: '',
       hasHadClient: false,
       inAltScreen: false,
-      _altScanTail: '',
+      modes: new TerminalModeTracker(),
       _lastCols: cols,
       _lastRows: rows,
       _initialCommand: initialCommand || null,
@@ -305,34 +313,12 @@ class SessionManager {
         }
       }
 
-      // Track alt screen mode so reconnecting clients can re-enter it.
-      // Carry a small tail between chunks so split escape sequences are detected.
-      const scanBuf = session._altScanTail + data;
-      session._altScanTail =
-        data.length >= 16 ? data.slice(-16) : (session._altScanTail + data).slice(-16);
-      const altEnterIdx = Math.max(
-        scanBuf.lastIndexOf('\x1b[?1049h'),
-        scanBuf.lastIndexOf('\x1b[?1047h'),
-        scanBuf.lastIndexOf('\x1b[?47h'),
-      );
-      const altExitIdx = Math.max(
-        scanBuf.lastIndexOf('\x1b[?1049l'),
-        scanBuf.lastIndexOf('\x1b[?1047l'),
-        scanBuf.lastIndexOf('\x1b[?47l'),
-      );
-      if (altEnterIdx > altExitIdx) {
-        session.inAltScreen = true;
-        // Track which mode was used so reconnect sends the matching sequence
-        const enter1049 = scanBuf.lastIndexOf('\x1b[?1049h');
-        const enter1047 = scanBuf.lastIndexOf('\x1b[?1047h');
-        const enter47 = scanBuf.lastIndexOf('\x1b[?47h');
-        if (altEnterIdx === enter1049) session.altScreenMode = '1049';
-        else if (altEnterIdx === enter1047) session.altScreenMode = '1047';
-        else if (altEnterIdx === enter47) session.altScreenMode = '47';
-      } else if (altExitIdx > altEnterIdx) {
-        session.inAltScreen = false;
-        session.altScreenMode = undefined;
-      }
+      // Track alt-screen + input modes (mouse tracking, bracketed paste, …)
+      // so reconnecting clients are restored to the same state even after the
+      // original escape sequences were trimmed from the scrollback buffer.
+      session.modes.feed(data);
+      session.inAltScreen = session.modes.inAltScreen;
+      session.altScreenMode = session.modes.altScreenMode || undefined;
       // High/low water scrollback cap: trim to 500k chars when buffer exceeds 1,000,000 chars
       if (session.scrollbackBuf.length > 1000000) {
         log.debug(`Trimming scrollback buffer from ${session.scrollbackBuf.length} to 500k chars`);

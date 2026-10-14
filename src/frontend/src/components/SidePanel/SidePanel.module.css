@@ -2,55 +2,54 @@
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: var(--overlay-bg);
-  animation: fade-in 0.2s ease-out;
+  background: var(--scrim);
+  touch-action: auto;
+  animation: global(tb-fade) var(--dur-3) var(--ease-out);
 }
 
 .backdrop[data-closing='true'] {
-  animation: fade-out 0.2s ease-in forwards;
+  animation: global(fade-out) var(--dur-2) var(--ease-in) forwards;
 }
 
 .panel {
   position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
+  inset: 0 auto 0 0;
+  bottom: var(--keyboard-height, 0px);
   z-index: 201;
-  width: min(85vw, 380px);
-  background: var(--bg);
-  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  width: min(86vw, 340px);
   overflow: hidden;
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-left: env(safe-area-inset-left, 0px);
-  padding-bottom: var(--safe-bottom);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  animation: slide-in-left 0.25s ease-out;
+  padding-top: var(--safe-top);
+  background: var(--surface-2);
+  border-right: 1px solid var(--hairline);
+  color: var(--ink);
+  box-shadow: var(--shadow-pop);
+  touch-action: auto;
+  animation: global(tb-drawer-left) var(--dur-3) var(--ease-out);
 }
 
 .panel[data-closing='true'] {
-  animation: slide-out-left 0.2s ease-in forwards;
+  animation: global(slide-out-left) var(--dur-2) var(--ease-in) forwards;
 }
-
-/* ── Header ── */
 
 .header {
   display: flex;
-  flex-direction: column;
-  padding: 16px 14px 12px;
-  border-bottom: 1px solid var(--border);
-  position: relative;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 56px;
+  padding: 0 var(--sp-2) 0 var(--sp-4);
+  border-bottom: 1px solid var(--hairline);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text);
+  gap: var(--sp-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .brand svg {
@@ -59,401 +58,265 @@
 }
 
 .version {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 400;
-  margin-top: 2px;
-  padding-left: 28px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--ink-3);
 }
 
 .closeBtn {
-  position: absolute;
-  top: 14px;
-  right: 10px;
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
-  transition:
-    background 0.15s,
-    color 0.15s;
-  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+  width: var(--hit);
+  height: var(--hit);
+  margin-left: auto;
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+  font-size: var(--fs-xl);
 }
 
 .closeBtn:hover {
-  background: var(--border);
-  color: var(--text);
+  background: var(--surface-hover);
+  color: var(--ink);
 }
-
-/* ── Section title ── */
 
 .sectionTitle {
-  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4) var(--sp-5) var(--sp-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-xs);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-dim);
-  padding: 10px 14px 4px;
+  color: var(--ink-3);
 }
 
-/* ── Session list ── */
+.sectionTitle span {
+  font-family: var(--font-mono);
+  letter-spacing: normal;
+}
 
 .list {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 8px;
-  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  flex: 1 1 0;
+  gap: var(--sp-1);
+  min-height: 0;
+  padding: var(--sp-1) var(--sp-2) var(--sp-3);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
-
-/* ── Session card ── */
 
 .card {
   position: relative;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  cursor: pointer;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   flex-shrink: 0;
-  transition:
-    background 0.15s,
-    border-color 0.15s;
-  -webkit-tap-highlight-color: transparent;
-  padding-bottom: 8px;
+  min-height: 72px;
+  padding: var(--sp-3);
+  border: 1px solid transparent;
+  border-left: 3px solid var(--session-color);
+  border-radius: var(--r-sm);
+  background: transparent;
+  cursor: pointer;
+  transition: transform var(--dur-1) var(--ease-out);
 }
 
 .card:hover {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--surface-hover);
 }
 
-/*
- * Active session: just a 3px left-edge accent stripe. The card border stays
- * neutral (--border) — no accent tint anywhere else, even on hover. Earlier
- * iterations tinted the border or background and the result still read as
- * a colored box. The stripe alone is the only chromatic cue.
- */
-.cardActive::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 3px;
-  background: var(--accent);
-  border-radius: 10px 0 0 10px;
-  pointer-events: none;
+.card:active {
+  background: var(--surface-press);
+  transform: translateY(1px);
 }
 
-/*
- * The generic .card:hover above tints every card's border with an accent
- * color-mix. Override it for the active card so its border stays neutral
- * on hover too — the left-edge stripe is the only visual cue we want.
- */
+.cardActive,
 .cardActive:hover {
-  border-color: var(--border);
+  background: var(--surface-1);
+  border-color: var(--hairline);
+  border-left-color: var(--accent);
 }
 
-/* Card header row */
+.cardActivate {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border-radius: inherit;
+}
 
 .cardHeader {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px 6px;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  min-height: 21px;
+  padding-right: 40px;
 }
 
 .cardDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
   flex-shrink: 0;
-  /*
-   * Combined session-color + connection-status indicator. The dot itself
-   * carries the session color (set inline). A 2px gap (matching surface)
-   * then a 2px halo ring (status color) are layered via box-shadow so the
-   * single visual conveys both pieces of state without duplicate dots.
-   * The actual ring color is set inline alongside the background.
-   */
-  margin-right: 4px;
-  transition: box-shadow 0.2s ease;
+  margin-top: 7px;
 }
 
 .cardName {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  color: var(--ink);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .cardClose {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  cursor: pointer;
+  position: absolute;
+  z-index: 1;
+  top: var(--sp-1);
+  right: var(--sp-1);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  flex-shrink: 0;
+  width: var(--hit);
+  height: var(--hit);
   padding: 0;
-  transition:
-    background 0.15s,
-    color 0.15s;
-  -webkit-tap-highlight-color: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  color: var(--ink-3);
+  font-size: var(--fs-lg);
 }
 
-.cardClose:hover {
-  background: var(--danger);
-  color: #fff;
+.cardClose:hover,
+.cardCloseConfirm {
+  background: var(--err-soft);
+  color: var(--err);
+  border-color: var(--err-line);
 }
 
-/* Card meta (shell, cwd, activity) */
+.cardCloseConfirm {
+  width: 58px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.card:has(.cardCloseConfirm) .cardHeader {
+  padding-right: 54px;
+}
 
 .cardMeta {
-  padding: 0 12px 4px;
-  font-size: 10px;
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-top: var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
 }
 
-/* Git badges */
+.metaDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+.breakable {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 
 .cardGit {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px 6px;
-  padding: 0 12px 4px;
-  font-size: 10px;
-  color: var(--text-secondary);
-  align-items: center;
+  align-items: flex-start;
+  gap: var(--sp-1) var(--sp-2);
+  margin-top: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
 }
 
 .gitBadge {
   display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  background: var(--bg);
-  padding: 1px 6px;
-  border-radius: 3px;
+  align-items: baseline;
+  gap: var(--sp-1);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.gitBadge svg {
+  flex-shrink: 0;
 }
 
 .gitClean {
-  color: var(--success);
+  color: var(--ok);
 }
 
 .gitDirty {
-  color: #fbbf24;
+  color: var(--warn);
 }
-
-/* Terminal preview */
-
-.cardPreview {
-  margin: 0 8px 8px;
-  padding: 6px 8px;
-  background: var(--bg);
-  border-radius: 6px;
-  font-family: 'NerdFont', 'JetBrains Mono', monospace;
-  font-size: 9px;
-  line-height: 1.3;
-  color: var(--text-secondary);
-  white-space: pre;
-  overflow: hidden;
-  max-height: 72px;
-  -webkit-text-size-adjust: none;
-}
-
-.cardPreviewEmpty {
-  font-style: italic;
-  color: var(--text-muted);
-  text-align: center;
-  font-family: inherit;
-  font-size: 11px;
-  white-space: normal;
-}
-
-/* ── Footer ── */
 
 .footer {
-  padding: 8px;
-  border-top: 1px solid var(--border);
+  position: relative;
+  z-index: 1;
+  padding: var(--sp-3) var(--sp-3) max(var(--sp-3), var(--safe-bottom));
+  border-top: 1px solid var(--hairline);
+  background: var(--surface-2);
 }
 
 .footerRow {
   display: flex;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
-/*
- * Footer hierarchy: "+ New Session" is the primary action (filled accent),
- * "↺ Resume" is secondary (solid border, neutral text). Replaces an older
- * pair of identical dashed-border buttons that read like file-drop zones
- * and reused the same accent color as the active-session indicator.
- */
-.footerBtnPrimary {
-  flex: 1;
-  padding: 11px;
-  border: none;
-  border-radius: 8px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
+.footerBtnPrimary,
+.footerBtnSecondary {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  transition:
-    background 0.15s,
-    transform 0.1s,
-    opacity 0.15s;
-  -webkit-tap-highlight-color: transparent;
+  flex: 1;
+  min-height: 48px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.footerBtnPrimary {
+  flex: 1.5;
+  background: var(--accent);
+  border-color: var(--accent-line);
+  color: var(--on-accent);
+}
+
+.footerBtnPrimary > span {
+  position: relative;
+  transform: translateZ(0);
 }
 
 .footerBtnPrimary:hover {
-  background: var(--accent-hover, var(--accent));
-  opacity: 0.94;
-}
-
-.footerBtnPrimary:active {
-  transform: scale(0.98);
-}
-
-.footerBtnPrimary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.footerBtnSecondary {
-  flex: 1;
-  padding: 11px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  transition:
-    background 0.15s,
-    border-color 0.15s,
-    transform 0.1s;
-  -webkit-tap-highlight-color: transparent;
+  background: var(--accent-hover);
 }
 
 .footerBtnSecondary:hover {
-  background: var(--surface);
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
-}
-
-.footerBtnSecondary:active {
-  transform: scale(0.98);
-}
-
-.footerBtnSecondary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.newBtn {
-  width: 100%;
-  padding: 10px;
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-  background: none;
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  transition: background 0.15s;
-}
-
-.newBtn:hover {
-  background: var(--surface);
-}
-
-.newBtn:active {
-  transform: scale(0.98);
+  background: var(--surface-hover);
 }
 
 .unreadDot {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: var(--r-full);
   background: var(--accent);
   flex-shrink: 0;
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
-}
-
-@keyframes slide-in-left {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-@keyframes slide-out-left {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-100%);
-  }
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes fade-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
 }

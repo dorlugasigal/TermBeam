@@ -129,17 +129,22 @@ export function useDissolveDelete() {
         void startParticleDissolve(opts.element, palette, variant);
       }
 
-      await new Promise<void>((resolve) => {
-        setTimeout(resolve, wait);
-      });
+      // Remove locally only once the server agrees: if the DELETE fails the
+      // row comes back (dissolve cleared) instead of hiding a session that is
+      // still running.
+      const [apiResult] = await Promise.all([
+        apiPromise,
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, wait);
+        }),
+      ]);
+      if (apiResult instanceof Error) {
+        clearDissolving(id);
+        throw apiResult;
+      }
 
       opts.finalize();
       clearDissolving(id);
-
-      const apiResult = await apiPromise;
-      if (apiResult instanceof Error) {
-        throw apiResult;
-      }
     },
     [markDissolving, clearDissolving],
   );

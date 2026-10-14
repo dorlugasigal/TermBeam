@@ -3928,12 +3928,21 @@ describe('Routes', () => {
         this.sessions = new Map();
         this._nextId = 0;
         this._authPollTimer = null;
+        this.modelsError = null;
+        FakeCopilotService.instance = this;
+      }
+      async listModels() {
+        if (this.modelsError) throw this.modelsError;
+        return [
+          { id: 'auto', name: 'Auto' },
+          { id: 'gpt-5.5', name: 'GPT-5.5' },
+        ];
       }
       async createSession(options) {
         const id = `copilot-${++this._nextId}`;
         this.sessions.set(id, {
           cwd: options.cwd || process.cwd(),
-          model: options.model || 'claude-opus-4.6',
+          model: options.model || null,
           name: options.name || 'Copilot Session',
           ptySessionId: options.ptySessionId || null,
           createdAt: new Date().toISOString(),
@@ -3948,7 +3957,7 @@ describe('Routes', () => {
             id,
             name: entry.name || 'Copilot Session',
             cwd: entry.cwd || process.cwd(),
-            model: entry.model || 'claude-opus-4.6',
+            model: entry.model || null,
             ptySessionId: entry.ptySessionId || null,
             createdAt: entry.createdAt || new Date().toISOString(),
             lastActivity: entry.lastActivity || new Date().toISOString(),
@@ -3963,7 +3972,7 @@ describe('Routes', () => {
         const id = `copilot-resumed-${++this._nextId}`;
         this.sessions.set(id, {
           cwd: options.cwd || process.cwd(),
-          model: options.model || 'claude-opus-4.6',
+          model: options.model || 'gpt-5.5',
           name: options.name || 'Resumed Session',
           ptySessionId: options.ptySessionId || null,
           createdAt: new Date().toISOString(),
@@ -4059,6 +4068,67 @@ describe('Routes', () => {
       const data = JSON.parse(res.data);
       assert.strictEqual(data.type, 'copilot');
       assert.ok(data.id);
+      assert.strictEqual(data.model, 'gpt-4o', 'response reports the session model');
+    });
+
+    it('POST /api/sessions with type=copilot should reject a malformed model', async () => {
+      const srv = await startCopilotServer();
+      for (const model of ['two words', { id: 'gpt' }, 'x'.repeat(200)]) {
+        const body = JSON.stringify({ type: 'copilot', name: 'Bad Model', model });
+        const res = await httpRequest(
+          {
+            hostname: '127.0.0.1',
+            port: srv.port,
+            path: '/api/sessions',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          body,
+        );
+        assert.strictEqual(res.statusCode, 400);
+        assert.strictEqual(JSON.parse(res.data).error, 'model must be a Copilot model id');
+      }
+    });
+
+    it('GET /api/copilot/models should return the account models', async () => {
+      const srv = await startCopilotServer();
+      const res = await httpRequest({
+        hostname: '127.0.0.1',
+        port: srv.port,
+        path: '/api/copilot/models',
+        method: 'GET',
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.deepStrictEqual(JSON.parse(res.data), {
+        available: true,
+        models: [
+          { id: 'auto', name: 'Auto' },
+          { id: 'gpt-5.5', name: 'GPT-5.5' },
+        ],
+      });
+    });
+
+    it('GET /api/copilot/models should report an empty list when Copilot is unreachable', async () => {
+      const srv = await startCopilotServer();
+      FakeCopilotService.instance.modelsError = new Error('secret internal detail');
+      try {
+        const res = await httpRequest({
+          hostname: '127.0.0.1',
+          port: srv.port,
+          path: '/api/copilot/models',
+          method: 'GET',
+        });
+        assert.strictEqual(res.statusCode, 200);
+        const data = JSON.parse(res.data);
+        assert.strictEqual(data.available, true);
+        assert.deepStrictEqual(data.models, []);
+        assert.strictEqual(data.error, 'Could not load models from Copilot');
+      } finally {
+        FakeCopilotService.instance.modelsError = null;
+      }
     });
 
     it('GET /api/sessions should include copilot sessions with ptySessionId and model', async () => {
@@ -4098,6 +4168,9 @@ describe('Routes', () => {
       assert.ok('ptySessionId' in copilotSession, 'Should include ptySessionId field');
       assert.ok('model' in copilotSession, 'Should include model field');
       assert.strictEqual(copilotSession.shell, 'copilot-sdk');
+      for (const s of sessions) {
+        assert.strictEqual(s.home, os.homedir(), 'every session carries the server home');
+      }
       assert.strictEqual(copilotSession.ptySessionId, created.ptySessionId);
     });
 
@@ -4151,7 +4224,7 @@ describe('Routes', () => {
 
     it('POST /api/copilot/sdk/sessions/:sdkSessionId/resume should create session with companion PTY', async () => {
       const srv = await startCopilotServer();
-      const body = JSON.stringify({ name: 'Resumed Copilot', model: 'claude-opus-4.6' });
+      const body = JSON.stringify({ name: 'Resumed Copilot' });
       const res = await httpRequest(
         {
           hostname: '127.0.0.1',
@@ -4169,6 +4242,7 @@ describe('Routes', () => {
       const data = JSON.parse(res.data);
       assert.ok(data.id, 'Response should contain session id');
       assert.strictEqual(data.type, 'copilot');
+      assert.strictEqual(data.model, 'gpt-5.5', 'response reports the resumed session model');
       assert.ok(data.ptySessionId, 'Response should contain companion ptySessionId');
       // Verify companion PTY exists
       const ptySession = srv.sessions.get(data.ptySessionId);
@@ -4301,6 +4375,15 @@ describe('Routes', () => {
         assert.strictEqual(res.statusCode, 400);
         const data = JSON.parse(res.data);
         assert.ok(data.error.includes('not available'));
+
+        const modelsRes = await httpRequest({
+          hostname: '127.0.0.1',
+          port: instNoCopilot.port,
+          path: '/api/copilot/models',
+          method: 'GET',
+        });
+        assert.strictEqual(modelsRes.statusCode, 200);
+        assert.deepStrictEqual(JSON.parse(modelsRes.data), { available: false, models: [] });
       } finally {
         // Restore caches
         if (origCopilotNull) require.cache[copilotSdkPathNull] = origCopilotNull;
