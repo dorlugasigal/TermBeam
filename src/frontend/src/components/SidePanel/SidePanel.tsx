@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { ManagedSession } from '@/stores/sessionStore';
 import { useSessionStore } from '@/stores/sessionStore';
@@ -6,6 +6,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { useDissolveDelete } from '@/hooks/useDissolveDelete';
 import { fetchVersion, deleteSession } from '@/services/api';
 import { FileBrowser } from '@/components/FileBrowser/FileBrowser';
+import { Breakable } from '@/components/common/Breakable';
 import dissolveStyles from '@/components/common/Disintegrate.module.css';
 import styles from './SidePanel.module.css';
 
@@ -22,12 +23,7 @@ function getActivityLabel(ts: string | number | undefined): string {
 function BreakableText({ text }: { text: string }) {
   return (
     <span className={styles.breakable}>
-      {text.split(/([/\\])/).map((part, index) => (
-        <Fragment key={index}>
-          {part}
-          {(part === '/' || part === '\\') && <wbr />}
-        </Fragment>
-      ))}
+      <Breakable text={text} />
     </span>
   );
 }

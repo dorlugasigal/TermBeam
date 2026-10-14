@@ -229,6 +229,8 @@ All fields are optional. If `initialCommand` is provided, it will be sent to the
 
 The `shell` field is validated against the list of detected shells (see `GET /api/shells`). The `cwd` field must be an absolute path to an existing directory.
 
+**Copilot sessions:** send `"type": "copilot"` to start a GitHub Copilot session (via the Copilot SDK) with a hidden companion terminal. The optional `model` is a Copilot model id from [`GET /api/copilot/models`](#list-copilot-models); omit it to let Copilot use the account's current default. The response then also includes `ptySessionId` and `model` — the model in use, or `null` until Copilot resolves its default on the first reply. A malformed `model` returns `400 model must be a Copilot model id`.
+
 **Response (201):**
 
 ```json
@@ -1187,6 +1189,29 @@ Returns AI coding agents detected in the server's PATH.
 ```
 
 Results are cached for 60 seconds. If both `copilot` and `gh copilot` are available, only the standalone `copilot` is returned.
+
+### List Copilot Models
+
+```
+GET /api/copilot/models
+```
+
+Returns the models the server's signed-in Copilot account can use, straight from the Copilot SDK — so newly released models appear, and retired ones disappear, without a TermBeam update. Models disabled by the account's policy are left out. The list is cached for 30 minutes; after that the cached copy is returned immediately while a fresh one loads in the background. The first call may take a few seconds while the Copilot CLI starts.
+
+**Response:**
+
+```json
+{
+  "available": true,
+  "models": [
+    { "id": "auto", "name": "Auto" },
+    { "id": "claude-sonnet-5", "name": "Claude Sonnet 5" },
+    { "id": "gpt-5.5", "name": "GPT-5.5" }
+  ]
+}
+```
+
+`available` is `false` (with an empty list) when the Copilot SDK isn't installed. If Copilot can't be reached, the response is `{ "available": true, "models": [], "error": "Could not load models from Copilot" }` — clients should then offer only Copilot's default.
 
 ### List Past Agent Sessions
 

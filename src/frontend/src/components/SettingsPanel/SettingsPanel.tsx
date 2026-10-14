@@ -10,7 +10,7 @@ import {
 } from '@/stores/preferencesStore';
 import { THEMES } from '@/themes/terminalThemes';
 import { FolderBrowser } from '@/components/FolderBrowser/FolderBrowser';
-import { Breakable } from '@/components/SessionsHub/SessionCard';
+import { Breakable } from '@/components/common/Breakable';
 import styles from './SettingsPanel.module.css';
 
 const FONT_MIN = 8;

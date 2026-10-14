@@ -333,7 +333,7 @@ function setupWebSocket(wss, { auth, sessions, copilotService, getPublicUrl = ()
           ws.send(
             JSON.stringify({
               type: 'copilot.created',
-              data: { sessionId: sid, model: entry?.model },
+              data: { sessionId: sid, model: entry?.model ?? null },
             }),
           );
           // Send existing message history for immediate replay on refresh/reconnect
@@ -355,7 +355,12 @@ function setupWebSocket(wss, { auth, sessions, copilotService, getPublicUrl = ()
               },
               ws,
             );
-            ws.send(JSON.stringify({ type: 'copilot.created', data: { sessionId: sid } }));
+            ws.send(
+              JSON.stringify({
+                type: 'copilot.created',
+                data: { sessionId: sid, model: copilotService.sessions.get(sid)?.model ?? null },
+              }),
+            );
             return;
           }
           try {
@@ -374,7 +379,10 @@ function setupWebSocket(wss, { auth, sessions, copilotService, getPublicUrl = ()
             ws.send(
               JSON.stringify({
                 type: 'copilot.created',
-                data: { sessionId: sdkSessionId },
+                data: {
+                  sessionId: sdkSessionId,
+                  model: copilotService.sessions.get(sdkSessionId)?.model ?? null,
+                },
               }),
             );
             ws._copilotSessionId = sdkSessionId;
@@ -409,9 +417,14 @@ function setupWebSocket(wss, { auth, sessions, copilotService, getPublicUrl = ()
               ws,
             );
             ws._copilotSessionId = sessionId;
-            ws.send(JSON.stringify({ type: 'copilot.created', data: { sessionId } }));
             // Send existing messages for replay
             const entry = copilotService.sessions.get(sessionId);
+            ws.send(
+              JSON.stringify({
+                type: 'copilot.created',
+                data: { sessionId, model: entry?.model ?? null },
+              }),
+            );
             if (entry?.existingMessages?.length) {
               ws.send(
                 JSON.stringify({

@@ -8,6 +8,7 @@ const { getAvailableAgents } = require('../utils/agents');
 const { getAgentSessions, getResumeCommand } = require('../utils/agent-sessions');
 const log = require('../utils/logger');
 const { getGitInfoAsync } = require('../utils/git');
+const { isValidModelId } = require('../utils/copilot-models');
 const rateLimit = require('express-rate-limit');
 const { setupPreferenceRoutes } = require('./preferences');
 const { setupAuthRoutes } = require('./auth-routes');
@@ -50,6 +51,11 @@ function validateCwd(userCwd) {
   } catch {
     return null;
   }
+}
+
+/** A requested Copilot model that isn't a model id (empty = let Copilot choose). */
+function isBadModel(model) {
+  return model !== undefined && model !== null && model !== '' && !isValidModelId(model);
 }
 
 const uploadedFiles = new Map(); // id -> filepath
@@ -482,6 +488,9 @@ function setupRoutes(
       if (!copilotService) {
         return res.status(400).json({ error: 'Copilot service is not available' });
       }
+      if (isBadModel(req.body.model)) {
+        return res.status(400).json({ error: 'model must be a Copilot model id' });
+      }
       // Validate cwd for copilot sessions
       if (cwd) {
         const validCwd = validateCwd(cwd);
@@ -517,6 +526,7 @@ function setupRoutes(
           id: sdkSessionId,
           type: 'copilot',
           ptySessionId,
+          model: copilotService.sessions.get(sdkSessionId)?.model ?? null,
           url: `/terminal?id=${sdkSessionId}`,
         });
       } catch (err) {
@@ -1406,11 +1416,17 @@ function setupRoutes(
   // --- Copilot SDK session creation ---
   if (copilotService) {
     app.post('/api/copilot/sdk/sessions', apiRateLimit, auth.middleware, async (req, res) => {
+      if (isBadModel(req.body.model)) {
+        return res.status(400).json({ error: 'model must be a Copilot model id' });
+      }
       try {
         const sessionId = await copilotService.createSession({
           model: req.body.model,
         });
-        res.status(201).json({ sessionId });
+        res.status(201).json({
+          sessionId,
+          model: copilotService.sessions.get(sessionId)?.model ?? null,
+        });
       } catch (err) {
         res.status(500).json({ error: err.message });
       }
@@ -1421,6 +1437,9 @@ function setupRoutes(
       apiRateLimit,
       auth.middleware,
       async (req, res) => {
+        if (isBadModel(req.body.model)) {
+          return res.status(400).json({ error: 'model must be a Copilot model id' });
+        }
         // Validate cwd for resume endpoint
         if (req.body.cwd) {
           const validCwd = validateCwd(req.body.cwd);
@@ -1452,7 +1471,12 @@ function setupRoutes(
             ptySessionId,
             cwd: sessionCwd,
           });
-          res.status(201).json({ id: sessionId, type: 'copilot', ptySessionId });
+          res.status(201).json({
+            id: sessionId,
+            type: 'copilot',
+            ptySessionId,
+            model: copilotService.sessions.get(sessionId)?.model ?? null,
+          });
         } catch (err) {
           // Clean up companion PTY if SDK session resume failed
           if (ptySessionId) {
@@ -1477,6 +1501,19 @@ function setupRoutes(
       }
     });
   }
+
+  // Models the signed-in Copilot account can use. `available: false` means
+  // the Copilot SDK isn't installed; an empty list with `error` means it
+  // couldn't be reached — clients then offer only "Copilot default".
+  app.get('/api/copilot/models', apiRateLimit, auth.middleware, async (_req, res) => {
+    if (!copilotService) return res.json({ available: false, models: [] });
+    try {
+      const models = await copilotService.listModels();
+      res.json({ available: true, models });
+    } catch {
+      res.json({ available: true, models: [], error: 'Could not load models from Copilot' });
+    }
+  });
 
   app.get('/api/copilot/active', apiRateLimit, auth.middleware, async (_req, res) => {
     try {

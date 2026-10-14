@@ -142,6 +142,8 @@ export interface Preferences {
   particleDissolve: boolean;
   defaultFolder: string;
   defaultInitialCommand: string;
+  /** Model for new Copilot sessions; '' lets Copilot pick the account default. */
+  copilotModel: string;
   touchBarCollapsed: boolean;
   /** null means "use built-in defaults" */
   touchBarKeys: TouchBarKey[] | null;
@@ -165,6 +167,7 @@ export const PREF_DEFAULTS: Preferences = Object.freeze({
   particleDissolve: true,
   defaultFolder: '',
   defaultInitialCommand: '',
+  copilotModel: '',
   touchBarCollapsed: false,
   touchBarKeys: null,
   startupWorkspace: { enabled: false, sessions: [] },
@@ -208,6 +211,7 @@ function normalize(input: unknown): Preferences {
     defaultFolder: typeof p.defaultFolder === 'string' ? p.defaultFolder : '',
     defaultInitialCommand:
       typeof p.defaultInitialCommand === 'string' ? p.defaultInitialCommand : '',
+    copilotModel: typeof p.copilotModel === 'string' ? p.copilotModel : '',
     touchBarCollapsed:
       typeof p.touchBarCollapsed === 'boolean'
         ? p.touchBarCollapsed

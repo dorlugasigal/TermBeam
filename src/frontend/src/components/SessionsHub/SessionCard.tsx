@@ -1,8 +1,9 @@
-import { useRef, useCallback, useEffect, Fragment } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import type { Session } from '@/types';
+import { Breakable } from '@/components/common/Breakable';
 import { CopilotLogo } from '@/components/common/CopilotLogo';
 import { shellLabel } from '@/utils/sessionFilter';
-import { activityAgo, breakSegments, tildePath } from '@/utils/sessionDisplay';
+import { activityAgo, tildePath } from '@/utils/sessionDisplay';
 import styles from './SessionCard.module.css';
 import dissolveStyles from '@/components/common/Disintegrate.module.css';
 
@@ -22,21 +23,6 @@ interface SessionCardProps {
 
 const SWIPE_THRESHOLD = 50;
 const REVEAL_WIDTH = 84;
-
-/** Machine text with soft breaks after path separators — wraps, never truncates. */
-export function Breakable({ text }: { text: string }) {
-  const parts = breakSegments(text);
-  return (
-    <>
-      {parts.map((part, i) => (
-        <Fragment key={i}>
-          {part}
-          {i < parts.length - 1 && <wbr />}
-        </Fragment>
-      ))}
-    </>
-  );
-}
 
 const TrashIcon = () => (
   <svg

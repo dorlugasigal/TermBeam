@@ -88,6 +88,7 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 - `git.js` — git metadata and status parsing. Use `getGitInfoAsync()` on any server path (session polling caches refresh with it) — the sync `getGitInfo()` blocks the event loop and every terminal's WebSocket. Status runs with `--no-optional-locks` so polling never takes `index.lock`, and porcelain output must never be trimmed (its leading space is meaningful).
 - `version.js` — detects version from package.json
 - `update-check.js` — npm update checking
+- `copilot-models.js` — Copilot model-id validation and normalization of the SDK's model list. Never hard-code model ids or a default model: the picker lists `GET /api/copilot/models` (cached in `CopilotService.listModels()`), and an omitted model lets Copilot choose the account's default.
 
 **Frontend:** React SPA in `src/frontend/` built with Vite + TypeScript. Builds to `public/` (gitignored build artifact). Uses xterm.js, Zustand for state, and Radix UI for accessible components. Components organized into: ToolsPanel (right slide-in, formerly CommandPalette), Settings (preferences drawer/sheet), FolderBrowser, LoginPage, Modals, Overlays, SearchBar, SessionsHub, SidePanel (left slide-in), TabBar, TerminalApp, TerminalPane, TouchBar, and common reusable components (TopBar, ThemePicker, UpdateBanner).
 

@@ -3,6 +3,8 @@ import type { FileTreeNode } from '@/stores/codeViewerStore';
 
 const BASE = '';
 const DEFAULT_TIMEOUT = 10_000;
+// Copilot calls may cold-start the Copilot CLI and the user's MCP servers.
+const COPILOT_TIMEOUT = 45_000;
 
 /** Fetch with an AbortController timeout to avoid hanging on stale tunnels. */
 function fetchWithTimeout(
@@ -30,16 +32,25 @@ export async function fetchSessions(): Promise<Session[]> {
   return handleResponse<Session[]>(res);
 }
 
+export interface CreatedSession {
+  id: string;
+  url: string;
+  ptySessionId?: string | null;
+  /** Copilot sessions: the model in use (null if Copilot didn't say). */
+  model?: string | null;
+}
+
 export async function createSession(
   req: CreateSessionRequest & { cols?: number; rows?: number },
-): Promise<{ id: string; url: string; ptySessionId?: string | null }> {
+): Promise<CreatedSession> {
   const res = await fetchWithTimeout(`${BASE}/api/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
     credentials: 'same-origin',
+    timeout: req.type === 'copilot' ? COPILOT_TIMEOUT : DEFAULT_TIMEOUT,
   });
-  return handleResponse<{ id: string; url: string; ptySessionId?: string | null }>(res);
+  return handleResponse<CreatedSession>(res);
 }
 
 export async function deleteSession(id: string): Promise<void> {
@@ -139,14 +150,36 @@ export async function getResumeCommand(agent: string, id: string): Promise<{ com
 export async function resumeCopilotSdkSession(
   sdkSessionId: string,
   options?: { name?: string; model?: string; cwd?: string },
-): Promise<{ id: string; type: string; ptySessionId?: string | null }> {
+): Promise<{ id: string; type: string; ptySessionId?: string | null; model?: string | null }> {
   const res = await fetchWithTimeout(`${BASE}/api/copilot/sdk/sessions/${sdkSessionId}/resume`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(options || {}),
     credentials: 'same-origin',
+    timeout: COPILOT_TIMEOUT,
   });
-  return handleResponse<{ id: string; type: string; ptySessionId?: string | null }>(res);
+  return handleResponse<{
+    id: string;
+    type: string;
+    ptySessionId?: string | null;
+    model?: string | null;
+  }>(res);
+}
+
+export interface CopilotModel {
+  id: string;
+  name: string;
+}
+
+/** Models the server's Copilot account can use (empty when Copilot is unavailable). */
+export async function fetchCopilotModels(): Promise<CopilotModel[]> {
+  const res = await fetchWithTimeout(`${BASE}/api/copilot/models`, {
+    credentials: 'same-origin',
+    timeout: COPILOT_TIMEOUT,
+  });
+  const data = await handleResponse<{ models?: CopilotModel[]; error?: string }>(res);
+  if (data.error) throw new Error(data.error);
+  return Array.isArray(data.models) ? data.models : [];
 }
 
 export interface BrowseDirsResponse {

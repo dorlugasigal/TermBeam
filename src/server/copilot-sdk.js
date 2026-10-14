@@ -8,12 +8,33 @@ try {
   // SDK not installed — CopilotService will be unavailable
 }
 const log = require('../utils/logger');
+const { isValidModelId, normalizeModels } = require('../utils/copilot-models');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
 const configDir = process.env.TERMBEAM_CONFIG_DIR || path.join(os.homedir(), '.termbeam');
 const AUTH_URL_FILE = path.join(configDir, 'auth-urls.log');
+
+// The model catalogue changes server-side (releases, retirements, org
+// policy), so it comes from the SDK and is refreshed rather than hard-coded.
+const MODELS_TTL_MS = 30 * 60 * 1000;
+const MODELS_RETRY_MS = 60 * 1000;
+const MODELS_TIMEOUT_MS = 20 * 1000;
+const CURRENT_MODEL_TIMEOUT_MS = 3 * 1000;
+
+function withTimeout(promise, ms, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+    timer.unref?.();
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+function assertModelId(model) {
+  if (model && !isValidModelId(model)) throw new Error('Invalid model id');
+}
 
 /**
  * Create a browser handler script that writes URLs to a file
@@ -74,7 +95,71 @@ class CopilotService {
       log.info(`Loaded ${count} MCP server(s) from ~/.copilot/mcp-config.json`);
     }
     this._authUrlOffset = 0;
+    this._models = null; // { models, fetchedAt }
+    this._modelsPromise = null;
     this._watchAuthUrls();
+  }
+
+  /**
+   * Models the signed-in account can use, as `{ id, name }`. After the first
+   * load this answers from cache and refreshes in the background once stale.
+   */
+  async listModels() {
+    const cached = this._models;
+    if (!cached) return this._refreshModels();
+    if (Date.now() - cached.fetchedAt >= MODELS_TTL_MS) this._refreshModels().catch(() => {});
+    return cached.models;
+  }
+
+  _refreshModels() {
+    if (!this._modelsPromise) {
+      this._modelsPromise = this._fetchModels()
+        .then((models) => {
+          this._models = { models, fetchedAt: Date.now() };
+          return models;
+        })
+        .catch((err) => {
+          log.warn(`Could not load the Copilot model list: ${err.message}`);
+          // Keep serving the previous list; try again after a short pause.
+          if (this._models) this._models.fetchedAt = Date.now() - MODELS_TTL_MS + MODELS_RETRY_MS;
+          throw err;
+        })
+        .finally(() => {
+          this._modelsPromise = null;
+        });
+    }
+    return this._modelsPromise;
+  }
+
+  async _fetchModels() {
+    const client = await withTimeout(
+      this.ensureClient(),
+      MODELS_TIMEOUT_MS,
+      'Timed out starting Copilot',
+    );
+    // The SDK caches models.list for the client's lifetime; clear it so a
+    // long-running server picks up newly released and retired models.
+    if (this._models && 'modelsCache' in client) client.modelsCache = null;
+    const raw = await withTimeout(
+      client.listModels(),
+      MODELS_TIMEOUT_MS,
+      'Timed out listing Copilot models',
+    );
+    return normalizeModels(raw);
+  }
+
+  /** The model a session is running, or null when the SDK can't say. */
+  async _readCurrentModel(session) {
+    try {
+      const current = await withTimeout(
+        Promise.resolve(session.rpc?.model?.getCurrent?.()),
+        CURRENT_MODEL_TIMEOUT_MS,
+        'Timed out reading the session model',
+      );
+      return isValidModelId(current?.modelId) ? current.modelId : null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -88,6 +173,7 @@ class CopilotService {
     } catch {
       /* ignore */
     }
+    this._authUrlOffset = 0;
 
     this._authPollTimer = setInterval(() => {
       try {
@@ -129,6 +215,8 @@ class CopilotService {
         cwd: process.cwd(),
       });
       await this.client.start();
+      // A failed start stops the OAuth URL watcher; bring it back once Copilot runs.
+      if (!this._authPollTimer) this._watchAuthUrls();
       log.info('Copilot SDK client started');
       return this.client;
     } catch (err) {
@@ -171,6 +259,7 @@ class CopilotService {
   }
 
   async resumeSession(sdkSessionId, options = {}) {
+    assertModelId(options.model);
     const client = await this.ensureClient();
     const sessionId = require('crypto').randomBytes(16).toString('hex');
 
@@ -221,11 +310,14 @@ class CopilotService {
     if (this.mcpServers) {
       resumeConfig.mcpServers = this.mcpServers;
     }
+    // Without one, the session keeps the model it was running.
+    if (options.model) resumeConfig.model = options.model;
 
     const session = await client.resumeSession(sdkSessionId, resumeConfig);
 
     const unsubscribe = session.on((event) => {
       try {
+        this._trackModel(sessionId, event);
         const mapped = this._mapEvent(event);
         if (mapped) {
           const entry = this.sessions.get(sessionId);
@@ -253,7 +345,7 @@ class CopilotService {
       listener: null,
       pendingInputResolve: null,
       cwd: options.cwd || process.cwd(),
-      model: options.model || 'claude-opus-4.6',
+      model: options.model || null,
       name: options.name || 'Resumed Session',
       ptySessionId: options.ptySessionId || null,
       createdAt: now,
@@ -267,11 +359,39 @@ class CopilotService {
       this.sessions.get(sessionId).pendingInputResolve = eventBuffer._pendingInputResolve;
     }
 
+    await this._recordCurrentModel(sessionId, session);
     log.info(`Copilot SDK session resumed: ${sessionId} (from SDK session ${sdkSessionId})`);
     return sessionId;
   }
 
+  /**
+   * Keep `entry.model` on the model that is actually answering — Copilot
+   * resolves its default on the first turn, and the model can be switched
+   * from elsewhere — and tell a live client. Not added to the replay
+   * history: on reconnect `copilot.created` carries the current model.
+   */
+  _trackModel(sessionId, event) {
+    let model = null;
+    if (event.type === 'session.model_change') model = event.data?.newModel;
+    else if (event.type === 'assistant.message' && !event.data?.parentToolCallId) {
+      model = event.data?.model;
+    }
+    const entry = this.sessions.get(sessionId);
+    if (!entry || !isValidModelId(model) || entry.model === model) return;
+    entry.model = model;
+    entry.listener?.({ type: 'copilot.model_changed', data: { model } });
+  }
+
+  /** Fill in the model Copilot picked when the caller didn't name one. */
+  async _recordCurrentModel(sessionId, session) {
+    const entry = this.sessions.get(sessionId);
+    if (!entry || entry.model) return;
+    const model = await this._readCurrentModel(session);
+    if (model && !entry.model) entry.model = model;
+  }
+
   async createSession(options = {}) {
+    assertModelId(options.model);
     const client = await this.ensureClient();
     const sessionId = require('crypto').randomBytes(16).toString('hex');
 
@@ -282,7 +402,6 @@ class CopilotService {
     const configDir = path.join(os.homedir(), '.copilot');
 
     const sessionConfig = {
-      model: options.model || 'claude-opus-4.6',
       streaming: true,
       workingDirectory: sessionCwd,
       configDir,
@@ -328,12 +447,15 @@ class CopilotService {
     if (this.mcpServers) {
       sessionConfig.mcpServers = this.mcpServers;
     }
+    // Without a model, Copilot uses the account's current default.
+    if (options.model) sessionConfig.model = options.model;
 
     const session = await client.createSession(sessionConfig);
 
     // Set up event forwarding
     const unsubscribe = session.on((event) => {
       try {
+        this._trackModel(sessionId, event);
         const mapped = this._mapEvent(event);
         if (mapped) {
           const entry = this.sessions.get(sessionId);
@@ -359,7 +481,7 @@ class CopilotService {
       listener: null,
       pendingInputResolve: null,
       cwd: options.cwd || process.cwd(),
-      model: options.model || 'claude-opus-4.6',
+      model: options.model || null,
       name: options.name || 'Copilot Session',
       ptySessionId: options.ptySessionId || null,
       createdAt: now,
@@ -371,6 +493,7 @@ class CopilotService {
       this.sessions.get(sessionId).pendingInputResolve = eventBuffer._pendingInputResolve;
     }
 
+    await this._recordCurrentModel(sessionId, session);
     log.info(`Copilot SDK session created: ${sessionId}`);
     return sessionId;
   }
@@ -444,6 +567,7 @@ class CopilotService {
   }
 
   async setModel(sessionId, model) {
+    if (!isValidModelId(model)) throw new Error('Invalid model id');
     const entry = this.sessions.get(sessionId);
     if (!entry) throw new Error('Session not found');
     await entry.session.setModel(model);
@@ -514,7 +638,7 @@ class CopilotService {
         id,
         name: entry.name || 'Copilot Session',
         cwd: entry.cwd || process.cwd(),
-        model: entry.model || 'claude-opus-4.6',
+        model: entry.model || null,
         ptySessionId: entry.ptySessionId || null,
         createdAt: entry.createdAt || new Date().toISOString(),
         lastActivity: entry.lastActivity || entry.createdAt || new Date().toISOString(),

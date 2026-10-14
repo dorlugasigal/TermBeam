@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const log = require('../utils/logger');
+const { isValidModelId } = require('../utils/copilot-models');
 
 const PREFS_FILENAME = 'prefs.json';
 
@@ -20,6 +21,7 @@ const DEFAULTS = Object.freeze({
   particleDissolve: true,
   defaultFolder: '',
   defaultInitialCommand: '',
+  copilotModel: '', // '' = let Copilot pick the account's default
   touchBarCollapsed: false,
   touchBarKeys: null, // null = use built-in defaults
   startupWorkspace: { enabled: false, sessions: [] },
@@ -198,6 +200,7 @@ function sanitize(prefs) {
       DEFAULTS.defaultInitialCommand,
       1024,
     ),
+    copilotModel: isValidModelId(src.copilotModel) ? src.copilotModel : DEFAULTS.copilotModel,
     touchBarCollapsed: asBool(src.touchBarCollapsed, DEFAULTS.touchBarCollapsed),
     touchBarKeys: sanitizeTouchBarKeys(src.touchBarKeys),
     startupWorkspace: sanitizeStartupWorkspace(src.startupWorkspace),

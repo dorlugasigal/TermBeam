@@ -6,9 +6,11 @@ import { SESSION_COLORS, type SessionColor } from '@/types';
 import { useUIStore } from '@/stores/uiStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useCopilotModelsStore } from '@/stores/copilotModelsStore';
 import { FolderBrowser } from '@/components/FolderBrowser/FolderBrowser';
 import { AgentIcon } from '@/components/common/AgentIcon';
 import { CopilotLogo } from '@/components/common/CopilotLogo';
+import { ModelSelect } from '@/components/common/ModelSelect';
 import { Sheet } from '@/components/common/Sheet';
 import form from '@/styles/forms.module.css';
 import styles from './NewSessionModal.module.css';
@@ -22,22 +24,7 @@ interface NewSessionModalProps {
   ) => void;
 }
 
-const COPILOT_MODELS = [
-  { id: 'claude-opus-4.6', label: 'Claude Opus 4.6' },
-  { id: 'claude-opus-4.5', label: 'Claude Opus 4.5' },
-  { id: 'claude-sonnet-4.6', label: 'Claude Sonnet 4.6' },
-  { id: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5' },
-  { id: 'claude-sonnet-4', label: 'Claude Sonnet 4' },
-  { id: 'claude-haiku-4.5', label: 'Claude Haiku 4.5' },
-  { id: 'gpt-5.4', label: 'GPT-5.4' },
-  { id: 'gpt-5.2', label: 'GPT-5.2' },
-  { id: 'gpt-5.1', label: 'GPT-5.1' },
-  { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
-  { id: 'gpt-5-mini', label: 'GPT-5 Mini' },
-  { id: 'gpt-4.1', label: 'GPT-4.1' },
-];
-
-const DEFAULT_MODEL = 'claude-opus-4.6';
+const savedCopilotModel = () => usePreferencesStore.getState().prefs.copilotModel;
 
 /** Grow a textarea to fit its content (fallback for `field-sizing: content`). */
 function useAutoGrow(ref: React.RefObject<HTMLTextAreaElement | null>, value: string) {
@@ -79,10 +66,19 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
   const [color, setColor] = useState<SessionColor>(SESSION_COLORS[0]);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   // Copilot-specific state
-  const [model, setModel] = useState(DEFAULT_MODEL);
+  const [model, setModel] = useState(savedCopilotModel);
+  const copilotModels = useCopilotModelsStore((s) => s.models);
+  const modelsStatus = useCopilotModelsStore((s) => s.status);
   const ids = useId();
   const cwdRef = useRef<HTMLTextAreaElement>(null);
   useAutoGrow(cwdRef, cwd);
+
+  // A remembered model that Copilot no longer offers falls back to its default.
+  useEffect(() => {
+    if (model && copilotModels.length && !copilotModels.some((m) => m.id === model)) {
+      setModel('');
+    }
+  }, [model, copilotModels]);
 
   const deriveNameFromCwd = useCallback(
     (dir: string, mode?: 'terminal' | 'copilot') => {
@@ -102,6 +98,8 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
       if (newSessionModalInitialMode) {
         setSessionMode(newSessionModalInitialMode);
       }
+      // Prefs may have hydrated (or changed on another device) since mount.
+      setModel(savedCopilotModel());
       fetchShells()
         .catch(() => ({ shells: [], defaultShell: '', cwd: '' }))
         .then((shellData) => {
@@ -169,7 +167,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
     setInitialCommand('');
     setColor(SESSION_COLORS[0]);
     setBrowsing(false);
-    setModel(DEFAULT_MODEL);
+    setModel(savedCopilotModel());
     cwdTouchedRef.current = false;
     initialCommandTouchedRef.current = false;
   }
@@ -205,7 +203,7 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
               name: name.trim() || undefined,
               cwd: effectiveCwd || undefined,
               type: 'copilot',
-              model,
+              model: model || undefined,
               ...(cols && rows ? { cols, rows } : {}),
             }
           : {
@@ -220,13 +218,17 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
       if (effectiveInitialCommand) {
         useSessionStore.getState().setPendingInitialCommand(session.id, effectiveInitialCommand);
       }
+      // Remember the pick (including "Copilot default") for the next session.
+      if (sessionMode === 'copilot' && model !== livePrefs.copilotModel) {
+        usePreferencesStore.getState().setPreference('copilotModel', model);
+      }
       closeNewSessionModal();
       resetForm();
       onCreated(
         session.id,
         sessionMode,
         session.ptySessionId ?? null,
-        sessionMode === 'copilot' ? model : undefined,
+        sessionMode === 'copilot' ? session.model || model || undefined : undefined,
       );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create session');
@@ -526,19 +528,29 @@ export default function NewSessionModal({ onCreated }: NewSessionModalProps) {
               <label className={form.label} htmlFor={`${ids}-model`}>
                 Model
               </label>
-              <select
+              <ModelSelect
                 id={`${ids}-model`}
                 className={form.select}
                 value={model}
-                onChange={(e) => setModel(e.target.value)}
+                onChange={setModel}
+                defaultLabel="Copilot default"
+                aria-describedby={
+                  modelsStatus === 'loading' || modelsStatus === 'error'
+                    ? `${ids}-model-hint`
+                    : undefined
+                }
                 data-testid="ns-model"
-              >
-                {COPILOT_MODELS.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+              />
+              {modelsStatus === 'loading' && (
+                <p id={`${ids}-model-hint`} className={form.hint}>
+                  Loading models from Copilot…
+                </p>
+              )}
+              {modelsStatus === 'error' && (
+                <p id={`${ids}-model-hint`} className={form.hint}>
+                  Couldn’t load the model list. Copilot will use its default model.
+                </p>
+              )}
             </div>
           )}
 

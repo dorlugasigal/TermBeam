@@ -13,6 +13,10 @@ import { DiffViewer } from './DiffViewer';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
 import { fetchSessions, uploadImage } from '@/services/api';
+import { useCopilotModelsStore } from '@/stores/copilotModelsStore';
+import { Breakable } from '@/components/common/Breakable';
+import { ModelSelect } from '@/components/common/ModelSelect';
+import { tildePath } from '@/utils/sessionDisplay';
 import { toast } from 'sonner';
 import styles from './CopilotPane.module.css';
 
@@ -35,32 +39,12 @@ interface SessionMeta {
   repository?: string;
 }
 
-function truncatePath(p: string): string {
-  const parts = p.split('/').filter(Boolean);
-  return parts.length > 2 ? '…/' + parts.slice(-2).join('/') : p;
-}
-
 // ── Props ──
 
 interface CopilotPaneProps {
   sessionId: string;
   active: boolean;
 }
-
-const COPILOT_MODELS = [
-  { id: 'claude-opus-4.6', label: 'Claude Opus 4.6' },
-  { id: 'claude-opus-4.5', label: 'Claude Opus 4.5' },
-  { id: 'claude-sonnet-4.6', label: 'Claude Sonnet 4.6' },
-  { id: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5' },
-  { id: 'claude-sonnet-4', label: 'Claude Sonnet 4' },
-  { id: 'claude-haiku-4.5', label: 'Claude Haiku 4.5' },
-  { id: 'gpt-5.4', label: 'GPT-5.4' },
-  { id: 'gpt-5.2', label: 'GPT-5.2' },
-  { id: 'gpt-5.1', label: 'GPT-5.1' },
-  { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
-  { id: 'gpt-5-mini', label: 'GPT-5 Mini' },
-  { id: 'gpt-4.1', label: 'GPT-4.1' },
-];
 
 // ── Octicon SVGs (16×16) ──
 
@@ -674,6 +658,9 @@ export function CopilotPane({ sessionId, active }: CopilotPaneProps) {
   );
   const { keyboardOpen } = useMobileKeyboard();
   const fontSize = useUIStore((s) => s.fontSize);
+  const copilotModels = useCopilotModelsStore((s) => s.models);
+  const modelName =
+    copilotModels.find((m) => m.id === currentModel)?.name ?? (currentModel || 'Copilot default');
 
   const [inputText, setInputText] = useState('');
   const [sessionMeta, setSessionMeta] = useState<SessionMeta | null>(null);
@@ -901,16 +888,18 @@ export function CopilotPane({ sessionId, active }: CopilotPaneProps) {
       <div className={styles.statusBar}>
         <span className={styles.statusDot} data-status={statusKey} />
         <span>{statusLabel}</span>
-        <select
-          className={styles.modelSelect}
-          value={currentModel}
-          onChange={(e) => setModel(e.target.value)}
-          disabled={!sessionReady}
-        >
-          {COPILOT_MODELS.map((m) => (
-            <option key={m.id} value={m.id}>{m.label}</option>
-          ))}
-        </select>
+        {/* A text pill (long names wrap, never cut off) over an invisible
+            native select, so phones still get the system picker. */}
+        <label className={styles.modelPill} data-disabled={!sessionReady || undefined}>
+          <span className={styles.modelPillText}>{modelName}</span>
+          <ModelSelect
+            className={styles.modelPillSelect}
+            value={currentModel}
+            onChange={setModel}
+            disabled={!sessionReady}
+            aria-label="Model"
+          />
+        </label>
         <button
           className={styles.terminalBtn}
           onClick={toggleTerminal}
@@ -957,7 +946,7 @@ export function CopilotPane({ sessionId, active }: CopilotPaneProps) {
               <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"/>
               </svg>
-              {truncatePath(sessionMeta.cwd)}
+              <Breakable text={tildePath(sessionMeta.cwd)} />
             </span>
           )}
           {sessionMeta.branch && (
@@ -965,7 +954,7 @@ export function CopilotPane({ sessionId, active }: CopilotPaneProps) {
               <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Z"/>
               </svg>
-              {sessionMeta.branch}
+              <Breakable text={sessionMeta.branch} />
             </span>
           )}
           {sessionMeta.repository && (

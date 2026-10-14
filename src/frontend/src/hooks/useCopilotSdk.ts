@@ -67,7 +67,9 @@ export function useCopilotSdk(options: UseCopilotSdkOptions = {}): UseCopilotSdk
   const [sessionReady, setSessionReady] = useState(false);
   const [status, setStatus] = useState<CopilotSdkStatus>('idle');
   const [messages, setMessages] = useState<CopilotChatMessage[]>([]);
-  const [currentModel, setCurrentModel] = useState(model || 'claude-opus-4.6');
+  const [currentModel, setCurrentModel] = useState(model || '');
+  // Model to restore if an in-flight switch is rejected by the server.
+  const modelBeforeSwitchRef = useRef<string | null>(null);
 
   // Sync model when the prop updates (e.g. after metadata fetch)
   useEffect(() => {
@@ -113,6 +115,7 @@ export function useCopilotSdk(options: UseCopilotSdkOptions = {}): UseCopilotSdk
           sessionReadyRef.current = true;
           setSessionReady(true);
           retryCountRef.current = 0;
+          modelBeforeSwitchRef.current = null;
           const createdModel = (msg.data as { model?: string })?.model;
           if (createdModel) setCurrentModel(createdModel);
           // Request message history for replay on reconnect
@@ -138,6 +141,7 @@ export function useCopilotSdk(options: UseCopilotSdkOptions = {}): UseCopilotSdk
         }
 
         case 'copilot.model_changed': {
+          modelBeforeSwitchRef.current = null;
           const newModel = (msg.data as { model?: string })?.model;
           if (newModel) setCurrentModel(newModel);
           break;
@@ -462,6 +466,10 @@ export function useCopilotSdk(options: UseCopilotSdkOptions = {}): UseCopilotSdk
             wsSend(createMsg);
             break;
           }
+          if (modelBeforeSwitchRef.current !== null) {
+            setCurrentModel(modelBeforeSwitchRef.current);
+            modelBeforeSwitchRef.current = null;
+          }
           setMessages((prev) => [
             ...prev,
             {
@@ -626,8 +634,12 @@ export function useCopilotSdk(options: UseCopilotSdkOptions = {}): UseCopilotSdk
 
   const setModel = useCallback(
     (modelId: string) => {
+      if (!modelId) return;
       wsSend({ type: 'copilot.set_model', model: modelId });
-      setCurrentModel(modelId);
+      setCurrentModel((previous) => {
+        if (modelBeforeSwitchRef.current === null) modelBeforeSwitchRef.current = previous;
+        return modelId;
+      });
     },
     [wsSend],
   );
