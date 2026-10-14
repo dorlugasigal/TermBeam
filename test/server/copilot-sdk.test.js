@@ -1252,6 +1252,11 @@ describe('CopilotService', () => {
         type: 'assistant.message',
         data: { content: 'sub', model: 'claude-haiku-5.5', parentToolCallId: 'tool-1' },
       });
+      mockSession._emit({
+        type: 'assistant.message',
+        agentId: 'explore-1',
+        data: { content: 'sub (newer runtime)', model: 'claude-haiku-5.5' },
+      });
       mockSession._emit({ type: 'assistant.message', data: { content: 'a', model: 'gpt-5.5' } });
       mockSession._emit({ type: 'assistant.message', data: { content: 'b', model: 42 } });
       mockSession._emit({ type: 'assistant.message', data: { content: 'c' } });

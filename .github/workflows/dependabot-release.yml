@@ -5,7 +5,8 @@
 # results in exactly ONE patch release covering all of them.
 #
 # Only Dependabot dependency merges trigger this. Your own feature/fix merges are
-# released manually via the publish workflow with a chosen bump.
+# released manually via the publish workflow with a chosen bump — and while any of
+# them are still unreleased on main, this workflow does not release at all.
 name: Dependabot Auto Patch Release
 
 on:
@@ -62,6 +63,7 @@ jobs:
       cancel-in-progress: true
     permissions:
       actions: write
+      contents: read
     steps:
       - name: Wait for grouped merges to settle
         run: |
@@ -74,5 +76,22 @@ jobs:
           # The release workflow uses its own token for the tag and version commit.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Quiet window elapsed. Dispatching patch release."
-          gh workflow run release.yml -R "$GITHUB_REPOSITORY" -f bump=patch -f dry-run=false
+          # A patch release is only for Dependabot's updates. If main also holds
+          # unreleased commits from anyone else (a feature or fix waiting for a
+          # release with its own bump), leave the release to the maintainer; it
+          # will ship these updates too.
+          LAST_TAG=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+          # Check one exact commit and release only that commit (release.yml
+          # refuses to run if main has moved on in the meantime).
+          HEAD_SHA=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          OTHERS=$(gh api --paginate "repos/$GITHUB_REPOSITORY/compare/$LAST_TAG...$HEAD_SHA?per_page=100" --jq '
+            .commits[]
+            | select((.author.login // "") as $a | $a != "dependabot[bot]" and $a != "github-actions[bot]")
+            | "\(.sha[0:7]) \(.commit.author.name): \(.commit.message | split("\n")[0])"')
+          if [ -n "$OTHERS" ]; then
+            echo "::notice::Skipping the automatic patch release: main has unreleased commits besides Dependabot's since $LAST_TAG."
+            echo "$OTHERS"
+            exit 0
+          fi
+          echo "Quiet window elapsed. Dispatching patch release of $HEAD_SHA."
+          gh workflow run release.yml -R "$GITHUB_REPOSITORY" -f bump=patch -f dry-run=false -f expected-sha="$HEAD_SHA"

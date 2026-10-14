@@ -880,218 +880,156 @@ describe('SessionManager', () => {
   });
 
   describe('child process monitoring', () => {
-    it('should detect child exit and emit notification', async () => {
-      // Capture setInterval callbacks to get the checkChildren function
-      const capturedCallbacks = [];
+    const processes = require('../../src/utils/processes');
+    const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+    // Create a session while capturing its child-monitor interval callback.
+    function createMonitored(name) {
+      const captured = [];
       const origSetInterval = global.setInterval;
       global.setInterval = (fn, delay) => {
-        capturedCallbacks.push({ fn, delay });
-        // Return a real interval handle but with a very long delay (won't auto-fire)
-        const handle = origSetInterval(fn, 999999);
-        return handle;
+        captured.push(fn);
+        return origSetInterval(fn, 999999); // never fires on its own
       };
-
       let mgr;
       let id;
       try {
         mgr = new SessionManager();
-        id = mgr.create({ name: 'monitor-test', shell: '/bin/sh', cwd: '/tmp' });
+        id = mgr.create({ name, shell: '/bin/sh', cwd: '/tmp' });
       } finally {
         global.setInterval = origSetInterval;
       }
+      return { mgr, id, session: mgr.get(id), checkChildren: captured[captured.length - 1] };
+    }
 
-      const session = mgr.get(id);
-      assert.ok(session, 'session should exist');
+    let origGetChildPids;
+    beforeEach(() => {
+      origGetChildPids = processes.getChildPids;
+    });
+    afterEach(() => {
+      processes.getChildPids = origGetChildPids;
+    });
 
-      // Find the checkChildren callback (last captured interval on non-Windows)
-      if (process.platform === 'win32') {
-        // Child monitoring is not set up on Windows
-        return;
-      }
-
-      const checkChildren = capturedCallbacks[capturedCallbacks.length - 1]?.fn;
+    it('should detect child exit and emit notification', async () => {
+      if (process.platform === 'win32') return; // no child monitor on Windows
+      const { mgr, session, checkChildren } = createMonitored('monitor-test');
       assert.ok(checkChildren, 'should have captured checkChildren callback');
 
-      // Mock child_process.exec to return controlled output
-      const cp = require('child_process');
-      const origExec = cp.exec;
-      let execCallbacks = [];
-      cp.exec = (_cmd, _opts, cb) => {
-        execCallbacks.push(cb);
+      let children = ['12345'];
+      const seenPids = [];
+      processes.getChildPids = async (pid) => {
+        seenPids.push(pid);
+        return children;
       };
-
       let notified = false;
       mgr.onCommandComplete = () => {
         notified = true;
       };
 
       try {
-        // Run checkChildren 4 times with a child present (pass initial 3 skips)
+        // 4 checks with a child present (the first 3 are startup grace)
         for (let i = 0; i < 4; i++) {
           checkChildren();
-          assert.ok(execCallbacks.length > 0, `exec should be called on iteration ${i}`);
-          const cb = execCallbacks.pop();
-          cb(null, '12345\n');
+          await flush();
         }
+        assert.strictEqual(notified, false);
+        assert.ok(
+          seenPids.every((pid) => pid === session.pty.pid),
+          'inspects the shell PID',
+        );
 
-        // 5th check: child has exited (empty output)
+        children = []; // the child exited
         checkChildren();
-        assert.ok(execCallbacks.length > 0);
-        const cb = execCallbacks.pop();
-        cb(null, '');
-
+        await flush();
         assert.ok(notified, 'should emit notification when child exits');
+        assert.strictEqual(session._hasDirectChild, false);
       } finally {
-        cp.exec = origExec;
         clearInterval(session._childMonitor);
+        mgr.shutdown();
       }
-      mgr.shutdown();
     });
 
-    it('should handle exec errors in child monitoring gracefully', async () => {
-      const capturedCallbacks = [];
-      const origSetInterval = global.setInterval;
-      global.setInterval = (fn, delay) => {
-        capturedCallbacks.push({ fn, delay });
-        return origSetInterval(fn, 999999);
-      };
-
-      let mgr;
-      let id;
-      try {
-        mgr = new SessionManager();
-        id = mgr.create({ name: 'err-test', shell: '/bin/sh', cwd: '/tmp' });
-      } finally {
-        global.setInterval = origSetInterval;
-      }
-
-      const session = mgr.get(id);
+    it('should skip a check while one is in flight and recover after failures', async () => {
       if (process.platform === 'win32') return;
+      const { mgr, session, checkChildren } = createMonitored('err-test');
 
-      const checkChildren = capturedCallbacks[capturedCallbacks.length - 1]?.fn;
-      assert.ok(checkChildren);
-
-      const cp = require('child_process');
-      const origExec = cp.exec;
-      let execCallbacks = [];
-      cp.exec = (_cmd, _opts, cb) => {
-        execCallbacks.push(cb);
+      let calls = 0;
+      let release;
+      processes.getChildPids = () => {
+        calls++;
+        return new Promise((resolve) => {
+          release = resolve;
+        });
       };
-
       try {
-        // Call checkChildren — exec should be called
         checkChildren();
-        assert.ok(execCallbacks.length > 0);
-        // Simulate exec error
-        const cb = execCallbacks.pop();
-        cb(new Error('command failed'));
+        checkChildren(); // still in flight — ignored
+        assert.strictEqual(calls, 1);
+        release(null); // children couldn't be listed
+        await flush();
 
-        // Should not throw — error is handled gracefully
-        assert.ok(true, 'should handle exec error without throwing');
+        processes.getChildPids = async () => {
+          throw new Error('boom');
+        };
+        checkChildren();
+        await flush();
+
+        processes.getChildPids = async () => ['42'];
+        checkChildren();
+        await flush();
+        assert.strictEqual(session._hasDirectChild, true, 'monitoring continues after errors');
       } finally {
-        cp.exec = origExec;
         clearInterval(session._childMonitor);
+        mgr.shutdown();
       }
-      mgr.shutdown();
     });
 
     it('should skip check when session is removed', async () => {
-      const capturedCallbacks = [];
-      const origSetInterval = global.setInterval;
-      global.setInterval = (fn, delay) => {
-        capturedCallbacks.push({ fn, delay });
-        return origSetInterval(fn, 999999);
-      };
-
-      let mgr;
-      let id;
-      try {
-        mgr = new SessionManager();
-        id = mgr.create({ name: 'skip-test', shell: '/bin/sh', cwd: '/tmp' });
-      } finally {
-        global.setInterval = origSetInterval;
-      }
-
-      const session = mgr.get(id);
       if (process.platform === 'win32') return;
+      const { mgr, id, session, checkChildren } = createMonitored('skip-test');
 
-      const checkChildren = capturedCallbacks[capturedCallbacks.length - 1]?.fn;
-      assert.ok(checkChildren);
-
-      const cp = require('child_process');
-      const origExec = cp.exec;
-      let execCalled = false;
-      cp.exec = () => {
-        execCalled = true;
+      let called = false;
+      processes.getChildPids = async () => {
+        called = true;
+        return [];
       };
-
       try {
-        // Delete session, then try checkChildren — should skip
         mgr.sessions.delete(id);
         checkChildren();
-        assert.strictEqual(execCalled, false, 'should not call exec when session is removed');
+        await flush();
+        assert.strictEqual(called, false, 'should not list children when session is removed');
       } finally {
-        cp.exec = origExec;
         clearInterval(session._childMonitor);
+        mgr.shutdown();
       }
-      mgr.shutdown();
     });
 
     it('should respect notification cooldown on child exit', async () => {
-      const capturedCallbacks = [];
-      const origSetInterval = global.setInterval;
-      global.setInterval = (fn, delay) => {
-        capturedCallbacks.push({ fn, delay });
-        return origSetInterval(fn, 999999);
-      };
-
-      let mgr;
-      let id;
-      try {
-        mgr = new SessionManager();
-        id = mgr.create({ name: 'cooldown-test', shell: '/bin/sh', cwd: '/tmp' });
-      } finally {
-        global.setInterval = origSetInterval;
-      }
-
-      const session = mgr.get(id);
       if (process.platform === 'win32') return;
+      const { mgr, session, checkChildren } = createMonitored('cooldown-test');
 
-      const checkChildren = capturedCallbacks[capturedCallbacks.length - 1]?.fn;
-      assert.ok(checkChildren);
-
-      const cp = require('child_process');
-      const origExec = cp.exec;
-      let execCallbacks = [];
-      cp.exec = (_cmd, _opts, cb) => {
-        execCallbacks.push(cb);
-      };
-
+      let children = ['12345'];
+      processes.getChildPids = async () => children;
       let notifyCount = 0;
       mgr.onCommandComplete = () => {
         notifyCount++;
       };
 
       try {
-        // 4 initial checks with child present
         for (let i = 0; i < 4; i++) {
           checkChildren();
-          execCallbacks.pop()(null, '12345\n');
+          await flush();
         }
+        session._lastNotifyTime = Date.now(); // within cooldown
 
-        // Set last notify time to now (within cooldown)
-        session._lastNotifyTime = Date.now();
-
-        // Child exits
+        children = [];
         checkChildren();
-        execCallbacks.pop()(null, '');
-
+        await flush();
         assert.strictEqual(notifyCount, 0, 'should not notify within cooldown');
       } finally {
-        cp.exec = origExec;
         clearInterval(session._childMonitor);
+        mgr.shutdown();
       }
-      mgr.shutdown();
     });
   });
 
