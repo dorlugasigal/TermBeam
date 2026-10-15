@@ -77,4 +77,12 @@ describe('detectLanguage', () => {
     expect(detectLanguage('Dockerfile')).toBe('dockerfile');
     expect(detectLanguage('LICENSE')).toBe('');
   });
+
+  it('looks only at the file name of a repo-relative path', () => {
+    expect(detectLanguage('deploy/Dockerfile')).toBe('dockerfile');
+    expect(detectLanguage('build/Makefile')).toBe('bash');
+    expect(detectLanguage('config/.env.production')).toBe('ini');
+    expect(detectLanguage('docs/v1.2/NOTES')).toBe('');
+    expect(detectLanguage('src\\win\\app.py')).toBe('python');
+  });
 });

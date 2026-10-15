@@ -48,8 +48,10 @@ hljs.registerLanguage('html', xml);
 hljs.registerLanguage('htm', xml);
 hljs.registerLanguage('yml', yaml);
 
-export function detectLanguage(fileName: string): string {
-  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+export function detectLanguage(filePath: string): string {
+  // Callers pass repo-relative paths; names and extensions belong to the file.
+  const name = (filePath.split(/[\\/]/).pop() || filePath).toLowerCase();
+  const ext = name.split('.').pop() || '';
   const map: Record<string, string> = {
     js: 'javascript',
     jsx: 'javascript',
@@ -96,10 +98,9 @@ export function detectLanguage(fileName: string): string {
     patch: 'diff',
   };
 
-  const fullName = fileName.toLowerCase();
-  if (fullName === 'dockerfile' || fullName.startsWith('dockerfile.')) return 'dockerfile';
-  if (fullName === 'makefile' || fullName === 'gnumakefile') return 'bash';
-  if (fullName === '.env' || fullName.startsWith('.env.')) return 'ini';
+  if (name === 'dockerfile' || name.startsWith('dockerfile.')) return 'dockerfile';
+  if (name === 'makefile' || name === 'gnumakefile') return 'bash';
+  if (name === '.env' || name.startsWith('.env.')) return 'ini';
 
   return map[ext] || '';
 }
