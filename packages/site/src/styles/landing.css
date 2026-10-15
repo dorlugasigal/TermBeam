@@ -1653,6 +1653,10 @@ section[id] {
   .hero-devices {
     max-width: 500px;
   }
+  /* No lane for the hint on short screens, and scrolling is obvious there. */
+  .scroll-hint {
+    display: none;
+  }
 }
 
 /* ─── Focus Visible ────────────────────────────────────── */
