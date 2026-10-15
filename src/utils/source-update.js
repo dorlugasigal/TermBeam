@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const log = require('./logger');
-const { runCommand, describeFailure, logFailure } = require('./update-commands');
+const { runCommand, describeFailure, logFailure, isRegistryFailure } = require('./update-commands');
 
 const GIT_TIMEOUT_MS = 2 * 60_000;
 const LS_TIMEOUT_MS = 60_000;
@@ -40,9 +40,10 @@ async function attempt(label, kind, timeoutMs, fn) {
 }
 
 /**
- * Whether node_modules in `dir` holds exactly the versions package-lock.json
- * pins. Optional packages are skipped (platform-specific ones are never
- * installed); dev packages only count when `includeDev` is set.
+ * Whether node_modules in `dir` holds the versions package-lock.json pins.
+ * Dev packages only count when `includeDev` is set. A package that is
+ * optional in that scope may be absent (npm skips other platforms' binaries
+ * and failed optional builds), but if it is installed its version must match.
  */
 function installedMatchesLockfile(dir, { includeDev }) {
   let lock;
@@ -53,13 +54,15 @@ function installedMatchesLockfile(dir, { includeDev }) {
   }
   if (!lock.packages) return false;
   for (const [location, meta] of Object.entries(lock.packages)) {
-    if (!location.startsWith('node_modules/')) continue;
-    if (meta.optional || meta.devOptional || meta.link) continue;
+    if (!location.startsWith('node_modules/') || meta.link) continue;
     if (meta.dev && !includeDev) continue;
+    // devOptional: a dev dependency that is also optional for production.
+    const optional = meta.optional || (meta.devOptional && !includeDev);
     let installed;
     try {
       installed = JSON.parse(fs.readFileSync(path.join(dir, location, 'package.json'), 'utf8'));
     } catch {
+      if (optional) continue;
       return false;
     }
     if (meta.version && installed.version !== meta.version) return false;
@@ -72,17 +75,24 @@ async function installedTreeIsValid(dir, { includeDev }) {
   const args = ['ls', '--all', '--json'];
   if (!includeDev) args.push('--omit=dev');
   let stdout;
+  let failed = false;
   try {
     ({ stdout } = await npm(args, dir, LS_TIMEOUT_MS));
   } catch (err) {
-    stdout = err.stdout; // npm ls exits 1 when it reports problems
+    failed = true; // npm ls exits 1 (ELSPROBLEMS) when it lists problems
+    stdout = err.stdout;
   }
+  let report;
   try {
-    const problems = JSON.parse(stdout).problems || [];
-    return !problems.some((problem) => /^(missing|invalid)\b/.test(problem));
+    report = JSON.parse(stdout);
   } catch {
     return false;
   }
+  // An `error` report (EOVERRIDE, a broken lockfile…) validated nothing.
+  if (report.error) return false;
+  const problems = Array.isArray(report.problems) ? report.problems : null;
+  if (failed && !problems) return false;
+  return !(problems || []).some((problem) => /^(missing|invalid)\b/.test(problem));
 }
 
 async function syncDependencies(dir, { label, includeDev, phase, onPhase, warnings }) {
@@ -93,10 +103,13 @@ async function syncDependencies(dir, { label, includeDev, phase, onPhase, warnin
   } catch (err) {
     logFailure(label, err);
     const reason = describeFailure(label, err, { timeoutMs: INSTALL_TIMEOUT_MS });
-    // A registry mirror can be days behind npmjs.org. The packages already
-    // installed are what the running version uses, so go ahead while they
-    // still satisfy every declared range.
-    if (!(await installedTreeIsValid(dir, { includeDev }))) throw new Error(reason);
+    // A registry mirror can be days behind npmjs.org. When npm only failed to
+    // download, it rolled back, and node_modules still holds what the running
+    // version uses: go ahead while those packages satisfy every declared range.
+    // A failed install script or a timeout may have left broken binaries.
+    if (!isRegistryFailure(err) || !(await installedTreeIsValid(dir, { includeDev }))) {
+      throw new Error(reason);
+    }
     log.warn(`${reason} Continuing with the installed dependencies.`);
     warnings.push(reason);
   }

@@ -73,14 +73,42 @@ function firstHost(text) {
   }
 }
 
-function describeNpm(output) {
-  const npmLines = lines(output)
+function npmLines(output) {
+  return lines(output)
     .map((line) => line.match(/^npm (?:error|ERR!)\s*(.*)$/)?.[1])
     .filter(Boolean);
-  if (!npmLines.length) return null;
+}
 
-  const code = npmLines.map((line) => line.match(/^code (\S+)/)?.[1]).find(Boolean);
-  const host = firstHost(npmLines.join('\n'));
+function npmCode(output) {
+  return npmLines(output)
+    .map((line) => line.match(/^code (\S+)/)?.[1])
+    .find(Boolean);
+}
+
+/**
+ * Whether npm failed fetching a package (missing version, HTTP or network
+ * error, bad checksum), as opposed to a failed install script or a timeout.
+ * npm rolls such an install back, so node_modules is left as it was.
+ */
+function isRegistryFailure(err) {
+  if (err.killed) return false;
+  const code = npmCode(outputOf(err));
+  if (!code) return false;
+  return (
+    /^E[45]\d\d$/.test(code) ||
+    code === 'ETARGET' ||
+    code === 'EINTEGRITY' ||
+    AUTH_CODES.has(code) ||
+    NETWORK_CODES.has(code)
+  );
+}
+
+function describeNpm(output) {
+  const errors = npmLines(output);
+  if (!errors.length) return null;
+
+  const code = npmCode(output);
+  const host = firstHost(errors.join('\n'));
   const where = host ? ` from ${host}` : '';
 
   if (code === 'E404' || code === 'ETARGET') {
@@ -101,7 +129,13 @@ function describeNpm(output) {
   if (code && NETWORK_CODES.has(code)) {
     return `couldn't reach ${host || 'the npm registry'} (${code}).`;
   }
-  const detail = npmLines.find(
+  if (code && /^\d+$/.test(code)) {
+    // A lifecycle script exited non-zero; npm names the package in `path`.
+    const where = errors.map((line) => line.match(/^path (.+)$/)?.[1]).find(Boolean);
+    const pkg = where?.split(/node_modules[\\/]/).pop();
+    return `${pkg ? `${pkg}'s` : 'an'} install script failed (exit ${code}).`;
+  }
+  const detail = errors.find(
     (line) => !/^(code|errno|syscall|path|command|workspace|location|A complete log)\b/.test(line),
   );
   if (!detail) return code ? `npm exited with ${code}.` : null;
@@ -173,4 +207,4 @@ function logFailure(label, err) {
   log.error(`${label} failed: ${first}${output ? `\n${output.slice(-4000)}` : ''}`);
 }
 
-module.exports = { runCommand, describeFailure, logFailure };
+module.exports = { runCommand, describeFailure, logFailure, isRegistryFailure };

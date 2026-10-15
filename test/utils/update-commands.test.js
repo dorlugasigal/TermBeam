@@ -1,7 +1,11 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const cp = require('child_process');
-const { describeFailure, runCommand } = require('../../src/utils/update-commands');
+const {
+  describeFailure,
+  isRegistryFailure,
+  runCommand,
+} = require('../../src/utils/update-commands');
 
 const failure = (fields) => Object.assign(new Error('Command failed'), fields);
 
@@ -68,6 +72,20 @@ describe('update-commands', () => {
       );
     });
 
+    it('names the package whose install script failed', () => {
+      const stderr = [
+        'npm error code 1',
+        'npm error path /repo/node_modules/node-pty',
+        'npm error command failed',
+        'npm error command sh -c node-gyp rebuild',
+        'npm error gyp info it worked if it ends with ok',
+      ].join('\n');
+      assert.strictEqual(
+        describeFailure('npm install', failure({ code: 1, stderr })),
+        "npm install: node-pty's install script failed (exit 1).",
+      );
+    });
+
     it('turns git refusals into a next step', () => {
       const diverged = failure({
         code: 128,
@@ -129,6 +147,28 @@ describe('update-commands', () => {
       const long = describeFailure('npm install', new Error('x'.repeat(500)));
       assert.strictEqual(long.length, 300);
       assert.ok(long.endsWith('…'));
+    });
+  });
+
+  describe('isRegistryFailure', () => {
+    const npmFailure = (code) => failure({ code: 1, stderr: `npm error code ${code}` });
+
+    it('accepts download, HTTP, auth and network errors', () => {
+      for (const code of ['E404', 'ETARGET', 'E503', 'E401', 'EINTEGRITY', 'ENOTFOUND']) {
+        assert.strictEqual(isRegistryFailure(npmFailure(code)), true, code);
+      }
+    });
+
+    it('rejects failed install scripts, timeouts and unknown failures', () => {
+      assert.strictEqual(isRegistryFailure(npmFailure('1')), false);
+      assert.strictEqual(isRegistryFailure(npmFailure('EACCES')), false);
+      assert.strictEqual(
+        isRegistryFailure(
+          failure({ killed: true, signal: 'SIGTERM', stderr: 'npm error code E404' }),
+        ),
+        false,
+      );
+      assert.strictEqual(isRegistryFailure(new Error('spawn npm ENOENT')), false);
     });
   });
 

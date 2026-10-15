@@ -86,6 +86,26 @@ describe('source-update', () => {
       assert.strictEqual(installedMatchesLockfile(dir, { includeDev: false }), false);
     });
 
+    it('compares installed optional packages and tolerates absent ones', () => {
+      const lock = {
+        'node_modules/better-sqlite3': { version: '13.0.3', optional: true },
+        'node_modules/@esbuild/linux-x64': { version: '0.28.1', optional: true },
+      };
+      makeCheckout(dir, { root: { lock, installed: { 'better-sqlite3': '13.0.2' } } });
+      assert.strictEqual(installedMatchesLockfile(dir, { includeDev: false }), false);
+      writeJson(path.join(dir, 'node_modules', 'better-sqlite3', 'package.json'), {
+        version: '13.0.3',
+      });
+      assert.strictEqual(installedMatchesLockfile(dir, { includeDev: false }), true);
+    });
+
+    it('requires devOptional packages when dev dependencies count', () => {
+      const lock = { 'node_modules/@types/react-dom': { version: '19.2.3', devOptional: true } };
+      makeCheckout(dir, { root: { lock } });
+      assert.strictEqual(installedMatchesLockfile(dir, { includeDev: true }), false);
+      assert.strictEqual(installedMatchesLockfile(dir, { includeDev: false }), true);
+    });
+
     it('treats an unreadable lockfile as out of date', () => {
       assert.strictEqual(installedMatchesLockfile(dir, { includeDev: false }), false);
       fs.writeFileSync(path.join(dir, 'package-lock.json'), '{"lockfileVersion":1}');
@@ -107,6 +127,23 @@ describe('source-update', () => {
       const calls = mockCommands(t, { npm: { ls: { code: 1, stdout, stderr: '' } } });
       assert.strictEqual(await installedTreeIsValid(dir, { includeDev: false }), false);
       assert.deepStrictEqual(calls[0].args, ['ls', '--all', '--json', '--omit=dev']);
+    });
+
+    it('accepts a problems report that only lists extraneous packages', async (t) => {
+      const stdout = JSON.stringify({ problems: ['extraneous: left-pad@1.0.0 /x'] });
+      mockCommands(t, { npm: { ls: { code: 1, stdout, stderr: 'npm error code ELSPROBLEMS' } } });
+      assert.strictEqual(await installedTreeIsValid(dir, { includeDev: false }), true);
+    });
+
+    it('rejects error reports and failures without a problems list', async (t) => {
+      const report = JSON.stringify({ error: { code: 'EOVERRIDE', summary: 'Override conflict' } });
+      mockCommands(t, { npm: { ls: report } });
+      assert.strictEqual(await installedTreeIsValid(dir, { includeDev: false }), false);
+    });
+
+    it('rejects a failed run that reports no problems', async (t) => {
+      mockCommands(t, { npm: { ls: { code: 1, stdout: '{"name":"x"}', stderr: '' } } });
+      assert.strictEqual(await installedTreeIsValid(dir, { includeDev: false }), false);
     });
 
     it('fails closed when npm ls output is unusable', async (t) => {
@@ -208,6 +245,32 @@ describe('source-update', () => {
         message: "npm install: express@5.3.0 isn't available (ETARGET).",
       });
       assert.ok(!calls.some((c) => c.args.join(' ') === 'run build'), 'does not build');
+    });
+
+    it('stops when an install script fails, even if the tree looks valid', async (t) => {
+      makeCheckout(dir, { root: { lock: LOCK, installed: { express: '5.2.1' } } });
+      const stderr =
+        'npm error code 1\nnpm error path /x/node_modules/node-pty\nnpm error command failed';
+      const calls = mockCommands(t, {
+        npm: { install: { code: 1, stderr, stdout: '' }, ls: JSON.stringify({ problems: [] }) },
+      });
+      await assert.rejects(updateSourceCheckout({ cwd: dir }), {
+        message: "npm install: node-pty's install script failed (exit 1).",
+      });
+      assert.ok(
+        !calls.some((c) => c.args[0] === 'ls'),
+        'never trusts npm ls after a script failure',
+      );
+    });
+
+    it('stops when npm install times out', async (t) => {
+      makeCheckout(dir, { root: { lock: LOCK, installed: { express: '5.2.1' } } });
+      mockCommands(t, {
+        npm: { install: { killed: true, signal: 'SIGTERM', stderr: '', stdout: '' } },
+      });
+      await assert.rejects(updateSourceCheckout({ cwd: dir }), {
+        message: 'npm install: timed out after 10 min.',
+      });
     });
 
     it('explains a pull that cannot fast-forward', async (t) => {
