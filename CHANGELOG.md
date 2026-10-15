@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.25.1] - 2026-10-15
+
+- ci: steadier smoke test and a patch-only release guard (#323) (@dorlugasigal)
+- fix(code-viewer): highlight diffs and multi-line tokens; refresh screenshots (#325) (@dorlugasigal)
+- fix(code-viewer): look up languages and icons by own keys only (#327) (@dorlugasigal)
+
 ## [1.25.0] - 2026-10-14
 
 - chore(ci): bump the all-actions group across 1 directory with 11 updates (#321) (@dependabot[bot])
