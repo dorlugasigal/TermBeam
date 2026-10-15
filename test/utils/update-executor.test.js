@@ -4,6 +4,18 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+// On Windows runCommand starts npm through cmd.exe as one string with no
+// arguments; split it back so these fakes match the same calls on every OS.
+function shellAware(fake) {
+  return (file, args, opts, cb) => {
+    if (opts && opts.shell && args.length === 0) {
+      const [cmd, ...rest] = file.split(' ');
+      return fake(cmd, rest, opts, cb);
+    }
+    return fake(file, args, opts, cb);
+  };
+}
+
 describe('update-executor', () => {
   let origConfigDir;
   let tempDir;
@@ -141,10 +153,14 @@ describe('update-executor', () => {
   describe('checkPermissions (mocked)', () => {
     it('should return canUpdate true when git is available for source method', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'git') return cb(null, 'git version 2.43.0', '');
-        cb(new Error('unexpected'), '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'git') return cb(null, 'git version 2.43.0', '');
+          cb(new Error('unexpected'), '', '');
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const { checkPermissions } = require('../../src/utils/update-executor');
       const result = await checkPermissions('source');
@@ -154,9 +170,13 @@ describe('update-executor', () => {
 
     it('should return canUpdate false when git is not found for source method', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        cb(new Error('not found'));
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          cb(new Error('not found'));
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const { checkPermissions } = require('../../src/utils/update-executor');
       const result = await checkPermissions('source');
@@ -166,10 +186,14 @@ describe('update-executor', () => {
 
     it('should return canUpdate true for yarn method', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'yarn') return cb(null, '1.22.0', '');
-        cb(new Error('unexpected'), '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'yarn') return cb(null, '1.22.0', '');
+          cb(new Error('unexpected'), '', '');
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const { checkPermissions } = require('../../src/utils/update-executor');
       const result = await checkPermissions('yarn');
@@ -179,10 +203,14 @@ describe('update-executor', () => {
 
     it('should return canUpdate true for pnpm method', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'pnpm') return cb(null, '8.0.0', '');
-        cb(new Error('unexpected'), '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'pnpm') return cb(null, '8.0.0', '');
+          cb(new Error('unexpected'), '', '');
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const { checkPermissions } = require('../../src/utils/update-executor');
       const result = await checkPermissions('pnpm');
@@ -192,9 +220,13 @@ describe('update-executor', () => {
 
     it('should return canUpdate false when yarn is not on PATH', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        cb(new Error('not found'));
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          cb(new Error('not found'));
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const { checkPermissions } = require('../../src/utils/update-executor');
       const result = await checkPermissions('yarn');
@@ -204,9 +236,13 @@ describe('update-executor', () => {
 
     it('should return canUpdate false when npm is not on PATH', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        cb(new Error('not found'));
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          cb(new Error('not found'));
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const { checkPermissions } = require('../../src/utils/update-executor');
       const result = await checkPermissions('npm');
@@ -216,13 +252,17 @@ describe('update-executor', () => {
 
     it('should return canUpdate false when npm global dir is not writable', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'npm' && args[0] === '--version') return cb(null, '10.0.0', '');
-        if (cmd === 'npm' && args[0] === 'root') {
-          return cb(null, '/nonexistent/fake/unwritable/path/xyz', '');
-        }
-        cb(new Error('unexpected'), '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'npm' && args[0] === '--version') return cb(null, '10.0.0', '');
+          if (cmd === 'npm' && args[0] === 'root') {
+            return cb(null, '/nonexistent/fake/unwritable/path/xyz', '');
+          }
+          cb(new Error('unexpected'), '', '');
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const { checkPermissions } = require('../../src/utils/update-executor');
       const result = await checkPermissions('npm');
@@ -259,13 +299,17 @@ describe('update-executor', () => {
 
     it('should parse version from npm ls JSON output', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'npm' && args[0] === 'ls') {
-          const json = JSON.stringify({ dependencies: { termbeam: { version: '3.0.0' } } });
-          return cb(null, json, '');
-        }
-        cb(new Error('unexpected'), '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'npm' && args[0] === 'ls') {
+            const json = JSON.stringify({ dependencies: { termbeam: { version: '3.0.0' } } });
+            return cb(null, json, '');
+          }
+          cb(new Error('unexpected'), '', '');
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const { verifyInstalledVersion } = require('../../src/utils/update-executor');
       const version = await verifyInstalledVersion('npm');
@@ -274,12 +318,16 @@ describe('update-executor', () => {
 
     it('should use regex fallback for yarn output', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'yarn') {
-          return cb(null, '{"type":"info","data":"termbeam@3.5.0"}', '');
-        }
-        cb(new Error('unexpected'), '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'yarn') {
+            return cb(null, '{"type":"info","data":"termbeam@3.5.0"}', '');
+          }
+          cb(new Error('unexpected'), '', '');
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const { verifyInstalledVersion } = require('../../src/utils/update-executor');
       const version = await verifyInstalledVersion('yarn');
@@ -288,12 +336,16 @@ describe('update-executor', () => {
 
     it('should use regex fallback for pnpm output', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'pnpm') {
-          return cb(null, 'termbeam@4.0.0 /usr/local/lib', '');
-        }
-        cb(new Error('unexpected'), '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'pnpm') {
+            return cb(null, 'termbeam@4.0.0 /usr/local/lib', '');
+          }
+          cb(new Error('unexpected'), '', '');
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const { verifyInstalledVersion } = require('../../src/utils/update-executor');
       const version = await verifyInstalledVersion('pnpm');
@@ -302,13 +354,17 @@ describe('update-executor', () => {
 
     it('should use regex fallback when npm JSON has no termbeam dep', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'npm' && args[0] === 'ls') {
-          // JSON with no termbeam dep, but stdout contains termbeam@x.y.z
-          return cb(null, '{"dependencies":{}}\ntermbeam@6.1.0', '');
-        }
-        cb(new Error('unexpected'), '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'npm' && args[0] === 'ls') {
+            // JSON with no termbeam dep, but stdout contains termbeam@x.y.z
+            return cb(null, '{"dependencies":{}}\ntermbeam@6.1.0', '');
+          }
+          cb(new Error('unexpected'), '', '');
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const { verifyInstalledVersion } = require('../../src/utils/update-executor');
       // JSON.parse will fail on the multiline string, falling through to regex
@@ -325,11 +381,15 @@ describe('update-executor', () => {
 
     it('should fall back to termbeam --version when primary method fails', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'npm' && args[0] === 'ls') return cb(new Error('npm ls failed'));
-        if (cmd === 'termbeam') return cb(null, 'termbeam v5.0.0', '');
-        cb(new Error('unexpected'), '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'npm' && args[0] === 'ls') return cb(new Error('npm ls failed'));
+          if (cmd === 'termbeam') return cb(null, 'termbeam v5.0.0', '');
+          cb(new Error('unexpected'), '', '');
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const { verifyInstalledVersion } = require('../../src/utils/update-executor');
       const version = await verifyInstalledVersion('npm');
@@ -338,9 +398,13 @@ describe('update-executor', () => {
 
     it('should return null when all verification methods fail', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        cb(new Error('fail'));
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          cb(new Error('fail'));
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const { verifyInstalledVersion } = require('../../src/utils/update-executor');
       const version = await verifyInstalledVersion('npm');
@@ -353,9 +417,13 @@ describe('update-executor', () => {
   describe('executeUpdate (mocked)', () => {
     it('should fail when permission check fails', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        cb(new Error('not found'));
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          cb(new Error('not found'));
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const mod = require('../../src/utils/update-executor');
       const result = await mod.executeUpdate({
@@ -372,12 +440,16 @@ describe('update-executor', () => {
 
     it('should handle install command failure', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'npm' && args[0] === '--version') return cb(null, '10.0.0', '');
-        if (cmd === 'npm' && args[0] === 'root') return cb(null, tempDir, '');
-        // Install and everything else fails
-        cb(new Error('NETWORK ERROR'));
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'npm' && args[0] === '--version') return cb(null, '10.0.0', '');
+          if (cmd === 'npm' && args[0] === 'root') return cb(null, tempDir, '');
+          // Install and everything else fails
+          cb(new Error('NETWORK ERROR'));
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const mod = require('../../src/utils/update-executor');
       const result = await mod.executeUpdate({
@@ -394,13 +466,17 @@ describe('update-executor', () => {
 
     it('should fail when version verification returns null', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'npm' && args[0] === '--version') return cb(null, '10.0.0', '');
-        if (cmd === 'npm' && args[0] === 'root') return cb(null, tempDir, '');
-        if (cmd === 'npm' && args[0] === 'install') return cb(null, 'installed', '');
-        // All verify attempts fail (npm ls, termbeam --version)
-        cb(new Error('fail'));
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'npm' && args[0] === '--version') return cb(null, '10.0.0', '');
+          if (cmd === 'npm' && args[0] === 'root') return cb(null, tempDir, '');
+          if (cmd === 'npm' && args[0] === 'install') return cb(null, 'installed', '');
+          // All verify attempts fail (npm ls, termbeam --version)
+          cb(new Error('fail'));
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const mod = require('../../src/utils/update-executor');
       const result = await mod.executeUpdate({
@@ -417,16 +493,20 @@ describe('update-executor', () => {
 
     it('should succeed when same version is reinstalled', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'npm' && args[0] === '--version') return cb(null, '10.0.0', '');
-        if (cmd === 'npm' && args[0] === 'root') return cb(null, tempDir, '');
-        if (cmd === 'npm' && args[0] === 'install') return cb(null, 'installed ok', '');
-        if (cmd === 'npm' && args[0] === 'ls') {
-          const json = JSON.stringify({ dependencies: { termbeam: { version: '1.0.0' } } });
-          return cb(null, json, '');
-        }
-        cb(new Error('unexpected'), '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'npm' && args[0] === '--version') return cb(null, '10.0.0', '');
+          if (cmd === 'npm' && args[0] === 'root') return cb(null, tempDir, '');
+          if (cmd === 'npm' && args[0] === 'install') return cb(null, 'installed ok', '');
+          if (cmd === 'npm' && args[0] === 'ls') {
+            const json = JSON.stringify({ dependencies: { termbeam: { version: '1.0.0' } } });
+            return cb(null, json, '');
+          }
+          cb(new Error('unexpected'), '', '');
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const mod = require('../../src/utils/update-executor');
       const result = await mod.executeUpdate({
@@ -443,16 +523,20 @@ describe('update-executor', () => {
 
     it('should fail when downgrade is detected', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'npm' && args[0] === '--version') return cb(null, '10.0.0', '');
-        if (cmd === 'npm' && args[0] === 'root') return cb(null, tempDir, '');
-        if (cmd === 'npm' && args[0] === 'install') return cb(null, 'installed', '');
-        if (cmd === 'npm' && args[0] === 'ls') {
-          const json = JSON.stringify({ dependencies: { termbeam: { version: '0.9.0' } } });
-          return cb(null, json, '');
-        }
-        cb(new Error('unexpected'), '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'npm' && args[0] === '--version') return cb(null, '10.0.0', '');
+          if (cmd === 'npm' && args[0] === 'root') return cb(null, tempDir, '');
+          if (cmd === 'npm' && args[0] === 'install') return cb(null, 'installed', '');
+          if (cmd === 'npm' && args[0] === 'ls') {
+            const json = JSON.stringify({ dependencies: { termbeam: { version: '0.9.0' } } });
+            return cb(null, json, '');
+          }
+          cb(new Error('unexpected'), '', '');
+        }),
+      );
       // Mock isNewerVersion to return false (0.9.0 is not newer than 1.0.0)
       const updateCheck = require('../../src/utils/update-check');
       t.mock.method(updateCheck, 'isNewerVersion', () => false);
@@ -474,16 +558,20 @@ describe('update-executor', () => {
 
     it('should handle onProgress callback errors gracefully', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'npm' && args[0] === '--version') return cb(null, '10.0.0', '');
-        if (cmd === 'npm' && args[0] === 'root') return cb(null, tempDir, '');
-        if (cmd === 'npm' && args[0] === 'install') return cb(null, 'installed', '');
-        if (cmd === 'npm' && args[0] === 'ls') {
-          const json = JSON.stringify({ dependencies: { termbeam: { version: '2.0.0' } } });
-          return cb(null, json, '');
-        }
-        cb(new Error('unexpected'), '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'npm' && args[0] === '--version') return cb(null, '10.0.0', '');
+          if (cmd === 'npm' && args[0] === 'root') return cb(null, tempDir, '');
+          if (cmd === 'npm' && args[0] === 'install') return cb(null, 'installed', '');
+          if (cmd === 'npm' && args[0] === 'ls') {
+            const json = JSON.stringify({ dependencies: { termbeam: { version: '2.0.0' } } });
+            return cb(null, json, '');
+          }
+          cb(new Error('unexpected'), '', '');
+        }),
+      );
       const updateCheck = require('../../src/utils/update-check');
       t.mock.method(updateCheck, 'isNewerVersion', () => true);
 
@@ -507,16 +595,20 @@ describe('update-executor', () => {
 
     it('should call performRestart on successful update', async (t) => {
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'npm' && args[0] === '--version') return cb(null, '10.0.0', '');
-        if (cmd === 'npm' && args[0] === 'root') return cb(null, tempDir, '');
-        if (cmd === 'npm' && args[0] === 'install') return cb(null, 'installed', '');
-        if (cmd === 'npm' && args[0] === 'ls') {
-          const json = JSON.stringify({ dependencies: { termbeam: { version: '2.0.0' } } });
-          return cb(null, json, '');
-        }
-        cb(new Error('unexpected'), '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'npm' && args[0] === '--version') return cb(null, '10.0.0', '');
+          if (cmd === 'npm' && args[0] === 'root') return cb(null, tempDir, '');
+          if (cmd === 'npm' && args[0] === 'install') return cb(null, 'installed', '');
+          if (cmd === 'npm' && args[0] === 'ls') {
+            const json = JSON.stringify({ dependencies: { termbeam: { version: '2.0.0' } } });
+            return cb(null, json, '');
+          }
+          cb(new Error('unexpected'), '', '');
+        }),
+      );
       const updateCheck = require('../../src/utils/update-check');
       t.mock.method(updateCheck, 'isNewerVersion', () => true);
 
@@ -579,10 +671,14 @@ describe('update-executor', () => {
       t.after(() => fs.rmSync(checkout, { recursive: true, force: true }));
       const cp = require('child_process');
       const calls = [];
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        calls.push(`${cmd} ${args.join(' ')}`);
-        cb(null, cmd === 'git' && args[0] === 'rev-parse' ? 'abc1234\n' : '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          calls.push(`${cmd} ${args.join(' ')}`);
+          cb(null, cmd === 'git' && args[0] === 'rev-parse' ? 'abc1234\n' : '', '');
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const mod = require('../../src/utils/update-executor');
       const phases = [];
@@ -612,17 +708,21 @@ describe('update-executor', () => {
       const checkout = makeCheckout();
       t.after(() => fs.rmSync(checkout, { recursive: true, force: true }));
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'git' && args[0] === 'pull') {
-          const err = Object.assign(new Error('Command failed: git pull --ff-only'), { code: 1 });
-          return cb(
-            err,
-            '',
-            'error: Your local changes to the following files would be overwritten by merge:\n\tREADME.md',
-          );
-        }
-        cb(null, cmd === 'git' && args[0] === 'rev-parse' ? 'abc1234\n' : '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'git' && args[0] === 'pull') {
+            const err = Object.assign(new Error('Command failed: git pull --ff-only'), { code: 1 });
+            return cb(
+              err,
+              '',
+              'error: Your local changes to the following files would be overwritten by merge:\n\tREADME.md',
+            );
+          }
+          cb(null, cmd === 'git' && args[0] === 'rev-parse' ? 'abc1234\n' : '', '');
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const mod = require('../../src/utils/update-executor');
       const result = await run(mod, checkout);
@@ -642,15 +742,19 @@ describe('update-executor', () => {
         JSON.stringify({ version: '5.2.1' }),
       );
       const cp = require('child_process');
-      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
-        if (cmd === 'npm' && args[0] === 'install') {
-          const stderr =
-            'npm error code E404\nnpm error 404 Not Found - GET https://mirror.example.com/npm/express/-/express-5.3.0.tgz';
-          return cb(Object.assign(new Error('Command failed'), { code: 1 }), '', stderr);
-        }
-        if (cmd === 'npm' && args[0] === 'ls') return cb(null, '{"problems":[]}', '');
-        cb(null, cmd === 'git' && args[0] === 'rev-parse' ? 'abc1234\n' : '', '');
-      });
+      t.mock.method(
+        cp,
+        'execFile',
+        shellAware((cmd, args, opts, cb) => {
+          if (cmd === 'npm' && args[0] === 'install') {
+            const stderr =
+              'npm error code E404\nnpm error 404 Not Found - GET https://mirror.example.com/npm/express/-/express-5.3.0.tgz';
+            return cb(Object.assign(new Error('Command failed'), { code: 1 }), '', stderr);
+          }
+          if (cmd === 'npm' && args[0] === 'ls') return cb(null, '{"problems":[]}', '');
+          cb(null, cmd === 'git' && args[0] === 'rev-parse' ? 'abc1234\n' : '', '');
+        }),
+      );
       delete require.cache[require.resolve('../../src/utils/update-executor')];
       const mod = require('../../src/utils/update-executor');
       const result = await run(mod, checkout);

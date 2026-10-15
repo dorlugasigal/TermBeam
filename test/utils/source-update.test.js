@@ -45,6 +45,9 @@ function mockCommands(t, { npm = {}, git = {} } = {}) {
   const calls = [];
   let head = 0;
   t.mock.method(cp, 'execFile', (file, args, opts, cb) => {
+    // On Windows runCommand starts npm through cmd.exe as one string with no
+    // arguments; split it back so the fakes match the same calls on every OS.
+    if (opts.shell && args.length === 0) [file, ...args] = file.split(' ');
     calls.push({ file, args: [...args], cwd: opts.cwd });
     const reply = file === 'git' ? git[args[0]] : file === 'npm' ? npm[args[0]] : undefined;
     if (reply && typeof reply === 'object') {
