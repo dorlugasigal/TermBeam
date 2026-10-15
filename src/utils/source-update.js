@@ -142,7 +142,7 @@ async function updateSourceCheckout({ cwd, onPhase = () => {} }) {
   });
 
   onPhase('Building the web app...');
-  await attempt('Web app build', 'build', BUILD_TIMEOUT_MS, () =>
+  await attempt('web app build', 'build', BUILD_TIMEOUT_MS, () =>
     npm(['run', 'build'], frontend, BUILD_TIMEOUT_MS),
   );
   return { from, to, warnings };

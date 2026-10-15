@@ -17,7 +17,7 @@ describe('update-commands', () => {
       ].join('\n');
       assert.strictEqual(
         describeFailure('npm install', failure({ code: 1, stderr })),
-        "npm install failed: prettier-3.9.10.tgz isn't available from packagefeedproxy.microsoft.io (E404). Registry mirrors can lag behind npmjs.org; try again later.",
+        "npm install: prettier-3.9.10.tgz isn't available from packagefeedproxy.microsoft.io (E404). Registry mirrors can lag behind npmjs.org; try again later.",
       );
     });
 
@@ -26,7 +26,7 @@ describe('update-commands', () => {
         'npm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/nope/-/nope-1.0.0.tgz';
       assert.strictEqual(
         describeFailure('npm install', failure({ code: 1, stderr })),
-        "npm install failed: nope-1.0.0.tgz isn't available from registry.npmjs.org (E404).",
+        "npm install: nope-1.0.0.tgz isn't available from registry.npmjs.org (E404).",
       );
     });
 
@@ -38,7 +38,7 @@ describe('update-commands', () => {
       ].join('\n');
       assert.strictEqual(
         describeFailure('npm install', failure({ code: 1, stderr })),
-        "npm install failed: no-such-pkg@* isn't available from registry.npmjs.org (E404).",
+        "npm install: no-such-pkg@* isn't available from registry.npmjs.org (E404).",
       );
     });
 
@@ -47,7 +47,7 @@ describe('update-commands', () => {
         'npm error code ETARGET\nnpm error notarget No matching version found for express@9.9.9.';
       assert.strictEqual(
         describeFailure('npm install', failure({ code: 1, stderr })),
-        "npm install failed: express@9.9.9 isn't available (ETARGET).",
+        "npm install: express@9.9.9 isn't available (ETARGET).",
       );
     });
 
@@ -55,7 +55,7 @@ describe('update-commands', () => {
       const auth = 'npm error code E401\nnpm error Unable to authenticate, your token is invalid.';
       assert.strictEqual(
         describeFailure('npm install', failure({ code: 1, stderr: auth })),
-        'npm install failed: the npm registry refused the request (E401). Check your npm login for it.',
+        'npm install: the npm registry refused the request (E401). Check your npm login for it.',
       );
       const network = [
         'npm error code ENOTFOUND',
@@ -64,7 +64,7 @@ describe('update-commands', () => {
       ].join('\n');
       assert.strictEqual(
         describeFailure('npm install', failure({ code: 1, stderr: network })),
-        "npm install failed: couldn't reach npm.example.com (ENOTFOUND).",
+        "npm install: couldn't reach npm.example.com (ENOTFOUND).",
       );
     });
 
@@ -76,7 +76,7 @@ describe('update-commands', () => {
       });
       assert.strictEqual(
         describeFailure('git pull', diverged, { kind: 'git' }),
-        'git pull failed: Not possible to fast-forward, aborting. Local commits block a fast-forward; update this checkout by hand.',
+        'git pull: Not possible to fast-forward, aborting. Local commits block a fast-forward; update this checkout by hand.',
       );
       const dirty = failure({
         code: 1,
@@ -85,7 +85,7 @@ describe('update-commands', () => {
       });
       assert.strictEqual(
         describeFailure('git pull', dirty, { kind: 'git' }),
-        'git pull failed: Your local changes to the following files would be overwritten by merge. Commit or stash local changes, then retry.',
+        'git pull: Your local changes to the following files would be overwritten by merge. Commit or stash local changes, then retry.',
       );
       const untracked = failure({
         code: 1,
@@ -94,7 +94,7 @@ describe('update-commands', () => {
       });
       assert.strictEqual(
         describeFailure('git pull', untracked, { kind: 'git' }),
-        'git pull failed: There is no tracking information for the current branch. Check out a branch that tracks a remote (such as main), then retry.',
+        'git pull: There is no tracking information for the current branch. Check out a branch that tracks a remote (such as main), then retry.',
       );
     });
 
@@ -106,25 +106,25 @@ describe('update-commands', () => {
         stderr: 'npm error Lifecycle script `build` failed with error:\nnpm error code 2',
       });
       assert.strictEqual(
-        describeFailure('Web app build', err, { kind: 'build' }),
-        "Web app build failed: src/App.tsx(12,3): error TS2322: Type 'string' is not assignable to type 'number'.",
+        describeFailure('web app build', err, { kind: 'build' }),
+        "web app build: src/App.tsx(12,3): error TS2322: Type 'string' is not assignable to type 'number'.",
       );
     });
 
     it('covers missing commands, timeouts, unknown output and long messages', () => {
       assert.strictEqual(
-        describeFailure('Web app build', failure({ code: 'ENOENT', path: 'npm' })),
-        "Web app build failed: npm isn't installed or isn't on PATH.",
+        describeFailure('web app build', failure({ code: 'ENOENT', path: 'npm' })),
+        "web app build: npm isn't installed or isn't on PATH.",
       );
       assert.strictEqual(
         describeFailure('npm install', failure({ killed: true, signal: 'SIGTERM' }), {
           timeoutMs: 600_000,
         }),
-        'npm install failed: timed out after 10 min.',
+        'npm install: timed out after 10 min.',
       );
       assert.strictEqual(
         describeFailure('Installing the update', new Error('NETWORK ERROR')),
-        'Installing the update failed: NETWORK ERROR.',
+        'Installing the update: NETWORK ERROR.',
       );
       const long = describeFailure('npm install', new Error('x'.repeat(500)));
       assert.strictEqual(long.length, 300);

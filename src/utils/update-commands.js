@@ -135,7 +135,8 @@ function describeBuild(output) {
 }
 
 /**
- * One sentence explaining why an update step failed.
+ * Why an update step failed, as "<step>: <reason>". The banner prefixes it
+ * with "Update failed:".
  * @param {string} label - Step name, e.g. "npm install".
  * @param {Error & { code?: unknown, path?: string, killed?: boolean, signal?: string, stdout?: string, stderr?: string }} err
  * @param {{ kind?: 'install'|'git'|'build', timeoutMs?: number }} [options]
@@ -161,7 +162,7 @@ function describeFailure(label, err, { kind = 'install', timeoutMs } = {}) {
       detail = first.replace(/[.:]$/, '') + '.';
     }
   }
-  const message = `${label} failed: ${detail}`;
+  const message = `${label}: ${detail}`;
   return message.length > MAX_MESSAGE ? `${message.slice(0, MAX_MESSAGE - 1)}…` : message;
 }
 

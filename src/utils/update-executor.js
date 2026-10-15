@@ -191,10 +191,8 @@ async function executeUpdate({
           cwd: cwd || undefined,
         });
       } catch (err) {
-        logFailure('Installing the update', err);
-        throw new Error(
-          describeFailure('Installing the update', err, { timeoutMs: INSTALL_TIMEOUT_MS }),
-        );
+        logFailure(command, err);
+        throw new Error(describeFailure(command, err, { timeoutMs: INSTALL_TIMEOUT_MS }));
       }
 
       const output = (result.stdout + '\n' + result.stderr).trim();

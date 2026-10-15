@@ -630,7 +630,7 @@ describe('update-executor', () => {
       assert.strictEqual(result.status, 'failed');
       assert.strictEqual(
         result.error,
-        'git pull failed: Your local changes to the following files would be overwritten by merge. Commit or stash local changes, then retry.',
+        'git pull: Your local changes to the following files would be overwritten by merge. Commit or stash local changes, then retry.',
       );
     });
 
@@ -657,7 +657,7 @@ describe('update-executor', () => {
 
       assert.strictEqual(result.status, 'complete');
       assert.deepStrictEqual(mod.readUpdateResult().warnings, [
-        "npm install failed: express-5.3.0.tgz isn't available from mirror.example.com (E404). Registry mirrors can lag behind npmjs.org; try again later.",
+        "npm install: express-5.3.0.tgz isn't available from mirror.example.com (E404). Registry mirrors can lag behind npmjs.org; try again later.",
       ]);
     });
   });

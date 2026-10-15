@@ -180,7 +180,7 @@ describe('source-update', () => {
       const result = await updateSourceCheckout({ cwd: dir });
 
       assert.deepStrictEqual(result.warnings, [
-        "npm install failed: prettier-3.9.10.tgz isn't available from mirror.example.com (E404). Registry mirrors can lag behind npmjs.org; try again later.",
+        "npm install: prettier-3.9.10.tgz isn't available from mirror.example.com (E404). Registry mirrors can lag behind npmjs.org; try again later.",
       ]);
       assert.ok(
         calls.some((c) => c.args.join(' ') === 'run build'),
@@ -205,7 +205,7 @@ describe('source-update', () => {
         },
       });
       await assert.rejects(updateSourceCheckout({ cwd: dir }), {
-        message: "npm install failed: express@5.3.0 isn't available (ETARGET).",
+        message: "npm install: express@5.3.0 isn't available (ETARGET).",
       });
       assert.ok(!calls.some((c) => c.args.join(' ') === 'run build'), 'does not build');
     });
@@ -219,7 +219,7 @@ describe('source-update', () => {
       });
       await assert.rejects(updateSourceCheckout({ cwd: dir }), {
         message:
-          'git pull failed: Not possible to fast-forward, aborting. Local commits block a fast-forward; update this checkout by hand.',
+          'git pull: Not possible to fast-forward, aborting. Local commits block a fast-forward; update this checkout by hand.',
       });
     });
 
@@ -235,7 +235,7 @@ describe('source-update', () => {
         },
       });
       await assert.rejects(updateSourceCheckout({ cwd: dir }), {
-        message: 'Web app build failed: src/App.tsx(1,1): error TS1005: ";" expected.',
+        message: 'web app build: src/App.tsx(1,1): error TS1005: ";" expected.',
       });
     });
   });
