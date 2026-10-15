@@ -540,6 +540,9 @@ function createTermBeamServer(overrides = {}) {
           console.log(
             `  ${gn2}✓ Successfully updated from v${updateResult.fromVersion} to v${updateResult.toVersion}${rs}`,
           );
+          for (const warning of updateResult.warnings || []) {
+            console.log(`  \x1b[33m⚠ ${warning} Kept the installed dependencies.${rs}`);
+          }
           console.log('');
           clearUpdateResult();
         }

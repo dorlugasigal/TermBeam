@@ -337,11 +337,13 @@ function detectInstallMethod() {
 
     if (isPm2) {
       log.debug('Install method: source (PM2)');
+      // Auto-update runs source-update.js step by step; `command` is the
+      // manual fallback shown when it can't.
       return {
         method: 'source',
         command: `${baseCmd} && pm2 restart termbeam`,
-        installCmd: process.platform === 'win32' ? process.env.COMSPEC || 'cmd.exe' : 'sh',
-        installArgs: process.platform === 'win32' ? ['/c', baseCmd] : ['-c', baseCmd],
+        installCmd: null,
+        installArgs: null,
         canAutoUpdate: true,
         restartStrategy: 'pm2',
         cwd: sourceRoot,

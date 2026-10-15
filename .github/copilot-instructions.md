@@ -88,6 +88,7 @@ TermBeam is a Node.js CLI tool that exposes a local PTY (pseudo-terminal) over H
 - `git.js` — git metadata and status parsing. Use `getGitInfoAsync()` on any server path (session polling caches refresh with it) — the sync `getGitInfo()` blocks the event loop and every terminal's WebSocket. Status runs with `--no-optional-locks` so polling never takes `index.lock`, and porcelain output must never be trimmed (its leading space is meaningful).
 - `version.js` — detects version from package.json
 - `update-check.js` — npm update checking
+- `source-update.js` — in-app update for a git checkout under PM2. Never run `npm install` unconditionally: install only where `node_modules` drifted from `package-lock.json`, always with `--no-save` (a registry mirror must not rewrite the committed lockfile), and carry on with the installed packages when they still satisfy `package.json`.
 - `copilot-models.js` — Copilot model-id validation and normalization of the SDK's model list. Never hard-code model ids or a default model: the picker lists `GET /api/copilot/models` (cached in `CopilotService.listModels()`), and an omitted model lets Copilot choose the account's default.
 - `processes.js` — a shell's live cwd and direct children. Never build shell command strings for process lookups: validate PIDs with `toPid()` and use `execFile`; Linux reads `/proc` so it works without `procps` (e.g. the Docker image).
 
