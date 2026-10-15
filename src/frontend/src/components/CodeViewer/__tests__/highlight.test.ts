@@ -85,4 +85,11 @@ describe('detectLanguage', () => {
     expect(detectLanguage('docs/v1.2/NOTES')).toBe('');
     expect(detectLanguage('src\\win\\app.py')).toBe('python');
   });
+
+  it('ignores names that match Object.prototype keys', () => {
+    for (const path of ['lib/constructor', 'lib/file.constructor', 'x.__proto__', 'a.toString']) {
+      expect(detectLanguage(path)).toBe('');
+    }
+    expect(highlightDiff([], detectLanguage('lib/file.constructor'))).toBeNull();
+  });
 });
