@@ -1,6 +1,9 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const cp = require('child_process');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const {
   describeFailure,
   isRegistryFailure,
@@ -197,6 +200,67 @@ describe('update-commands', () => {
         assert.strictEqual(err.stderr, 'npm error code E404');
         return true;
       });
+    });
+
+    it(
+      'stops the whole process tree when a command times out',
+      {
+        skip: process.platform === 'win32',
+      },
+      async () => {
+        const pidFile = path.join(os.tmpdir(), `termbeam-grandchild-${process.pid}-${Date.now()}`);
+        // A child that starts a long-lived grandchild, like npm running an install script.
+        const script = [
+          "const { spawn } = require('child_process');",
+          "const c = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: 'ignore' });",
+          `require('fs').writeFileSync(${JSON.stringify(pidFile)}, String(c.pid));`,
+          'setTimeout(() => {}, 60000);',
+        ].join('\n');
+        await assert.rejects(runCommand(process.execPath, ['-e', script], { timeout: 1000 }), {
+          killed: true,
+        });
+        const pid = Number(fs.readFileSync(pidFile, 'utf8'));
+        fs.rmSync(pidFile, { force: true });
+        let alive = true;
+        for (let i = 0; i < 40 && alive; i++) {
+          try {
+            process.kill(pid, 0);
+            await new Promise((r) => setTimeout(r, 50));
+          } catch {
+            alive = false;
+          }
+        }
+        assert.strictEqual(alive, false, 'the grandchild was stopped too');
+      },
+    );
+
+    it('kills the cmd.exe tree with taskkill when a command times out on Windows', async (t) => {
+      const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+      delete require.cache[require.resolve('../../src/utils/update-commands')];
+      try {
+        const { runCommand: runOnWindows } = require('../../src/utils/update-commands');
+        t.mock.timers.enable({ apis: ['setTimeout'] });
+        const calls = [];
+        let exit;
+        t.mock.method(cp, 'execFile', (file, args, opts, cb) => {
+          calls.push([file, ...args]);
+          if (file === 'taskkill') {
+            cb(null, '', '');
+            exit(Object.assign(new Error('Command failed'), { code: 1 }), '', '');
+            return {};
+          }
+          exit = cb;
+          return { pid: 4242 };
+        });
+        const pending = runOnWindows('npm', ['install'], { timeout: 1000 });
+        t.mock.timers.tick(1000);
+        await assert.rejects(pending, { killed: true, signal: 'SIGTERM' });
+        assert.deepStrictEqual(calls, [['npm install'], ['taskkill', '/pid', '4242', '/T', '/F']]);
+      } finally {
+        Object.defineProperty(process, 'platform', platform);
+        delete require.cache[require.resolve('../../src/utils/update-commands')];
+      }
     });
 
     it('starts package-manager shims through the shell on Windows', async (t) => {

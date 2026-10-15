@@ -154,6 +154,12 @@ describe('source-update', () => {
       assert.strictEqual(await installedTreeIsValid(dir, { includeDev: false }), false);
     });
 
+    it('checks dev packages explicitly when they count', async (t) => {
+      const calls = mockCommands(t, { npm: { ls: JSON.stringify({ problems: [] }) } });
+      assert.strictEqual(await installedTreeIsValid(dir, { includeDev: true }), true);
+      assert.deepStrictEqual(calls[0].args, ['ls', '--all', '--json', '--include=dev']);
+    });
+
     it('fails closed when npm ls output is unusable', async (t) => {
       mockCommands(t, { npm: { ls: { code: 'ENOENT', path: 'npm' } } });
       assert.strictEqual(await installedTreeIsValid(dir, { includeDev: true }), false);
@@ -204,7 +210,10 @@ describe('source-update', () => {
         installs.map((c) => [c.args.join(' '), c.cwd]),
         [
           ['install --no-save --no-audit --no-fund', dir],
-          ['install --no-save --no-audit --no-fund', path.join(dir, 'src', 'frontend')],
+          [
+            'install --no-save --no-audit --no-fund --include=dev',
+            path.join(dir, 'src', 'frontend'),
+          ],
         ],
       );
       assert.deepStrictEqual(phases, [

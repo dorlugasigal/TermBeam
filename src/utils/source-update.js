@@ -74,8 +74,9 @@ function installedMatchesLockfile(dir, { includeDev }) {
 
 /** Whether every installed package still satisfies the ranges that require it. */
 async function installedTreeIsValid(dir, { includeDev }) {
-  const args = ['ls', '--all', '--json'];
-  if (!includeDev) args.push('--omit=dev');
+  // Explicit scope: NODE_ENV=production or npm_config_omit in the server's
+  // environment would otherwise change what npm ls checks.
+  const args = ['ls', '--all', '--json', includeDev ? '--include=dev' : '--omit=dev'];
   let stdout;
   let failed = false;
   try {
@@ -119,8 +120,12 @@ async function syncDependencies(dir, { label, includeDev, phase, onPhase, warnin
   if (!interrupted && installedMatchesLockfile(dir, { includeDev })) return;
   onPhase(phase);
   setIncomplete(dir, true);
+  const args = ['install', '--no-save', '--no-audit', '--no-fund'];
+  // The web app build needs its dev tools even when the server runs with
+  // NODE_ENV=production, which would make npm leave them out.
+  if (includeDev) args.push('--include=dev');
   try {
-    await npm(['install', '--no-save', '--no-audit', '--no-fund'], dir, INSTALL_TIMEOUT_MS);
+    await npm(args, dir, INSTALL_TIMEOUT_MS);
     setIncomplete(dir, false);
   } catch (err) {
     logFailure(label, err);

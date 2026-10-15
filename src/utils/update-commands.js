@@ -3,9 +3,11 @@
 
 const childProcess = require('child_process');
 const log = require('./logger');
+const { getChildPids } = require('./processes');
 
 const IS_WIN = process.platform === 'win32';
 const MAX_MESSAGE = 300;
+const KILL_GRACE_MS = 5_000;
 // Package managers and global bins that Windows installs as `.cmd` shims.
 const WINDOWS_SHIMS = new Set(['npm', 'npx', 'yarn', 'pnpm', 'termbeam']);
 
@@ -25,21 +27,88 @@ const NETWORK_CODES = new Set([
 ]);
 const AUTH_CODES = new Set(['E401', 'E403', 'EAUTH', 'ENEEDAUTH']);
 
+/** A process and everything below it, listed before anything is killed. */
+async function processTree(pid) {
+  const tree = [pid];
+  for (let i = 0; i < tree.length && tree.length < 512; i++) {
+    for (const childPid of (await getChildPids(tree[i])) || []) tree.push(Number(childPid));
+  }
+  return tree;
+}
+
+/**
+ * Stop a command and everything it started. Killing only the direct child
+ * (cmd.exe on Windows, npm elsewhere) could leave npm or an install script
+ * writing to node_modules after the step has already failed.
+ */
+async function killTree(child, signal) {
+  if (!child || !child.pid) return;
+  if (IS_WIN) {
+    childProcess.execFile(
+      'taskkill',
+      ['/pid', String(child.pid), '/T', '/F'],
+      { windowsHide: true },
+      () => {},
+    );
+    return;
+  }
+  let pids;
+  try {
+    pids = await processTree(child.pid);
+  } catch {
+    pids = [child.pid];
+  }
+  for (const pid of pids.reverse()) {
+    try {
+      process.kill(pid, signal);
+    } catch {
+      // Already gone
+    }
+  }
+}
+
 /**
  * Run a command without a shell. On Windows, `.cmd` shims such as npm only
  * start through one, so their (fixed, internal) command line goes through
- * cmd.exe there instead.
+ * cmd.exe there instead. A `timeout` stops the whole process tree, and the
+ * promise settles only once the command has exited.
  * Resolves `{ stdout, stderr }`; rejects with the error carrying both.
  */
 function runCommand(cmd, args, options = {}) {
+  const { timeout, ...execOptions } = options;
   const viaShell = IS_WIN && WINDOWS_SHIMS.has(cmd);
   const file = viaShell ? [cmd, ...args].join(' ') : cmd;
   return new Promise((resolve, reject) => {
-    childProcess.execFile(
+    let child = null;
+    let settled = false;
+    let timedOut = false;
+    let grace = null;
+    const timer = timeout
+      ? setTimeout(() => {
+          timedOut = true;
+          killTree(child, 'SIGTERM');
+          if (!settled) grace = setTimeout(() => killTree(child, 'SIGKILL'), KILL_GRACE_MS);
+        }, timeout)
+      : null;
+    child = childProcess.execFile(
       file,
       viaShell ? [] : args,
-      { encoding: 'utf8', windowsHide: true, ...options, shell: viaShell },
+      {
+        encoding: 'utf8',
+        windowsHide: true,
+        ...execOptions,
+        shell: viaShell,
+      },
       (err, stdout, stderr) => {
+        settled = true;
+        clearTimeout(timer);
+        clearTimeout(grace);
+        if (timedOut) {
+          err = Object.assign(err || new Error(`${cmd} timed out`), {
+            killed: true,
+            signal: (err && err.signal) || 'SIGTERM',
+          });
+        }
         if (err) {
           err.stdout = stdout;
           err.stderr = stderr;
