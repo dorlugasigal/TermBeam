@@ -126,7 +126,6 @@ async function syncDependencies(dir, { label, includeDev, phase, onPhase, warnin
   if (includeDev) args.push('--include=dev');
   try {
     await npm(args, dir, INSTALL_TIMEOUT_MS);
-    setIncomplete(dir, false);
   } catch (err) {
     logFailure(label, err);
     let reason = describeFailure(label, err, { timeoutMs: INSTALL_TIMEOUT_MS });
@@ -145,7 +144,17 @@ async function syncDependencies(dir, { label, includeDev, phase, onPhase, warnin
     }
     log.warn(`${reason} Continuing with the installed dependencies.`);
     warnings.push(reason);
+    return;
   }
+  if (interrupted) {
+    // npm leaves packages whose manifests already match alone, so native
+    // builds the earlier install cut short could still be missing.
+    const rebuild = label.replace('npm install', 'npm rebuild');
+    await attempt(rebuild, 'install', INSTALL_TIMEOUT_MS, () =>
+      npm(['rebuild'], dir, INSTALL_TIMEOUT_MS),
+    );
+  }
+  setIncomplete(dir, false);
 }
 
 /**

@@ -38,8 +38,9 @@ const LOCK = {
 };
 
 /**
- * Mock execFile. `npm` maps an npm subcommand (install, ls, run) to a reply:
- * a stdout string, or an error object with stdout/stderr.
+ * Mock execFile. `npm` maps an npm subcommand (install, ls, run…) to a reply:
+ * a stdout string, an error object with stdout/stderr, or a function
+ * returning either.
  */
 function mockCommands(t, { npm = {}, git = {} } = {}) {
   const calls = [];
@@ -49,7 +50,8 @@ function mockCommands(t, { npm = {}, git = {} } = {}) {
     // arguments; split it back so the fakes match the same calls on every OS.
     if (opts.shell && args.length === 0) [file, ...args] = file.split(' ');
     calls.push({ file, args: [...args], cwd: opts.cwd });
-    const reply = file === 'git' ? git[args[0]] : file === 'npm' ? npm[args[0]] : undefined;
+    let reply = file === 'git' ? git[args[0]] : file === 'npm' ? npm[args[0]] : undefined;
+    if (typeof reply === 'function') reply = reply(args);
     if (reply && typeof reply === 'object') {
       return cb(Object.assign(new Error('Command failed'), reply), reply.stdout, reply.stderr);
     }
@@ -326,11 +328,37 @@ describe('source-update', () => {
       assert.ok(!calls.some((c) => c.args.join(' ') === 'run build'), 'does not build');
       assert.ok(fs.existsSync(marker), 'still unfinished');
 
-      // A complete install clears it.
+      // npm skips express (its manifest already matches), so a rebuild has to
+      // finish the native builds; until one succeeds the marker stays.
       t.mock.restoreAll();
-      calls = mockCommands(t);
+      const scriptFailure = {
+        code: 1,
+        stdout: '',
+        stderr:
+          'npm error code 1\nnpm error path /x/node_modules/node-pty\nnpm error command failed',
+      };
+      calls = mockCommands(t, { npm: { rebuild: scriptFailure } });
+      await assert.rejects(updateSourceCheckout({ cwd: dir }), {
+        message: "npm rebuild: node-pty's install script failed (exit 1).",
+      });
+      assert.ok(fs.existsSync(marker), 'still unfinished after a failed rebuild');
+      assert.ok(!calls.some((c) => c.args.join(' ') === 'run build'), 'does not build');
+
+      // A complete install and rebuild clear it, in that order.
+      t.mock.restoreAll();
+      let markerDuringRebuild = null;
+      calls = mockCommands(t, {
+        npm: {
+          rebuild: () => {
+            markerDuringRebuild = fs.existsSync(marker);
+            return '';
+          },
+        },
+      });
       await updateSourceCheckout({ cwd: dir });
-      assert.ok(calls.some((c) => c.args[0] === 'install'));
+      const npmSteps = calls.filter((c) => c.file === 'npm').map((c) => c.args[0]);
+      assert.deepStrictEqual(npmSteps, ['install', 'rebuild', 'run']);
+      assert.strictEqual(markerDuringRebuild, true, 'kept until the rebuild succeeds');
       assert.ok(!fs.existsSync(marker), 'forgets the unfinished install');
     });
 
