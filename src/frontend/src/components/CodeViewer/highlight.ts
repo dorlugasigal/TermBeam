@@ -102,7 +102,8 @@ export function detectLanguage(filePath: string): string {
   if (name === 'makefile' || name === 'gnumakefile') return 'bash';
   if (name === '.env' || name.startsWith('.env.')) return 'ini';
 
-  return map[ext] || '';
+  // Own keys only: names like `constructor` must not resolve to Object.prototype.
+  return (Object.prototype.hasOwnProperty.call(map, ext) && map[ext]) || '';
 }
 
 export function escapeHtml(text: string): string {

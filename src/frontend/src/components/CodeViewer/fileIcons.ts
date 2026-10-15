@@ -198,17 +198,23 @@ const folderMap: Record<string, [string, string]> = {
   icons: [iconFolderImages, iconFolderImagesOpen],
 };
 
+// Own keys only: names like `constructor` must not resolve to Object.prototype.
+function own<T>(map: Record<string, T>, key: string): T | undefined {
+  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+}
+
 export function getFileIconUrl(name: string, isDir: boolean, isExpanded: boolean): string {
   const lower = name.toLowerCase();
 
   if (isDir) {
-    const mapped = folderMap[lower];
+    const mapped = own(folderMap, lower);
     if (mapped) return isExpanded ? mapped[1] : mapped[0];
     return isExpanded ? iconFolderOpen : iconFolder;
   }
 
   // Check full filename first
-  if (nameMap[lower]) return nameMap[lower];
+  const named = own(nameMap, lower);
+  if (named) return named;
 
   // Check files starting with .env
   if (lower === '.env' || lower.startsWith('.env.')) return iconSettings;
@@ -221,5 +227,5 @@ export function getFileIconUrl(name: string, isDir: boolean, isExpanded: boolean
 
   // By extension
   const ext = lower.split('.').pop() || '';
-  return extMap[ext] || iconFile;
+  return own(extMap, ext) || iconFile;
 }
