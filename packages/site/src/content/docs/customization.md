@@ -38,7 +38,9 @@ Reach **Settings** from the Tools panel → **Settings…** (or via <kbd>Cmd+,</
 | **Workspaces**               | List of named workspaces. Mark one as the default startup workspace, edit per-workspace sessions, drag to reorder.                                                          |
 | **Security**                 | Signed-in devices (sign out one, or every device) and passkeys (add, rename, remove). See [Security](../security/).                                                         |
 
-All of the above is persisted to `~/.termbeam/prefs.json` (mode `0o600`) on the server. The browser keeps a `localStorage` cache (`termbeam-prefs`) for instant first paint and offline UX, but the server file is the source of truth.
+Everything except **Security** is persisted to `~/.termbeam/prefs.json` (mode `0o600`) on the server. The browser keeps a `localStorage` cache (`termbeam-prefs`) for instant first paint and offline UX, but the server file is the source of truth.
+
+**Security** is not a preference. Remembered device sessions (SHA-256 hashes only) and passkeys live in `~/.termbeam/auth.json` (mode `0600`), and sign-ins without "Remember this device" are never written to disk. `termbeam --reset-auth` clears that file. See [Files in the config directory](../configuration/#files-in-the-config-directory) for everything TermBeam stores.
 
 ## Custom Touch Bar Keys
 
