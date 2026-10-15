@@ -401,7 +401,8 @@ section[id] {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 100px 24px 60px;
+  /* The bottom padding is the scroll hint's lane, clear of the device frames. */
+  padding: 100px 24px 140px;
   overflow: hidden;
 }
 
@@ -970,12 +971,7 @@ section[id] {
   transform: translateX(-50%);
   width: min(80%, 600px);
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(59, 130, 246, 0.3),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
 }
 
 .section-inner {
@@ -1069,12 +1065,7 @@ section[id] {
   transform: translateX(-50%);
   width: min(80%, 600px);
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(59, 130, 246, 0.3),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
 }
 
 .compare-grid {
@@ -1495,7 +1486,7 @@ section[id] {
   }
 
   .hero {
-    padding: 100px 16px 60px;
+    padding: 100px 16px 140px;
     min-height: auto;
   }
 
@@ -1661,6 +1652,10 @@ section[id] {
   }
   .hero-devices {
     max-width: 500px;
+  }
+  /* No lane for the hint on short screens, and scrolling is obvious there. */
+  .scroll-hint {
+    display: none;
   }
 }
 

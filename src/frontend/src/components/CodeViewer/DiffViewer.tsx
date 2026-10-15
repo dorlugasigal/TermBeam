@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useId, Fragment } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useId,
+  Fragment,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useCodeViewerStore } from '@/stores/codeViewerStore';
 import { useReviewCommentsStore } from '@/stores/reviewCommentsStore';
@@ -6,6 +15,7 @@ import { fetchGitDiff } from '@/services/api';
 import type { GitDiff, DiffLine } from '@/services/api';
 import type { ReviewComment, ReviewLineKind } from '@/utils/formatReviewComments';
 import ReviewCommentsPanel from './ReviewCommentsPanel';
+import { detectLanguage, highlightDiff } from './highlight';
 import styles from './DiffViewer.module.css';
 
 interface DiffViewerProps {
@@ -45,9 +55,7 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
   const [fullFile, setFullFile] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const reviewMode = useReviewCommentsStore(
-    (s) => s.reviewModeEnabled.get(sessionId) ?? false,
-  );
+  const reviewMode = useReviewCommentsStore((s) => s.reviewModeEnabled.get(sessionId) ?? false);
   const setReviewMode = useReviewCommentsStore((s) => s.setReviewMode);
   const load = useReviewCommentsStore((s) => s.load);
   const addComment = useReviewCommentsStore((s) => s.addComment);
@@ -95,6 +103,11 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
     }
     return map;
   }, [fileComments]);
+
+  const highlighted = useMemo(
+    () => highlightDiff(diff.hunks, detectLanguage(diff.file)),
+    [diff.hunks, diff.file],
+  );
 
   const reloadDiff = useCallback(
     async (newStaged: boolean, showFullFile: boolean) => {
@@ -314,7 +327,7 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
         onOpenPanel={() => setPanelOpen(true)}
       />
       <div className={styles.scrollArea}>
-        <div className={styles.table}>
+        <div className={`${styles.table} tb-syntax`}>
           {(() => {
             const rendered = new Set<string>();
             return diff.hunks.map((hunk, hi) => (
@@ -328,6 +341,7 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
                         ? styles.rowRemove
                         : styles.rowContext;
                   const prefix = line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' ';
+                  const html = highlighted?.[hi]?.[li];
                   const lineNum = lineNumberFor(line);
                   const commentKey = lineNum !== null ? `${line.type}:${lineNum}` : null;
                   const hasComment = commentKey !== null && commentedLines.has(commentKey);
@@ -362,9 +376,7 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
                     <Fragment key={`${hi}-${li}`}>
                       <div
                         className={classes.join(' ')}
-                        onClick={
-                          reviewable ? (e) => handleRowClick(hi, li, e.shiftKey) : undefined
-                        }
+                        onClick={reviewable ? (e) => handleRowClick(hi, li, e.shiftKey) : undefined}
                         role={reviewable ? 'button' : undefined}
                         tabIndex={reviewable ? 0 : undefined}
                         aria-pressed={reviewable ? isSelected : undefined}
@@ -383,7 +395,11 @@ export default function DiffViewer({ sessionId, diff }: DiffViewerProps) {
                         <span className={styles.lineNumNew}>{line.newLine ?? ''}</span>
                         <span className={styles.lineContent}>
                           <span className={styles.linePrefix}>{prefix} </span>
-                          {line.content}
+                          {html !== undefined ? (
+                            <span dangerouslySetInnerHTML={{ __html: html }} />
+                          ) : (
+                            line.content
+                          )}
                         </span>
                       </div>
                       {inlineComments.map((c) => (
@@ -738,11 +754,7 @@ function InlineCommentEditor({
         </div>
       )}
       {rangeControls && (
-        <div
-          className={styles.rangeAdjusters}
-          role="group"
-          aria-label="Adjust selected line range"
-        >
+        <div className={styles.rangeAdjusters} role="group" aria-label="Adjust selected line range">
           <button
             type="button"
             className={styles.rangeAdjusterBtn}

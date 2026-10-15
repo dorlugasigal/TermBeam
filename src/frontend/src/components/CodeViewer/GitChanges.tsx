@@ -39,8 +39,33 @@ function fileName(path: string): string {
   return path.split('/').pop() || path;
 }
 
+function dirName(path: string): string {
+  const slash = path.lastIndexOf('/');
+  return slash > 0 ? path.slice(0, slash) : '';
+}
+
+const BranchIcon = () => (
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="6" cy="5.5" r="2.2" />
+    <circle cx="6" cy="18.5" r="2.2" />
+    <circle cx="18" cy="7.5" r="2.2" />
+    <path d="M6 7.7v8.6M18 9.7c0 4.3-6 3.8-11 6.6" />
+  </svg>
+);
+
 export default function GitChanges({ sessionId }: GitChangesProps) {
-  const { gitStatus, setGitStatus, setGitDiff, setDiffFile, diffFile } = useCodeViewerStore();
+  const { gitStatus, setGitStatus, setGitDiff, setDiffFile, diffFile, setSidebarOpen } =
+    useCodeViewerStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inFlightRef = useRef(false);
@@ -115,11 +140,13 @@ export default function GitChanges({ sessionId }: GitChangesProps) {
       try {
         const diff = await fetchGitDiff(sessionId, path, staged, untracked);
         setGitDiff(diff);
+        // Same as opening a file: on phones the drawer covers the diff.
+        setSidebarOpen(false);
       } catch {
         setGitDiff(null);
       }
     },
-    [sessionId, setDiffFile, setGitDiff],
+    [sessionId, setDiffFile, setGitDiff, setSidebarOpen],
   );
 
   if (loading && !gitStatus) {
@@ -167,7 +194,7 @@ export default function GitChanges({ sessionId }: GitChangesProps) {
     <div className={styles.container}>
       {gitStatus.branch && (
         <div className={styles.branchInfo}>
-          <span>⎇</span>
+          <BranchIcon />
           <span className={styles.branchName}>{gitStatus.branch}</span>
           {(gitStatus.ahead > 0 || gitStatus.behind > 0) && (
             <span className={styles.syncInfo}>
@@ -274,6 +301,7 @@ function FileSection({
             {statusLabel(file.status)}
           </span>
           <span className={styles.fileName}>{fileName(file.path)}</span>
+          {dirName(file.path) && <span className={styles.fileDir}>{dirName(file.path)}</span>}
         </button>
       ))}
     </div>

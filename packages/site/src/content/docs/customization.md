@@ -7,35 +7,40 @@ TermBeam ships with a single discoverable entry point — the **Tools panel** �
 
 ## Tools Panel
 
-Open the panel from the floating ▦ button in the top-right corner, with <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd>, or by tapping the **Tools** entry on the Sessions Hub. On mobile it slides up from the bottom; on desktop it docks to the right (~420 px wide). It is non-blocking — the terminal stays visible underneath so you can see live changes.
+Open the panel from the ▦ button at the right end of the top bar (also in the Sessions Hub header) or with <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd>. It slides in from the right on every screen size (up to 340 px wide). Type in **Filter tools…** to narrow the list, and press <kbd>Enter</kbd> to run the first match.
 
-The panel is grouped into seven categorized sections:
+Actions are grouped into sections, with **Settings** pinned at the bottom:
 
-| Section      | Highlights                                                                                 |
-| ------------ | ------------------------------------------------------------------------------------------ |
-| **SESSION**  | New tab, Find in terminal, Rename session, Close session                                   |
-| **FILES**    | Browse files, Upload files, Download file, View markdown                                   |
-| **VIEW**     | Increase / Decrease font size, Preview port, View code, Git changes, Theme picker (inline) |
-| **SHARE**    | Copy link (auto-login URL with token)                                                      |
-| **AGENTS**   | Launch agent, Resume agent session                                                         |
-| **SETTINGS** | Open the **Settings** panel                                                                |
-| **SYSTEM**   | Refresh (clear PWA cache), Clear terminal, About                                           |
+| Section      | Highlights                                                                         |
+| ------------ | ---------------------------------------------------------------------------------- |
+| **Session**  | New tab, Find in terminal, Rename session, Split view, Close session               |
+| **Files**    | Browse files, Upload files, Download file, View markdown                           |
+| **View**     | Increase / Decrease font size, Preview port, View code, Git changes                |
+| **Share**    | Copy link (auto-login URL with token)                                              |
+| **Agents**   | Launch agent, Resume agent session                                                 |
+| **System**   | Refresh (clear PWA cache), Clear terminal, About                                   |
+| **Settings** | Pinned footer: **Settings…** (<kbd>Cmd+,</kbd> / <kbd>Ctrl+,</kbd>) and **Theme…** |
 
-The **Theme picker** is rendered inline inside the **VIEW** section — tap the trigger to flip through 38 themes with a live colour-bar preview. Pick a theme and the picker auto-closes.
+The split action cycles through **Split vertical**, **Split horizontal** and **Close split**. On the Sessions Hub there is no active terminal, so the Session, Files and View sections and **Clear terminal** are hidden.
+
+**Theme…** opens a picker with 38 themes and a live colour-bar preview. Pick a theme and the picker closes.
 
 ## Settings
 
-Reach **Settings** from the Tools panel → **Settings…** (or via <kbd>Cmd+,</kbd> / <kbd>Ctrl+,</kbd>). The panel is non-blocking so theme, font and haptics changes are visible against the terminal as you make them.
+Reach **Settings** from the Tools panel → **Settings…** (or via <kbd>Cmd+,</kbd> / <kbd>Ctrl+,</kbd>). On phones it drops down from the top as a sheet, leaving the terminal and Touch Bar visible below; on desktop it is a 420 px drawer on the right. The panel is non-blocking so theme, font and haptics changes are visible against the terminal as you make them.
 
 | Section                      | What it controls                                                                                                                                                            |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Appearance**               | Theme picker (live preview cards) and font-size slider.                                                                                                                     |
+| **Appearance**               | Font size (− / + stepper) and a **Theme** button that opens the theme picker.                                                                                               |
 | **Notifications & Feedback** | Browser notifications when a backgrounded command completes, haptic feedback on TouchBar key presses, and a **Splash screen** toggle to skip the cold-load brand animation. |
 | **Touch Bar**                | Toggle "Start collapsed by default" and open the **Customize keys** editor.                                                                                                 |
 | **New Session Defaults**     | Default folder and default initial command pre-fills used by **+ New session** and by workspace sessions when they don't override.                                          |
 | **Workspaces**               | List of named workspaces. Mark one as the default startup workspace, edit per-workspace sessions, drag to reorder.                                                          |
+| **Security**                 | Signed-in devices (sign out one, or every device) and passkeys (add, rename, remove). See [Security](../security/).                                                         |
 
-All of the above is persisted to `~/.termbeam/prefs.json` (mode `0o600`) on the server. The browser keeps a `localStorage` cache (`termbeam-prefs`) for instant first paint and offline UX, but the server file is the source of truth.
+Everything except **Security** is persisted to `~/.termbeam/prefs.json` (mode `0o600`) on the server. The browser keeps a `localStorage` cache (`termbeam-prefs`) for instant first paint and offline UX, but the server file is the source of truth.
+
+**Security** is not a preference. Remembered device sessions (SHA-256 hashes only) and passkeys live in `~/.termbeam/auth.json` (mode `0600`), and sign-ins without "Remember this device" are never written to disk. `termbeam --reset-auth` clears that file. See [Files in the config directory](../configuration/#files-in-the-config-directory) for everything TermBeam stores.
 
 ## Custom Touch Bar Keys
 

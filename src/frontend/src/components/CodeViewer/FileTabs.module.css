@@ -61,3 +61,17 @@
   opacity: 1;
   background: rgba(255, 255, 255, 0.1);
 }
+
+@media (pointer: coarse) {
+  /* A 40 px close target; the tab sheds its vertical padding to stay inside
+     the 44 px top bar. */
+  .tab {
+    padding: 0 2px 0 12px;
+  }
+
+  .closeBtn {
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 0.8rem;
+  }
+}

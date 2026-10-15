@@ -142,3 +142,20 @@
   color: inherit;
   border-radius: 2px;
 }
+
+@media (pointer: coarse) {
+  .node,
+  .searchResult {
+    min-height: 40px;
+  }
+
+  .searchInput {
+    padding: 8px 10px;
+    font-size: var(--fs-base);
+  }
+
+  .searchClear {
+    min-width: var(--hit);
+    min-height: var(--hit);
+  }
+}

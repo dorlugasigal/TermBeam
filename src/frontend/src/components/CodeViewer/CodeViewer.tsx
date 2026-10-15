@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import { useCodeViewerStore } from '@/stores/codeViewerStore';
 import { fetchFileTree, fetchFileContent, fetchGitBlame } from '@/services/api';
-import { detectLanguage } from './CodePanel';
+import { detectLanguage } from './highlight';
 import FileExplorer, { type FileExplorerHandle } from './FileExplorer';
 import FileTabs from './FileTabs';
 import CodePanel from './CodePanel';

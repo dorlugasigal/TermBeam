@@ -1,0 +1,44 @@
+/* highlight.js tokens in the code and diff viewers, coloured from the active
+   theme. Containers opt in with the `tb-syntax` class. */
+
+.tb-syntax .hljs-keyword,
+.tb-syntax .hljs-selector-tag,
+.tb-syntax .hljs-built_in {
+  color: var(--syntax-keyword, #c678dd);
+}
+
+.tb-syntax .hljs-string,
+.tb-syntax .hljs-attr {
+  color: var(--syntax-string, #98c379);
+}
+
+.tb-syntax .hljs-number,
+.tb-syntax .hljs-literal {
+  color: var(--syntax-number, #d19a66);
+}
+
+.tb-syntax .hljs-comment,
+.tb-syntax .hljs-doctag {
+  color: var(--syntax-comment, #7f848e);
+  font-style: italic;
+}
+
+.tb-syntax .hljs-function,
+.tb-syntax .hljs-title {
+  color: var(--syntax-function, #61afef);
+}
+
+.tb-syntax .hljs-variable,
+.tb-syntax .hljs-template-variable {
+  color: var(--syntax-variable, #e06c75);
+}
+
+.tb-syntax .hljs-type,
+.tb-syntax .hljs-class {
+  color: var(--syntax-type, #e5c07b);
+}
+
+.tb-syntax .hljs-meta,
+.tb-syntax .hljs-tag {
+  color: var(--syntax-meta, #abb2bf);
+}

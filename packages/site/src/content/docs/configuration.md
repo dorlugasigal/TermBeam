@@ -64,7 +64,7 @@ The environment variables `PTY_PASSWORD` and `PTY_CWD` are also supported as fal
 
 ## Settings (UI)
 
-TermBeam exposes settings through the **Tools panel**, opened from the floating ▦ button or `Ctrl/Cmd+K`. From there pick **Settings…** (or use the `Cmd/Ctrl+,` shortcut). On mobile the panel slides up from the bottom; on desktop it docks to the right (~420 px wide). It is non-blocking so theme, font size, collapsed-touchbar and haptics changes can be observed live against the terminal underneath.
+TermBeam exposes settings through the **Tools panel**, opened from the ▦ button in the top bar or `Ctrl/Cmd+K`. From there pick **Settings…** (or use the `Cmd/Ctrl+,` shortcut). On phones the Settings panel drops down from the top as a sheet; on desktop it docks to the right (420 px wide). It is non-blocking so theme, font size, collapsed-touchbar and haptics changes can be observed live against the terminal underneath.
 
 For the full UI walkthrough — Tools panel sections, Settings panels, Touch Bar key editor, Workspaces — see **[Customization](../customization/)**.
 

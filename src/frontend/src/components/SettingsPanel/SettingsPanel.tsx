@@ -402,7 +402,7 @@ export default function SettingsPanel({ inHub = false }: SettingsPanelProps = {}
               </div>
             </div>
 
-            {/* FIX #2: theme button opens standalone picker */}
+            {/* Theme opens the standalone picker */}
             <div className={styles.row}>
               <span className={styles.rowLabel}>Theme</span>
               <button

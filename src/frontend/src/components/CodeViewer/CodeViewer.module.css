@@ -5,16 +5,16 @@
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  padding-top: var(--safe-top);
   padding-right: env(safe-area-inset-right, 0px);
 }
 
-/* Custom top bar — hamburger | tabs | close */
+/* Custom top bar — hamburger | tabs | close. It reaches up under the status
+   bar so the safe area matches the bar instead of showing a second band. */
 .topBar {
   display: flex;
   align-items: center;
-  height: 44px;
-  padding: 0 4px;
+  height: calc(44px + var(--safe-top));
+  padding: var(--safe-top) 4px 0;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -187,7 +187,7 @@
   font-style: italic;
 }
 
-/* Mobile: sidebar as overlay */
+/* Small screens: the explorer is a drawer over the dimmed content. */
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
@@ -195,7 +195,7 @@
     left: 0;
     bottom: 0;
     z-index: 50;
-    width: 280px;
+    width: 360px;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
@@ -211,5 +211,35 @@
     top: calc(44px + var(--safe-top));
     background: rgba(0, 0, 0, 0.4);
     z-index: 49;
+  }
+}
+
+/* Phones: a full-width page that slides away when a file or diff opens. */
+@media (max-width: 540px) {
+  .sidebar {
+    width: 100%;
+    border-right: 0;
+  }
+}
+
+@media (pointer: coarse) {
+  .menuBtn,
+  .toolBtn,
+  .backLink {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--hit);
+    min-height: var(--hit);
+  }
+
+  .toolBtn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .viewModeTab {
+    min-height: var(--hit);
+    font-size: var(--fs-sm);
   }
 }

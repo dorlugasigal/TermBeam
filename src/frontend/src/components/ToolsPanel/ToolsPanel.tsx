@@ -734,8 +734,8 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
 
   // On the Hub there is no active terminal session, so:
   //   - Hide SESSION + FILES entirely (every action depends on activeId).
-  //   - Keep VIEW with no action buttons but render the ThemePicker — theme
-  //     is a global preference that's useful on the Hub.
+  //   - Empty VIEW (each action needs a terminal); empty sections drop out
+  //     below, and Theme… stays reachable from the pinned footer.
   //   - Keep SHARE, AGENTS, SETTINGS as-is (universal actions).
   //   - Keep SYSTEM minus 'Clear terminal' (no terminal to clear).
   // Filter by stable section IDs so display titles can change without
@@ -761,7 +761,8 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
       ),
     }))
     .filter((section) => section.actions.length > 0);
-  const settingsAction = allSections.find((section) => section.id === 'settings')!.actions[0]!;
+  const settingsSection = allSections.find((section) => section.id === 'settings')!;
+  const settingsAction = settingsSection.actions[0]!;
 
   return (
     <>
@@ -859,7 +860,7 @@ export default function ToolsPanel({ inHub = false }: { inHub?: boolean } = {}) 
           ))}
         </div>
         <div className={styles.footer}>
-          <div className={styles.sectionTitle}>SETTINGS</div>
+          <div className={styles.sectionTitle}>{settingsSection.title}</div>
           <button
             className={styles.btn}
             onClick={settingsAction.action}
