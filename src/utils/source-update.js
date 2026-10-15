@@ -88,10 +88,11 @@ async function installedTreeIsValid(dir, { includeDev }) {
   } catch {
     return false;
   }
-  // An `error` report (EOVERRIDE, a broken lockfile…) validated nothing.
-  if (report.error) return false;
+  // ELSPROBLEMS only points at `problems`; any other error (EOVERRIDE, a
+  // broken lockfile…) means nothing was validated.
+  if (report.error && report.error.code !== 'ELSPROBLEMS') return false;
   const problems = Array.isArray(report.problems) ? report.problems : null;
-  if (failed && !problems) return false;
+  if ((failed || report.error) && !problems) return false;
   return !(problems || []).some((problem) => /^(missing|invalid)\b/.test(problem));
 }
 

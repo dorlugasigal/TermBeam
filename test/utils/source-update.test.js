@@ -126,6 +126,7 @@ describe('source-update', () => {
     it('reads the report npm ls prints when it exits with problems', async (t) => {
       const stdout = JSON.stringify({
         problems: ['invalid: express@4.0.0 /x/node_modules/express'],
+        error: { code: 'ELSPROBLEMS', summary: 'invalid: express@4.0.0 /x/node_modules/express' },
       });
       const calls = mockCommands(t, { npm: { ls: { code: 1, stdout, stderr: '' } } });
       assert.strictEqual(await installedTreeIsValid(dir, { includeDev: false }), false);
@@ -133,7 +134,11 @@ describe('source-update', () => {
     });
 
     it('accepts a problems report that only lists extraneous packages', async (t) => {
-      const stdout = JSON.stringify({ problems: ['extraneous: left-pad@1.0.0 /x'] });
+      // Older npm versions count extraneous packages as ELSPROBLEMS and exit 1.
+      const stdout = JSON.stringify({
+        problems: ['extraneous: left-pad@1.0.0 /x'],
+        error: { code: 'ELSPROBLEMS', summary: 'extraneous: left-pad@1.0.0 /x' },
+      });
       mockCommands(t, { npm: { ls: { code: 1, stdout, stderr: 'npm error code ELSPROBLEMS' } } });
       assert.strictEqual(await installedTreeIsValid(dir, { includeDev: false }), true);
     });
