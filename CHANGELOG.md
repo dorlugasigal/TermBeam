@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.25.2] - 2026-10-15
+
+- fix(update): update git checkouts without needless installs (#329) (@dorlugasigal)
+
 ## [1.25.1] - 2026-10-15
 
 - ci: steadier smoke test and a patch-only release guard (#323) (@dorlugasigal)
