@@ -11,6 +11,8 @@ const GIT_TIMEOUT_MS = 2 * 60_000;
 const LS_TIMEOUT_MS = 60_000;
 const INSTALL_TIMEOUT_MS = 10 * 60_000;
 const BUILD_TIMEOUT_MS = 10 * 60_000;
+// Present while an install may be half done (inside node_modules, so git never sees it).
+const INCOMPLETE_MARKER = '.termbeam-install-incomplete';
 
 function git(args, cwd) {
   return runCommand('git', args, {
@@ -96,19 +98,44 @@ async function installedTreeIsValid(dir, { includeDev }) {
   return !(problems || []).some((problem) => /^(missing|invalid)\b/.test(problem));
 }
 
+function setIncomplete(dir, incomplete) {
+  const marker = path.join(dir, 'node_modules', INCOMPLETE_MARKER);
+  try {
+    if (incomplete) {
+      fs.mkdirSync(path.dirname(marker), { recursive: true });
+      fs.writeFileSync(marker, `${new Date().toISOString()}\n`);
+    } else {
+      fs.rmSync(marker, { force: true });
+    }
+  } catch (err) {
+    log.debug(`Could not update ${marker}: ${err.message}`);
+  }
+}
+
 async function syncDependencies(dir, { label, includeDev, phase, onPhase, warnings }) {
-  if (installedMatchesLockfile(dir, { includeDev })) return;
+  // An install that was killed or whose scripts failed can leave new manifests
+  // next to missing native binaries, which the version check can't see.
+  const interrupted = fs.existsSync(path.join(dir, 'node_modules', INCOMPLETE_MARKER));
+  if (!interrupted && installedMatchesLockfile(dir, { includeDev })) return;
   onPhase(phase);
+  setIncomplete(dir, true);
   try {
     await npm(['install', '--no-save', '--no-audit', '--no-fund'], dir, INSTALL_TIMEOUT_MS);
+    setIncomplete(dir, false);
   } catch (err) {
     logFailure(label, err);
-    const reason = describeFailure(label, err, { timeoutMs: INSTALL_TIMEOUT_MS });
+    let reason = describeFailure(label, err, { timeoutMs: INSTALL_TIMEOUT_MS });
     // A registry mirror can be days behind npmjs.org. When npm only failed to
     // download, it rolled back, and node_modules still holds what the running
     // version uses: go ahead while those packages satisfy every declared range.
-    // A failed install script or a timeout may have left broken binaries.
-    if (!isRegistryFailure(err) || !(await installedTreeIsValid(dir, { includeDev }))) {
+    // A failed install script or a timeout may have left broken binaries, and
+    // after an interrupted install only a complete one repairs node_modules.
+    const rolledBack = isRegistryFailure(err);
+    if (rolledBack && !interrupted) setIncomplete(dir, false);
+    if (interrupted) {
+      reason += ' An earlier install did not finish, so this one has to complete first.';
+    }
+    if (interrupted || !rolledBack || !(await installedTreeIsValid(dir, { includeDev }))) {
       throw new Error(reason);
     }
     log.warn(`${reason} Continuing with the installed dependencies.`);

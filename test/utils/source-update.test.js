@@ -231,6 +231,10 @@ describe('source-update', () => {
         calls.some((c) => c.args.join(' ') === 'run build'),
         'still builds the web app',
       );
+      assert.ok(
+        !fs.existsSync(path.join(dir, 'node_modules', '.termbeam-install-incomplete')),
+        'npm rolled back, so nothing is left unfinished',
+      );
     });
 
     it('stops when the installed packages no longer satisfy the new version', async (t) => {
@@ -269,6 +273,10 @@ describe('source-update', () => {
         !calls.some((c) => c.args[0] === 'ls'),
         'never trusts npm ls after a script failure',
       );
+      assert.ok(
+        fs.existsSync(path.join(dir, 'node_modules', '.termbeam-install-incomplete')),
+        'remembers that the install may be half done',
+      );
     });
 
     it('stops when npm install times out', async (t) => {
@@ -279,6 +287,42 @@ describe('source-update', () => {
       await assert.rejects(updateSourceCheckout({ cwd: dir }), {
         message: 'npm install: timed out after 10 min.',
       });
+    });
+
+    it('requires a complete install after an interrupted one', async (t) => {
+      makeCheckout(dir, { root: { lock: LOCK, installed: { express: '5.2.1' } } });
+      const marker = path.join(dir, 'node_modules', '.termbeam-install-incomplete');
+
+      // npm is killed after unpacking express 5.3.0, before its scripts finish.
+      mockCommands(t, {
+        npm: { install: { killed: true, signal: 'SIGTERM', stderr: '', stdout: '' } },
+      });
+      await assert.rejects(updateSourceCheckout({ cwd: dir }), /timed out/);
+      writeJson(path.join(dir, 'node_modules', 'express', 'package.json'), { version: '5.3.0' });
+      assert.ok(fs.existsSync(marker), 'remembers the unfinished install');
+      assert.strictEqual(installedMatchesLockfile(dir, { includeDev: false }), true);
+
+      // The retry still installs, and a lagging registry is not enough to go on.
+      t.mock.restoreAll();
+      const stderr =
+        'npm error code E404\nnpm error 404 Not Found - GET https://mirror.example.com/npm/x/-/x-1.0.0.tgz';
+      let calls = mockCommands(t, {
+        npm: { install: { code: 1, stderr, stdout: '' }, ls: JSON.stringify({ problems: [] }) },
+      });
+      await assert.rejects(updateSourceCheckout({ cwd: dir }), /earlier install did not finish/);
+      assert.ok(
+        calls.some((c) => c.args[0] === 'install'),
+        'tries to repair',
+      );
+      assert.ok(!calls.some((c) => c.args.join(' ') === 'run build'), 'does not build');
+      assert.ok(fs.existsSync(marker), 'still unfinished');
+
+      // A complete install clears it.
+      t.mock.restoreAll();
+      calls = mockCommands(t);
+      await updateSourceCheckout({ cwd: dir });
+      assert.ok(calls.some((c) => c.args[0] === 'install'));
+      assert.ok(!fs.existsSync(marker), 'forgets the unfinished install');
     });
 
     it('explains a pull that cannot fast-forward', async (t) => {
