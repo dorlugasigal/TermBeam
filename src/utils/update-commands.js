@@ -27,67 +27,125 @@ const NETWORK_CODES = new Set([
 ]);
 const AUTH_CODES = new Set(['E401', 'E403', 'EAUTH', 'ENEEDAUTH']);
 
-/** A process and everything below it, listed before anything is killed. */
-async function processTree(pid) {
-  const tree = [pid];
-  for (let i = 0; i < tree.length && tree.length < 512; i++) {
-    for (const childPid of (await getChildPids(tree[i])) || []) tree.push(Number(childPid));
+function isAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err.code === 'EPERM';
   }
-  return tree;
+}
+
+/** Every process below the given ones, parents before children. */
+async function descendantsOf(pids) {
+  const seen = new Set(pids);
+  const found = [];
+  const queue = [...pids];
+  while (queue.length && found.length < 512) {
+    let children = [];
+    try {
+      children = (await getChildPids(queue.shift())) || [];
+    } catch {
+      // It exited mid-scan
+    }
+    for (const value of children) {
+      const pid = Number(value);
+      if (seen.has(pid)) continue;
+      seen.add(pid);
+      found.push(pid);
+      queue.push(pid);
+    }
+  }
+  return found;
+}
+
+function waitUntilGone(pids, ms) {
+  const deadline = Date.now() + ms;
+  return new Promise((resolve) => {
+    const check = () => {
+      if (!pids.some(isAlive)) return resolve(true);
+      if (Date.now() >= deadline) return resolve(false);
+      setTimeout(check, 100);
+    };
+    check();
+  });
 }
 
 /**
- * Stop a command and everything it started. Killing only the direct child
- * (cmd.exe on Windows, npm elsewhere) could leave npm or an install script
- * writing to node_modules after the step has already failed.
+ * Stop a timed-out command and everything it started, resolving once all of
+ * it has exited. Killing only the direct child (cmd.exe on Windows, npm
+ * elsewhere) could leave npm or an install script writing to node_modules
+ * after the step had failed. The tree is listed before the first signal, so a
+ * descendant that ignores SIGTERM and outlives its parent (which reparents it)
+ * still gets the SIGKILL that follows the grace period.
  */
-async function killTree(child, signal) {
-  if (!child || !child.pid) return;
+async function stopTree(pid, graceMs) {
+  if (!pid) return;
   if (IS_WIN) {
-    childProcess.execFile(
-      'taskkill',
-      ['/pid', String(child.pid), '/T', '/F'],
-      { windowsHide: true },
-      () => {},
-    );
+    await new Promise((resolve) => {
+      childProcess.execFile(
+        'taskkill',
+        ['/pid', String(pid), '/T', '/F'],
+        { windowsHide: true },
+        () => resolve(),
+      );
+    });
     return;
   }
-  let pids;
-  try {
-    pids = await processTree(child.pid);
-  } catch {
-    pids = [child.pid];
-  }
-  for (const pid of pids.reverse()) {
-    try {
-      process.kill(pid, signal);
-    } catch {
-      // Already gone
+  const known = [pid];
+  const signalAll = async (signal) => {
+    // Re-list below the live ones, so processes started since are found too.
+    for (const found of await descendantsOf(known.filter(isAlive))) {
+      if (!known.includes(found)) known.push(found);
     }
-  }
+    for (const target of [...known].reverse()) {
+      try {
+        process.kill(target, signal);
+      } catch {
+        // Already gone
+      }
+    }
+  };
+  await signalAll('SIGTERM');
+  if (await waitUntilGone(known, graceMs)) return;
+  await signalAll('SIGKILL');
+  await waitUntilGone(known, graceMs);
 }
 
 /**
  * Run a command without a shell. On Windows, `.cmd` shims such as npm only
  * start through one, so their (fixed, internal) command line goes through
- * cmd.exe there instead. A `timeout` stops the whole process tree, and the
- * promise settles only once the command has exited.
+ * cmd.exe there instead. When `timeout` expires the whole process tree is
+ * stopped (SIGTERM, then SIGKILL after `killGraceMs`), and the promise
+ * settles only once all of it has exited.
  * Resolves `{ stdout, stderr }`; rejects with the error carrying both.
  */
 function runCommand(cmd, args, options = {}) {
-  const { timeout, ...execOptions } = options;
+  const { timeout, killGraceMs = KILL_GRACE_MS, ...execOptions } = options;
   const viaShell = IS_WIN && WINDOWS_SHIMS.has(cmd);
   const file = viaShell ? [cmd, ...args].join(' ') : cmd;
   return new Promise((resolve, reject) => {
     let child = null;
-    let settled = false;
+    let exited = false;
     let timedOut = false;
-    let grace = null;
+    let markStopped;
+    const stopped = new Promise((done) => (markStopped = done));
     const timer = timeout
       ? setTimeout(() => {
           timedOut = true;
-          killTree(child, 'SIGTERM');
-          if (!settled) grace = setTimeout(() => killTree(child, 'SIGKILL'), KILL_GRACE_MS);
+          stopTree(child && child.pid, killGraceMs)
+            .catch(() => {})
+            .then(() => {
+              markStopped();
+              // A process that left the tree before the timeout (it
+              // daemonized) could hold the output pipes open for good.
+              const release = setTimeout(() => {
+                if (exited || !child) return;
+                child.stdout?.destroy();
+                child.stderr?.destroy();
+              }, killGraceMs);
+              release.unref?.();
+            });
         }, timeout)
       : null;
     child = childProcess.execFile(
@@ -100,22 +158,25 @@ function runCommand(cmd, args, options = {}) {
         shell: viaShell,
       },
       (err, stdout, stderr) => {
-        settled = true;
+        exited = true;
         clearTimeout(timer);
-        clearTimeout(grace);
-        if (timedOut) {
-          err = Object.assign(err || new Error(`${cmd} timed out`), {
-            killed: true,
-            signal: (err && err.signal) || 'SIGTERM',
-          });
-        }
-        if (err) {
-          err.stdout = stdout;
-          err.stderr = stderr;
-          reject(err);
-        } else {
-          resolve({ stdout, stderr });
-        }
+        const settle = () => {
+          if (timedOut) {
+            err = Object.assign(err || new Error(`${cmd} timed out`), {
+              killed: true,
+              signal: (err && err.signal) || 'SIGTERM',
+            });
+          }
+          if (err) {
+            err.stdout = stdout;
+            err.stderr = stderr;
+            reject(err);
+          } else {
+            resolve({ stdout, stderr });
+          }
+        };
+        if (timedOut) stopped.then(settle);
+        else settle();
       },
     );
   });

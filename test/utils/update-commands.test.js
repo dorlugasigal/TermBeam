@@ -234,6 +234,61 @@ describe('update-commands', () => {
       },
     );
 
+    // A descendant that ignores SIGTERM and outlives its parent, which
+    // reparents it, like an install script stuck in a native build.
+    async function timeOutStubbornGrandchild(stdio) {
+      const pidFile = path.join(os.tmpdir(), `termbeam-stubborn-${process.pid}-${Date.now()}`);
+      const grandchild = [
+        "process.on('SIGTERM', () => {});",
+        `require('fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));`,
+        'setInterval(() => {}, 1000);',
+      ].join('\n');
+      const script = [
+        "const { spawn } = require('child_process');",
+        `spawn(process.execPath, ['-e', ${JSON.stringify(grandchild)}], { stdio: '${stdio}' });`,
+        'setInterval(() => {}, 1000);',
+      ].join('\n');
+      const started = Date.now();
+      await assert.rejects(
+        runCommand(process.execPath, ['-e', script], { timeout: 1500, killGraceMs: 300 }),
+        { killed: true },
+      );
+      const elapsed = Date.now() - started;
+      const pid = Number(fs.readFileSync(pidFile, 'utf8'));
+      fs.rmSync(pidFile, { force: true });
+      let alive = true;
+      try {
+        process.kill(pid, 0);
+      } catch {
+        alive = false;
+      }
+      if (alive) process.kill(pid, 'SIGKILL');
+      return { alive, elapsed };
+    }
+
+    it(
+      'kills a SIGTERM-resistant descendant that holds the output pipes',
+      {
+        skip: process.platform === 'win32',
+      },
+      async () => {
+        const { alive, elapsed } = await timeOutStubbornGrandchild('inherit');
+        assert.strictEqual(alive, false, 'settles only after the descendant is gone');
+        assert.ok(elapsed < 10_000, `settled after ${elapsed} ms`);
+      },
+    );
+
+    it(
+      'kills a SIGTERM-resistant descendant that closed its output',
+      {
+        skip: process.platform === 'win32',
+      },
+      async () => {
+        const { alive } = await timeOutStubbornGrandchild('ignore');
+        assert.strictEqual(alive, false, 'settles only after the descendant is gone');
+      },
+    );
+
     it('kills the cmd.exe tree with taskkill when a command times out on Windows', async (t) => {
       const platform = Object.getOwnPropertyDescriptor(process, 'platform');
       Object.defineProperty(process, 'platform', { value: 'win32' });
