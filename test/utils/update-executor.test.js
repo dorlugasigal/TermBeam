@@ -101,7 +101,7 @@ describe('update-executor', () => {
       // Start a first update (not awaited). executeUpdate sets status to
       // 'checking-permissions' synchronously before its first await, so the
       // second call will always see a non-idle state.
-      mod.executeUpdate({
+      const first = mod.executeUpdate({
         currentVersion: '1.0.0',
         installCmd: process.execPath,
         installArgs: ['-e', 'process.exit(0)'],
@@ -131,6 +131,8 @@ describe('update-executor', () => {
         /already/i.test(result.error),
         `expected "already in progress", got: ${result.error}`,
       );
+      // Let the first update settle so it can't run into later tests' mocks.
+      await first;
     });
   });
 
@@ -534,6 +536,129 @@ describe('update-executor', () => {
       });
       assert.strictEqual(result.status, 'complete');
       assert.strictEqual(restartCalled, true);
+    });
+  });
+
+  // ── Source checkouts ───────────────────────────────────────────────────────
+
+  describe('executeUpdate (source checkout)', () => {
+    function makeCheckout() {
+      const checkout = fs.mkdtempSync(path.join(os.tmpdir(), 'termbeam-checkout-'));
+      const lock = (packages = {}) =>
+        JSON.stringify({ lockfileVersion: 3, packages: { '': {}, ...packages } });
+      fs.writeFileSync(path.join(checkout, 'package.json'), JSON.stringify({ version: '1.1.0' }));
+      fs.writeFileSync(
+        path.join(checkout, 'package-lock.json'),
+        lock({ 'node_modules/express': { version: '5.3.0' } }),
+      );
+      fs.mkdirSync(path.join(checkout, 'node_modules', 'express'), { recursive: true });
+      fs.writeFileSync(
+        path.join(checkout, 'node_modules', 'express', 'package.json'),
+        JSON.stringify({ version: '5.3.0' }),
+      );
+      fs.mkdirSync(path.join(checkout, 'src', 'frontend'), { recursive: true });
+      fs.writeFileSync(path.join(checkout, 'src', 'frontend', 'package-lock.json'), lock());
+      return checkout;
+    }
+
+    function run(mod, checkout, extra = {}) {
+      return mod.executeUpdate({
+        currentVersion: '1.0.0',
+        installCmd: null,
+        installArgs: null,
+        command: 'git pull && npm install && npm run build:frontend && pm2 restart termbeam',
+        method: 'source',
+        restartStrategy: 'pm2',
+        cwd: checkout,
+        ...extra,
+      });
+    }
+
+    it('pulls, rebuilds and restarts without reinstalling matching dependencies', async (t) => {
+      const checkout = makeCheckout();
+      t.after(() => fs.rmSync(checkout, { recursive: true, force: true }));
+      const cp = require('child_process');
+      const calls = [];
+      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
+        calls.push(`${cmd} ${args.join(' ')}`);
+        cb(null, cmd === 'git' && args[0] === 'rev-parse' ? 'abc1234\n' : '', '');
+      });
+      delete require.cache[require.resolve('../../src/utils/update-executor')];
+      const mod = require('../../src/utils/update-executor');
+      const phases = [];
+      let restarted = false;
+      const result = await run(mod, checkout, {
+        onProgress: (s) => phases.push(s.phase),
+        performRestart: async () => {
+          restarted = true;
+        },
+      });
+
+      assert.strictEqual(result.status, 'complete');
+      assert.strictEqual(result.toVersion, '1.1.0');
+      assert.strictEqual(restarted, true);
+      assert.deepStrictEqual(calls, [
+        'git --version',
+        'git rev-parse HEAD',
+        'git pull --ff-only',
+        'git rev-parse HEAD',
+        'npm run build',
+      ]);
+      assert.ok(phases.includes('Pulling the latest code...'));
+      assert.ok(phases.includes('Building the web app...'));
+    });
+
+    it('fails with a one-line reason the banner can show', async (t) => {
+      const checkout = makeCheckout();
+      t.after(() => fs.rmSync(checkout, { recursive: true, force: true }));
+      const cp = require('child_process');
+      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
+        if (cmd === 'git' && args[0] === 'pull') {
+          const err = Object.assign(new Error('Command failed: git pull --ff-only'), { code: 1 });
+          return cb(
+            err,
+            '',
+            'error: Your local changes to the following files would be overwritten by merge:\n\tREADME.md',
+          );
+        }
+        cb(null, cmd === 'git' && args[0] === 'rev-parse' ? 'abc1234\n' : '', '');
+      });
+      delete require.cache[require.resolve('../../src/utils/update-executor')];
+      const mod = require('../../src/utils/update-executor');
+      const result = await run(mod, checkout);
+
+      assert.strictEqual(result.status, 'failed');
+      assert.strictEqual(
+        result.error,
+        'git pull failed: Your local changes to the following files would be overwritten by merge. Commit or stash local changes, then retry.',
+      );
+    });
+
+    it('records registry warnings for the startup banner', async (t) => {
+      const checkout = makeCheckout();
+      t.after(() => fs.rmSync(checkout, { recursive: true, force: true }));
+      fs.writeFileSync(
+        path.join(checkout, 'node_modules', 'express', 'package.json'),
+        JSON.stringify({ version: '5.2.1' }),
+      );
+      const cp = require('child_process');
+      t.mock.method(cp, 'execFile', (cmd, args, opts, cb) => {
+        if (cmd === 'npm' && args[0] === 'install') {
+          const stderr =
+            'npm error code E404\nnpm error 404 Not Found - GET https://mirror.example.com/npm/express/-/express-5.3.0.tgz';
+          return cb(Object.assign(new Error('Command failed'), { code: 1 }), '', stderr);
+        }
+        if (cmd === 'npm' && args[0] === 'ls') return cb(null, '{"problems":[]}', '');
+        cb(null, cmd === 'git' && args[0] === 'rev-parse' ? 'abc1234\n' : '', '');
+      });
+      delete require.cache[require.resolve('../../src/utils/update-executor')];
+      const mod = require('../../src/utils/update-executor');
+      const result = await run(mod, checkout);
+
+      assert.strictEqual(result.status, 'complete');
+      assert.deepStrictEqual(mod.readUpdateResult().warnings, [
+        "npm install failed: express-5.3.0.tgz isn't available from mirror.example.com (E404). Registry mirrors can lag behind npmjs.org; try again later.",
+      ]);
     });
   });
 

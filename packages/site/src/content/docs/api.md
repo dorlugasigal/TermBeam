@@ -678,7 +678,9 @@ When no update is available or the check fails, `updateAvailable` is `false` and
 
 #### `POST /api/update`
 
-Trigger an in-app update. Only works when `canAutoUpdate` is `true` (npm/yarn/pnpm global installs). Rate-limited to 1 request per 5 minutes.
+Trigger an in-app update. Only works when `canAutoUpdate` is `true` (npm/yarn/pnpm global installs, and git checkouts running under PM2). Rate-limited to 1 request per 5 minutes.
+
+For a git checkout, the server fast-forwards the branch (`git pull --ff-only`), runs `npm install --no-save` only where `node_modules` no longer matches `package-lock.json` (the server's runtime packages, and everything the web app build needs), rebuilds the web app and restarts through PM2. If the npm registry can't serve a new package, such as a mirror that lags behind npmjs.org, the update continues while the installed packages still satisfy `package.json`, and the startup log lists what was skipped. A failed step reports a one-line `error`, for example `git pull failed: Not possible to fast-forward, aborting. Local commits block a fast-forward; update this checkout by hand.`
 
 **Response (success):**
 
@@ -1404,7 +1406,7 @@ Sent during an in-app update (triggered via `POST /api/update`). Allows the fron
 }
 ```
 
-The `status` field follows the same values as `GET /api/update/status`. When `status` reaches `restarting`, the WebSocket connection will close shortly after (close code 1012 for non-PM2 installs).
+The `status` field follows the same values as `GET /api/update/status`. Git checkouts move through the `phase` values `Pulling the latest code...`, `Installing dependencies...`, `Installing web app dependencies...` and `Building the web app...` (install phases appear only when needed). When `status` reaches `restarting`, the WebSocket connection will close shortly after (close code 1012 for non-PM2 installs).
 
 #### Tunnel Status
 

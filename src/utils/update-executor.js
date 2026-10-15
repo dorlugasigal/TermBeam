@@ -1,8 +1,9 @@
-const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const log = require('./logger');
+const { runCommand, describeFailure, logFailure } = require('./update-commands');
+const { updateSourceCheckout } = require('./source-update');
 
 const INSTALL_TIMEOUT_MS = 120_000; // 2 minutes for npm install
 const VERIFY_TIMEOUT_MS = 5_000;
@@ -74,7 +75,7 @@ async function checkPermissions(method) {
   // Source installs use git, not a package manager
   if (method === 'source') {
     try {
-      await execFilePromise('git', ['--version'], { timeout: VERIFY_TIMEOUT_MS });
+      await runCommand('git', ['--version'], { timeout: VERIFY_TIMEOUT_MS });
     } catch {
       return { canUpdate: false, reason: 'git not found on PATH' };
     }
@@ -85,7 +86,7 @@ async function checkPermissions(method) {
 
   // Check if the package manager is available by running it directly
   try {
-    await execFilePromise(cmd, ['--version'], { timeout: VERIFY_TIMEOUT_MS });
+    await runCommand(cmd, ['--version'], { timeout: VERIFY_TIMEOUT_MS });
   } catch {
     return { canUpdate: false, reason: `${cmd} not found on PATH` };
   }
@@ -95,7 +96,7 @@ async function checkPermissions(method) {
     try {
       // Use `npm root -g` for the actual global node_modules path (cross-platform)
       const globalRoot = (
-        await execFilePromise('npm', ['root', '-g'], { timeout: VERIFY_TIMEOUT_MS })
+        await runCommand('npm', ['root', '-g'], { timeout: VERIFY_TIMEOUT_MS })
       ).stdout.trim();
       await fs.promises.access(globalRoot, fs.constants.W_OK);
     } catch {
@@ -172,20 +173,34 @@ async function executeUpdate({
     }
 
     // Step 2: Install
-    notify({ status: 'installing', phase: 'Installing update...', progress: '' });
+    let warnings = [];
+    if (method === 'source') {
+      notify({ status: 'installing', phase: 'Pulling the latest code...', progress: '' });
+      log.info(`Updating source checkout in ${cwd}`);
+      ({ warnings } = await updateSourceCheckout({ cwd, onPhase: (phase) => notify({ phase }) }));
+    } else {
+      notify({ status: 'installing', phase: 'Installing update...', progress: '' });
+      log.info(`Executing update: ${command}`);
 
-    log.info(`Executing update: ${command}`);
+      let result;
+      try {
+        result = await runCommand(installCmd, installArgs, {
+          timeout: INSTALL_TIMEOUT_MS,
+          maxBuffer: 10 * 1024 * 1024, // 10 MB — package manager installs can be verbose
+          env: { ...process.env, NO_UPDATE_NOTIFIER: '1' },
+          cwd: cwd || undefined,
+        });
+      } catch (err) {
+        logFailure('Installing the update', err);
+        throw new Error(
+          describeFailure('Installing the update', err, { timeoutMs: INSTALL_TIMEOUT_MS }),
+        );
+      }
 
-    const { stdout, stderr } = await execFilePromise(installCmd, installArgs, {
-      timeout: INSTALL_TIMEOUT_MS,
-      maxBuffer: 10 * 1024 * 1024, // 10 MB — package manager installs can be verbose
-      env: { ...process.env, NO_UPDATE_NOTIFIER: '1' },
-      cwd: cwd || undefined,
-    });
-
-    const output = (stdout + '\n' + stderr).trim();
-    notify({ progress: output.slice(-500) }); // Keep last 500 chars
-    log.debug(`Install output: ${output.slice(0, 200)}`);
+      const output = (result.stdout + '\n' + result.stderr).trim();
+      notify({ progress: output.slice(-500) }); // Keep last 500 chars
+      log.debug(`Install output: ${output.slice(0, 200)}`);
+    }
 
     // Step 3: Verify
     notify({ status: 'verifying', phase: 'Verifying update...' });
@@ -216,7 +231,7 @@ async function executeUpdate({
     notify({ toVersion: newVersion });
 
     // Step 4: Write result marker for post-restart verification
-    writeUpdateResult({ fromVersion: currentVersion, toVersion: newVersion });
+    writeUpdateResult({ fromVersion: currentVersion, toVersion: newVersion, warnings });
 
     // Step 5: Restart
     notify({ status: 'restarting', phase: `Update to v${newVersion} complete. Restarting...` });
@@ -270,7 +285,7 @@ async function verifyInstalledVersion(method, cwd) {
       args = ['list', '-g', 'termbeam', '--json'];
     }
 
-    const { stdout } = await execFilePromise(cmd, args, { timeout: VERIFY_TIMEOUT_MS });
+    const { stdout } = await runCommand(cmd, args, { timeout: VERIFY_TIMEOUT_MS });
 
     if (cmd === 'npm') {
       const data = JSON.parse(stdout);
@@ -289,7 +304,7 @@ async function verifyInstalledVersion(method, cwd) {
 
   // Fallback: try running the new termbeam binary directly
   try {
-    const { stdout } = await execFilePromise('termbeam', ['--version'], {
+    const { stdout } = await runCommand('termbeam', ['--version'], {
       timeout: VERIFY_TIMEOUT_MS,
     });
     const match = stdout.trim().match(/(\d+\.\d+\.\d+)/);
@@ -303,15 +318,13 @@ async function verifyInstalledVersion(method, cwd) {
 
 // ── Update Result Marker ─────────────────────────────────────────────────────
 
-function writeUpdateResult({ fromVersion, toVersion }) {
+function writeUpdateResult({ fromVersion, toVersion, warnings = [] }) {
   try {
     const resultPath = getUpdateResultPath();
     fs.mkdirSync(path.dirname(resultPath), { recursive: true });
-    fs.writeFileSync(
-      resultPath,
-      JSON.stringify({ fromVersion, toVersion, updatedAt: Date.now() }) + '\n',
-      { mode: 0o600 },
-    );
+    const result = { fromVersion, toVersion, updatedAt: Date.now() };
+    if (warnings.length) result.warnings = warnings;
+    fs.writeFileSync(resultPath, JSON.stringify(result) + '\n', { mode: 0o600 });
   } catch (err) {
     log.debug(`Could not write update result: ${err.message}`);
   }
@@ -336,25 +349,6 @@ function clearUpdateResult() {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-function execFilePromise(cmd, args, options = {}) {
-  return new Promise((resolve, reject) => {
-    execFile(
-      cmd,
-      args,
-      { encoding: 'utf8', windowsHide: true, ...options },
-      (err, stdout, stderr) => {
-        if (err) {
-          err.stdout = stdout;
-          err.stderr = stderr;
-          reject(err);
-        } else {
-          resolve({ stdout, stderr });
-        }
-      },
-    );
-  });
-}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));

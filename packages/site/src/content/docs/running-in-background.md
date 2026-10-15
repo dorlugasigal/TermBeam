@@ -139,6 +139,15 @@ pm2 stop termbeam
 pm2 delete termbeam
 ```
 
+### Updating
+
+When a new version is out, the update banner's **Update Now** installs it and restarts the service, so open sessions end:
+
+- **Global install** (`npm install -g termbeam`): runs `npm install -g termbeam@latest`, then `pm2 restart termbeam`.
+- **Git checkout** started with PM2: fast-forwards the checkout, installs dependencies only where `package-lock.json` moved past what's in `node_modules` (without rewriting the lockfile), rebuilds the web app, then restarts.
+
+If your npm registry can't serve a new package yet (company mirrors can lag behind npmjs.org), a git-checkout update still goes ahead as long as the installed packages satisfy `package.json`; the startup log lists what was skipped. If a step fails, the banner shows a one-line reason and **Copy command** gives you the manual equivalent.
+
 ### Start on Boot
 
 ```bash

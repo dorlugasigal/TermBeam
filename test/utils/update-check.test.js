@@ -494,12 +494,9 @@ describe('update-check', () => {
           result.command,
           'git pull && npm install && npm run build:frontend && pm2 restart termbeam',
         );
-        assert.deepEqual(result.installArgs, [
-          process.platform === 'win32' ? '/c' : '-c',
-          'git pull && npm install && npm run build:frontend',
-        ]);
-        assert.ok(result.installCmd, 'should have installCmd for auto-update');
-        assert.ok(result.installArgs, 'should have installArgs for auto-update');
+        // source-update.js runs the steps itself instead of a shell one-liner
+        assert.equal(result.installCmd, null);
+        assert.equal(result.installArgs, null);
         assert.ok(result.cwd, 'should include cwd for source install');
       } finally {
         if (origPm2Home !== undefined) process.env.PM2_HOME = origPm2Home;

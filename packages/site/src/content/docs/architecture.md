@@ -43,6 +43,8 @@ termbeam/
 │   │   ├── version.js           # Smart version detection
 │   │   ├── update-check.js      # npm update checking & install method detection
 │   │   ├── update-executor.js   # In-app update engine (state machine, permissions)
+│   │   ├── update-commands.js   # Runs update commands; one-line failure reasons
+│   │   ├── source-update.js     # Git-checkout updates (pull, install on drift, rebuild)
 │   │   ├── agents.js            # AI agent (Copilot/Claude/etc) detection
 │   │   ├── agent-sessions.js    # Tracks active agent-launched sessions
 │   │   └── vapid.js             # VAPID key generation & persistence
