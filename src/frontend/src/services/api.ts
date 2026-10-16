@@ -1,5 +1,6 @@
 import type { Session, CreateSessionRequest } from '@/types';
 import type { FileTreeNode } from '@/stores/codeViewerStore';
+import { getDownloadFilename } from '@/utils/downloadFilename';
 
 const BASE = '';
 const DEFAULT_TIMEOUT = 10_000;
@@ -714,8 +715,7 @@ export function downloadFileWithProgress(
         const a = document.createElement('a');
         a.href = blobUrl;
         const disposition = xhr.getResponseHeader('Content-Disposition');
-        const match = disposition?.match(/filename="(.+?)"/);
-        a.download = match?.[1] ?? filePath.split('/').pop() ?? 'download';
+        a.download = getDownloadFilename(disposition, filePath);
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
