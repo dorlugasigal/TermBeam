@@ -15,6 +15,7 @@ describe('CLI', () => {
     delete process.env.PTY_CWD;
     delete process.env.PORT;
     delete process.env.TERMBEAM_PUBLIC_URL;
+    delete process.env.TERMBEAM_FONT;
   });
 
   afterEach(() => {
@@ -108,6 +109,51 @@ describe('CLI', () => {
     const { parseArgs } = require('../../src/cli');
     const config = parseArgs();
     assert.strictEqual(config.host, '0.0.0.0');
+  });
+
+  it('should default to the bundled terminal font', () => {
+    process.argv = ['node', 'termbeam'];
+    assert.strictEqual(require('../../src/cli').parseArgs().font, null);
+  });
+
+  it('should resolve --font relative to the server working directory', () => {
+    const path = require('path');
+    process.argv = ['node', 'termbeam', '--font', 'fonts/한글 regular.woff2', '/bin/sh'];
+    const config = require('../../src/cli').parseArgs();
+    assert.strictEqual(config.font, path.resolve('fonts/한글 regular.woff2'));
+    assert.strictEqual(config.shell, '/bin/sh');
+  });
+
+  it('should read TERMBEAM_FONT and let --font= override it without losing equals signs', () => {
+    const path = require('path');
+    process.env.TERMBEAM_FONT = 'env.woff2';
+    process.argv = ['node', 'termbeam'];
+    const { parseArgs } = require('../../src/cli');
+    assert.strictEqual(parseArgs().font, path.resolve('env.woff2'));
+    process.argv.push('--font=fonts/custom=regular.woff2');
+    assert.strictEqual(parseArgs().font, path.resolve('fonts/custom=regular.woff2'));
+  });
+
+  it('should reject --font with an empty or missing path', () => {
+    const { mock } = require('node:test');
+    const exit = mock.method(process, 'exit', () => {});
+    const error = mock.method(console, 'error', () => {});
+    try {
+      for (const args of [['--font'], ['--font='], ['--font', '--no-tunnel']]) {
+        process.argv = ['node', 'termbeam', ...args];
+        require('../../src/cli').parseArgs();
+      }
+      assert.deepStrictEqual(
+        exit.mock.calls.map(({ arguments: args }) => args[0]),
+        [1, 1, 1],
+      );
+      assert.ok(
+        error.mock.calls.every(({ arguments: args }) => args[0].includes('WOFF2 file path')),
+      );
+    } finally {
+      exit.mock.restore();
+      error.mock.restore();
+    }
   });
 
   it('should parse --tunnel flag', () => {

@@ -341,7 +341,12 @@ export async function checkAuth(): Promise<{
   };
 }
 
-export async function getConfig(): Promise<{ passwordRequired: boolean }> {
+export interface ServerConfig {
+  passwordRequired: boolean;
+  terminalFontUrl?: string;
+}
+
+export async function getConfig(): Promise<ServerConfig> {
   try {
     const res = await fetchWithTimeout(`${BASE}/api/config`, { credentials: 'same-origin' });
     const ct = res.headers.get('content-type') || '';
@@ -349,7 +354,7 @@ export async function getConfig(): Promise<{ passwordRequired: boolean }> {
       // Non-JSON response (DevTunnel auth page, etc.) — assume password required (safe default)
       return { passwordRequired: true };
     }
-    return (await res.json()) as { passwordRequired: boolean };
+    return (await res.json()) as ServerConfig;
   } catch {
     return { passwordRequired: true };
   }

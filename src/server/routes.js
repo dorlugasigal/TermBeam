@@ -111,7 +111,7 @@ function validateMagicBytes(buffer, contentType) {
 
 function setupRoutes(
   app,
-  { auth, sessions, config, state, pushManager, copilotService, configDir },
+  { auth, sessions, config, state, pushManager, copilotService, configDir, terminalFont },
 ) {
   const noopLimit = (_req, _res, next) => next();
   const pageRateLimit = config.disableRateLimit
@@ -206,7 +206,18 @@ function setupRoutes(
 
   // Public config — no auth required
   app.get('/api/config', (_req, res) => {
-    res.json({ passwordRequired: !!auth.password });
+    res.json({
+      passwordRequired: !!auth.password,
+      ...(terminalFont ? { terminalFontUrl: terminalFont.url } : {}),
+    });
+  });
+
+  app.get('/api/terminal-font/:revision', apiRateLimit, auth.middleware, (req, res) => {
+    if (!terminalFont || req.path !== terminalFont.url) {
+      return res.status(404).json({ error: 'Terminal font not found' });
+    }
+    res.set('Cache-Control', 'private, max-age=31536000, immutable');
+    res.type('font/woff2').send(terminalFont.data);
   });
 
   // Update check API

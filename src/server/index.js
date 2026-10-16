@@ -12,6 +12,7 @@ const { parseArgs } = require('../cli');
 const { createAuth } = require('./auth');
 const { SessionManager } = require('./sessions');
 const { setupRoutes, cleanupUploadedFiles } = require('./routes');
+const { loadTerminalFont } = require('./terminal-font');
 const { setupWebSocket, broadcast } = require('./websocket');
 const { createCsrfGuard } = require('./origin');
 const {
@@ -57,6 +58,7 @@ function confirmPublicTunnel() {
  */
 function createTermBeamServer(overrides = {}) {
   const config = overrides.config || parseArgs();
+  const terminalFont = loadTerminalFont(config.font);
   const log = require('../utils/logger');
   if (config.logLevel) log.setLevel(config.logLevel);
   const configDir =
@@ -141,7 +143,16 @@ function createTermBeamServer(overrides = {}) {
     getLoginInfo: getCachedLoginInfo,
   };
   app.use('/preview', auth.middleware, createPreviewProxy());
-  setupRoutes(app, { auth, sessions, config, state, pushManager, copilotService, configDir });
+  setupRoutes(app, {
+    auth,
+    sessions,
+    config,
+    state,
+    pushManager,
+    copilotService,
+    configDir,
+    terminalFont,
+  });
   setupWebSocket(wss, { auth, sessions, copilotService, getPublicUrl: trustedUrls });
 
   // --- Lifecycle ---
