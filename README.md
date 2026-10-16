@@ -50,6 +50,7 @@ Scan the QR code printed in your terminal, or open the URL on any device.
 termbeam                        # tunnel + auto-password (default)
 termbeam --password mysecret    # custom password
 termbeam --no-tunnel            # LAN only
+termbeam --font /path/to/font.woff2 # Custom terminal font served to every device
 termbeam -i                     # interactive setup wizard
 ```
 

@@ -636,9 +636,21 @@ Get public server configuration. No authentication required.
 { "passwordRequired": true }
 ```
 
-| Field              | Type    | Description                                    |
-| ------------------ | ------- | ---------------------------------------------- |
-| `passwordRequired` | boolean | Whether the server requires password to access |
+| Field              | Type    | Description                                                               |
+| ------------------ | ------- | ------------------------------------------------------------------------- |
+| `passwordRequired` | boolean | Whether the server requires password to access                            |
+| `terminalFontUrl`  | string  | Present when `--font` is configured; same-origin URL of the terminal font |
+
+#### `GET /api/terminal-font/:revision`
+
+Serve the WOFF2 terminal font configured with `--font`. The URL is returned in
+`GET /api/config` as `terminalFontUrl`; it contains a hash of the font contents
+rather than its filesystem path. Requires authentication when enabled.
+
+**Response (200):** Original font bytes with `Content-Type: font/woff2` and
+`Cache-Control: private, max-age=31536000, immutable`.
+
+**Response (404):** No custom font is configured, or the revision does not match.
 
 #### `GET /api/update-check`
 

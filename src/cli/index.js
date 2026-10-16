@@ -32,6 +32,7 @@ Options:
   --public              Allow public tunnel access (default: private, owner-only)
   --port <port>         Set port (default: 3456, or PORT env var)
   --host <addr>         Bind address (default: 127.0.0.1)
+  --font <path>         Serve a local WOFF2 file as the terminal font
   --public-url <url>    Address browsers use when behind your own reverse proxy
                         (e.g. https://term.example.com); trusted for sign-in,
                         passkeys and WebSockets (or TERMBEAM_PUBLIC_URL)
@@ -67,6 +68,7 @@ Environment:
   TERMBEAM_CWD          Working directory
   TERMBEAM_LOG_LEVEL    Log level (default: info)
   TERMBEAM_PUBLIC_URL   Public address behind a reverse proxy (see --public-url)
+  TERMBEAM_FONT         Local WOFF2 terminal font (see --font)
 `);
 }
 
@@ -290,6 +292,7 @@ function parseArgs() {
   let force = false;
   let resetAuth = false;
   let publicUrl = process.env.TERMBEAM_PUBLIC_URL || null;
+  let font = process.env.TERMBEAM_FONT || null;
   let explicitPassword = !!password;
 
   const args = process.argv.slice(2);
@@ -352,6 +355,13 @@ function parseArgs() {
       publicUrl = args[++i];
     } else if (args[i].startsWith('--public-url=')) {
       publicUrl = args[i].slice('--public-url='.length);
+    } else if (args[i] === '--font' || args[i].startsWith('--font=')) {
+      font = args[i] === '--font' ? args[++i] : args[i].slice('--font='.length);
+      if (!font || font.startsWith('--')) {
+        console.error('Error: --font requires a local WOFF2 file path\n');
+        process.exit(1);
+        return;
+      }
     } else if (args[i].startsWith('--')) {
       console.error(`Unknown flag: ${args[i]}\n`);
       printHelp();
@@ -438,6 +448,7 @@ function parseArgs() {
     force,
     resetAuth,
     publicUrl,
+    font: font ? path.resolve(font) : null,
   };
 
   log.debug(

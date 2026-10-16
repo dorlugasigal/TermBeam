@@ -7,7 +7,7 @@ import { CanvasAddon } from '@xterm/addon-canvas';
 import { useThemeStore } from '@/stores/themeStore';
 import { useUIStore } from '@/stores/uiStore';
 import { getTerminalTheme } from '@/themes/terminalThemes';
-import nerdFontUrl from '@/assets/JetBrainsMonoNerdFont-Regular.ttf?url';
+import { DEFAULT_FONT_FAMILY, loadTerminalFont } from '@/services/terminalFont';
 import '@xterm/xterm/css/xterm.css';
 
 export interface UseXTermOptions {
@@ -106,12 +106,10 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     const container = terminalRef.current;
     if (!container) return;
 
-    const FONT_FAMILY =
-      "'NerdFont', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Menlo', 'Consolas', monospace";
     const theme = getTerminalTheme(themeId);
     const term = new Terminal({
       cursorBlink: true,
-      fontFamily: FONT_FAMILY,
+      fontFamily: DEFAULT_FONT_FAMILY,
       fontSize,
       scrollback: 10_000,
       fontWeight: 'normal',
@@ -225,14 +223,11 @@ export function useXTerm(options: UseXTermOptions = {}): UseXTermReturn {
     setFitAddon(fitAddonInstance);
     setSearchAddon(search);
 
-    const font = new FontFace('NerdFont', `url(${nerdFontUrl})`);
-    font
-      .load()
-      .then((loadedFont) => {
+    loadTerminalFont()
+      .then((fontFamily) => {
         if (disposed) return;
-        document.fonts.add(loadedFont);
         if (termRef.current) {
-          termRef.current.options.fontFamily = FONT_FAMILY;
+          termRef.current.options.fontFamily = fontFamily;
           try {
             customFitRef.current();
           } catch {

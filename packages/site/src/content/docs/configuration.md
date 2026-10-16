@@ -16,6 +16,7 @@ description: All TermBeam CLI flags and options — ports, passwords, tunnels, s
 | `--public`            | Allow public tunnel access (no Microsoft login required)                                                      | Off            |
 | `--port <port>`       | Server port (must be 1-65535)                                                                                 | `3456`         |
 | `--host <addr>`       | Bind address                                                                                                  | `127.0.0.1`    |
+| `--font <path>`       | Serve a local WOFF2 terminal font to all connected devices                                                    | Bundled font   |
 | `--lan`               | Bind to all interfaces (LAN access)                                                                           | Off            |
 | `--public-url <url>`  | The address browsers use when TermBeam sits behind your own reverse proxy (e.g. `https://term.example.com`)   | —              |
 | `-i, --interactive`   | Interactive setup wizard — walks through password, port, access mode (tunnel type, visibility), and log level | Off            |
@@ -35,6 +36,7 @@ description: All TermBeam CLI flags and options — ports, passwords, tunnels, s
 | `TERMBEAM_LOG_LEVEL`  | Log level                                                     | `info`            |
 | `TERMBEAM_CONFIG_DIR` | Location for `connection.json`, `auth.json` and other config  | `~/.termbeam/`    |
 | `TERMBEAM_PUBLIC_URL` | Same as `--public-url` (the flag wins when both are set)      | None              |
+| `TERMBEAM_FONT`       | Local WOFF2 terminal font path (`--font` takes precedence)    | Bundled font      |
 | `SHELL`               | Fallback shell on Unix (used only if auto-detection fails)    | `/bin/sh`         |
 | `COMSPEC`             | Fallback shell on Windows (used only if auto-detection fails) | `cmd.exe`         |
 
@@ -61,6 +63,32 @@ The environment variables `PTY_PASSWORD` and `PTY_CWD` are also supported as fal
 | `auth.json`       | Remembered device sessions (SHA-256 hashes only), passkey public keys, and a scrypt fingerprint of the password. Mode `0600`. Run `--reset-auth` (or delete it while TermBeam is stopped) to sign out every device and remove every passkey. |
 | `prefs.json`      | UI preferences synced from Settings.                                                                                                                                                                                                         |
 | `tunnel.json`     | The reusable tunnel id for `--persisted-tunnel` (always in `~/.termbeam`).                                                                                                                                                                   |
+
+## Custom Terminal Font
+
+Use `--font` to serve a local WOFF2 font to every device that connects to the server:
+
+```bash
+termbeam --font /path/to/your-monospace-font.woff2
+
+# Environment variable alternative (the flag takes precedence)
+TERMBEAM_FONT=/path/to/your-monospace-font.woff2 termbeam
+```
+
+Relative paths are resolved from the server's working directory. Paths with spaces
+should be quoted. Choose a monospace font with the glyphs you need; the bundled
+Nerd Font remains available as a fallback for missing glyphs and icons. Browsers
+synthesize bold text from the supplied font.
+
+The font is served from the same origin as TermBeam and requires the same
+authentication. No separate font hosting, frontend rebuild, or browser installation
+is needed. The API exposes an opaque font URL rather than the local filesystem
+path. Without this option, TermBeam uses its bundled font as before.
+
+An unreadable file, a non-WOFF2 extension, or an invalid WOFF2 header prevents the
+server from starting. If a browser cannot load the font, it uses the bundled font
+or the system monospace fallback. Restart TermBeam and reload the page after
+changing the font file; its content-based URL ensures the new version is loaded.
 
 ## Settings (UI)
 
