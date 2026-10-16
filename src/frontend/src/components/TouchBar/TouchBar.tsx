@@ -211,7 +211,7 @@ export default function TouchBar() {
   const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const micTouchStartY = useRef<number | null>(null);
-  const { keyboardOpen, keyboardHeight } = useMobileKeyboard();
+  const { keyboardOpen } = useMobileKeyboard();
   const barRef = useRef<HTMLDivElement>(null);
   const isLandscapeTight =
     typeof window !== 'undefined' &&
@@ -461,8 +461,7 @@ export default function TouchBar() {
       // Refocus terminal after sending key. On mobile, only refocus when
       // the virtual keyboard is already open (avoids popping it up when
       // the user is deliberately using just the touch bar).
-      const mobileKeyboardOpen = keyboardHeight > 0;
-      if (window.matchMedia?.('(pointer: fine)')?.matches || mobileKeyboardOpen) {
+      if (window.matchMedia?.('(pointer: fine)')?.matches || keyboardOpen) {
         refocusTerminal();
       }
 
@@ -478,7 +477,7 @@ export default function TouchBar() {
       handleCopy,
       handlePaste,
       haptics,
-      keyboardHeight,
+      keyboardOpen,
       setCtrlActive,
       setShiftActive,
     ],
