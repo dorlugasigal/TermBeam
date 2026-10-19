@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 interface MobileKeyboardState {
   keyboardOpen: boolean;
+  /** Bottom inset still needed after the browser's own layout resize/pan. */
   keyboardHeight: number;
 }
 
@@ -55,9 +56,18 @@ export function useMobileKeyboard(): MobileKeyboardState {
         const isOpen = diff > KEYBOARD_THRESHOLD;
         setState({
           keyboardOpen: isOpen,
-          keyboardHeight: isOpen ? diff : 0,
+          keyboardHeight: isOpen ? bottomInset() : 0,
         });
       }, 500);
+    }
+
+    function bottomInset() {
+      // With interactive-widget=resizes-content, Android browsers already
+      // shrink 100dvh and fixed-position surfaces. Subtracting the full
+      // baseline difference again can collapse a terminal to a single row.
+      // Only lift surfaces by the portion still occluding the layout viewport;
+      // offsetTop also accounts for browser panning to reveal the textarea.
+      return Math.max(0, Math.round(window.innerHeight - vv!.height - vv!.offsetTop));
     }
 
     function onResize() {
@@ -81,7 +91,7 @@ export function useMobileKeyboard(): MobileKeyboardState {
       const isOpen = diff > KEYBOARD_THRESHOLD;
       setState({
         keyboardOpen: isOpen,
-        keyboardHeight: isOpen ? diff : 0,
+        keyboardHeight: isOpen ? bottomInset() : 0,
       });
     }
 
@@ -90,6 +100,8 @@ export function useMobileKeyboard(): MobileKeyboardState {
     }
 
     vv.addEventListener('resize', onResize);
+    vv.addEventListener('scroll', onResize);
+    window.addEventListener('resize', onResize);
 
     const orientation = screen.orientation;
     if (orientation) {
@@ -101,6 +113,8 @@ export function useMobileKeyboard(): MobileKeyboardState {
     return () => {
       clearTimeout(rotationTimer);
       vv.removeEventListener('resize', onResize);
+      vv.removeEventListener('scroll', onResize);
+      window.removeEventListener('resize', onResize);
       if (orientation) {
         orientation.removeEventListener('change', onOrientationChange);
       }
