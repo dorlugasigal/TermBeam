@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.25.5] - 2026-10-19
+
+- chore(deps): bump node from `ec7758e` to `0d1e335` in the all-docker group (#335) (@dependabot[bot])
+
 ## [1.25.4] - 2026-10-19
 
 - chore(deps): bump the all-npm group with 3 updates (#336) (@dependabot[bot])
