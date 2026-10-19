@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.25.4] - 2026-10-19
+
+- chore(deps): bump the all-npm group with 3 updates (#336) (@dependabot[bot])
+- chore(ci): bump the all-actions group across 1 directory with 5 updates (#337) (@dependabot[bot])
+
 ## [1.25.3] - 2026-10-19
 
 - fix(download): preserve UTF-8 filenames in progress downloads (#330) (@hided62)
