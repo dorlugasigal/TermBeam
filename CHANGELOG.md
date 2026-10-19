@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.25.3] - 2026-10-19
+
+- fix(download): preserve UTF-8 filenames in progress downloads (#330) (@hided62)
+
 ## [1.25.2] - 2026-10-15
 
 - fix(update): update git checkouts without needless installs (#329) (@dorlugasigal)
