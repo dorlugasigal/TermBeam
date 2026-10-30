@@ -288,6 +288,8 @@ caffeinate -dims termbeam --tunnel --persisted-tunnel
 
 For the **launchd** example above, replace the `ProgramArguments` with `caffeinate -dims /usr/local/bin/termbeam ...`. Flags: `-d` display, `-i` idle, `-m` disk, `-s` system (AC only).
 
+**MacBook with the lid closed:** no `caffeinate` flag stops lid-close sleep: a closed MacBook sleeps unless power, an external display and a keyboard or mouse are connected. Without a display, `sudo pmset -a disablesleep 1` keeps it awake with the lid closed, on battery too. It stays on after a restart until `sudo pmset -a disablesleep 0`, and `pmset -g | grep SleepDisabled` shows `1` while it is on. [Keep Mac Awake](https://keepmacawake.com/?utm_source=github&utm_medium=community&utm_campaign=docs-fix&utm_content=termbeam) turns it on only for a session you start and puts normal sleep back when it ends.
+
 **TCP keepalive across brief sleeps** — recommended for tunnel stability:
 
 ```bash
