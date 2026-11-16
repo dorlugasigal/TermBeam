@@ -78,7 +78,7 @@
     "node-pty": "^1.1.0",
     "qrcode": "^1.5.4",
     "tsx": "^4.21.0",
-    "web-push": "^3.6.7",
+    "web-push": "^4.0.0",
     "ws": "^8.19.0"
   },
   "optionalDependencies": {
